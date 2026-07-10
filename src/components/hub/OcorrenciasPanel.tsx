@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export interface Ocorrencia {
@@ -13,7 +15,7 @@ const RESPONSAVEL_PENDENTE = "— não atribuído";
 
 export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
+    <Card className="gap-0 p-0">
       <div className="border-b border-border px-[18px] py-3.5">
         <h2 className="text-sm font-bold tracking-tight">Ocorrências que precisam de decisão hoje</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -38,16 +40,12 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
                   : "bg-destructive/[0.04]",
               )}
             >
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase",
-                  ocorrencia.severidade === "critico"
-                    ? "bg-destructive text-white"
-                    : "bg-destructive/20 text-destructive",
-                )}
+              <Badge
+                variant={ocorrencia.severidade === "critico" ? "destructive" : "warning"}
+                className="text-[10px] font-bold tracking-wide uppercase"
               >
                 {ocorrencia.severidade === "critico" ? "Crítico" : "Atenção"}
-              </span>
+              </Badge>
 
               <div className="min-w-[220px] flex-1">
                 <div className="font-semibold text-foreground">{ocorrencia.titulo}</div>
@@ -72,6 +70,6 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
