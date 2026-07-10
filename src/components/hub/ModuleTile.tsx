@@ -1,14 +1,11 @@
 import Link from "next/link";
 import { type LucideIcon } from "lucide-react";
+import { Badge, type badgeVariants } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { VariantProps } from "class-variance-authority";
 
-type TomBadge = "sucesso" | "atencao" | "neutro";
-
-const TOM_BADGE: Record<TomBadge, string> = {
-  sucesso: "bg-[color-mix(in_srgb,var(--chart-3)_14%,var(--card))] text-[color:var(--chart-3)]",
-  atencao: "bg-destructive/15 text-destructive",
-  neutro: "bg-muted text-muted-foreground",
-};
+type TomBadge = VariantProps<typeof badgeVariants>["variant"];
 
 interface TileChromeProps {
   icon: LucideIcon;
@@ -40,14 +37,9 @@ function TileChrome({
         >
           <Icon className="size-[18px]" />
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase",
-            TOM_BADGE[badgeTom],
-          )}
-        >
+        <Badge variant={badgeTom} className="text-[10px] font-bold tracking-wide uppercase">
           {badgeLabel}
-        </span>
+        </Badge>
       </div>
       <div className="mt-3 text-[15px] font-bold tracking-tight">{nome}</div>
       <p className="mt-[3px] text-xs leading-tight text-muted-foreground">{descricao}</p>
@@ -82,40 +74,43 @@ export function ModuleTileAtivo({
   const temAtencao = estatisticas.some((e) => e.atencao);
 
   return (
-    <Link
-      href={href}
-      className={cn(
-        "flex min-h-[210px] flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm transition-all hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg",
-        className,
-      )}
-    >
-      <TileChrome
-        icon={icon}
-        nome={nome}
-        descricao={descricao}
-        ativo
-        badgeLabel={temAtencao ? "Urgente" : "Em dia"}
-        badgeTom={temAtencao ? "atencao" : "sucesso"}
+    <Link href={href} className="block">
+      <Card
+        className={cn(
+          "min-h-[210px] gap-0 p-[18px] transition-all hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg",
+          className,
+        )}
       >
-        <div className="mt-4 flex gap-5">
-          {estatisticas.map((estatistica) => (
-            <div key={estatistica.rotulo}>
-              <div
-                className={cn(
-                  "text-2xl leading-none font-extrabold tracking-tight",
-                  estatistica.atencao ? "text-destructive" : "text-foreground",
-                )}
-              >
-                {estatistica.valor}
+        <TileChrome
+          icon={icon}
+          nome={nome}
+          descricao={descricao}
+          ativo
+          badgeLabel={temAtencao ? "Urgente" : "Em dia"}
+          badgeTom={temAtencao ? "warning" : "success"}
+        >
+          <div className="mt-4 flex gap-5">
+            {estatisticas.map((estatistica) => (
+              <div key={estatistica.rotulo}>
+                <div
+                  className={cn(
+                    "text-2xl leading-none font-extrabold tracking-tight",
+                    estatistica.atencao ? "text-destructive" : "text-foreground",
+                  )}
+                >
+                  {estatistica.valor}
+                </div>
+                <div className="mt-1.5 text-[11px] leading-tight font-medium text-muted-foreground">
+                  {estatistica.rotulo}
+                </div>
               </div>
-              <div className="mt-1.5 text-[11px] leading-tight font-medium text-muted-foreground">
-                {estatistica.rotulo}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </TileChrome>
+        <div className="mt-auto pt-3 text-xs font-bold text-secondary">
+          Ver indicadores completos →
         </div>
-      </TileChrome>
-      <div className="mt-auto pt-3 text-xs font-bold text-secondary">Ver indicadores completos →</div>
+      </Card>
     </Link>
   );
 }
@@ -136,19 +131,14 @@ export function ModuleTileMutado({
   larguras = ["70%", "45%"],
 }: ModuleTileMutadoProps) {
   return (
-    <div
-      className={cn(
-        "flex min-h-[210px] flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm",
-        className,
-      )}
-    >
+    <Card className={cn("min-h-[210px] gap-0 p-[18px]", className)}>
       <TileChrome
         icon={icon}
         nome={nome}
         descricao={descricao}
         ativo={false}
         badgeLabel="Em breve"
-        badgeTom="neutro"
+        badgeTom="muted"
       />
       <div className="mt-auto flex flex-col gap-2 pt-3">
         {larguras.map((largura, i) => (
@@ -159,6 +149,6 @@ export function ModuleTileMutado({
           />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
