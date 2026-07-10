@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, type LucideIcon } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TileChromeProps {
@@ -61,7 +61,7 @@ export function ModuleTileAtivo({
     <Link
       href={href}
       className={cn(
-        "flex flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm transition-all hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg",
+        "flex min-h-[210px] flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm transition-all hover:-translate-y-0.5 hover:border-secondary hover:shadow-lg",
         className,
       )}
     >
@@ -89,7 +89,12 @@ export function ModuleTileMutado({
   larguras = ["70%", "45%"],
 }: ModuleTileMutadoProps) {
   return (
-    <div className={cn("flex flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm", className)}>
+    <div
+      className={cn(
+        "flex min-h-[210px] flex-col rounded-xl border border-border bg-card p-[18px] shadow-sm",
+        className,
+      )}
+    >
       <TileChrome icon={icon} nome={nome} descricao={descricao} ativo={false} />
       <div className="mt-auto flex flex-col gap-2 pt-3">
         {larguras.map((largura, i) => (
@@ -100,22 +105,6 @@ export function ModuleTileMutado({
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-export function ModuleTileVazio({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-border text-center text-muted-foreground transition-colors hover:border-secondary hover:text-secondary",
-        className,
-      )}
-    >
-      <div className="flex size-[34px] items-center justify-center rounded-full border-[1.5px] border-dashed border-current">
-        <Plus className="size-4" />
-      </div>
-      <span className="text-xs font-bold">Próximo módulo</span>
     </div>
   );
 }
