@@ -3,7 +3,6 @@ import { Plus, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TileChromeProps {
-  className?: string;
   icon: LucideIcon;
   nome: string;
   descricao: string;
@@ -11,7 +10,7 @@ interface TileChromeProps {
   children?: React.ReactNode;
 }
 
-function TileChrome({ className, icon: Icon, nome, descricao, ativo, children }: TileChromeProps) {
+function TileChrome({ icon: Icon, nome, descricao, ativo, children }: TileChromeProps) {
   return (
     <>
       <div className="flex items-center justify-between gap-2.5">
