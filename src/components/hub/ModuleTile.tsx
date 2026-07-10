@@ -2,15 +2,33 @@ import Link from "next/link";
 import { type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type TomBadge = "sucesso" | "atencao" | "neutro";
+
+const TOM_BADGE: Record<TomBadge, string> = {
+  sucesso: "bg-[color-mix(in_srgb,var(--chart-3)_14%,var(--card))] text-[color:var(--chart-3)]",
+  atencao: "bg-destructive/15 text-destructive",
+  neutro: "bg-muted text-muted-foreground",
+};
+
 interface TileChromeProps {
   icon: LucideIcon;
   nome: string;
   descricao: string;
   ativo: boolean;
+  badgeLabel: string;
+  badgeTom: TomBadge;
   children?: React.ReactNode;
 }
 
-function TileChrome({ icon: Icon, nome, descricao, ativo, children }: TileChromeProps) {
+function TileChrome({
+  icon: Icon,
+  nome,
+  descricao,
+  ativo,
+  badgeLabel,
+  badgeTom,
+  children,
+}: TileChromeProps) {
   return (
     <>
       <div className="flex items-center justify-between gap-2.5">
@@ -25,12 +43,10 @@ function TileChrome({ icon: Icon, nome, descricao, ativo, children }: TileChrome
         <span
           className={cn(
             "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase",
-            ativo
-              ? "bg-[color-mix(in_srgb,var(--chart-3)_14%,var(--card))] text-[color:var(--chart-3)]"
-              : "bg-muted text-muted-foreground",
+            TOM_BADGE[badgeTom],
           )}
         >
-          {ativo ? "Ativo" : "Em breve"}
+          {badgeLabel}
         </span>
       </div>
       <div className="mt-3 text-[15px] font-bold tracking-tight">{nome}</div>
@@ -40,13 +56,19 @@ function TileChrome({ icon: Icon, nome, descricao, ativo, children }: TileChrome
   );
 }
 
+export interface EstatisticaTile {
+  valor: string;
+  rotulo: string;
+  atencao?: boolean;
+}
+
 interface ModuleTileAtivoProps {
   className?: string;
   icon: LucideIcon;
   nome: string;
   descricao: string;
   href: string;
-  children: React.ReactNode;
+  estatisticas: EstatisticaTile[];
 }
 
 export function ModuleTileAtivo({
@@ -55,8 +77,10 @@ export function ModuleTileAtivo({
   nome,
   descricao,
   href,
-  children,
+  estatisticas,
 }: ModuleTileAtivoProps) {
+  const temAtencao = estatisticas.some((e) => e.atencao);
+
   return (
     <Link
       href={href}
@@ -65,8 +89,31 @@ export function ModuleTileAtivo({
         className,
       )}
     >
-      <TileChrome icon={icon} nome={nome} descricao={descricao} ativo>
-        {children}
+      <TileChrome
+        icon={icon}
+        nome={nome}
+        descricao={descricao}
+        ativo
+        badgeLabel={temAtencao ? "Urgente" : "Em dia"}
+        badgeTom={temAtencao ? "atencao" : "sucesso"}
+      >
+        <div className="mt-3 flex flex-1 items-end gap-5">
+          {estatisticas.map((estatistica) => (
+            <div key={estatistica.rotulo}>
+              <div
+                className={cn(
+                  "text-2xl leading-none font-extrabold tracking-tight",
+                  estatistica.atencao ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {estatistica.valor}
+              </div>
+              <div className="mt-1 text-[11px] leading-tight font-medium text-muted-foreground">
+                {estatistica.rotulo}
+              </div>
+            </div>
+          ))}
+        </div>
       </TileChrome>
       <div className="mt-2.5 text-xs font-bold text-secondary">Ver indicadores completos →</div>
     </Link>
@@ -95,7 +142,14 @@ export function ModuleTileMutado({
         className,
       )}
     >
-      <TileChrome icon={icon} nome={nome} descricao={descricao} ativo={false} />
+      <TileChrome
+        icon={icon}
+        nome={nome}
+        descricao={descricao}
+        ativo={false}
+        badgeLabel="Em breve"
+        badgeTom="neutro"
+      />
       <div className="mt-auto flex flex-col gap-2 pt-3">
         {larguras.map((largura, i) => (
           <div
