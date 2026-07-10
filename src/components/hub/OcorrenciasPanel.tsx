@@ -31,11 +31,11 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
             <li
               key={i}
               className={cn(
-                "flex flex-wrap items-center gap-x-6 gap-y-1.5 border-l-[3px] px-[15px] py-3 text-sm",
+                "flex flex-wrap items-center gap-x-6 gap-y-1.5 px-[18px] py-3 text-sm",
                 i < ocorrencias.length - 1 && "border-b border-b-border",
                 ocorrencia.severidade === "critico"
-                  ? "border-l-destructive bg-destructive/[0.08]"
-                  : "border-l-destructive/50 bg-destructive/[0.04]",
+                  ? "bg-destructive/[0.08]"
+                  : "bg-destructive/[0.04]",
               )}
             >
               <span
