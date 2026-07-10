@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -32,11 +33,21 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage() {
+function MensagemErro() {
   const searchParams = useSearchParams();
   const erro = searchParams.get("error");
   const mensagemErro = erro ? (MENSAGENS_ERRO[erro] ?? MENSAGENS_ERRO.Default) : null;
 
+  if (!mensagemErro) return null;
+
+  return (
+    <p className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+      {mensagemErro}
+    </p>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="flex min-h-svh items-center justify-center bg-background p-6">
       <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
@@ -47,11 +58,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {mensagemErro && (
-          <p className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-            {mensagemErro}
-          </p>
-        )}
+        <Suspense fallback={null}>
+          <MensagemErro />
+        </Suspense>
 
         <Button
           className="w-full"
