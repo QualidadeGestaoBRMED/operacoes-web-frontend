@@ -97,7 +97,7 @@ export function ModuleTileAtivo({
         badgeLabel={temAtencao ? "Urgente" : "Em dia"}
         badgeTom={temAtencao ? "atencao" : "sucesso"}
       >
-        <div className="mt-3 flex flex-1 items-end gap-5">
+        <div className="mt-4 flex gap-5">
           {estatisticas.map((estatistica) => (
             <div key={estatistica.rotulo}>
               <div
@@ -108,14 +108,14 @@ export function ModuleTileAtivo({
               >
                 {estatistica.valor}
               </div>
-              <div className="mt-1 text-[11px] leading-tight font-medium text-muted-foreground">
+              <div className="mt-1.5 text-[11px] leading-tight font-medium text-muted-foreground">
                 {estatistica.rotulo}
               </div>
             </div>
           ))}
         </div>
       </TileChrome>
-      <div className="mt-2.5 text-xs font-bold text-secondary">Ver indicadores completos →</div>
+      <div className="mt-auto pt-3 text-xs font-bold text-secondary">Ver indicadores completos →</div>
     </Link>
   );
 }
