@@ -16,6 +16,7 @@ export function Topbar({ usuario }: TopbarProps) {
           type="text"
           placeholder="Buscar módulo, demanda, unidade..."
           className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          suppressHydrationWarning
         />
       </label>
 
