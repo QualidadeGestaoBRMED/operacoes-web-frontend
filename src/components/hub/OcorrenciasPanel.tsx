@@ -42,7 +42,7 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
             >
               <Badge
                 variant={ocorrencia.severidade === "critico" ? "destructive" : "warning"}
-                className="text-[10px] font-bold tracking-wide uppercase"
+                className="w-[74px] shrink-0 text-[10px] font-bold tracking-wide uppercase"
               >
                 {ocorrencia.severidade === "critico" ? "Crítico" : "Atenção"}
               </Badge>
