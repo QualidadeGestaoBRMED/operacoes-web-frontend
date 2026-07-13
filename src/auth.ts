@@ -31,7 +31,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ profile }) {
-      return profile?.email?.endsWith("@grupobrmed.com.br") ?? false;
+      if (!profile?.email_verified) return false;
+      if (!profile.email?.endsWith("@grupobrmed.com.br")) return false;
+      // hd só vem preenchido em contas Workspace; quando presente, precisa bater
+      // com o domínio — o backend reforça a mesma checagem como fonte da verdade.
+      if (profile.hd && profile.hd !== "grupobrmed.com.br") return false;
+      return true;
     },
     async jwt({ token, account }) {
       if (account?.id_token) {
