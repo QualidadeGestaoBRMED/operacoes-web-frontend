@@ -11,6 +11,13 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   }
 
   const { path } = await params;
+  // Next decodifica %2f só depois de já ter separado os segmentos pela barra
+  // literal — um segmento tipo "..%2f..%2fadmin" chega aqui como "../../admin"
+  // já decodificado, e o new URL() abaixo colapsaria isso pra fora do /api/.
+  if (path.some((segmento) => segmento.includes("..") || segmento.includes("/"))) {
+    return NextResponse.json({ detail: "Caminho inválido." }, { status: 400 });
+  }
+
   const destino = new URL(`/api/${path.join("/")}/`, process.env.NEXT_PUBLIC_API_URL);
   destino.search = request.nextUrl.search;
 
