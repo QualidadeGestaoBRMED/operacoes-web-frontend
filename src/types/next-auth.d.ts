@@ -15,7 +15,6 @@ declare module "@auth/core/types" {
 declare module "@auth/core/jwt" {
   interface JWT {
     backendAccessToken?: string;
-    backendRefreshToken?: string;
     backendUser?: Usuario;
     error?: "BackendAuthError";
   }
