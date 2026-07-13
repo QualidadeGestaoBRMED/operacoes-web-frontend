@@ -1,16 +1,11 @@
 import axios from "axios";
-import { getSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
+// Chama o proxy same-origin em /api/backend, nao o Django direto: o bearer
+// token fica só no server-side do Next.js (rota + getToken), nunca acessível
+// a JS do navegador. Ver src/app/api/backend/[...path]/route.ts.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
-});
-
-api.interceptors.request.use(async (config) => {
-  const session = await getSession();
-  if (session?.backendAccessToken) {
-    config.headers.Authorization = `Bearer ${session.backendAccessToken}`;
-  }
-  return config;
+  baseURL: "/api/backend",
 });
 
 api.interceptors.response.use(

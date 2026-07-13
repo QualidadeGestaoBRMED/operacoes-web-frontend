@@ -46,7 +46,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      session.backendAccessToken = token.backendAccessToken;
       session.error = token.error;
       if (token.backendUser) {
         const { id: usuarioId, ...dadosUsuario } = token.backendUser;
@@ -57,7 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     authorized({ auth: sessao, request }) {
       const emLogin = request.nextUrl.pathname.startsWith("/login");
       if (emLogin) return true;
-      return !!sessao?.user && !!sessao.backendAccessToken;
+      // usuarioId só existe quando o backend confirmou o login (token.backendUser).
+      // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
+      return !!sessao?.user?.usuarioId;
     },
   },
 });
