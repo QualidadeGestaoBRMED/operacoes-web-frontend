@@ -57,7 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     authorized({ auth: sessao, request }) {
       const emLogin = request.nextUrl.pathname.startsWith("/login");
       if (emLogin) return true;
-      return !!sessao?.user;
+      return !!sessao?.user && !!sessao.backendAccessToken;
     },
   },
 });
