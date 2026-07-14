@@ -51,10 +51,18 @@ frontend/
         └── index.ts                    → Interfaces TypeScript para todas as entidades
 ```
 
+> ✅ **Correções à árvore acima, conforme implementado na STC-163:**
+> - `middleware.ts` fica em `src/middleware.ts` (irmão de `app/`), não dentro de `app/`.
+> - `src/auth.ts` (novo, não estava na árvore): config do NextAuth. `app/api/auth/[...nextauth]/route.ts` só reexporta os handlers dele.
+> - `src/app/providers.tsx` (novo): wrapper Client Component do `SessionProvider`, usado em `layout.tsx`.
+> - `src/types/next-auth.d.ts` (novo): augmentation de tipos do NextAuth.
+> - `src/app/hub/page.tsx` e `src/app/modulos/gestao-demandas/page.tsx` já existem desde a STC-162 (placeholders); ainda não são o Hub/Kanban finais.
+
 ---
 
 ## Pacote 1 — Infraestrutura e Configuração de Ambiente
 **Datas:** 08/07 – 09/07 · 2 dias úteis
+**Status:** ✅ Concluído (STC-162)
 
 ### 1.1 Inicialização do Projeto
 
@@ -100,13 +108,13 @@ npx create-next-app@latest . \
   - `skeleton`
 - Ajustar tokens de tema para seguir a identidade BR MED/Atlas
 - Instalar dependências:
-  - `next-auth`
+  - `next-auth` — **adiado de propósito para a STC-163** (fundação não deve trazer autenticação); instalado lá como `next-auth@beta` (v5)
   - `axios`
   - `swr` (ou `@tanstack/react-query`)
   - `react-hook-form`
   - `zod`
   - `@hookform/resolvers`
-  - `@dnd-kit/core` `@dnd-kit/sortable` `@dnd-kit/utilities`
+  - `@dnd-kit/core` `@dnd-kit/sortable` `@dnd-kit/utilities` — **ainda adiado**, só entra na STC-166 (Kanban)
   - `lucide-react`
   - dependências geradas pelo `shadcn/ui`
 
@@ -118,10 +126,13 @@ npx create-next-app@latest . \
 - Output/Start: padrão da Vercel para Next.js
 - Configurar variáveis de ambiente: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_API_URL`
 
+> ⚠️ **Pendente.** Projeto ainda não foi criado na Vercel — o frontend só rodou localmente até agora.
+
 ---
 
 ## Pacote 2 — Autenticação e Controle de Acesso
 **Datas:** 10/07 – 14/07 · 3 dias úteis
+**Status:** ✅ Concluído no frontend (STC-163). Backend (STC-155, entidades compartilhadas) segue pendente, mas não bloqueia nada aqui.
 
 ### 2.1 NextAuth com Google Provider
 
@@ -151,6 +162,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 })
 ```
 
+> ✅ **Implementado com adaptações (STC-163).** Código real em `src/auth.ts` (não direto no route handler — `src/app/api/auth/[...nextauth]/route.ts` só faz `export const { GET, POST } = handlers`). Diferenças:
+> - `perfil` **não é string** (`'admin_qg'`) — é o objeto `Perfil` completo vindo do backend, com `nivel` numérico (1–4). O exemplo acima está desatualizado nesse ponto.
+> - O callback `jwt` (não só `session`) é quem faz a troca do `id_token` pelo JWT do Django, chamando `POST /api/auth/google/` e guardando `backendAccessToken`, `backendRefreshToken` e os dados do usuário no token.
+> - Em caso de falha na troca com o backend, o token guarda `error: "BackendAuthError"`, propagado pra sessão — permite mostrar erro na UI sem quebrar o fluxo do NextAuth.
+> - Callback `authorized` adicional (usado pelo middleware — ver 2.2), liberando sempre `/login` e exigindo sessão pra tudo o mais.
+> - **Mesmo app OAuth do Google (Client ID + Secret) do backend** é reutilizado aqui — não são credenciais separadas.
+> - `SessionProvider` precisa de um wrapper Client Component (`src/app/providers.tsx`) porque `src/app/layout.tsx` é Server Component.
+
 ### 2.2 Middleware de Proteção de Rotas
 
 ```typescript
@@ -165,6 +184,8 @@ export default auth((req) => {
 
 export const config = { matcher: ['/((?!api|_next|favicon).*)'] }
 ```
+
+> ✅ **Implementado de forma mais simples (STC-163).** Em vez do `if` manual, usa o padrão idiomático do NextAuth v5: `export { auth as middleware } from "@/auth"`, delegando a decisão pro callback `authorized` definido em `src/auth.ts` (seção 2.1). Testado: `GET /hub` sem sessão → `307` para `/login?callbackUrl=...`.
 
 ### 2.3 Hook `useAuth`
 
@@ -181,6 +202,16 @@ export function useAuth() {
   }
 }
 ```
+
+> ✅ **Implementado com a correção de contrato (STC-163).** `perfil` é numérico (`nivel`), não string — o exemplo acima nunca teria funcionado contra o backend real:
+> ```typescript
+> const NIVEL_ADMIN_QG = 1
+> const NIVEL_ADMIN_OPERACOES = 2
+> const nivel = session?.user?.perfil?.nivel
+> // isAdminQG: nivel === NIVEL_ADMIN_QG
+> // isAdminOps: nivel !== undefined && nivel <= NIVEL_ADMIN_OPERACOES
+> ```
+> Bate exatamente com `accounts/permissions.py` do backend.
 
 ### 2.4 API Client com Autenticação
 
@@ -202,6 +233,8 @@ api.interceptors.request.use(async (config) => {
 export default api
 ```
 
+> ✅ **Implementado, mais um interceptor (STC-163).** Igual ao exemplo, mais um interceptor de **response**: em qualquer `401`, chama `signOut({ redirectTo: "/login" })`. Não há renovação silenciosa de token via refresh — ver nota sobre isso no `PLANEJAMENTO.md` do backend (seção 2.2).
+
 ### 2.5 Contrato de Rotas Consumidas
 
 Padrão oficial da API:
@@ -215,6 +248,7 @@ Padrão oficial da API:
 Rotas principais consumidas pelo frontend:
 - `POST /api/auth/google/`
 - `GET /api/auth/me/`
+- `POST /api/auth/logout/` — faltava nessa lista; implementado na STC-154, já consumido pelo interceptor de 401 (seção 2.4)
 - `GET /api/plataforma/unidades/`
 - `GET /api/plataforma/setores/`
 - `GET/POST /api/plataforma/permissoes-usuario/`
@@ -268,6 +302,10 @@ export interface Anexo { id: number; nome_arquivo: string; tipo_mime: string; en
 export interface HistoricoAlteracao { id: number; usuario: Usuario; campo_alterado: string; valor_anterior: string; valor_novo: string; created_at: string }
 export interface Notificacao { id: number; tipo: string; titulo: string; lida: boolean; created_at: string }
 ```
+
+> ✅ **Só `Usuario`/`Perfil` criados por enquanto (STC-163)**, e com campos batendo com o `UsuarioSerializer` real do backend (`username`, `first_name`/`last_name` em vez de `nome`, `unidade_id`/`setor_id` em vez de objetos aninhados). O resto (`Demanda`, `Comentario`, `Anexo`, `HistoricoAlteracao`, `Notificacao`, `Unidade`, `Setor`) fica pra **STC-165**, quando o módulo de Demandas existir no backend — tipar contra uma API que não existe ainda não faz sentido.
+>
+> Também foi preciso criar `src/types/next-auth.d.ts` (não estava nesse plano) pra estender `Session`/`JWT` do NextAuth com `backendAccessToken` e afins. **Pegadinha da v5 beta:** a augmentation tem que ser em `declare module "@auth/core/types"` e `"@auth/core/jwt"` — `"next-auth"` e `"next-auth/jwt"` não funcionam pra isso nessa versão (são só reexport, a interface de verdade mora em `@auth/core`). E o `id` do `Usuario` do Django é exposto como `session.user.usuarioId`, não `session.user.id` — esse já é o `sub` (string) do Google, tipos incompatíveis (`number` vs `string`).
 
 ---
 
