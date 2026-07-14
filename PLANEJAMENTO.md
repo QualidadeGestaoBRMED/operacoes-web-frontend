@@ -132,7 +132,7 @@ npx create-next-app@latest . \
 
 ## Pacote 2 — Autenticação e Controle de Acesso
 **Datas:** 10/07 – 14/07 · 3 dias úteis
-**Status:** ✅ Concluído no frontend (STC-163). Backend (STC-155, entidades compartilhadas) segue pendente, mas não bloqueia nada aqui.
+**Status:** ✅ Concluído — STC-163 **aprovada e mergeada em `main`**. Backend (STC-155, entidades compartilhadas) tem PR aberto, em review, mas não bloqueia nada aqui.
 
 ### 2.1 NextAuth com Google Provider
 
@@ -369,6 +369,8 @@ Layout em `src/app/layout.tsx`:
 ```
 
 > ✅ **Adiantado e implementado (STC-164, antes do prazo do Pacote 4).** `Sidebar.tsx`/`Topbar.tsx` em `src/components/layout/`, mas o layout real usa `AppShell.tsx` (client component) em vez do `<SessionProvider>` direto no `layout.tsx` — precisa de estado (`useState`) pra sidebar recolhível, que só funciona em client component. Fica em `src/app/(app)/layout.tsx`, aplicado via route group (não afeta a URL). `NotificacaoBadge.tsx` ainda não existe — o sino no Topbar é só visual por enquanto.
+>
+> **Bug achado e corrigido depois do merge com a STC-163:** a STC-164 foi criada antes da STC-163 (autenticação) existir, então `AppShell` nunca tinha sido conectado à sessão real — `Topbar` sempre recebia `usuario=undefined`, mostrando avatar "?" e "Não autenticado" pra qualquer usuário logado de verdade. Corrigido: `AppShell` agora chama `useAuth()` e deriva nome/iniciais da sessão real.
 
 ### 4.2 Hub de Módulos
 
@@ -382,6 +384,8 @@ Layout em `src/app/layout.tsx`:
 > - Card do módulo ativo mostra **estatísticas com cor de urgência** (ex.: "14 atrasadas" em âmbar), não só um número positivo — decisão tomada depois de comparar com a referência de "central de operações" que a gerente pediu.
 > - Painel **"Ocorrências que precisam de decisão hoje"** no topo da página (`src/components/hub/OcorrenciasPanel.tsx`), cruzando os módulos ativos — não estava neste plano original.
 > - Hoje tudo roda com dado mockado. O contrato real (`GET /api/modulos/{codigo}/resumo/`, por módulo — nunca centralizado) está documentado no Plano de Ação (seção 4) e no `PLANEJAMENTO.md` do backend (Pacote 3, seção 3.6). Trocar o mock pela chamada real é o que falta quando a STC-156 (models de Demanda) existir.
+>
+> **⚠️ Hub desativado da navegação (decisão pós-implementação, ainda na STC-164).** Com um módulo só ativo (Gestão de Demandas), um painel agregador cross-módulo não tem o que agregar ainda — só deixaria a tela mais confusa pro piloto. Mudanças: "Hub" virou item bloqueado "em breve" na `Sidebar` (mesmo tratamento visual dos outros módulos futuros); `src/app/page.tsx` (raiz) e o fallback de `redirectTo` no botão de login (`src/app/(auth)/login/page.tsx`) apontam pra `/modulos/gestao-demandas` em vez de `/hub`. **Nada foi apagado** — página, rota e componentes do Hub continuam intactos em `src/app/(app)/hub/`, só sem porta de entrada pela navegação. Reativar: mover "Hub" de volta pro topo da `Sidebar` como `SidebarLink` e trocar os dois redirects de volta pra `/hub`.
 
 ### 4.3 Kanban Board
 
