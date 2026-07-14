@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const MENSAGENS_ERRO: Record<string, string> = {
   AccessDenied: "Acesso restrito a e-mails @grupobrmed.com.br.",
+  BackendAuthError: "Não foi possível confirmar sua conta com o servidor. Tente novamente em instantes.",
   Default: "Não foi possível entrar. Tente novamente.",
 };
 

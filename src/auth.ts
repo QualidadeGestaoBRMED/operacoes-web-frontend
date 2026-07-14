@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { NextResponse } from "next/server";
 
 import type { Usuario } from "@/types";
 
@@ -62,6 +63,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     authorized({ auth: sessao, request }) {
       const emLogin = request.nextUrl.pathname.startsWith("/login");
       if (emLogin) return true;
+
+      if (sessao?.error === "BackendAuthError") {
+        const destino = new URL("/login", request.nextUrl.origin);
+        destino.searchParams.set("error", "BackendAuthError");
+        const resposta = NextResponse.redirect(destino);
+        // Limpa a sessão quebrada (autenticada no Google, mas sem confirmação
+        // do backend) pra próxima tentativa de login começar do zero.
+        for (const cookie of request.cookies.getAll()) {
+          if (cookie.name.endsWith("authjs.session-token")) {
+            resposta.cookies.delete(cookie.name);
+          }
+        }
+        return resposta;
+      }
+
       // usuarioId só existe quando o backend confirmou o login (token.backendUser).
       // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
       return !!sessao?.user?.usuarioId;
