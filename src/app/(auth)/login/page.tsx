@@ -48,6 +48,21 @@ function MensagemErro() {
   );
 }
 
+function BotaoEntrar() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl");
+
+  return (
+    <Button
+      className="w-full"
+      onClick={() => signIn("google", { redirectTo: callbackUrl || "/hub" })}
+    >
+      <GoogleIcon />
+      Entrar com Google
+    </Button>
+  );
+}
+
 export default function LoginPage() {
   return (
     <div className="flex min-h-svh items-center justify-center bg-background p-6">
@@ -63,13 +78,9 @@ export default function LoginPage() {
           <MensagemErro />
         </Suspense>
 
-        <Button
-          className="w-full"
-          onClick={() => signIn("google", { redirectTo: "/hub" })}
-        >
-          <GoogleIcon />
-          Entrar com Google
-        </Button>
+        <Suspense fallback={<Button className="w-full" disabled><GoogleIcon />Entrar com Google</Button>}>
+          <BotaoEntrar />
+        </Suspense>
       </div>
     </div>
   );
