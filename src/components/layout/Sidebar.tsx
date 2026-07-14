@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Hub escondido por enquanto: com um só módulo ativo, um painel agregador
+// não tem o que agregar ainda. Estrutura (rota, componentes) fica intacta
+// em src/app/(app)/hub/ -- só sem porta de entrada. Reativar: mover "Hub"
+// de volta pra cima como SidebarLink e apontar os redirects de login/raiz
+// pra "/hub" de novo (ver src/app/page.tsx e login/page.tsx).
 const MODULOS_BLOQUEADOS = [
+  { nome: "Hub", icon: Home },
   { nome: "Legalização" },
   { nome: "Gestão RH" },
   { nome: "Manutenção" },
@@ -20,7 +26,6 @@ const MODULOS_BLOQUEADOS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const emHub = pathname === "/hub";
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
 
   return (
@@ -28,7 +33,6 @@ export function Sidebar() {
       <div className="px-2 pb-6 text-xl font-bold tracking-wide">BR MED</div>
 
       <nav className="flex flex-1 flex-col gap-0.5">
-        <SidebarLink href="/hub" icon={Home} label="Hub" active={emHub} />
         <SidebarLink
           href="/modulos/gestao-demandas"
           icon={ClipboardList}

@@ -55,7 +55,11 @@ function BotaoEntrar() {
   return (
     <Button
       className="w-full"
-      onClick={() => signIn("google", { redirectTo: callbackUrl || "/hub" })}
+      onClick={() =>
+        // Hub escondido por enquanto -- ver Sidebar.tsx. Voltar pra "/hub"
+        // quando reativar.
+        signIn("google", { redirectTo: callbackUrl || "/modulos/gestao-demandas" })
+      }
     >
       <GoogleIcon />
       Entrar com Google
