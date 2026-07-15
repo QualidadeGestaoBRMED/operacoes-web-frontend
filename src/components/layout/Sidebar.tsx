@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
+  BookOpen,
+  Building2,
   ClipboardList,
+  FileText,
+  Gauge,
   Home,
   Lock,
   Settings,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,12 +20,16 @@ import { cn } from "@/lib/utils";
 // em src/app/(app)/hub/ -- só sem porta de entrada. Reativar: mover "Hub"
 // de volta pra cima como SidebarLink e apontar os redirects de login/raiz
 // pra "/hub" de novo (ver src/app/page.tsx e login/page.tsx).
+//
+// Lista tem que bater com os ModuleTileMutado em src/app/(app)/hub/page.tsx
+// -- as duas representam o mesmo roadmap de módulos futuros.
 const MODULOS_BLOQUEADOS = [
   { nome: "Hub", icon: Home },
-  { nome: "Legalização" },
-  { nome: "Gestão RH" },
-  { nome: "Manutenção" },
-  { nome: "Indicadores", icon: BarChart3 },
+  { nome: "Legalização", icon: FileText },
+  { nome: "Gestão RH", icon: Users },
+  { nome: "Arquitetura", icon: Building2 },
+  { nome: "Diário de Bordo", icon: BookOpen },
+  { nome: "Gestão de Calibração de Equipamentos", icon: Gauge },
 ];
 
 export function Sidebar() {
