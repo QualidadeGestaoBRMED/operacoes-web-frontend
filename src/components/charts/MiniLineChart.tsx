@@ -20,12 +20,20 @@ export function MiniLineChart({
   const altura = 90;
   const margem = 6;
 
+  // Sem valores, nao ha o que desenhar. Com 1 valor, "i / (length - 1)"
+  // seria divisao por zero (0/0 = NaN) -- os dois casos precisam de guarda
+  // antes de qualquer conta.
+  if (valores.length === 0) {
+    return null;
+  }
+
   const max = Math.max(...valores);
   const min = Math.min(...valores);
   const amplitude = max - min || 1;
+  const divisor = valores.length - 1 || 1;
 
   const pontos = valores.map((valor, i) => {
-    const x = margem + (i / (valores.length - 1)) * (largura - margem * 2);
+    const x = margem + (i / divisor) * (largura - margem * 2);
     const y = altura - margem - ((valor - min) / amplitude) * (altura - margem * 2);
     return { x, y };
   });
