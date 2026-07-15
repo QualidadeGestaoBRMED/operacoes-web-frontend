@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 interface MiniLineChartProps {
   valores: number[];
   corLinha?: string;
@@ -16,6 +18,10 @@ export function MiniLineChart({
   corDestaque = "var(--chart-3)",
   className,
 }: MiniLineChartProps) {
+  // Achado no review do Tech Lead: id fixo colidia se houvesse mais de uma
+  // instância na mesma tela -- os <defs> de SVG são globais ao documento,
+  // então um gráfico "herdava" o gradiente/cor do outro pelo id repetido.
+  const gradientId = `mini-line-chart-gradient-${useId()}`;
   const largura = 260;
   const altura = 90;
   const margem = 6;
@@ -41,7 +47,6 @@ export function MiniLineChart({
   const linha = pontos.map((p) => `${p.x},${p.y}`).join(" L");
   const area = `M${linha} L${pontos[pontos.length - 1].x},${altura} L${pontos[0].x},${altura} Z`;
   const ultimo = pontos[pontos.length - 1];
-  const gradientId = "mini-line-chart-gradient";
 
   return (
     <svg
