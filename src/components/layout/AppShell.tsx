@@ -17,7 +17,7 @@ function iniciaisDe(nome: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   const nome = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
@@ -33,6 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <Topbar
           usuario={usuarioTopbar}
+          carregando={isLoading}
           sidebarAberta={sidebarAberta}
           onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
         />

@@ -7,11 +7,16 @@ interface TopbarProps {
     nome: string;
     iniciais: string;
   };
+  // Distingue "sessao ainda carregando" de "sem sessao" -- sem isso, a
+  // janela entre o mount do client e a resposta de useSession() mostrava
+  // "Nao autenticado" pra um usuario que ja estava autenticado de verdade
+  // (o middleware ja tinha confirmado isso no servidor).
+  carregando?: boolean;
   sidebarAberta: boolean;
   onToggleSidebar: () => void;
 }
 
-export function Topbar({ usuario, sidebarAberta, onToggleSidebar }: TopbarProps) {
+export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: TopbarProps) {
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-5 border-b border-border bg-background px-7">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -42,18 +47,25 @@ export function Topbar({ usuario, sidebarAberta, onToggleSidebar }: TopbarProps)
           <Bell className="size-4" />
         </Button>
 
-        <div className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
-          <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            {usuario?.iniciais ?? "?"}
+        {carregando ? (
+          <div className="flex items-center gap-2">
+            <div className="size-8 animate-pulse rounded-full bg-muted" />
+            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
           </div>
-          {usuario ? (
-            <span>
-              Olá, <strong>{usuario.nome}</strong>
-            </span>
-          ) : (
-            <span className="text-muted-foreground">Não autenticado</span>
-          )}
-        </div>
+        ) : (
+          <div className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+            <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+              {usuario?.iniciais ?? "?"}
+            </div>
+            {usuario ? (
+              <span>
+                Olá, <strong>{usuario.nome}</strong>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Não autenticado</span>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );
