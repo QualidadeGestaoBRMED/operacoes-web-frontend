@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
       user.name ||
       user.username ||
-      ""
+      "Usuário"
     : "";
   const usuarioTopbar = user ? { nome, iniciais: iniciaisDe(nome) } : undefined;
 
