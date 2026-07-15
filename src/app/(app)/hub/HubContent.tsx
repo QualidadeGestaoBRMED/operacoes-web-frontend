@@ -1,6 +1,7 @@
-import { BookOpen, Building2, ClipboardList, FileText, Gauge, Users } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { ModuleTileAtivo, ModuleTileMutado } from "@/components/hub/ModuleTile";
 import { OcorrenciasPanel, type Ocorrencia } from "@/components/hub/OcorrenciasPanel";
+import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 
 // Dados mockados — sem backend do módulo de Demandas ainda (Pacote 3).
 const OCORRENCIAS: Ocorrencia[] = [
@@ -56,38 +57,15 @@ export function HubContent() {
             ]}
           />
 
-          <ModuleTileMutado
-            icon={FileText}
-            nome="Legalização"
-            descricao="Documentos e conformidade por unidade."
-          />
-
-          <ModuleTileMutado
-            icon={Users}
-            nome="Gestão RH"
-            descricao="Quadro de colaboradores por unidade."
-            larguras={["60%"]}
-          />
-
-          <ModuleTileMutado
-            icon={Building2}
-            nome="Arquitetura"
-            descricao="Projetos e obras em andamento nas unidades."
-          />
-
-          <ModuleTileMutado
-            icon={BookOpen}
-            nome="Diário de Bordo"
-            descricao="Registro de ocorrências e passagens de plantão."
-            larguras={["75%", "50%"]}
-          />
-
-          <ModuleTileMutado
-            icon={Gauge}
-            nome="Gestão de Calibração de Equipamentos"
-            descricao="Controle de calibração e manutenção preventiva."
-            larguras={["65%", "40%"]}
-          />
+          {MODULOS_FUTUROS.map((modulo) => (
+            <ModuleTileMutado
+              key={modulo.nome}
+              icon={modulo.icon}
+              nome={modulo.nome}
+              descricao={modulo.descricao}
+              larguras={modulo.larguras}
+            />
+          ))}
         </div>
       </div>
     </div>

@@ -2,35 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BookOpen,
-  Building2,
-  ClipboardList,
-  FileText,
-  Gauge,
-  Home,
-  Lock,
-  Settings,
-  Users,
-} from "lucide-react";
+import { ClipboardList, Home, Lock, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 
-// Hub escondido por enquanto: com um só módulo ativo, um painel agregador
-// não tem o que agregar ainda. Estrutura (rota, componentes) fica intacta
-// em src/app/(app)/hub/ -- só sem porta de entrada. Reativar: mover "Hub"
-// de volta pra cima como SidebarLink e apontar os redirects de login/raiz
-// pra "/hub" de novo (ver src/app/page.tsx e login/page.tsx).
-//
-// Lista tem que bater com os ModuleTileMutado em src/app/(app)/hub/page.tsx
-// -- as duas representam o mesmo roadmap de módulos futuros.
-const MODULOS_BLOQUEADOS = [
-  { nome: "Hub", icon: Home },
-  { nome: "Legalização", icon: FileText },
-  { nome: "Gestão RH", icon: Users },
-  { nome: "Arquitetura", icon: Building2 },
-  { nome: "Diário de Bordo", icon: BookOpen },
-  { nome: "Gestão de Calibração de Equipamentos", icon: Gauge },
-];
+// Hub escondido por enquanto (bloqueado de vez, ver src/app/(app)/hub/page.tsx):
+// com um só módulo ativo, um painel agregador não tem o que agregar ainda.
+// Componentes ficam intactos em src/app/(app)/hub/HubContent.tsx -- reativar:
+// trocar o redirect de hub/page.tsx e mover "Hub" de volta pra cima como
+// SidebarLink (e apontar os redirects de login/raiz pra "/hub" de novo).
+const MODULOS_BLOQUEADOS = [{ nome: "Hub", icon: Home }, ...MODULOS_FUTUROS];
 
 export function Sidebar() {
   const pathname = usePathname();
