@@ -20,7 +20,12 @@ const badgeVariants = cva(
         link: "text-primary underline-offset-4 [a&]:hover:underline",
         success:
           "bg-[color-mix(in_srgb,var(--chart-3)_14%,var(--card))] text-[color:var(--chart-3)]",
-        warning: "bg-destructive/15 text-destructive [a&]:hover:bg-destructive/20",
+        // --chart-4 e identico a --destructive no tema claro (mesmo hex) --
+        // usar --chart-4 aqui faria "warning" e "destructive" carem na
+        // mesma cor. --chart-5 (amarelo-ouro) e o unico tom realmente
+        // distinto de "critico" (destructive) e "estavel" (success).
+        warning:
+          "bg-[color-mix(in_srgb,var(--chart-5)_20%,var(--card))] text-[color:var(--chart-5)]",
         muted: "bg-muted text-muted-foreground",
       },
     },
