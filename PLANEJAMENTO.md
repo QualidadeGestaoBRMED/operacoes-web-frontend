@@ -132,7 +132,7 @@ npx create-next-app@latest . \
 
 ## Pacote 2 — Autenticação e Controle de Acesso
 **Datas:** 10/07 – 14/07 · 3 dias úteis
-**Status:** ✅ Concluído — STC-163 **aprovada e mergeada em `main`**. Backend (STC-155, entidades compartilhadas) tem PR aberto, em review, mas não bloqueia nada aqui.
+**Status:** ✅ Concluído — STC-163 **aprovada e mergeada em `main`**. Backend (STC-155, entidades compartilhadas) aprovado pelo Tech Lead, PR aberto aguardando merge, mas não bloqueia nada aqui.
 
 ### 2.1 NextAuth com Google Provider
 
@@ -316,6 +316,8 @@ export interface Notificacao { id: number; tipo: string; titulo: string; lida: b
 > No frontend: preparar o hook `useDemandas` e os tipos para que o Pacote 4 
 > (Kanban) possa começar integrado desde o início.
 
+> ✅ **Backend concluído (STC-156)** — `demandas` app completo: models, serializers, ViewSets com RBAC, transições do Kanban, e `GET /api/modulos/gestao-demandas/resumo/` no formato exato que a Hub (STC-164) já espera. Branch ainda não pushada/mergeada. Nada foi feito no frontend nesta issue (era 100% backend) — `useDemandas`, os tipos `Demanda`/`Comentario`/`Anexo`/etc. e a troca do mock do Hub pela chamada real seguem para o Pacote 4.
+
 ### 3.1 Hook `useDemandas`
 
 ```typescript
@@ -383,7 +385,7 @@ Layout em `src/app/layout.tsx`:
 > - Lista de módulos maior e ajustada: Gestão de Demandas, Legalização, Gestão RH, Arquitetura, Diário de Bordo, Gestão de Calibração de Equipamentos (substituindo "Manutenção"/"Indicadores" do exemplo original).
 > - Card do módulo ativo mostra **estatísticas com cor de urgência** (ex.: "14 atrasadas" em âmbar), não só um número positivo — decisão tomada depois de comparar com a referência de "central de operações" que a gerente pediu.
 > - Painel **"Ocorrências que precisam de decisão hoje"** no topo da página (`src/components/hub/OcorrenciasPanel.tsx`), cruzando os módulos ativos — não estava neste plano original.
-> - Hoje tudo roda com dado mockado. O contrato real (`GET /api/modulos/{codigo}/resumo/`, por módulo — nunca centralizado) está documentado no Plano de Ação (seção 4) e no `PLANEJAMENTO.md` do backend (Pacote 3, seção 3.6). Trocar o mock pela chamada real é o que falta quando a STC-156 (models de Demanda) existir.
+> - Hoje tudo roda com dado mockado. O contrato real (`GET /api/modulos/{codigo}/resumo/`, por módulo — nunca centralizado) está documentado no Plano de Ação (seção 4) e no `PLANEJAMENTO.md` do backend (Pacote 3, seção 3.6). **O backend já existe (STC-156, concluído)** — trocar o mock pela chamada real fica para o Pacote 4, quando a branch for mergeada.
 >
 > **⚠️ Hub desativado da navegação (decisão pós-implementação, ainda na STC-164).** Com um módulo só ativo (Gestão de Demandas), um painel agregador cross-módulo não tem o que agregar ainda — só deixaria a tela mais confusa pro piloto. Mudanças: "Hub" virou item bloqueado "em breve" na `Sidebar` (mesmo tratamento visual dos outros módulos futuros); `src/app/page.tsx` (raiz) e o fallback de `redirectTo` no botão de login (`src/app/(auth)/login/page.tsx`) apontam pra `/modulos/gestao-demandas` em vez de `/hub`. **Nada foi apagado** — página, rota e componentes do Hub continuam intactos em `src/app/(app)/hub/`, só sem porta de entrada pela navegação. Reativar: mover "Hub" de volta pro topo da `Sidebar` como `SidebarLink` e trocar os dois redirects de volta pra `/hub`.
 
