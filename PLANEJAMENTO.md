@@ -132,7 +132,7 @@ npx create-next-app@latest . \
 
 ## Pacote 2 — Autenticação e Controle de Acesso
 **Datas:** 10/07 – 14/07 · 3 dias úteis
-**Status:** ✅ Concluído — STC-163 **aprovada e mergeada em `main`**. Backend (STC-155, entidades compartilhadas) aprovado pelo Tech Lead, PR aberto aguardando merge, mas não bloqueia nada aqui.
+**Status:** ✅ Concluído — STC-163 **aprovada e mergeada em `main`**. Backend (STC-155, entidades compartilhadas) com PR aberto, aguardando review do Tech Lead, mas não bloqueia nada aqui.
 
 ### 2.1 NextAuth com Google Provider
 
@@ -316,7 +316,7 @@ export interface Notificacao { id: number; tipo: string; titulo: string; lida: b
 > No frontend: preparar o hook `useDemandas` e os tipos para que o Pacote 4 
 > (Kanban) possa começar integrado desde o início.
 
-> ✅ **Backend concluído (STC-156)** — `demandas` app completo: models, serializers, ViewSets com RBAC, transições do Kanban, e `GET /api/modulos/gestao-demandas/resumo/` no formato exato que a Hub (STC-164) já espera. Branch ainda não pushada/mergeada. Nada foi feito no frontend nesta issue (era 100% backend) — `useDemandas`, os tipos `Demanda`/`Comentario`/`Anexo`/etc. e a troca do mock do Hub pela chamada real seguem para o Pacote 4.
+> ✅ **Backend concluído (STC-156)** — `demandas` app completo: models, serializers, ViewSets com RBAC, transições do Kanban, e `GET /api/modulos/gestao-demandas/resumo/` no formato exato que a Hub (STC-164) já espera. PR aberto, aguardando review do Tech Lead. Nada foi feito no frontend nesta issue (era 100% backend) — `useDemandas`, os tipos `Demanda`/`Comentario`/`Anexo`/etc. e a troca do mock do Hub pela chamada real seguem para o Pacote 4.
 
 ### 3.1 Hook `useDemandas`
 
