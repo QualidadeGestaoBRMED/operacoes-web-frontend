@@ -30,16 +30,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const usuarioTopbar = user ? { nome, iniciais: iniciaisDe(nome) } : undefined;
 
   return (
-    <div className="flex h-screen">
-      {sidebarAberta && <Sidebar />}
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <Topbar
-          usuario={usuarioTopbar}
-          carregando={isLoading}
-          sidebarAberta={sidebarAberta}
-          onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
-        />
-        <main className="flex-1">{children}</main>
+    <div className="flex h-screen flex-col">
+      <Topbar
+        usuario={usuarioTopbar}
+        carregando={isLoading}
+        sidebarAberta={sidebarAberta}
+        onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
+      />
+      <div className="flex min-h-0 flex-1">
+        {sidebarAberta && <Sidebar />}
+        <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

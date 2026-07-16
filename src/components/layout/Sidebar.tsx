@@ -18,9 +18,7 @@ export function Sidebar() {
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col bg-sidebar p-3 text-sidebar-foreground">
-      <div className="px-2 pb-6 text-xl font-bold tracking-wide">BR MED</div>
-
+    <aside className="flex w-64 shrink-0 flex-col bg-sidebar p-3 pt-4 text-sidebar-foreground">
       <nav className="flex flex-1 flex-col gap-0.5">
         <SidebarLink
           href="/modulos/gestao-demandas"
