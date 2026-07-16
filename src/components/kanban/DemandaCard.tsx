@@ -92,6 +92,18 @@ function ConteudoCard({
         <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
           {demanda.unidade.nome}
         </span>
+        {demanda.etiquetas.map((etiqueta) => (
+          // Cor vem cadastrada por etiqueta (dado do usuário, não um token de
+          // design) -- por isso hex direto via style, diferente das cores de
+          // prioridade/status que são fixas no código.
+          <span
+            key={etiqueta.id}
+            className="rounded px-2 py-0.5 text-[11px] font-medium text-white"
+            style={{ backgroundColor: etiqueta.cor }}
+          >
+            {etiqueta.nome}
+          </span>
+        ))}
       </div>
 
       {demanda.status === "em_revisao" && demanda.aprovador && (
@@ -155,12 +167,21 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
     disabled: naLixeira,
   });
 
+  const principal = demanda.responsaveis.find((r) => r.tipo === "principal");
+  // dnd-kit já cobre role="button"/tabIndex/aria-pressed via {...attributes}
+  // -- só falta descrever o conteúdo, já que um leitor de tela leria o texto
+  // solto na ordem do DOM sem isso. Não wireia onKeyDown aqui: Enter/Espaço
+  // já é a tecla que o dnd-kit usa pra iniciar o arraste por teclado: abrir
+  // detalhe por teclado é decisão de interação da STC-168 (ainda um no-op).
+  const descricaoAcessivel = `Demanda ${demanda.titulo}, prioridade ${LABEL_PRIORIDADE[demanda.prioridade]}, unidade ${demanda.unidade.nome}${principal ? `, responsável ${nomeExibicao(principal.usuario)}` : ", sem responsável principal"}.`;
+
   return (
     <div
       ref={setNodeRef}
       {...(naLixeira ? {} : listeners)}
       {...(naLixeira ? {} : attributes)}
       onClick={() => onClick(demanda)}
+      aria-label={naLixeira ? undefined : descricaoAcessivel}
       className={cn(
         "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
         naLixeira && "opacity-55",
