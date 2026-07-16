@@ -140,7 +140,10 @@ export function ModuleTileMutado({
         badgeLabel="Em breve"
         badgeTom="muted"
       />
-      <div className="mt-auto flex flex-col gap-2 pt-3">
+      {/* Decorativo (module "em breve" nao carrega de verdade) -- aria-hidden
+          pra nao anunciar "carregando" pra leitor de tela indefinidamente,
+          já que "Em breve" (badge acima) já diz o que precisa. */}
+      <div className="mt-auto flex flex-col gap-2 pt-3" aria-hidden="true">
         {larguras.map((largura, i) => (
           <div
             key={i}
