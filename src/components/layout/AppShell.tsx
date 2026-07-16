@@ -30,19 +30,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const usuarioTopbar = user ? { nome, iniciais: iniciaisDe(nome) } : undefined;
 
   return (
-    <div className="flex h-screen flex-col">
-      <Topbar
-        usuario={usuarioTopbar}
-        carregando={isLoading}
-        sidebarAberta={sidebarAberta}
-        onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
-      />
-      {/* bg-sidebar preenche o vão do canto arredondado do main -- sem
-          isso o recorte não aparece, já que por trás dele o body já é claro
-          igual ao main (mesma cor, sem contraste pra revelar a curva). */}
-      <div className="flex min-h-0 flex-1 bg-sidebar">
-        {sidebarAberta && <Sidebar />}
-        <main className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl rounded-bl-xl bg-background">
+    // bg-sidebar preenche o vão dos cantos arredondados do main -- sem
+    // isso o recorte não aparece, já que por trás dele o body já é claro
+    // igual ao main (mesma cor, sem contraste pra revelar a curva).
+    <div className="flex h-screen bg-sidebar">
+      {sidebarAberta && <Sidebar />}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar
+          usuario={usuarioTopbar}
+          carregando={isLoading}
+          sidebarAberta={sidebarAberta}
+          onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
+        />
+        <main className="min-h-0 flex-1 overflow-y-auto rounded-tl-3xl rounded-bl-3xl bg-background">
           {children}
         </main>
       </div>
