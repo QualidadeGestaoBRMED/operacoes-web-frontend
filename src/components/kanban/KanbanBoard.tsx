@@ -4,17 +4,20 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { AlertCircle, X } from "lucide-react";
 import { useDemandas } from "@/hooks/useDemandas";
 import { atualizarStatusDemanda, excluirDemanda, listarDemandas, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
+import { DemandaCardArrastando } from "./DemandaCard";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanFiltros } from "./KanbanFiltros";
 
@@ -54,6 +57,7 @@ export function KanbanBoard() {
     mutate: mutateLixeira,
   } = useDemandas(filtrosLixeira);
   const [erroMovimento, setErroMovimento] = useState<string | null>(null);
+  const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -120,11 +124,16 @@ export function KanbanBoard() {
     }
   }
 
-  function handleDragEnd(evento: DragEndEvent) {
-    const { active, over } = evento;
-    if (!over) return;
+  function handleDragStart(evento: DragStartEvent) {
     // Cards na lixeira não são arrastáveis (useDraggable disabled), então só
     // demandasAtivas pode ser a origem de um drag.
+    setDemandaArrastando(demandasAtivas.find((item) => item.id === evento.active.id) ?? null);
+  }
+
+  function handleDragEnd(evento: DragEndEvent) {
+    setDemandaArrastando(null);
+    const { active, over } = evento;
+    if (!over) return;
     const demanda = demandasAtivas.find((item) => item.id === active.id);
     if (!demanda) return;
     void moverDemanda(demanda, over.id as StatusDemanda);
@@ -169,7 +178,13 @@ export function KanbanBoard() {
           Carregando demandas...
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setDemandaArrastando(null)}
+        >
           <div className="flex flex-1 gap-4 overflow-x-auto p-5">
             {COLUNAS.map((coluna) => (
               <KanbanColumn
@@ -186,6 +201,9 @@ export function KanbanBoard() {
               />
             ))}
           </div>
+          <DragOverlay>
+            {demandaArrastando ? <DemandaCardArrastando demanda={demandaArrastando} /> : null}
+          </DragOverlay>
         </DndContext>
       )}
     </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { Calendar, Lock, RotateCcw } from "lucide-react";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda, Prioridade } from "@/types";
@@ -58,36 +57,18 @@ function formatarData(iso: string) {
   return `${dia}/${mes}`;
 }
 
-interface DemandaCardProps {
+function ConteudoCard({
+  demanda,
+  onRestaurar,
+}: {
   demanda: Demanda;
-  onClick: (demanda: Demanda) => void;
   onRestaurar?: (demanda: Demanda) => void;
-}
-
-export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps) {
+}) {
   const naLixeira = demanda.status === "lixeira";
-  // Card na lixeira não é arrastável -- sair de lá é só pelo botão
-  // "Restaurar" (backend trata isso via /restaurar/, não PATCH .../status/).
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: demanda.id,
-    disabled: naLixeira,
-  });
-
   const principal = demanda.responsaveis.find((r) => r.tipo === "principal");
 
   return (
-    <div
-      ref={setNodeRef}
-      {...(naLixeira ? {} : listeners)}
-      {...(naLixeira ? {} : attributes)}
-      onClick={() => onClick(demanda)}
-      style={{ transform: CSS.Translate.toString(transform) }}
-      className={cn(
-        "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
-        naLixeira && "opacity-55",
-        isDragging && "opacity-40",
-      )}
-    >
+    <>
       <div className="mb-2 flex items-center justify-between">
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase"
@@ -152,6 +133,53 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
           )}
         </div>
       )}
+    </>
+  );
+}
+
+interface DemandaCardProps {
+  demanda: Demanda;
+  onClick: (demanda: Demanda) => void;
+  onRestaurar?: (demanda: Demanda) => void;
+}
+
+export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps) {
+  const naLixeira = demanda.status === "lixeira";
+  // Card na lixeira não é arrastável -- sair de lá é só pelo botão
+  // "Restaurar" (backend trata isso via /restaurar/, não PATCH .../status/).
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: demanda.id,
+    disabled: naLixeira,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...(naLixeira ? {} : listeners)}
+      {...(naLixeira ? {} : attributes)}
+      onClick={() => onClick(demanda)}
+      className={cn(
+        "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
+        naLixeira && "opacity-55",
+        // O visual de "sendo arrastado" é o clone no DragOverlay (portalado
+        // pra fora dos containers com overflow, senão o card fica atrás das
+        // colunas vizinhas e o transform aumenta a área de scroll delas). O
+        // card original só precisa sumir do lugar, sem se mover.
+        isDragging && "opacity-0",
+      )}
+    >
+      <ConteudoCard demanda={demanda} onRestaurar={onRestaurar} />
+    </div>
+  );
+}
+
+// Clone estático renderizado dentro do <DragOverlay> em KanbanBoard --
+// segue o ponteiro por conta própria, então não precisa (e não deve) usar
+// useDraggable/transform.
+export function DemandaCardArrastando({ demanda }: { demanda: Demanda }) {
+  return (
+    <div className="cursor-grabbing overflow-hidden rounded-xl border border-border bg-card p-3 shadow-xl">
+      <ConteudoCard demanda={demanda} />
     </div>
   );
 }
