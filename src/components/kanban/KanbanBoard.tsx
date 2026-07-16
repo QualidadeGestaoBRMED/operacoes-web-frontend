@@ -30,6 +30,36 @@ const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "lixeira", titulo: "Lixeira" },
 ];
 
+// Transições que o backend sempre rejeita hoje porque exigem um dado que
+// o drag-and-drop do board não coleta (aprovador_id/justificativa -- isso
+// é a mini-formulário da rota "completa" discutida, ainda não construída).
+// Bloquear aqui ANTES do optimistic update evita o floop visual de mover o
+// card, a coluna se reorganizar, e tudo voltar de novo alguns instantes
+// depois quando o rollback chega.
+const TRANSICOES_SEM_DADO_COLETADO = new Set([
+  "em_andamento->em_revisao",
+  "em_andamento->backlog",
+  "em_revisao->em_andamento",
+  "em_revisao->backlog",
+  "concluido->em_andamento",
+  "concluido->backlog",
+]);
+
+function mensagemBloqueioConhecido(demanda: Demanda, novoStatus: StatusDemanda): string | null {
+  if (TRANSICOES_SEM_DADO_COLETADO.has(`${demanda.status}->${novoStatus}`)) {
+    return novoStatus === "em_revisao"
+      ? "Selecione um aprovador para enviar à revisão."
+      : "Justificativa obrigatória para essa transição.";
+  }
+
+  if (demanda.status === "backlog" && novoStatus === "em_andamento") {
+    const temPrincipal = demanda.responsaveis.some((r) => r.tipo === "principal");
+    if (!temPrincipal) return "Defina um responsável principal antes de iniciar a execução.";
+  }
+
+  return null;
+}
+
 function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const filtros: DemandaFiltros = {};
   const unidade = searchParams.get("unidade");
@@ -71,6 +101,14 @@ export function KanbanBoard() {
 
   async function moverDemanda(demanda: Demanda, novoStatus: StatusDemanda) {
     if (demanda.status === novoStatus) return;
+
+    const bloqueio = mensagemBloqueioConhecido(demanda, novoStatus);
+    if (bloqueio) {
+      // Já sabemos que essa transição vai falhar -- nem tenta mover o
+      // card visualmente (dnd-kit já devolve ele pro lugar sozinho).
+      toast.error(bloqueio);
+      return;
+    }
 
     // "lixeira" fica fora do endpoint de status de propósito no backend
     // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
@@ -143,7 +181,7 @@ export function KanbanBoard() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <ResumoCards />
 
       <KanbanFiltros
@@ -170,7 +208,7 @@ export function KanbanBoard() {
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDemandaArrastando(null)}
         >
-          <div className="flex flex-1 gap-4 overflow-x-auto p-5">
+          <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-5">
             {COLUNAS.map((coluna) => (
               <KanbanColumn
                 key={coluna.status}
