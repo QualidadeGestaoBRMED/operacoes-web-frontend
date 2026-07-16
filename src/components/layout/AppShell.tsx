@@ -42,7 +42,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           sidebarAberta={sidebarAberta}
           onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto rounded-tl-3xl rounded-bl-3xl bg-background">
+        {/* Sem scroll próprio de propósito: main só define o espaço
+            disponível (altura travada) e cada página decide como rolar
+            dentro dele -- o Kanban, por exemplo, precisa que cada coluna
+            role sozinha, o que nunca acontece se o main rolar primeiro. */}
+        <main className="min-h-0 flex-1 overflow-hidden rounded-tl-3xl rounded-bl-3xl bg-background">
           {children}
         </main>
       </div>
