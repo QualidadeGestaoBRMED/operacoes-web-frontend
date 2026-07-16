@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { iniciaisDe } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-
-function iniciaisDe(nome: string) {
-  const partes = nome.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  return (
-    partes
-      .map((parte) => parte[0])
-      .join("")
-      .toUpperCase() || "?"
-  );
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
