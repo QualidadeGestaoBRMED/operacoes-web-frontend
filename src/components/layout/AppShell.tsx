@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -18,6 +18,17 @@ function iniciaisDe(nome: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const { user, isLoading } = useAuth();
+
+  // Achado no review: sidebarAberta sempre nascia "true", mesmo em tela
+  // estreita -- a sidebar (256px fixos) comia boa parte da viewport num
+  // celular por padrão. Corrige só depois do mount (sem isso, o server e o
+  // client renderizariam estados diferentes no primeiro render e o React
+  // acusaria hydration mismatch, já que window não existe no servidor).
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarAberta(false);
+    }
+  }, []);
 
   const nome = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
