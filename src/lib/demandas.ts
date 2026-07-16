@@ -45,3 +45,16 @@ export async function atualizarStatusDemanda(
   const { data } = await api.patch<Demanda>(`${BASE_URL}${id}/status/`, payload);
   return data;
 }
+
+// Mover pra lixeira e restaurar ficam de fora do endpoint de status de
+// propósito no backend (soft delete via DELETE + /restaurar/ dedicado, não
+// PATCH .../status/) -- o Kanban precisa dos dois porque "Lixeira" é uma
+// das colunas do board.
+export async function excluirDemanda(id: number): Promise<void> {
+  await api.delete(`${BASE_URL}${id}/`);
+}
+
+export async function restaurarDemanda(id: number): Promise<Demanda> {
+  const { data } = await api.post<Demanda>(`${BASE_URL}${id}/restaurar/`);
+  return data;
+}
