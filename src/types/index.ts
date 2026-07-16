@@ -126,3 +126,25 @@ export interface DemandaFiltros {
   search?: string;
   ordering?: string;
 }
+
+// GET /modulos/gestao-demandas/resumo/ (ResumoView) -- mesmo contrato
+// planejado pra Hub (hoje bloqueada), reaproveitado aqui pros cards de KPI
+// do Kanban.
+export interface EstatisticaResumo {
+  valor: string;
+  rotulo: string;
+  atencao: boolean;
+}
+
+export interface OcorrenciaResumo {
+  severidade: "critico" | "atencao";
+  titulo: string;
+  subtitulo: string;
+  responsavel: string | null;
+  tempo_atras: string;
+}
+
+export interface ResumoDemandas {
+  estatisticas: EstatisticaResumo[];
+  ocorrencias: OcorrenciaResumo[];
+}

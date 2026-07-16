@@ -1,7 +1,14 @@
 import api from "./api";
-import type { Demanda, DemandaFiltros, DemandaPayload, DemandaStatusPayload } from "@/types";
+import type {
+  Demanda,
+  DemandaFiltros,
+  DemandaPayload,
+  DemandaStatusPayload,
+  ResumoDemandas,
+} from "@/types";
 
-const BASE_URL = "/modulos/gestao-demandas/demandas/";
+const MODULO_URL = "/modulos/gestao-demandas/";
+const BASE_URL = `${MODULO_URL}demandas/`;
 
 function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | number> | undefined {
   if (!filtros) return undefined;
@@ -56,5 +63,10 @@ export async function excluirDemanda(id: number): Promise<void> {
 
 export async function restaurarDemanda(id: number): Promise<Demanda> {
   const { data } = await api.post<Demanda>(`${BASE_URL}${id}/restaurar/`);
+  return data;
+}
+
+export async function buscarResumoDemandas(): Promise<ResumoDemandas> {
+  const { data } = await api.get<ResumoDemandas>(`${MODULO_URL}resumo/`);
   return data;
 }

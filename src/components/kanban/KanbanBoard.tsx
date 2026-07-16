@@ -20,6 +20,7 @@ import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types
 import { DemandaCardArrastando } from "./DemandaCard";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanFiltros } from "./KanbanFiltros";
+import { ResumoCards } from "./ResumoCards";
 
 const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "backlog", titulo: "Backlog" },
@@ -143,6 +144,8 @@ export function KanbanBoard() {
 
   return (
     <div className="flex h-full flex-col">
+      <ResumoCards />
+
       <KanbanFiltros
         filtros={filtros}
         onMudarFiltros={atualizarFiltrosNaUrl}
