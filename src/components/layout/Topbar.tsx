@@ -26,19 +26,21 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
   const pagina = PAGINAS.find((p) => pathname.startsWith(p.prefixo));
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-5 border-b border-sidebar-border bg-sidebar px-7 text-sidebar-foreground">
-      <div className="flex min-w-0 flex-1 items-center gap-4">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
+      {/* Largura igual à da Sidebar (w-64) -- cria a costura visual entre o
+          header e a navegação lateral logo abaixo, como no ProntuAI. */}
+      <div className="flex w-64 shrink-0 items-center px-3">
         <Image
-          src="/brand/logo-brmed.svg"
-          alt="BR MED"
-          width={110}
-          height={25}
+          src="/brand/logo-brmed.webp"
+          alt="BR MED Saúde Corporativa"
+          width={200}
+          height={45}
           priority
-          className="h-6 w-auto shrink-0"
+          className="h-9 w-auto"
         />
+      </div>
 
-        <div className="h-6 w-px shrink-0 bg-sidebar-border" />
-
+      <div className="flex min-w-0 flex-1 items-center gap-4 border-l border-sidebar-border px-7">
         <Button
           type="button"
           variant="ghost"
@@ -76,7 +78,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-4">
+      <div className="flex shrink-0 items-center gap-4 pr-7">
         <Button
           type="button"
           variant="ghost"
