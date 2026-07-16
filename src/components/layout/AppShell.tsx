@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           igual ao main (mesma cor, sem contraste pra revelar a curva). */}
       <div className="flex min-h-0 flex-1 bg-sidebar">
         {sidebarAberta && <Sidebar />}
-        <main className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl bg-background">
+        <main className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl rounded-bl-xl bg-background">
           {children}
         </main>
       </div>

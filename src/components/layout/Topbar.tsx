@@ -26,7 +26,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
   const pagina = PAGINAS.find((p) => pathname.startsWith(p.prefixo));
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-stretch border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-stretch bg-sidebar text-sidebar-foreground">
       {/* Largura igual à da Sidebar (w-64) -- cria a costura visual entre o
           header e a navegação lateral logo abaixo, como no ProntuAI. */}
       <div className="flex w-64 shrink-0 items-center px-3">
