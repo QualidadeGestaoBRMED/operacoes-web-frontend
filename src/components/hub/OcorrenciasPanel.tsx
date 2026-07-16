@@ -33,7 +33,7 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
             <li
               key={i}
               className={cn(
-                "flex flex-wrap items-center gap-x-6 gap-y-1.5 px-[18px] py-3 text-sm",
+                "flex flex-col gap-1 px-[18px] py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5",
                 i < ocorrencias.length - 1 && "border-b border-b-border",
                 ocorrencia.severidade === "critico"
                   ? "bg-destructive/[0.08]"
@@ -47,23 +47,25 @@ export function OcorrenciasPanel({ ocorrencias }: { ocorrencias: Ocorrencia[] })
                 {ocorrencia.severidade === "critico" ? "Crítico" : "Atenção"}
               </Badge>
 
-              <div className="min-w-[220px] flex-1">
+              <div className="sm:min-w-[220px] sm:flex-1">
                 <div className="font-semibold text-foreground">{ocorrencia.titulo}</div>
                 <div className="text-xs text-muted-foreground">{ocorrencia.subtitulo}</div>
               </div>
 
-              <div className="w-40 shrink-0 text-xs text-muted-foreground">{ocorrencia.modulo}</div>
+              <div className="text-xs text-muted-foreground sm:w-40 sm:shrink-0">
+                {ocorrencia.modulo}
+              </div>
 
               <div
                 className={cn(
-                  "w-36 shrink-0 text-xs font-medium",
+                  "text-xs font-medium sm:w-36 sm:shrink-0",
                   ocorrencia.responsavel ? "text-foreground" : "text-destructive italic",
                 )}
               >
                 {ocorrencia.responsavel ?? RESPONSAVEL_PENDENTE}
               </div>
 
-              <div className="w-16 shrink-0 text-right text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground sm:w-16 sm:shrink-0 sm:text-right">
                 {ocorrencia.tempoAtras}
               </div>
             </li>
