@@ -5,11 +5,15 @@ import { Calendar, Lock, RotateCcw } from "lucide-react";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda, Prioridade } from "@/types";
 
+// Semáforo de severidade -- cores reais de status, não os tokens de marca
+// (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
+// Tailwind pros indicadores de severidade/aprovação, reservando os tokens
+// de qeg_design.json pro chrome da UI).
 const COR_PRIORIDADE: Record<Prioridade, string> = {
-  urgente: "#C0392B",
-  alta: "#D4600A",
-  media: "#9A7300",
-  baixa: "#2CAD6E",
+  urgente: "bg-red-600",
+  alta: "bg-orange-600",
+  media: "bg-yellow-600",
+  baixa: "bg-green-600",
 };
 
 const LABEL_PRIORIDADE: Record<Prioridade, string> = {
@@ -22,7 +26,7 @@ const LABEL_PRIORIDADE: Record<Prioridade, string> = {
 function InfoPrazo({ demanda }: { demanda: Demanda }) {
   if (demanda.status === "concluido") {
     return demanda.data_conclusao ? (
-      <div className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-medium text-[#2CAD6E]">
+      <div className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-medium text-chart-3">
         <Calendar className="size-3.5 shrink-0" />
         concluída em {formatarData(demanda.data_conclusao)}
       </div>
@@ -41,7 +45,7 @@ function InfoPrazo({ demanda }: { demanda: Demanda }) {
       className={cn(
         "mb-2.5 flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground",
         atrasada && "text-destructive",
-        proxima && !atrasada && "text-[#9c7d12]",
+        proxima && !atrasada && "text-destructive/70",
       )}
     >
       <Calendar className="size-3.5 shrink-0" />
@@ -71,8 +75,10 @@ function ConteudoCard({
     <>
       <div className="mb-2 flex items-center justify-between">
         <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase"
-          style={{ backgroundColor: COR_PRIORIDADE[demanda.prioridade] }}
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase",
+            COR_PRIORIDADE[demanda.prioridade],
+          )}
         >
           {LABEL_PRIORIDADE[demanda.prioridade]}
         </span>
@@ -96,10 +102,7 @@ function ConteudoCard({
 
       <InfoPrazo demanda={demanda} />
 
-      <div
-        className="my-2 h-px"
-        style={{ backgroundColor: COR_PRIORIDADE[demanda.prioridade] }}
-      />
+      <div className={cn("my-2 h-px", COR_PRIORIDADE[demanda.prioridade])} />
 
       {naLixeira ? (
         <button
