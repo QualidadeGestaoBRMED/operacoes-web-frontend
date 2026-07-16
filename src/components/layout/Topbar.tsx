@@ -29,7 +29,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-stretch bg-sidebar text-sidebar-foreground">
       {/* Largura igual à da Sidebar (w-64) -- cria a costura visual entre o
           header e a navegação lateral logo abaixo, como no ProntuAI. */}
-      <div className="flex w-64 shrink-0 items-center px-3">
+      <div className="flex h-full w-64 shrink-0 items-center justify-center px-3">
         <Image
           src="/brand/logo-brmed.webp"
           alt="BR MED Saúde Corporativa"
