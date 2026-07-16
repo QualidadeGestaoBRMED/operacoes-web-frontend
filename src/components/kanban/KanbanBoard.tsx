@@ -42,7 +42,17 @@ export function KanbanBoard() {
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
 
-  const { demandas, isLoading, error, mensagemErro, mutate } = useDemandas(filtros);
+  const { demandas: demandasAtivas, isLoading, error, mensagemErro, mutate } = useDemandas(filtros);
+  // O backend exclui a lixeira por padrão em qualquer listagem sem filtro
+  // (STC-178) -- só enxerga itens excluídos quando ?status=lixeira é
+  // passado explicitamente. Por isso a coluna Lixeira precisa da própria
+  // busca, separada da busca das colunas ativas.
+  const filtrosLixeira: DemandaFiltros = { ...filtros, status: "lixeira" };
+  const {
+    demandas: demandasLixeira,
+    isLoading: isLoadingLixeira,
+    mutate: mutateLixeira,
+  } = useDemandas(filtrosLixeira);
   const [erroMovimento, setErroMovimento] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -59,22 +69,32 @@ export function KanbanBoard() {
     if (demanda.status === novoStatus) return;
     setErroMovimento(null);
 
-    const dadosOtimistas = demandas.map((item) =>
+    // "lixeira" fica fora do endpoint de status de propósito no backend
+    // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
+    // separada (demandasLixeira) -- então sair de "ativas" e revalidar
+    // "lixeira" à parte, em vez de só trocar o status no mesmo array.
+    if (novoStatus === "lixeira") {
+      const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
+      try {
+        await mutate(excluirDemanda(demanda.id).then(() => listarDemandas(filtros)), {
+          optimisticData: dadosOtimistas,
+          rollbackOnError: true,
+          revalidate: false,
+        });
+        void mutateLixeira();
+      } catch (erro) {
+        setErroMovimento(extrairMensagemErro(erro));
+      }
+      return;
+    }
+
+    const dadosOtimistas = demandasAtivas.map((item) =>
       item.id === demanda.id ? { ...item, status: novoStatus } : item,
     );
 
     try {
       await mutate(
-        (async () => {
-          // "lixeira" fica fora do endpoint de status de propósito no
-          // backend (soft delete via DELETE, não PATCH .../status/).
-          if (novoStatus === "lixeira") {
-            await excluirDemanda(demanda.id);
-          } else {
-            await atualizarStatusDemanda(demanda.id, { status: novoStatus });
-          }
-          return listarDemandas(filtros);
-        })(),
+        atualizarStatusDemanda(demanda.id, { status: novoStatus }).then(() => listarDemandas(filtros)),
         { optimisticData: dadosOtimistas, rollbackOnError: true, revalidate: false },
       );
     } catch (erro) {
@@ -87,8 +107,14 @@ export function KanbanBoard() {
 
   async function restaurar(demanda: Demanda) {
     setErroMovimento(null);
+    const dadosOtimistas = demandasLixeira.filter((item) => item.id !== demanda.id);
     try {
-      await mutate(restaurarDemanda(demanda.id).then(() => listarDemandas(filtros)));
+      await mutateLixeira(restaurarDemanda(demanda.id).then(() => listarDemandas(filtrosLixeira)), {
+        optimisticData: dadosOtimistas,
+        rollbackOnError: true,
+        revalidate: false,
+      });
+      void mutate();
     } catch (erro) {
       setErroMovimento(extrairMensagemErro(erro));
     }
@@ -97,7 +123,9 @@ export function KanbanBoard() {
   function handleDragEnd(evento: DragEndEvent) {
     const { active, over } = evento;
     if (!over) return;
-    const demanda = demandas.find((item) => item.id === active.id);
+    // Cards na lixeira não são arrastáveis (useDraggable disabled), então só
+    // demandasAtivas pode ser a origem de um drag.
+    const demanda = demandasAtivas.find((item) => item.id === active.id);
     if (!demanda) return;
     void moverDemanda(demanda, over.id as StatusDemanda);
   }
@@ -136,7 +164,7 @@ export function KanbanBoard() {
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
           {mensagemErro}
         </div>
-      ) : isLoading ? (
+      ) : isLoading || isLoadingLixeira ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Carregando demandas...
         </div>
@@ -148,7 +176,11 @@ export function KanbanBoard() {
                 key={coluna.status}
                 status={coluna.status}
                 titulo={coluna.titulo}
-                demandas={demandas.filter((demanda) => demanda.status === coluna.status)}
+                demandas={
+                  coluna.status === "lixeira"
+                    ? demandasLixeira
+                    : demandasAtivas.filter((demanda) => demanda.status === coluna.status)
+                }
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
               />
