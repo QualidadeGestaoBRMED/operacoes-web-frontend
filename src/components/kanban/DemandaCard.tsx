@@ -76,7 +76,7 @@ function ConteudoCard({
       <div className="mb-2 flex items-center justify-between">
         <span
           className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase",
+            "rounded-full px-2 py-[3px] text-[10px] leading-none font-bold tracking-wide text-white uppercase",
             COR_PRIORIDADE[demanda.prioridade],
           )}
         >
