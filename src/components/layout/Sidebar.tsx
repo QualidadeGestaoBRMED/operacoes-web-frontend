@@ -101,8 +101,8 @@ function SidebarLinkBloqueado({
   return (
     <div className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/30">
       <Icon className="size-4 shrink-0" />
-      {label}
-      <span className="ml-auto rounded-sm bg-white/8 px-1.5 py-0.5 text-[10px] text-sidebar-foreground/50">
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="ml-auto shrink-0 rounded-sm bg-white/8 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-sidebar-foreground/50">
         em breve
       </span>
     </div>
