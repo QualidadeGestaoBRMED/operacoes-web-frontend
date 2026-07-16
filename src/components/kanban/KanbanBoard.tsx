@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { AlertCircle, X } from "lucide-react";
+import { toast } from "sonner";
 import { useDemandas } from "@/hooks/useDemandas";
 import { atualizarStatusDemanda, excluirDemanda, listarDemandas, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -56,7 +56,6 @@ export function KanbanBoard() {
     isLoading: isLoadingLixeira,
     mutate: mutateLixeira,
   } = useDemandas(filtrosLixeira);
-  const [erroMovimento, setErroMovimento] = useState<string | null>(null);
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -71,7 +70,6 @@ export function KanbanBoard() {
 
   async function moverDemanda(demanda: Demanda, novoStatus: StatusDemanda) {
     if (demanda.status === novoStatus) return;
-    setErroMovimento(null);
 
     // "lixeira" fica fora do endpoint de status de propósito no backend
     // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
@@ -87,7 +85,7 @@ export function KanbanBoard() {
         });
         void mutateLixeira();
       } catch (erro) {
-        setErroMovimento(extrairMensagemErro(erro));
+        toast.error(extrairMensagemErro(erro));
       }
       return;
     }
@@ -105,12 +103,11 @@ export function KanbanBoard() {
       // Backend é a fonte de verdade: se a transição não for permitida (ex.:
       // faltando responsável principal ou aprovador), o mutate() já desfez o
       // movimento visual sozinho (rollbackOnError) -- só falta mostrar o motivo.
-      setErroMovimento(extrairMensagemErro(erro));
+      toast.error(extrairMensagemErro(erro));
     }
   }
 
   async function restaurar(demanda: Demanda) {
-    setErroMovimento(null);
     const dadosOtimistas = demandasLixeira.filter((item) => item.id !== demanda.id);
     try {
       await mutateLixeira(restaurarDemanda(demanda.id).then(() => listarDemandas(filtrosLixeira)), {
@@ -120,7 +117,7 @@ export function KanbanBoard() {
       });
       void mutate();
     } catch (erro) {
-      setErroMovimento(extrairMensagemErro(erro));
+      toast.error(extrairMensagemErro(erro));
     }
   }
 
@@ -153,21 +150,6 @@ export function KanbanBoard() {
           // Formulário de nova demanda é escopo da STC-167.
         }}
       />
-
-      {erroMovimento && (
-        <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-7 py-2.5 text-sm text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
-          {erroMovimento}
-          <button
-            type="button"
-            onClick={() => setErroMovimento(null)}
-            className="ml-auto"
-            aria-label="Dispensar aviso"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      )}
 
       {error ? (
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
