@@ -64,6 +64,7 @@ function SidebarLink({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
         active &&
