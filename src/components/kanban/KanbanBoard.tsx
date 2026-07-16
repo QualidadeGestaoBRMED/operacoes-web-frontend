@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -89,7 +91,38 @@ export function KanbanBoard() {
   } = useDemandas(filtrosLixeira);
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  // KeyboardSensor: Tab até o card, Espaço/Enter pega, setas movem entre
+  // colunas, Espaço/Enter solta, Esc cancela -- sem isso, mover uma demanda
+  // de fase só era possível com mouse/touch (a interação central do board
+  // inteiro ficava inacessível por teclado).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  function nomeColuna(status: string) {
+    return COLUNAS.find((coluna) => coluna.status === status)?.titulo ?? status;
+  }
+
+  const anuncios: Announcements = {
+    onDragStart({ active }) {
+      const demanda = demandasAtivas.find((item) => item.id === active.id);
+      return `Arrastando a demanda "${demanda?.titulo ?? active.id}".`;
+    },
+    onDragOver({ over }) {
+      if (!over) return "Fora de qualquer coluna.";
+      return `Sobre a coluna ${nomeColuna(String(over.id))}.`;
+    },
+    onDragEnd({ active, over }) {
+      const demanda = demandasAtivas.find((item) => item.id === active.id);
+      if (!over) return `Movimento cancelado para "${demanda?.titulo ?? active.id}".`;
+      return `Demanda "${demanda?.titulo ?? active.id}" solta na coluna ${nomeColuna(String(over.id))}.`;
+    },
+    onDragCancel({ active }) {
+      const demanda = demandasAtivas.find((item) => item.id === active.id);
+      return `Movimento cancelado para "${demanda?.titulo ?? active.id}".`;
+    },
+  };
 
   function atualizarFiltrosNaUrl(novosFiltros: DemandaFiltros) {
     const params = new URLSearchParams();
@@ -204,6 +237,15 @@ export function KanbanBoard() {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          accessibility={{
+            announcements: anuncios,
+            screenReaderInstructions: {
+              draggable:
+                "Para pegar uma demanda, pressione a barra de espaço. " +
+                "Arrastando, use as setas do teclado para mover entre as colunas. " +
+                "Pressione espaço de novo para soltar na nova coluna, ou esc para cancelar.",
+            },
+          }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDemandaArrastando(null)}
