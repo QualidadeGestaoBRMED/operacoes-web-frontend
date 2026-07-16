@@ -4,7 +4,15 @@ import { NextRequest, NextResponse } from "next/server";
 type ParamsPromise = Promise<{ path: string[] }>;
 
 async function encaminhar(request: NextRequest, { params }: { params: ParamsPromise }) {
-  const token = await getToken({ req: request });
+  // getToken() é o helper standalone de next-auth/jwt -- diferente do
+  // auth()/handlers exportados por src/auth.ts, ele não detecta o secret
+  // sozinho a partir do NextAuth({...}) principal. Precisa receber
+  // explicitamente, senão lança MissingSecret (nunca tinha sido exercitado
+  // de ponta a ponta localmente até agora).
+  const token = await getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  });
 
   if (!token?.backendAccessToken) {
     return NextResponse.json({ detail: "Não autenticado." }, { status: 401 });
