@@ -268,10 +268,11 @@ Rotas principais consumidas pelo frontend:
 - `GET/POST /api/modulos/gestao-demandas/demandas/`
 - `GET/PATCH/DELETE /api/modulos/gestao-demandas/demandas/{id}/`
 - `PATCH /api/modulos/gestao-demandas/demandas/{id}/status/`
-- `GET/POST /api/modulos/gestao-demandas/demandas/{id}/comentarios/`
+- `GET/POST /api/modulos/gestao-demandas/demandas/{id}/comentarios/` — ✅ backend pronto (STC-159)
 - `GET/POST /api/modulos/gestao-demandas/demandas/{id}/anexos/`
 - `GET /api/modulos/gestao-demandas/demandas/{id}/anexos/{anexo_id}/presigned-url/`
-- `GET /api/modulos/gestao-demandas/demandas/{id}/historico/`
+- `GET /api/modulos/gestao-demandas/demandas/{id}/historico/` — ✅ backend pronto (STC-159)
+- `GET /api/modulos/gestao-demandas/demandas/{id}/timeline/` — ✅ backend pronto (STC-159), **não previsto neste plano**: junta `historico` + `comentarios` num feed só, ordenado por `created_at` (mais antigo primeiro). Cada item vem com `tipo` ("historico" ou "comentario") e `chave` (string única pro item, tipo+id — os dois models têm sequências de id independentes, então um `HistoricoAlteracao` e um `Comentario` podem ter o mesmo `id` numérico)
 
 ### 2.6 Tipos TypeScript
 
@@ -528,7 +529,9 @@ Submit: `POST /api/modulos/gestao-demandas/demandas/` → fechar modal → `muta
 ## Pacote 5 — Colaboração, Anexos e Auditoria
 **Datas:** 28/07 – 30/07 · 3 dias úteis
 
-> ⚠️ **Não iniciado.** O modal de detalhe (5.1, sem abas de Comentários/Anexos/Histórico) é a STC-168 — clicar num card do Kanban hoje não faz nada (`selecionarDemanda` é um no-op de propósito). Comentários/Anexos/Histórico (5.2–5.4) dependem de models que ainda não existem no backend (`Comentario`, `Anexo`, `HistoricoAlteracao`) — nem os contadores no `DemandaCard` foram construídos por causa disso. Badge de notificações (5.5) também não iniciado.
+> ⚠️ **Não iniciado (frontend).** O modal de detalhe (5.1, sem abas de Comentários/Anexos/Histórico) é a STC-168 — clicar num card do Kanban hoje não faz nada (`selecionarDemanda` é um no-op de propósito). Nem os contadores no `DemandaCard` foram construídos por causa disso. Badge de notificações (5.5) também não iniciado.
+>
+> ✅ **Backend de Comentários e Histórico pronto (STC-159).** `Comentario` e `HistoricoAlteracao` existem, com `GET/POST .../comentarios/`, `GET .../historico/` e `GET .../timeline/` (combina os dois, não previsto neste plano — ver seção 2.5). Histórico cobre os 4 gatilhos (criação, edição, status, responsável), tanto pela API quanto pelo Django admin. Só falta a UI (5.2–5.4) e o `Anexo`/STC-160, que ainda bloqueia 5.3.
 
 ### 5.1 Modal de Detalhe (`DetalheCard.tsx`)
 
