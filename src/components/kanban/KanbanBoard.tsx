@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -35,31 +35,6 @@ import { KanbanColumn } from "./KanbanColumn";
 import { KanbanFiltros } from "./KanbanFiltros";
 import { ResumoCards } from "./ResumoCards";
 
-// Padrão do KeyboardSensor move um cursor virtual em pixels e depende da
-// detecção de colisão pra "adivinhar" a coluna mais próxima -- impreciso
-// pra colunas fixas lado a lado. Aqui seta direita/esquerda pula direto
-// pra fase seguinte/anterior na ordem do board, sem ambiguidade nenhuma.
-const coordenadasPorFase: KeyboardCoordinateGetter = (event, { context }) => {
-  const statusAtual = context.active?.data.current?.status as StatusDemanda | undefined;
-  if (!statusAtual) return undefined;
-
-  const indiceAtual = ORDEM_COLUNAS.indexOf(statusAtual);
-  if (indiceAtual === -1) return undefined;
-
-  let indiceAlvo: number | undefined;
-  if (event.code === KeyboardCode.Right) indiceAlvo = indiceAtual + 1;
-  if (event.code === KeyboardCode.Left) indiceAlvo = indiceAtual - 1;
-  if (indiceAlvo === undefined || indiceAlvo < 0 || indiceAlvo >= ORDEM_COLUNAS.length) {
-    return undefined;
-  }
-
-  const rect = context.droppableRects.get(ORDEM_COLUNAS[indiceAlvo]);
-  if (!rect) return undefined;
-
-  event.preventDefault();
-  return { x: rect.left, y: rect.top };
-};
-
 export function KanbanBoard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -89,10 +64,37 @@ export function KanbanBoard() {
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
   const [foco, setFoco] = useState<string | null>(null);
 
+  // Índice da coluna "virtual" atual durante um arraste por teclado --
+  // precisa ser estado mutável entre teclas, não recalculado do zero a
+  // cada uma. Achado no code review: a versão anterior lia sempre a coluna
+  // ORIGINAL do card (que nunca muda durante o arraste), então repetir a
+  // mesma seta nunca avançava além da coluna adjacente à origem.
+  const indiceColunaArrastandoRef = useRef<number | null>(null);
+
   // KeyboardSensor: Tab até o card, Espaço/Enter pega, setas movem entre
   // colunas, Espaço/Enter solta, Esc cancela -- sem isso, mover uma demanda
   // de fase só era possível com mouse/touch (a interação central do board
-  // inteiro ficava inacessível por teclado).
+  // inteiro ficava inacessível por teclado). Setas pulam direto pra fase
+  // seguinte/anterior a partir da coluna virtual ATUAL (não da original),
+  // avançando um passo por tecla.
+  const coordenadasPorFase: KeyboardCoordinateGetter = (event, { context }) => {
+    if (indiceColunaArrastandoRef.current === null) return undefined;
+
+    let indiceAlvo: number | undefined;
+    if (event.code === KeyboardCode.Right) indiceAlvo = indiceColunaArrastandoRef.current + 1;
+    if (event.code === KeyboardCode.Left) indiceAlvo = indiceColunaArrastandoRef.current - 1;
+    if (indiceAlvo === undefined || indiceAlvo < 0 || indiceAlvo >= ORDEM_COLUNAS.length) {
+      return undefined;
+    }
+
+    const rect = context.droppableRects.get(ORDEM_COLUNAS[indiceAlvo]);
+    if (!rect) return undefined;
+
+    indiceColunaArrastandoRef.current = indiceAlvo;
+    event.preventDefault();
+    return { x: rect.left, y: rect.top };
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: coordenadasPorFase }),
@@ -195,11 +197,14 @@ export function KanbanBoard() {
   function handleDragStart(evento: DragStartEvent) {
     // Cards na lixeira não são arrastáveis (useDraggable disabled), então só
     // demandasAtivas pode ser a origem de um drag.
-    setDemandaArrastando(demandasAtivas.find((item) => item.id === evento.active.id) ?? null);
+    const demanda = demandasAtivas.find((item) => item.id === evento.active.id) ?? null;
+    setDemandaArrastando(demanda);
+    indiceColunaArrastandoRef.current = demanda ? ORDEM_COLUNAS.indexOf(demanda.status) : null;
   }
 
   function handleDragEnd(evento: DragEndEvent) {
     setDemandaArrastando(null);
+    indiceColunaArrastandoRef.current = null;
     const { active, over } = evento;
     if (!over) return;
     const demanda = demandasAtivas.find((item) => item.id === active.id);
@@ -251,7 +256,10 @@ export function KanbanBoard() {
           }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={() => setDemandaArrastando(null)}
+          onDragCancel={() => {
+            setDemandaArrastando(null);
+            indiceColunaArrastandoRef.current = null;
+          }}
         >
           {/* justify-center: as colunas têm maxWidth (340px) e param de
               crescer bem antes de preencher telas largas -- sem centralizar,
