@@ -46,7 +46,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.backendAccessToken = dados.access;
           token.backendUser = dados.user;
           delete token.error;
-        } catch {
+        } catch (erro) {
+          // Sem isso, timeout/conexão recusada/500 do backend/corpo inválido
+          // caem todos no mesmo "BackendAuthError" genérico sem nenhum
+          // rastro -- impossível diferenciar uma falha transitória de um
+          // problema real sem ver o motivo real no terminal do dev server.
+          console.error("Falha ao trocar token com o backend:", erro);
           token.error = "BackendAuthError";
         }
       }
