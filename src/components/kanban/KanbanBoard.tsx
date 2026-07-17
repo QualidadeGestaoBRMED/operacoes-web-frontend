@@ -36,6 +36,18 @@ const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
 
 const ORDEM_COLUNAS = COLUNAS.map((coluna) => coluna.status);
 
+const PESO_PRIORIDADE: Record<Prioridade, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 };
+
+// Antes vinha só na ordem que o backend devolve (-created_at, "mais
+// recente primeiro") -- ninguém tinha escolhido isso de propósito pro
+// board. Prazo mais próximo primeiro (o que precisa de atenção logo)
+// desempatado por prioridade é mais operacional que ordem de criação.
+function compararDemandas(a: Demanda, b: Demanda): number {
+  const prazoDiff = new Date(a.data_prevista).getTime() - new Date(b.data_prevista).getTime();
+  if (prazoDiff !== 0) return prazoDiff;
+  return PESO_PRIORIDADE[a.prioridade] - PESO_PRIORIDADE[b.prioridade];
+}
+
 // Padrão do KeyboardSensor move um cursor virtual em pixels e depende da
 // detecção de colisão pra "adivinhar" a coluna mais próxima -- impreciso
 // pra colunas fixas lado a lado. Aqui seta direita/esquerda pula direto
@@ -290,8 +302,10 @@ export function KanbanBoard() {
                 titulo={coluna.titulo}
                 demandas={
                   coluna.status === "lixeira"
-                    ? demandasLixeira
-                    : demandasAtivas.filter((demanda) => demanda.status === coluna.status)
+                    ? demandasLixeira.slice().sort(compararDemandas)
+                    : demandasAtivas
+                        .filter((demanda) => demanda.status === coluna.status)
+                        .sort(compararDemandas)
                 }
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
