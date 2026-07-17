@@ -52,17 +52,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           sidebarAberta={sidebarAberta}
           onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
         />
-        {/* Sem scroll próprio de propósito: main só define o espaço
-            disponível (altura travada) e cada página decide como rolar
-            dentro dele -- o Kanban, por exemplo, precisa que cada coluna
-            role sozinha, o que nunca acontece se o main rolar primeiro.
-            O canto arredondado só faz sentido com a sidebar visível ao
-            lado -- sem ela, main encosta na borda esquerda da tela e o
-            arredondamento fica solto, sem chrome escuro por trás pra
-            revelar a curva. */}
+        {/* overflow-y-auto (não hidden): main é só um fallback de
+            segurança, não quem normalmente rola. No caso comum, a área das
+            colunas do Kanban (flex-1 min-h-0) absorve toda a sobra/déficit
+            de altura sozinha e nada extravasa main -- então este scroll
+            fica dormente e cada coluna continua rolando por conta própria.
+            Ele só entra em ação no caso extremo em que o cabeçalho
+            (ResumoCards + filtros, que podem quebrar linha) sozinho já não
+            cabe (celular em paisagem, janela bem baixa) -- achado no code
+            review: com overflow-hidden isso ficava cortado sem nenhum jeito
+            de alcançar. O canto arredondado só faz sentido com a sidebar
+            visível ao lado -- sem ela, main encosta na borda esquerda da
+            tela e o arredondamento fica solto, sem chrome escuro por trás
+            pra revelar a curva. */}
         <main
           className={cn(
-            "min-h-0 flex-1 overflow-hidden bg-background transition-[border-radius] duration-300",
+            "min-h-0 flex-1 overflow-y-auto bg-background transition-[border-radius] duration-300",
             sidebarAberta && "rounded-tl-3xl rounded-bl-3xl",
           )}
         >
