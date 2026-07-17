@@ -1,5 +1,6 @@
 import api from "./api";
 import type {
+  Categoria,
   Demanda,
   DemandaFiltros,
   DemandaPayload,
@@ -70,5 +71,10 @@ export async function buscarResumoDemandas(filtros?: DemandaFiltros): Promise<Re
   const { data } = await api.get<ResumoDemandas>(`${MODULO_URL}resumo/`, {
     params: paramsDeFiltros(filtros),
   });
+  return data;
+}
+
+export async function listarCategorias(): Promise<Categoria[]> {
+  const { data } = await api.get<Categoria[]>(`${MODULO_URL}categorias/`);
   return data;
 }

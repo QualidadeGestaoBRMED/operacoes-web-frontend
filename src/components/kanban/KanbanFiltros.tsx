@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCategorias } from "@/hooks/useCategorias";
 import { useUnidades } from "@/hooks/useUnidades";
 import type { DemandaFiltros, Prioridade } from "@/types";
 
@@ -29,6 +30,7 @@ interface KanbanFiltrosProps {
 
 export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: KanbanFiltrosProps) {
   const { unidades } = useUnidades();
+  const { categorias } = useCategorias();
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
@@ -43,7 +45,9 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaLocal]);
 
-  const temFiltrosAtivos = Boolean(filtros.unidade || filtros.prioridade || filtros.search);
+  const temFiltrosAtivos = Boolean(
+    filtros.unidade || filtros.prioridade || filtros.categoria || filtros.search,
+  );
 
   function limparFiltros() {
     setBuscaLocal("");
@@ -102,6 +106,29 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           ))}
         </SelectContent>
       </Select>
+
+      {/* Sem sentido escolher entre uma única opção -- só aparece quando
+          houver categoria de verdade pra filtrar. */}
+      {categorias.length > 1 && (
+        <Select
+          value={filtros.categoria ? String(filtros.categoria) : "todas"}
+          onValueChange={(valor) =>
+            onMudarFiltros({ ...filtros, categoria: valor === "todas" ? undefined : Number(valor) })
+          }
+        >
+          <SelectTrigger size="sm" className="h-8">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as categorias</SelectItem>
+            {categorias.map((categoria) => (
+              <SelectItem key={categoria.id} value={String(categoria.id)}>
+                {categoria.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {temFiltrosAtivos && (
         <button

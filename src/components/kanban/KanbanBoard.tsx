@@ -107,9 +107,11 @@ function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const filtros: DemandaFiltros = {};
   const unidade = searchParams.get("unidade");
   const prioridade = searchParams.get("prioridade");
+  const categoria = searchParams.get("categoria");
   const search = searchParams.get("search");
   if (unidade) filtros.unidade = Number(unidade);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;
+  if (categoria) filtros.categoria = Number(categoria);
   if (search) filtros.search = search;
   return filtros;
 }
@@ -169,6 +171,7 @@ export function KanbanBoard() {
     const params = new URLSearchParams();
     if (novosFiltros.unidade) params.set("unidade", String(novosFiltros.unidade));
     if (novosFiltros.prioridade) params.set("prioridade", novosFiltros.prioridade);
+    if (novosFiltros.categoria) params.set("categoria", String(novosFiltros.categoria));
     if (novosFiltros.search) params.set("search", novosFiltros.search);
     router.replace(params.size > 0 ? `?${params.toString()}` : "?");
   }
