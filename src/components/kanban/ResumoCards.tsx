@@ -79,11 +79,11 @@ interface ResumoCardsProps {
 // funcionam como atalho pra filtrar o board só pelas demandas daquela
 // métrica (ex.: só as atrasadas), sem precisar de um filtro dedicado.
 export function ResumoCards({ filtros, focoAtivo, onFocoClick }: ResumoCardsProps) {
-  const { resumo, isLoading, error } = useResumoDemandas(filtros);
+  const { resumo, isValidating, carregandoPrimeiraVez, error } = useResumoDemandas(filtros);
 
   if (error) return null;
 
-  if (isLoading || !resumo) {
+  if (carregandoPrimeiraVez || !resumo) {
     return (
       <div className="grid grid-cols-1 gap-3 px-7 pt-5 sm:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
@@ -97,7 +97,15 @@ export function ResumoCards({ filtros, focoAtivo, onFocoClick }: ResumoCardsProp
   if (estatisticas.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-3 px-7 pt-5 sm:grid-cols-2">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-3 px-7 pt-5 transition-opacity sm:grid-cols-2",
+        // Troca de filtro: mantém os cards antigos visíveis (keepPreviousData
+        // no hook) em vez de sumir pra um skeleton -- só esmaece um pouco
+        // enquanto a resposta nova não chega, pra não parecer travado.
+        isValidating && "opacity-60",
+      )}
+    >
       {estatisticas.map((estatistica) => (
         <CardEstatistica
           key={estatistica.rotulo}

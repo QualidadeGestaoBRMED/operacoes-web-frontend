@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useDemandas } from "@/hooks/useDemandas";
 import { atualizarStatusDemanda, excluirDemanda, listarDemandas, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
+import { cn } from "@/lib/utils";
 import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
 import { DemandaCardArrastando } from "./DemandaCard";
 import { KanbanColumn } from "./KanbanColumn";
@@ -140,7 +141,14 @@ export function KanbanBoard() {
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
 
-  const { demandas: demandasAtivas, isLoading, error, mensagemErro, mutate } = useDemandas(filtros);
+  const {
+    demandas: demandasAtivas,
+    isValidating,
+    carregandoPrimeiraVez,
+    error,
+    mensagemErro,
+    mutate,
+  } = useDemandas(filtros);
   // O backend exclui a lixeira por padrão em qualquer listagem sem filtro
   // (STC-178) -- só enxerga itens excluídos quando ?status=lixeira é
   // passado explicitamente. Por isso a coluna Lixeira precisa da própria
@@ -148,7 +156,8 @@ export function KanbanBoard() {
   const filtrosLixeira: DemandaFiltros = { ...filtros, status: "lixeira" };
   const {
     demandas: demandasLixeira,
-    isLoading: isLoadingLixeira,
+    isValidating: isValidatingLixeira,
+    carregandoPrimeiraVez: carregandoLixeiraPrimeiraVez,
     mutate: mutateLixeira,
   } = useDemandas(filtrosLixeira);
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
@@ -299,7 +308,7 @@ export function KanbanBoard() {
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
           {mensagemErro}
         </div>
-      ) : isLoading || isLoadingLixeira ? (
+      ) : carregandoPrimeiraVez || carregandoLixeiraPrimeiraVez ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Carregando demandas...
         </div>
@@ -322,8 +331,16 @@ export function KanbanBoard() {
         >
           {/* justify-center: as colunas têm maxWidth (340px) e param de
               crescer bem antes de preencher telas largas -- sem centralizar,
-              a sobra de espaço toda ficava jogada à direita. */}
-          <div className="flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5">
+              a sobra de espaço toda ficava jogada à direita. opacity: troca
+              de filtro mantém os cards antigos (keepPreviousData no hook)
+              em vez de colapsar pra "Carregando demandas..." -- só esmaece
+              um pouco enquanto a resposta nova não chega. */}
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5 transition-opacity",
+              (isValidating || isValidatingLixeira) && "opacity-60",
+            )}
+          >
             {COLUNAS.map((coluna) => (
               <KanbanColumn
                 key={coluna.status}
