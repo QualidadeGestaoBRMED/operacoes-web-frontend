@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -65,6 +65,23 @@ export function KanbanBoard() {
   // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
   const [foco, setFoco] = useState<string | null>(null);
+
+  // Antes cada coluna filtrava+ordenava a lista inteira de novo dentro do
+  // JSX (5 passagens completas a cada render do board). Agrupa tudo numa
+  // única passagem aqui, memoizado -- só recalcula quando os dados ou o
+  // foco realmente mudam.
+  const demandasPorColuna = useMemo(() => {
+    const grupos = new Map<StatusDemanda, Demanda[]>(COLUNAS.map((coluna) => [coluna.status, []]));
+    for (const demanda of demandasAtivas) {
+      if (!passaNoFoco(demanda, foco)) continue;
+      grupos.get(demanda.status)?.push(demanda);
+    }
+    for (const lista of grupos.values()) {
+      lista.sort(compararDemandas);
+    }
+    grupos.set("lixeira", demandasLixeira.slice().sort(compararDemandas));
+    return grupos;
+  }, [demandasAtivas, demandasLixeira, foco]);
 
   // Índice da coluna "virtual" atual durante um arraste por teclado --
   // precisa ser estado mutável entre teclas, não recalculado do zero a
@@ -284,14 +301,7 @@ export function KanbanBoard() {
                 key={coluna.status}
                 status={coluna.status}
                 titulo={coluna.titulo}
-                demandas={
-                  coluna.status === "lixeira"
-                    ? demandasLixeira.slice().sort(compararDemandas)
-                    : demandasAtivas
-                        .filter((demanda) => demanda.status === coluna.status)
-                        .filter((demanda) => passaNoFoco(demanda, foco))
-                        .sort(compararDemandas)
-                }
+                demandas={demandasPorColuna.get(coluna.status) ?? []}
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
               />
