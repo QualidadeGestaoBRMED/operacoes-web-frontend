@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,14 +35,34 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
 
+  // Achado no code review: o timer de debounce fechava sobre 'filtros' e
+  // 'onMudarFiltros' do momento em que foi agendado -- se o usuário trocasse
+  // unidade/prioridade nos 300ms seguintes, o timer disparava depois com o
+  // filtro ANTIGO e revertia essa escolha. O ref sempre aponta pro valor
+  // mais recente, sem precisar recriar o timer a cada mudança de filtro.
+  const filtrosRef = useRef(filtros);
+  const onMudarFiltrosRef = useRef(onMudarFiltros);
+  useEffect(() => {
+    filtrosRef.current = filtros;
+    onMudarFiltrosRef.current = onMudarFiltros;
+  });
+
+  // Ressincroniza o campo quando 'filtros.search' muda por uma via externa
+  // a este componente (ex.: botão Voltar do navegador) -- sem isso, o texto
+  // exibido podia ficar diferente do filtro de verdade aplicado ao board.
+  // Quando a mudança vem do próprio debounce abaixo, buscaLocal já está
+  // igual, então isso não interfere na digitação.
+  useEffect(() => {
+    setBuscaLocal(filtros.search ?? "");
+  }, [filtros.search]);
+
   useEffect(() => {
     const temporizador = setTimeout(() => {
-      if (buscaLocal !== (filtros.search ?? "")) {
-        onMudarFiltros({ ...filtros, search: buscaLocal || undefined });
+      if (buscaLocal !== (filtrosRef.current.search ?? "")) {
+        onMudarFiltrosRef.current({ ...filtrosRef.current, search: buscaLocal || undefined });
       }
     }, 300);
     return () => clearTimeout(temporizador);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaLocal]);
 
   const temFiltrosAtivos = Boolean(
@@ -57,8 +77,12 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-border px-7 py-4">
       <div className="relative w-full max-w-[320px]">
+        <label htmlFor="busca-demandas" className="sr-only">
+          Buscar demanda por título ou descrição
+        </label>
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          id="busca-demandas"
           value={buscaLocal}
           onChange={(evento) => setBuscaLocal(evento.target.value)}
           placeholder="Buscar demanda..."
