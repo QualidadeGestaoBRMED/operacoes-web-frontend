@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { iniciaisDe } from "@/lib/utils";
+import { cn, iniciaisDe } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -34,7 +34,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // isso o recorte não aparece, já que por trás dele o body já é claro
     // igual ao main (mesma cor, sem contraste pra revelar a curva).
     <div className="flex h-screen bg-sidebar">
-      {sidebarAberta && <Sidebar />}
+      {/* Sempre montada -- só a largura do wrapper anima (0 <-> 16rem), com
+          overflow-hidden escondendo o conteúdo durante a transição. Trocar
+          por mount/unmount condicional (como antes) não dá pra animar. */}
+      <div
+        className={cn(
+          "shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+          sidebarAberta ? "w-64" : "w-0",
+        )}
+      >
+        <Sidebar />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           usuario={usuarioTopbar}
@@ -45,8 +55,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sem scroll próprio de propósito: main só define o espaço
             disponível (altura travada) e cada página decide como rolar
             dentro dele -- o Kanban, por exemplo, precisa que cada coluna
-            role sozinha, o que nunca acontece se o main rolar primeiro. */}
-        <main className="min-h-0 flex-1 overflow-hidden rounded-tl-3xl rounded-bl-3xl bg-background">
+            role sozinha, o que nunca acontece se o main rolar primeiro.
+            O canto arredondado só faz sentido com a sidebar visível ao
+            lado -- sem ela, main encosta na borda esquerda da tela e o
+            arredondamento fica solto, sem chrome escuro por trás pra
+            revelar a curva. */}
+        <main
+          className={cn(
+            "min-h-0 flex-1 overflow-hidden bg-background transition-[border-radius] duration-300",
+            sidebarAberta && "rounded-tl-3xl rounded-bl-3xl",
+          )}
+        >
           {children}
         </main>
       </div>

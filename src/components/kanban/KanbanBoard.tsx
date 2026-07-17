@@ -279,7 +279,10 @@ export function KanbanBoard() {
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDemandaArrastando(null)}
         >
-          <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-5">
+          {/* justify-center: as colunas têm maxWidth (340px) e param de
+              crescer bem antes de preencher telas largas -- sem centralizar,
+              a sobra de espaço toda ficava jogada à direita. */}
+          <div className="flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5">
             {COLUNAS.map((coluna) => (
               <KanbanColumn
                 key={coluna.status}
