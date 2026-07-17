@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
+  KeyboardCode,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -13,6 +14,7 @@ import {
   type Announcements,
   type DragEndEvent,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { useDemandas } from "@/hooks/useDemandas";
@@ -31,6 +33,33 @@ const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "concluido", titulo: "Concluído" },
   { status: "lixeira", titulo: "Lixeira" },
 ];
+
+const ORDEM_COLUNAS = COLUNAS.map((coluna) => coluna.status);
+
+// Padrão do KeyboardSensor move um cursor virtual em pixels e depende da
+// detecção de colisão pra "adivinhar" a coluna mais próxima -- impreciso
+// pra colunas fixas lado a lado. Aqui seta direita/esquerda pula direto
+// pra fase seguinte/anterior na ordem do board, sem ambiguidade nenhuma.
+const coordenadasPorFase: KeyboardCoordinateGetter = (event, { context }) => {
+  const statusAtual = context.active?.data.current?.status as StatusDemanda | undefined;
+  if (!statusAtual) return undefined;
+
+  const indiceAtual = ORDEM_COLUNAS.indexOf(statusAtual);
+  if (indiceAtual === -1) return undefined;
+
+  let indiceAlvo: number | undefined;
+  if (event.code === KeyboardCode.Right) indiceAlvo = indiceAtual + 1;
+  if (event.code === KeyboardCode.Left) indiceAlvo = indiceAtual - 1;
+  if (indiceAlvo === undefined || indiceAlvo < 0 || indiceAlvo >= ORDEM_COLUNAS.length) {
+    return undefined;
+  }
+
+  const rect = context.droppableRects.get(ORDEM_COLUNAS[indiceAlvo]);
+  if (!rect) return undefined;
+
+  event.preventDefault();
+  return { x: rect.left, y: rect.top };
+};
 
 // Transições que o backend sempre rejeita hoje porque exigem um dado que
 // o drag-and-drop do board não coleta (aprovador_id/justificativa -- isso
@@ -97,7 +126,7 @@ export function KanbanBoard() {
   // inteiro ficava inacessível por teclado).
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: coordenadasPorFase }),
   );
 
   function nomeColuna(status: string) {

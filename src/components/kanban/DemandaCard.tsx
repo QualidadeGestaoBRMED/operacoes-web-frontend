@@ -165,6 +165,10 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: demanda.id,
     disabled: naLixeira,
+    // Consumido pelo coordinateGetter customizado do KeyboardSensor (pular
+    // direto pra fase seguinte/anterior) -- ele não sabe a fase atual do
+    // card sem isso.
+    data: { status: demanda.status },
   });
 
   const principal = demanda.responsaveis.find((r) => r.tipo === "principal");
