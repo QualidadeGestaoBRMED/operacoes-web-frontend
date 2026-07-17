@@ -16,16 +16,30 @@ const ICONE_POR_ROTULO: Record<string, LucideIcon> = {
   "sem responsável": UserRoundX,
 };
 
-function CardEstatistica({ valor, rotulo, atencao }: EstatisticaResumo) {
+function CardEstatistica({
+  valor,
+  rotulo,
+  atencao,
+  ativo,
+  onClick,
+}: EstatisticaResumo & { ativo: boolean; onClick: () => void }) {
   const Icon = ICONE_POR_ROTULO[rotulo] ?? Info;
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={ativo}
       className={cn(
-        "flex items-center justify-between rounded-xl border border-border p-4",
+        "flex items-center justify-between rounded-xl border p-4 text-left transition-shadow",
         atencao
           ? "bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))]"
           : "bg-[color-mix(in_srgb,var(--secondary)_10%,var(--card))]",
+        ativo
+          ? atencao
+            ? "border-destructive ring-2 ring-destructive/40"
+            : "border-secondary ring-2 ring-secondary/40"
+          : "border-border",
       )}
     >
       <div>
@@ -49,14 +63,22 @@ function CardEstatistica({ valor, rotulo, atencao }: EstatisticaResumo) {
       >
         <Icon className="size-4" />
       </div>
-    </div>
+    </button>
   );
+}
+
+interface ResumoCardsProps {
+  filtros?: DemandaFiltros;
+  focoAtivo?: string | null;
+  onFocoClick?: (rotulo: string) => void;
 }
 
 // KPIs de "de relance" acima do board -- inspirado nas telas do ProntuAI
 // (Pendentes/Aprovados/Rejeitados). Reaproveita o /resumo/ que já existia
-// pra Hub (hoje bloqueada) em vez de criar um endpoint novo.
-export function ResumoCards({ filtros }: { filtros?: DemandaFiltros }) {
+// pra Hub (hoje bloqueada) em vez de criar um endpoint novo. Clicáveis:
+// funcionam como atalho pra filtrar o board só pelas demandas daquela
+// métrica (ex.: só as atrasadas), sem precisar de um filtro dedicado.
+export function ResumoCards({ filtros, focoAtivo, onFocoClick }: ResumoCardsProps) {
   const { resumo, isLoading, error } = useResumoDemandas(filtros);
 
   if (error) return null;
@@ -77,7 +99,12 @@ export function ResumoCards({ filtros }: { filtros?: DemandaFiltros }) {
   return (
     <div className="grid grid-cols-1 gap-3 px-7 pt-5 sm:grid-cols-2">
       {estatisticas.map((estatistica) => (
-        <CardEstatistica key={estatistica.rotulo} {...estatistica} />
+        <CardEstatistica
+          key={estatistica.rotulo}
+          {...estatistica}
+          ativo={focoAtivo === estatistica.rotulo}
+          onClick={() => onFocoClick?.(estatistica.rotulo)}
+        />
       ))}
     </div>
   );

@@ -88,6 +88,25 @@ const TRANSICOES_SEM_DADO_COLETADO = new Set([
   "concluido->backlog",
 ]);
 
+// Mesmo critério do backend (ResumoView) pras métricas "atrasadas"/"sem
+// responsável" -- clicar no card de KPI usa isso como atalho de filtro
+// rápido no board, sem precisar de um filtro dedicado (nem de refazer a
+// consulta: os dados já estão carregados no client).
+function passaNoFoco(demanda: Demanda, foco: string | null): boolean {
+  if (!foco) return true;
+  if (demanda.status === "concluido") return false;
+
+  if (foco === "atrasadas") {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return new Date(`${demanda.data_prevista}T00:00:00`) < hoje;
+  }
+  if (foco === "sem responsável") {
+    return !demanda.responsaveis.some((r) => r.tipo === "principal");
+  }
+  return true;
+}
+
 function mensagemBloqueioConhecido(demanda: Demanda, novoStatus: StatusDemanda): string | null {
   if (TRANSICOES_SEM_DADO_COLETADO.has(`${demanda.status}->${novoStatus}`)) {
     return novoStatus === "em_revisao"
@@ -133,6 +152,9 @@ export function KanbanBoard() {
     mutate: mutateLixeira,
   } = useDemandas(filtrosLixeira);
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
+  // responsável") -- clicar de novo no mesmo card desliga o filtro.
+  const [foco, setFoco] = useState<string | null>(null);
 
   // KeyboardSensor: Tab até o card, Espaço/Enter pega, setas movem entre
   // colunas, Espaço/Enter solta, Esc cancela -- sem isso, mover uma demanda
@@ -259,7 +281,11 @@ export function KanbanBoard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ResumoCards filtros={filtros} />
+      <ResumoCards
+        filtros={filtros}
+        focoAtivo={foco}
+        onFocoClick={(rotulo) => setFoco((atual) => (atual === rotulo ? null : rotulo))}
+      />
 
       <KanbanFiltros
         filtros={filtros}
@@ -308,6 +334,7 @@ export function KanbanBoard() {
                     ? demandasLixeira.slice().sort(compararDemandas)
                     : demandasAtivas
                         .filter((demanda) => demanda.status === coluna.status)
+                        .filter((demanda) => passaNoFoco(demanda, foco))
                         .sort(compararDemandas)
                 }
                 onSelecionarDemanda={selecionarDemanda}
