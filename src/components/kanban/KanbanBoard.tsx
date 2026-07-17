@@ -57,6 +57,8 @@ export function KanbanBoard() {
     demandas: demandasLixeira,
     isValidating: isValidatingLixeira,
     carregandoPrimeiraVez: carregandoLixeiraPrimeiraVez,
+    error: erroLixeira,
+    mensagemErro: mensagemErroLixeira,
     mutate: mutateLixeira,
   } = useDemandas(filtrosLixeira);
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
@@ -233,9 +235,13 @@ export function KanbanBoard() {
         }}
       />
 
-      {error ? (
+      {error || erroLixeira ? (
+        // Achado no code review: só o erro da lista ativa era checado --
+        // se só a busca da lixeira falhasse, o board inteiro ficava preso
+        // em "Carregando demandas..." pra sempre, escondendo até os dados
+        // que já tinham chegado.
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
-          {mensagemErro}
+          {mensagemErro ?? mensagemErroLixeira}
         </div>
       ) : carregandoPrimeiraVez || carregandoLixeiraPrimeiraVez ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
