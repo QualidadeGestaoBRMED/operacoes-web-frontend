@@ -4,7 +4,7 @@ import { AlertTriangle, Info, UserRoundX, type LucideIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumoDemandas } from "@/hooks/useResumoDemandas";
 import { cn } from "@/lib/utils";
-import type { EstatisticaResumo } from "@/types";
+import type { DemandaFiltros, EstatisticaResumo } from "@/types";
 
 // "em andamento" fica de fora de propósito: a própria coluna "Em Andamento"
 // do board já mostra essa contagem, então o card aqui seria redundante --
@@ -56,8 +56,8 @@ function CardEstatistica({ valor, rotulo, atencao }: EstatisticaResumo) {
 // KPIs de "de relance" acima do board -- inspirado nas telas do ProntuAI
 // (Pendentes/Aprovados/Rejeitados). Reaproveita o /resumo/ que já existia
 // pra Hub (hoje bloqueada) em vez de criar um endpoint novo.
-export function ResumoCards() {
-  const { resumo, isLoading, error } = useResumoDemandas();
+export function ResumoCards({ filtros }: { filtros?: DemandaFiltros }) {
+  const { resumo, isLoading, error } = useResumoDemandas(filtros);
 
   if (error) return null;
 

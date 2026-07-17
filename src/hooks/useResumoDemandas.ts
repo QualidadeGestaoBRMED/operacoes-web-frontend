@@ -2,12 +2,12 @@
 
 import useSWR from "swr";
 import { buscarResumoDemandas } from "@/lib/demandas";
-import type { ResumoDemandas } from "@/types";
+import type { DemandaFiltros, ResumoDemandas } from "@/types";
 
-export function useResumoDemandas() {
+export function useResumoDemandas(filtros?: DemandaFiltros) {
   const { data, error, isLoading } = useSWR<ResumoDemandas>(
-    "resumo-demandas",
-    buscarResumoDemandas,
+    ["resumo-demandas", filtros],
+    () => buscarResumoDemandas(filtros),
   );
 
   return {

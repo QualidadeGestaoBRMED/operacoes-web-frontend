@@ -66,7 +66,9 @@ export async function restaurarDemanda(id: number): Promise<Demanda> {
   return data;
 }
 
-export async function buscarResumoDemandas(): Promise<ResumoDemandas> {
-  const { data } = await api.get<ResumoDemandas>(`${MODULO_URL}resumo/`);
+export async function buscarResumoDemandas(filtros?: DemandaFiltros): Promise<ResumoDemandas> {
+  const { data } = await api.get<ResumoDemandas>(`${MODULO_URL}resumo/`, {
+    params: paramsDeFiltros(filtros),
+  });
   return data;
 }
