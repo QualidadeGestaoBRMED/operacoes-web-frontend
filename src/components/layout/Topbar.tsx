@@ -1,6 +1,9 @@
-import { Bell, PanelLeft, Search } from "lucide-react";
+"use client";
+
+import { usePathname } from "next/navigation";
+import { Bell, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PAGINAS } from "@/config/paginas";
 
 interface TopbarProps {
   usuario?: {
@@ -17,48 +20,56 @@ interface TopbarProps {
 }
 
 export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: TopbarProps) {
+  const pathname = usePathname();
+  const pagina = PAGINAS.find((p) => pathname.startsWith(p.prefixo));
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-5 border-b border-border bg-background px-7">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <header
+      className={[
+        "relative flex h-16 shrink-0 items-center gap-3 bg-sidebar px-6 text-sidebar-foreground",
+        // Linha fina em gradiente no encontro com a Sidebar -- mesmo truque
+        // do ProntuAI (before: com gradiente em vez de uma borda sólida).
+        "before:absolute before:inset-y-3 before:left-0 before:w-px before:bg-gradient-to-b before:from-transparent before:via-sidebar-foreground/15 before:to-transparent",
+      ].join(" ")}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={onToggleSidebar}
+        aria-label={sidebarAberta ? "Esconder menu lateral" : "Exibir menu lateral"}
+        aria-pressed={sidebarAberta}
+        className="-ms-2 text-sidebar-foreground hover:text-accent-foreground"
+      >
+        <PanelLeft className="size-4" />
+      </Button>
+
+      {pagina && (
+        <div className="flex items-center gap-2">
+          <pagina.icon className="size-5 text-sidebar-foreground/70" />
+          <h1 className="text-lg font-semibold">{pagina.titulo}</h1>
+        </div>
+      )}
+
+      <div className="ml-auto flex shrink-0 items-center gap-4">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          onClick={onToggleSidebar}
-          aria-label={sidebarAberta ? "Esconder menu lateral" : "Exibir menu lateral"}
-          aria-pressed={sidebarAberta}
+          aria-label="Notificações"
+          className="text-sidebar-foreground hover:text-accent-foreground"
         >
-          <PanelLeft className="size-4" />
-        </Button>
-
-        <div className="relative w-full max-w-[420px]">
-          <label htmlFor="busca-topbar" className="sr-only">
-            Buscar módulo, demanda ou unidade
-          </label>
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="busca-topbar"
-            type="text"
-            placeholder="Buscar módulo, demanda, unidade..."
-            className="h-[38px] bg-input pl-9"
-            suppressHydrationWarning
-          />
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-4">
-        <Button type="button" variant="ghost" size="icon" aria-label="Notificações">
           <Bell className="size-4" />
         </Button>
 
         {carregando ? (
           <div className="flex items-center gap-2" role="status" aria-label="Carregando sessão">
-            <div className="size-8 animate-pulse rounded-full bg-muted" />
-            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+            <div className="size-8 animate-pulse rounded-full bg-sidebar-foreground/15" />
+            <div className="h-4 w-24 animate-pulse rounded bg-sidebar-foreground/15" />
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+          <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
+            <div className="flex size-8 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
               {usuario?.iniciais ?? "?"}
             </div>
             {usuario ? (
@@ -66,7 +77,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
                 Olá, <strong>{usuario.nome}</strong>
               </span>
             ) : (
-              <span className="text-muted-foreground">Não autenticado</span>
+              <span className="text-sidebar-foreground/60">Não autenticado</span>
             )}
           </div>
         )}

@@ -31,7 +31,7 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     larguras: ["75%", "50%"],
   },
   {
-    nome: "Gestão de Calibração de Equipamentos",
+    nome: "Calibração de Equipamentos",
     icon: Gauge,
     descricao: "Controle de calibração e manutenção preventiva.",
     larguras: ["65%", "40%"],

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardList, Home, Lock, Settings } from "lucide-react";
@@ -18,10 +19,23 @@ export function Sidebar() {
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col bg-sidebar p-3 text-sidebar-foreground">
-      <div className="px-2 pb-6 text-xl font-bold tracking-wide">BR MED</div>
+    <aside className="flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex h-20 items-center justify-center px-3">
+        <Image
+          src="/brand/logo-brmed.webp"
+          alt="BR MED Saúde Corporativa"
+          width={200}
+          height={45}
+          priority
+          className="h-9 w-auto"
+        />
+      </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
+      <nav className="flex flex-1 flex-col gap-0.5 p-3 pt-0">
+        <div className="flex h-8 items-center px-2.5 text-xs font-medium tracking-wide text-sidebar-foreground/50 uppercase">
+          Menu Principal
+        </div>
+
         <SidebarLink
           href="/modulos/gestao-demandas"
           icon={ClipboardList}
@@ -40,7 +54,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-2 border-t border-sidebar-border pt-2.5">
+      <div className="mt-2 border-t border-sidebar-border p-3 pt-2.5">
         <div className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75">
           <Settings className="size-4 shrink-0" />
           Admin Q&amp;G
@@ -87,8 +101,8 @@ function SidebarLinkBloqueado({
   return (
     <div className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/30">
       <Icon className="size-4 shrink-0" />
-      {label}
-      <span className="ml-auto rounded-sm bg-white/8 px-1.5 py-0.5 text-[10px] text-sidebar-foreground/50">
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="ml-auto shrink-0 rounded-sm bg-white/8 px-1.5 py-0.5 text-[10px] whitespace-nowrap text-sidebar-foreground/50">
         em breve
       </span>
     </div>

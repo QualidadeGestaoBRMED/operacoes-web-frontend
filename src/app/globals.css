@@ -132,3 +132,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Scrollbar fina, sem setas, trilho transparente -- estilo Linear. Firefox
+   usa scrollbar-width/scrollbar-color; Chrome/Safari/Edge usam os
+   pseudo-elementos ::-webkit-scrollbar-*. */
+.scrollbar-discreta {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.scrollbar-discreta::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-discreta::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-discreta::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+
+.scrollbar-discreta::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}

@@ -58,6 +58,17 @@ frontend/
 > - `src/types/next-auth.d.ts` (novo): augmentation de tipos do NextAuth.
 > - `src/app/hub/page.tsx` e `src/app/modulos/gestao-demandas/page.tsx` já existem desde a STC-162 (placeholders); ainda não são o Hub/Kanban finais.
 
+> ✅ **Correções à árvore acima, conforme implementado na STC-165/STC-166 (estado em 17/07/2026):**
+> - `src/app/(app)/` é um route group (não aparece na URL) — `hub/` e `modulos/` ficam dentro dele, ao lado de um `layout.tsx` próprio que monta o `AppShell`. `src/app/(auth)/login/` segue o mesmo padrão pro login.
+> - `src/app/(app)/hub/page.tsx` hoje só redireciona pra `/modulos/gestao-demandas` — conteúdo real preservado em `HubContent.tsx`, ao lado (ver 4.2).
+> - `src/components/kanban/` ganhou `KanbanFiltros.tsx` e `ResumoCards.tsx`, além dos 3 já previstos.
+> - `src/components/demanda/` (formulário, modal de detalhe, abas) **ainda não existe** — Pacotes 4.5/5, não iniciados.
+> - `src/lib/` tem mais arquivos que só `api.ts`: `demandas.ts` (chamadas HTTP do módulo), `erros.ts` (parser de erro do DRF), `plataforma.ts` (unidades), `kanban.ts` (lógica de negócio pura do board, testável), `utils.ts` (`cn`, `nomeExibicao`, `iniciaisDe`).
+> - `src/hooks/` tem mais que os 5 previstos: `useDemandas.ts`, `useDemandaMutations.ts`, `useResumoDemandas.ts`, `useUnidades.ts`, `useCategorias.ts`. `useComentarios`/`useAnexos`/`useNotificacoes` ainda não existem (Pacote 5).
+> - `src/config/` (novo, não estava na árvore): `modulos-futuros.ts` e `paginas.ts` — fontes únicas de verdade consumidas por mais de uma tela (Sidebar/Hub/Topbar), pra não duplicar a mesma lista em vários lugares.
+> - `public/brand/` (novo): logo real da marca (`logo-brmed.webp`).
+> - `vitest.config.ts`/`vitest.setup.ts` (novos, raiz do projeto): infraestrutura de teste — ver 6.2.
+
 ---
 
 ## Pacote 1 — Infraestrutura e Configuração de Ambiente
@@ -257,10 +268,11 @@ Rotas principais consumidas pelo frontend:
 - `GET/POST /api/modulos/gestao-demandas/demandas/`
 - `GET/PATCH/DELETE /api/modulos/gestao-demandas/demandas/{id}/`
 - `PATCH /api/modulos/gestao-demandas/demandas/{id}/status/`
-- `GET/POST /api/modulos/gestao-demandas/demandas/{id}/comentarios/`
+- `GET/POST /api/modulos/gestao-demandas/demandas/{id}/comentarios/` — ✅ backend pronto (STC-159)
 - `GET/POST /api/modulos/gestao-demandas/demandas/{id}/anexos/`
 - `GET /api/modulos/gestao-demandas/demandas/{id}/anexos/{anexo_id}/presigned-url/`
-- `GET /api/modulos/gestao-demandas/demandas/{id}/historico/`
+- `GET /api/modulos/gestao-demandas/demandas/{id}/historico/` — ✅ backend pronto (STC-159)
+- `GET /api/modulos/gestao-demandas/demandas/{id}/timeline/` — ✅ backend pronto (STC-159), **não previsto neste plano**: junta `historico` + `comentarios` num feed só, ordenado por `created_at` (mais antigo primeiro). Cada item vem com `tipo` ("historico" ou "comentario") e `chave` (string única pro item, tipo+id — os dois models têm sequências de id independentes, então um `HistoricoAlteracao` e um `Comentario` podem ter o mesmo `id` numérico)
 
 ### 2.6 Tipos TypeScript
 
@@ -316,7 +328,11 @@ export interface Notificacao { id: number; tipo: string; titulo: string; lida: b
 > No frontend: preparar o hook `useDemandas` e os tipos para que o Pacote 4 
 > (Kanban) possa começar integrado desde o início.
 
-> ✅ **Backend concluído (STC-156)** — `demandas` app completo: models, serializers, ViewSets com RBAC, transições do Kanban, e `GET /api/modulos/gestao-demandas/resumo/` no formato exato que a Hub (STC-164) já espera. PR aberto, aguardando review do Tech Lead. Nada foi feito no frontend nesta issue (era 100% backend) — `useDemandas`, os tipos `Demanda`/`Comentario`/`Anexo`/etc. e a troca do mock do Hub pela chamada real seguem para o Pacote 4.
+> ✅ **Backend concluído (STC-156)** — `demandas` app completo: models, serializers, ViewSets com RBAC, transições do Kanban, e `GET /api/modulos/gestao-demandas/resumo/` no formato exato que a Hub (STC-164) já espera. Mergeado em `main`.
+>
+> ✅ **Frontend concluído (STC-165)** — tipos/serviços/hooks de Gestão de Demandas, verificados campo a campo contra o contrato real do backend (não contra este documento, que já estava desatualizado em alguns pontos — ver 2.6). `src/types/index.ts` ganhou `Unidade`, `Setor`, `TipoGestao`, `Categoria`, `Etiqueta`, `Demanda`, `DemandaPayload`, `DemandaStatusPayload`, `DemandaFiltros`, `ResumoDemandas`. `src/lib/erros.ts` (novo) normaliza os 3 formatos de erro do DRF numa string exibível. `src/lib/demandas.ts` (novo) concentra as chamadas HTTP do módulo; `src/hooks/useDemandas.ts`/`useDemandaMutations.ts` (novos) envolvem isso em SWR. PR aberto (`origin/STC-165-...`).
+>
+> **Bug de backend achado durante a STC-165, corrigido à parte (STC-177):** `?search=`/`?ordering=` no `DemandaViewSet` eram aceitos e ignorados silenciosamente — `filter_backends` declarado na view substitui por completo o `DEFAULT_FILTER_BACKENDS` global em vez de somar a ele, e faltava `SearchFilter`/`OrderingFilter` na lista. Branch própria off `main`, mergeada.
 
 ### 3.1 Hook `useDemandas`
 
@@ -373,6 +389,10 @@ Layout em `src/app/layout.tsx`:
 > ✅ **Adiantado e implementado (STC-164, antes do prazo do Pacote 4).** `Sidebar.tsx`/`Topbar.tsx` em `src/components/layout/`, mas o layout real usa `AppShell.tsx` (client component) em vez do `<SessionProvider>` direto no `layout.tsx` — precisa de estado (`useState`) pra sidebar recolhível, que só funciona em client component. Fica em `src/app/(app)/layout.tsx`, aplicado via route group (não afeta a URL). `NotificacaoBadge.tsx` ainda não existe — o sino no Topbar é só visual por enquanto.
 >
 > **Bug achado e corrigido depois do merge com a STC-163:** a STC-164 foi criada antes da STC-163 (autenticação) existir, então `AppShell` nunca tinha sido conectado à sessão real — `Topbar` sempre recebia `usuario=undefined`, mostrando avatar "?" e "Não autenticado" pra qualquer usuário logado de verdade. Corrigido: `AppShell` agora chama `useAuth()` e deriva nome/iniciais da sessão real.
+>
+> **Reestruturado de novo durante a STC-166**, comparando lado a lado com as telas reais do ProntuAI (outro produto BR MED, mesma identidade visual): a logo (`public/brand/logo-brmed.webp`) voltou pra dentro da `Sidebar` (não fica mais numa faixa de topo separada — inspecionar o DOM real do ProntuAI mostrou que a "costura visual" entre header e sidebar é só as duas cores baterem, não um componente único); `Topbar` virou uma faixa escura (`bg-sidebar`) com título de página dinâmico (`src/config/paginas.ts`, mesmo padrão de fonte única já usado em `modulos-futuros.ts`) em vez do bloco claro com busca global original; a busca global foi removida (cada módulo/tela decide se precisa de busca própria — o Kanban tem a sua, escopada); `main` ganhou cantos arredondados do lado esquerdo (`rounded-tl-3xl rounded-bl-3xl`, só com a sidebar visível) e a sidebar passou a animar largura ao invés de montar/desmontar (`AppShell.tsx`).
+>
+> **Pegadinha de layout achada e corrigida duas vezes:** dar a `main` `overflow-hidden` (pra impedir que o scroll dela "roubasse" o scroll por coluna do Kanban) causava um corte sem nenhum jeito de alcançar o conteúdo em telas baixas (celular em paisagem, janela pequena) quando o cabeçalho do Kanban não cabia. Resolvido restaurando `overflow-y-auto`, mas com segurança desta vez: a cadeia `min-h-0` completa (`KanbanBoard` → fileira de colunas → lista de cards) garante que no caso normal nada extravasa `main`, então esse scroll fica dormente e cada coluna continua rolando por conta própria — só entra em ação no caso extremo.
 
 ### 4.2 Hub de Módulos
 
@@ -429,6 +449,27 @@ Campos visíveis no card: chip de prioridade, título (max 2 linhas), unidade, a
 
 Ao clicar no card → abre `DetalheCard` modal.
 
+> ✅ **Concluído (STC-166).** `src/components/kanban/{KanbanBoard,KanbanColumn,DemandaCard,KanbanFiltros,ResumoCards}.tsx` + lógica pura extraída pra `src/lib/kanban.ts` (testável, ver 6.2). Implementado como no mockup de referência (`docs/mockup_kanban_gestao_demandas.html`) com diferenças importantes em relação a este plano:
+>
+> - **Sem modal de confirmação pra transições que exigem dado extra** (aprovador, justificativa) — essa é a rota "completa", ainda não construída. Em vez disso, o board já sabe de antemão quais transições vão falhar (aprovador_id/justificativa não são coletados pelo drag) e bloqueia ANTES de tentar, com uma mensagem de erro (toast) explicando o motivo — evita o floop visual de mover o card e desfazer segundos depois. Backend continua sendo a fonte de verdade pra tudo o mais (permissão administrativa, responsável principal ausente).
+> - **Drag-and-drop acessível por teclado**, não previsto neste plano original: `@dnd-kit`'s `KeyboardSensor` com `coordinateGetter` customizado (Tab até o card, espaço pega, setas trocam de coluna uma por vez, espaço solta, esc cancela) + anúncios de leitor de tela localizados em português. `@dnd-kit/sortable` (citado na seção 1.1) acabou não sendo necessário — não há reordenação manual dentro de uma coluna, só `@dnd-kit/core`.
+> - **Destaque da coluna-alvo é durante o arraste** (`ring` na coluna sob o cursor via `isOver` do `useDroppable`), não uma animação de "flash" de 300ms pós-solta como descrito aqui.
+> - **Cartão sendo arrastado usa `DragOverlay`** (portalado pro `document.body`) em vez do `transform` aplicado no lugar — necessário porque um card transformado dentro de um container com `overflow` conta pra área de scroll do ancestral e ficava atrás das colunas vizinhas.
+> - **Ordenação dentro da coluna**: prazo mais próximo primeiro, desempatado por prioridade — não estava definido neste plano (o padrão do backend, `-created_at`, ficaria "mais recente primeiro", menos operacional).
+> - **Etiquetas** (`Demanda.etiquetas`) aparecem no card ao lado da tag de unidade. **Contadores de comentários/anexos não existem** — não há model de Comentário/Anexo no backend ainda (Pacote 5).
+> - **Cards de KPI acima do board** (`ResumoCards.tsx`, "Atrasadas"/"Sem responsável"), não previstos neste plano — inspirados nas telas do ProntuAI, reaproveitando o `/resumo/` que já existia pra Hub. Clicáveis: funcionam como atalho de filtro rápido do board (client-side, sem endpoint novo). Respeitam os mesmos filtros do board (unidade/prioridade/categoria/busca) — achado e corrigido à parte (ver nota de bug abaixo).
+> - **Clicar no card não abre nenhum modal ainda** — `selecionarDemanda` é um no-op de propósito, aguardando a STC-168 (ver Pacote 5).
+>
+> **3 bugs de backend pré-existentes, achados durante o trabalho manual/visual e corrigidos em branches próprias (fora do escopo da STC-166):**
+> - **STC-178**: não existia nenhum jeito de listar demandas na lixeira — `DemandaViewSet.get_queryset()` sempre excluía soft-deletadas, mesmo com `?status=lixeira`. Corrigido no backend.
+> - **STC-179**: `getToken()` do proxy BFF (`src/app/api/backend/[...path]/route.ts`) não detectava o secret sozinho, lançando `MissingSecret` em qualquer request real (nunca exercitado ponta a ponta localmente até então). Corrigido passando o secret explicitamente.
+> - **Middleware bloqueava assets estáticos**: o matcher de `src/middleware.ts` só excluía `/api`, `/_next` e `/favicon.ico` — qualquer outro arquivo de `public/` (como a logo) passava pelo middleware de auth antes de chegar no arquivo, quebrando o self-fetch interno do `next/image`. Matcher agora exclui qualquer caminho com extensão de arquivo.
+> - **`/resumo/` ignorava os filtros do board**: os cards de KPI sempre mostravam a contagem global, mesmo com o board filtrado — `ResumoView` é um `APIView` puro (sem a maquinaria de filtro de `GenericAPIView`), corrigido aplicando `DjangoFilterBackend` manualmente. Frontend (`buscarResumoDemandas`/`useResumoDemandas`) atualizado em conjunto.
+>
+> **Code review final (multi-ângulo) encontrou e corrigiu 6 problemas reais** antes de considerar a STC-166 pronta: navegação por teclado entre colunas só alcançava 1 passo de distância da origem (o `coordinateGetter` recalculava sempre a partir da coluna original, não da posição virtual atual); erro da busca da Lixeira sendo descartado podia travar o board inteiro em "carregando"; corrida de closure obsoleta no debounce da busca podia reverter um filtro recém-escolhido; campo de busca não ressincronizava com navegação do navegador; campo de busca sem rótulo acessível; conteúdo do board podia cortar sem scroll em telas baixas (ver nota na 4.1).
+>
+> **Pendências conhecidas, não tratadas nesta issue:** filtro por `tipo_gestao` (o board hoje só enxerga demandas do único tipo cadastrado, "Operacional" — cadastrar outros tipos e construir o seletor viraram 2 issues separadas, uma de decisão de negócio + cadastro, outra de engenharia de frontend); auditoria de responsividade/toque dedicada (issue separada, ainda não iniciada); otimização de performance (memoização do agrupamento de colunas já feita; `React.memo` nos cards fica pra quando o volume de dados justificar).
+
 ### 4.4 Barra de Filtros
 
 ```tsx
@@ -442,6 +483,10 @@ const [filters, setFilters] = useSearchParams()  // Next.js useSearchParams
 
 - Persistir filtros na URL: `?unidade=1&prioridade=urgente`
 - Revalidar dados ao mudar filtros (SWR re-fetch automático)
+
+> ✅ **Concluído (STC-166), em `KanbanFiltros.tsx`.** Controles reais: Unidade, Prioridade, Categoria (só aparece com mais de 1 cadastrada — hoje só existe 1, então fica escondido) e busca textual — **sem Setor nem DateRange**, que não estavam no mockup de referência e não foram pedidos. Filtros persistem na URL como planejado; `useDemandas`/`useResumoDemandas` usam `keepPreviousData` do SWR pra trocar de filtro sem o board inteiro sumir e reaparecer (achado nesta sessão: `isLoading` do SWR é por chave de cache, não é afetado por `keepPreviousData` — o critério certo pra saber se já existe dado pra mostrar é o retorno bruto ainda ser `undefined`, não `isLoading`).
+>
+> Botão "Nova Demanda" existe na barra, mas fica desabilitado (`title="Em breve"`) — aguardando STC-167.
 
 ### 4.5 Formulário de Nova Demanda (`FormNovaDemanda.tsx`)
 
@@ -477,10 +522,16 @@ const schema = z.object({
 
 Submit: `POST /api/modulos/gestao-demandas/demandas/` → fechar modal → `mutate()` do board.
 
+> ⚠️ **Não iniciado.** Rastreado como STC-167. `criarDemanda`/`useCriarDemanda` já existem (`src/lib/demandas.ts`, `src/hooks/useDemandaMutations.ts`, feitos na STC-165) mas sem nenhuma UI conectada — o botão "Nova Demanda" da barra de filtros fica desabilitado até essa issue.
+
 ---
 
 ## Pacote 5 — Colaboração, Anexos e Auditoria
 **Datas:** 28/07 – 30/07 · 3 dias úteis
+
+> ⚠️ **Não iniciado (frontend).** O modal de detalhe (5.1, sem abas de Comentários/Anexos/Histórico) é a STC-168 — clicar num card do Kanban hoje não faz nada (`selecionarDemanda` é um no-op de propósito). Nem os contadores no `DemandaCard` foram construídos por causa disso. Badge de notificações (5.5) também não iniciado.
+>
+> ✅ **Backend de Comentários e Histórico pronto (STC-159).** `Comentario` e `HistoricoAlteracao` existem, com `GET/POST .../comentarios/`, `GET .../historico/` e `GET .../timeline/` (combina os dois, não previsto neste plano — ver seção 2.5). Histórico cobre os 4 gatilhos (criação, edição, status, responsável), tanto pela API quanto pelo Django admin. Só falta a UI (5.2–5.4) e o `Anexo`/STC-160, que ainda bloqueia 5.3.
 
 ### 5.1 Modal de Detalhe (`DetalheCard.tsx`)
 
@@ -612,6 +663,12 @@ Fluxo principal end-to-end:
 8. Fazer upload de anexo
 9. Mover para Em Revisão (selecionando aprovador)
 10. Mover para Concluído
+
+> ✅ **Testes unitários/de lógica adicionados adiantado, na STC-166 (não estava previsto para o Pacote 4).** Frontend não tinha nenhuma infraestrutura de teste até então. Adicionado **Vitest** (não Playwright — essa decisão específica, e2e com Playwright, segue pendente e é o que este item 6.2 ainda cobre) + Testing Library + jsdom, com resolução de path alias via `vite-tsconfig-paths`. `npm run test` / `npm run test:watch`.
+>
+> A lógica de negócio pura do Kanban (`compararDemandas`, `mensagemBloqueioConhecido`, `passaNoFoco`, `filtrosDaUrl`) foi extraída de `KanbanBoard.tsx` pra `src/lib/kanban.ts` especificamente pra ficar testável — eram funções privadas do componente antes. 31 testes cobrindo essa lógica, o parser de erro do DRF (`extrairMensagemErro`) e os helpers de nome/iniciais (`nomeExibicao`/`iniciaisDe`). Cobertura ainda é pontual (não é a suíte inteira do app), mas é a base que os próximos componentes/lógica podem seguir em vez de depender só de checagem manual.
+>
+> **Playwright ainda não foi usado neste projeto** (foi adicionado como MCP do Claude Code numa sessão anterior, mas nunca de fato exercitado) — o fluxo end-to-end acima segue como planejamento, não implementação.
 
 ### 6.3 Ajustes Pós-Homologação
 

@@ -1,7 +1,15 @@
 import api from "./api";
-import type { Demanda, DemandaFiltros, DemandaPayload, DemandaStatusPayload } from "@/types";
+import type {
+  Categoria,
+  Demanda,
+  DemandaFiltros,
+  DemandaPayload,
+  DemandaStatusPayload,
+  ResumoDemandas,
+} from "@/types";
 
-const BASE_URL = "/modulos/gestao-demandas/demandas/";
+const MODULO_URL = "/modulos/gestao-demandas/";
+const BASE_URL = `${MODULO_URL}demandas/`;
 
 function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | number> | undefined {
   if (!filtros) return undefined;
@@ -43,5 +51,30 @@ export async function atualizarStatusDemanda(
   payload: DemandaStatusPayload,
 ): Promise<Demanda> {
   const { data } = await api.patch<Demanda>(`${BASE_URL}${id}/status/`, payload);
+  return data;
+}
+
+// Mover pra lixeira e restaurar ficam de fora do endpoint de status de
+// propósito no backend (soft delete via DELETE + /restaurar/ dedicado, não
+// PATCH .../status/) -- o Kanban precisa dos dois porque "Lixeira" é uma
+// das colunas do board.
+export async function excluirDemanda(id: number): Promise<void> {
+  await api.delete(`${BASE_URL}${id}/`);
+}
+
+export async function restaurarDemanda(id: number): Promise<Demanda> {
+  const { data } = await api.post<Demanda>(`${BASE_URL}${id}/restaurar/`);
+  return data;
+}
+
+export async function buscarResumoDemandas(filtros?: DemandaFiltros): Promise<ResumoDemandas> {
+  const { data } = await api.get<ResumoDemandas>(`${MODULO_URL}resumo/`, {
+    params: paramsDeFiltros(filtros),
+  });
+  return data;
+}
+
+export async function listarCategorias(): Promise<Categoria[]> {
+  const { data } = await api.get<Categoria[]>(`${MODULO_URL}categorias/`);
   return data;
 }
