@@ -41,7 +41,7 @@ export function KanbanColumn({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5">
+      <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5">
         {demandas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-9 text-center text-muted-foreground">
             <Inbox className="size-6" />

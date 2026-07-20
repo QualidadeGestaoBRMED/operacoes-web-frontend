@@ -187,7 +187,13 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
       onClick={() => onClick(demanda)}
       aria-label={naLixeira ? undefined : descricaoAcessivel}
       className={cn(
-        "cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
+        // shrink-0: sem isso, todo filho direto de um container flex tem
+        // flex-shrink:1 por padrão do navegador -- quando os cards não
+        // cabem mais na coluna, o Flexbox encolhia todos proporcionalmente
+        // em vez de deixar o container (overflow-y-auto) rolar, cortando o
+        // rodapé de cada card (linha colorida + avatar) pelo overflow-hidden
+        // abaixo. Achado testando com 5 cards numa coluna.
+        "shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
         naLixeira && "opacity-55",
         // O visual de "sendo arrastado" é o clone no DragOverlay (portalado
         // pra fora dos containers com overflow, senão o card fica atrás das
