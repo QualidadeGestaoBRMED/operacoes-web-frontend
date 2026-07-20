@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { useDemandas } from "@/hooks/useDemandas";
-import { atualizarStatusDemanda, excluirDemanda, listarDemandas, restaurarDemanda } from "@/lib/demandas";
+import { atualizarStatusDemanda, excluirDemanda, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   COLUNAS,
@@ -169,16 +169,24 @@ export function KanbanBoard() {
     // "lixeira" à parte, em vez de só trocar o status no mesmo array.
     if (novoStatus === "lixeira") {
       const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
+      // Achado no review: antes a mutação e o refetch (listarDemandas) iam
+      // juntos numa Promise só, com rollbackOnError -- se a exclusão desse
+      // certo no backend mas só o refetch falhasse (timeout, 500), o SWR
+      // desfazia o card visualmente mesmo já excluído de verdade. Agora o
+      // rollback (mutate() sem args, buscando o estado real) só roda se a
+      // mutação em si falhar; sucesso da exclusão sempre mantém o otimista
+      // e revalida as duas listas à parte, sem acoplar o resultado de uma à
+      // da outra.
+      mutate(dadosOtimistas, { revalidate: false });
       try {
-        await mutate(excluirDemanda(demanda.id).then(() => listarDemandas(filtros)), {
-          optimisticData: dadosOtimistas,
-          rollbackOnError: true,
-          revalidate: false,
-        });
-        void mutateLixeira();
+        await excluirDemanda(demanda.id);
       } catch (erro) {
         toast.error(extrairMensagemErro(erro));
+        void mutate();
+        return;
       }
+      void mutate();
+      void mutateLixeira();
       return;
     }
 
@@ -186,31 +194,32 @@ export function KanbanBoard() {
       item.id === demanda.id ? { ...item, status: novoStatus } : item,
     );
 
+    mutate(dadosOtimistas, { revalidate: false });
     try {
-      await mutate(
-        atualizarStatusDemanda(demanda.id, { status: novoStatus }).then(() => listarDemandas(filtros)),
-        { optimisticData: dadosOtimistas, rollbackOnError: true, revalidate: false },
-      );
+      await atualizarStatusDemanda(demanda.id, { status: novoStatus });
     } catch (erro) {
       // Backend é a fonte de verdade: se a transição não for permitida (ex.:
-      // faltando responsável principal ou aprovador), o mutate() já desfez o
-      // movimento visual sozinho (rollbackOnError) -- só falta mostrar o motivo.
+      // faltando responsável principal ou aprovador), revalida pra buscar o
+      // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
       toast.error(extrairMensagemErro(erro));
+      void mutate();
+      return;
     }
+    void mutate();
   }
 
   async function restaurar(demanda: Demanda) {
     const dadosOtimistas = demandasLixeira.filter((item) => item.id !== demanda.id);
+    mutateLixeira(dadosOtimistas, { revalidate: false });
     try {
-      await mutateLixeira(restaurarDemanda(demanda.id).then(() => listarDemandas(filtrosLixeira)), {
-        optimisticData: dadosOtimistas,
-        rollbackOnError: true,
-        revalidate: false,
-      });
-      void mutate();
+      await restaurarDemanda(demanda.id);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+      void mutateLixeira();
+      return;
     }
+    void mutateLixeira();
+    void mutate();
   }
 
   function handleDragStart(evento: DragStartEvent) {
