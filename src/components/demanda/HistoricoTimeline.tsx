@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, Pencil, Plus, UserRound, type LucideIcon } from "lucide-react";
+import { ArrowRightLeft, Paperclip, Pencil, Plus, UserRound, type LucideIcon } from "lucide-react";
 import { useHistorico } from "@/hooks/useHistorico";
 import { COLUNAS } from "@/lib/kanban";
 import { cn, formatarDataHora, nomeOuRemovido } from "@/lib/utils";
@@ -23,6 +23,7 @@ const ROTULO_CAMPO: Record<CampoHistorico, string> = {
   confidencial: "confidencialidade",
   status: "status",
   responsavel: "responsável",
+  anexo: "anexo",
 };
 
 function truncado(valor: string, tamanho = 60) {
@@ -50,6 +51,10 @@ function textoDoEvento(evento: HistoricoAlteracao): string {
     return `${nome} removeu ${de} como responsável`;
   }
 
+  if (campo === "anexo") {
+    return para ? `${nome} anexou "${para}"` : `${nome} removeu o anexo "${de}"`;
+  }
+
   if (campo === "status") {
     return `${nome} moveu de ${valorLegivel(campo, de)} para ${valorLegivel(campo, para)}`;
   }
@@ -63,12 +68,13 @@ const ICONE_POR_CAMPO: Partial<Record<CampoHistorico, LucideIcon>> = {
   criacao: Plus,
   responsavel: UserRound,
   status: ArrowRightLeft,
+  anexo: Paperclip,
 };
 
 function IconeDoEvento({ campo }: { campo: CampoHistorico }) {
-  // Pencil: fallback genérico pra edição de campo (titulo/descricao/etc) --
-  // Paperclip seria enganoso aqui, já que anexar arquivo não passa por
-  // registrar_historico() no backend (só os 4 gatilhos de auditoria fazem).
+  // Pencil: fallback genérico só pra edição de campo estrutural (titulo/
+  // descricao/prioridade/etc) -- os demais campos com significado próprio
+  // (criacao/responsavel/status/anexo) têm ícone dedicado acima.
   const Icone = ICONE_POR_CAMPO[campo] ?? Pencil;
   const cor =
     campo === "criacao"

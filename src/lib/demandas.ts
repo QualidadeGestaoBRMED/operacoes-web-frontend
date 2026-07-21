@@ -109,6 +109,10 @@ export async function enviarAnexo(demandaId: number, arquivo: File): Promise<Ane
   return data;
 }
 
+export async function excluirAnexo(demandaId: number, anexoId: number): Promise<void> {
+  await api.delete(`${BASE_URL}${demandaId}/anexos/${anexoId}/`);
+}
+
 // Anexo.arquivo já vem como URL (FileField serializado com use_url) -- mas
 // relativa em dev local (FileSystemStorage só conhece MEDIA_URL, sem host) e
 // absoluta em produção (S3Boto3Storage/R2 sempre devolve URL completa). Sem

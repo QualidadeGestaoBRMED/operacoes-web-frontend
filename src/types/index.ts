@@ -175,8 +175,8 @@ export interface Anexo {
 }
 
 // Valores reais de HistoricoAlteracao.campo_alterado (backend/demandas/
-// historico.py: CAMPOS_EDICAO_AUDITADOS + "criacao"/"status"/"responsavel"
-// registrados à parte pelos outros 3 gatilhos de auditoria).
+// historico.py: CAMPOS_EDICAO_AUDITADOS + "criacao"/"status"/"responsavel"/
+// "anexo" registrados à parte pelos outros gatilhos de auditoria).
 export type CampoHistorico =
   | "criacao"
   | "titulo"
@@ -188,6 +188,7 @@ export type CampoHistorico =
   | "categoria"
   | "data_prevista"
   | "confidencial"
+  | "anexo"
   | "status"
   | "responsavel";
 

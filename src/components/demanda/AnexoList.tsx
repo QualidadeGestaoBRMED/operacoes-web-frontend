@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import { Download, Paperclip, Plus } from "lucide-react";
+import { Download, Paperclip, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAnexos, useEnviarAnexo } from "@/hooks/useAnexos";
+import { useAuth } from "@/hooks/useAuth";
+import { useAnexos, useEnviarAnexo, useExcluirAnexo } from "@/hooks/useAnexos";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDoAnexo } from "@/lib/demandas";
 import { cn, formatarDataHora, formatarTamanhoArquivo, nomeOuRemovido } from "@/lib/utils";
@@ -33,6 +34,8 @@ export function AnexoList({
 }) {
   const { anexos, isLoading, mensagemErro } = useAnexos(demandaId);
   const { enviar, isLoading: enviando } = useEnviarAnexo(demandaId);
+  const { excluir, isLoading: excluindo } = useExcluirAnexo(demandaId);
+  const { user, isAdminOps } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function aoEscolherArquivo(evento: React.ChangeEvent<HTMLInputElement>) {
@@ -41,6 +44,20 @@ export function AnexoList({
     if (!arquivo) return;
     try {
       await enviar(arquivo);
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    }
+  }
+
+  async function aoExcluir(anexoId: number, nomeOriginal: string) {
+    // window.confirm() de propósito -- exclusão de anexo é irreversível (o
+    // arquivo some do storage, diferente do soft delete de Demanda), mas
+    // não justifica construir um AlertDialog novo só pra isso ainda.
+    if (!window.confirm(`Remover o anexo "${nomeOriginal}"? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await excluir(anexoId);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     }
@@ -57,6 +74,10 @@ export function AnexoList({
       ) : (
         anexos.map((anexo) => {
           const extensao = extensaoDe(anexo.nome_original);
+          // Mesma regra do backend (dono ou admin) -- checada de novo lá,
+          // isso aqui é só pra não oferecer um botão que vai dar 403.
+          const podeExcluir =
+            podeAnexar && (anexo.usuario?.id === user?.usuarioId || isAdminOps);
           return (
             <div
               key={anexo.id}
@@ -89,6 +110,17 @@ export function AnexoList({
               >
                 <Download className="size-4" />
               </a>
+              {podeExcluir && (
+                <button
+                  type="button"
+                  onClick={() => void aoExcluir(anexo.id, anexo.nome_original)}
+                  disabled={excluindo}
+                  title="Remover"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              )}
             </div>
           );
         })
