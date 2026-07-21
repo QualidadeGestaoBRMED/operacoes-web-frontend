@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAnexos, useEnviarAnexo } from "@/hooks/useAnexos";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDoAnexo } from "@/lib/demandas";
-import { cn, formatarDataHora, formatarTamanhoArquivo, nomeExibicao } from "@/lib/utils";
+import { cn, formatarDataHora, formatarTamanhoArquivo, nomeOuRemovido } from "@/lib/utils";
 
 // Mesma whitelist de EXTENSOES_ANEXO_PERMITIDAS (backend/demandas/
 // serializers.py) -- só pro rótulo/cor do ícone e pro atributo "accept" do
@@ -76,7 +76,7 @@ export function AnexoList({
                 </div>
                 <div className="mt-0.5 text-[11.5px] text-muted-foreground">
                   {formatarTamanhoArquivo(anexo.tamanho)} · enviado por{" "}
-                  {nomeExibicao(anexo.usuario)} · {formatarDataHora(anexo.created_at)}
+                  {nomeOuRemovido(anexo.usuario)} · {formatarDataHora(anexo.created_at)}
                 </div>
               </div>
               <a

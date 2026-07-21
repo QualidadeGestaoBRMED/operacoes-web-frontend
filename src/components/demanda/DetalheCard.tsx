@@ -81,15 +81,23 @@ export function DetalheCard({
         showCloseButton
         className="flex h-[85vh] max-h-[720px] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
-        {isLoading || !demanda ? (
+        {isLoading ? (
           <div className="flex flex-1 flex-col gap-4 p-6">
             <Skeleton className="h-6 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="mt-4 h-full w-full" />
           </div>
-        ) : mensagemErro ? (
+        ) : mensagemErro || !demanda ? (
+          // Achado no review: a ordem original ("isLoading || !demanda")
+          // fazia esse branch de erro nunca ser alcançado -- demanda vem
+          // undefined tanto durante o carregamento quanto após uma falha
+          // real (404, RBAC, rede), então !demanda já era sempre true nessa
+          // segunda situação e o skeleton ficava preso pra sempre, sem
+          // mostrar mensagemErro. "!demanda" continua aqui só como guarda de
+          // tipo pro TypeScript (SWR nunca deixa os dois falsy ao mesmo
+          // tempo sem ser um desses dois casos).
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
-            {mensagemErro}
+            {mensagemErro ?? "Não foi possível carregar esta demanda."}
           </div>
         ) : (
           <>

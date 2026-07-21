@@ -3,7 +3,7 @@
 import { ArrowRightLeft, Pencil, Plus, UserRound, type LucideIcon } from "lucide-react";
 import { useHistorico } from "@/hooks/useHistorico";
 import { COLUNAS } from "@/lib/kanban";
-import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
+import { cn, formatarDataHora, nomeOuRemovido } from "@/lib/utils";
 import type { CampoHistorico, HistoricoAlteracao } from "@/types";
 
 const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
@@ -39,7 +39,7 @@ function valorLegivel(campo: CampoHistorico, valor: string) {
 }
 
 function textoDoEvento(evento: HistoricoAlteracao): string {
-  const nome = nomeExibicao(evento.usuario);
+  const nome = nomeOuRemovido(evento.usuario);
   const { campo_alterado: campo, valor_anterior: de, valor_novo: para } = evento;
 
   if (campo === "criacao") return `${nome} criou a demanda`;

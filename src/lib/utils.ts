@@ -12,6 +12,16 @@ export function nomeExibicao(usuario: Pick<Usuario, "first_name" | "last_name" |
   return [usuario.first_name, usuario.last_name].filter(Boolean).join(" ").trim() || usuario.username;
 }
 
+// Achado no review: Comentario/Anexo/HistoricoAlteracao.usuario é SET_NULL
+// de propósito no backend (o registro sobrevive à exclusão da conta do
+// autor) -- nomeExibicao() sozinho quebraria (lendo first_name de null) pra
+// qualquer registro cujo autor já não existe mais.
+export function nomeOuRemovido(
+  usuario: Pick<Usuario, "first_name" | "last_name" | "username"> | null,
+) {
+  return usuario ? nomeExibicao(usuario) : "Usuário removido";
+}
+
 export function iniciaisDe(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   return (

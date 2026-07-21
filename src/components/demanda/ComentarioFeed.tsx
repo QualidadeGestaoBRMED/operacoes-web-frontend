@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useComentarios, useCriarComentario } from "@/hooks/useComentarios";
 import { extrairMensagemErro } from "@/lib/erros";
-import { formatarDataHora, iniciaisDe, nomeExibicao } from "@/lib/utils";
+import { formatarDataHora, iniciaisDe, nomeOuRemovido } from "@/lib/utils";
 
 export function ComentarioFeed({
   demandaId,
@@ -52,12 +52,12 @@ export function ComentarioFeed({
           comentarios.map((comentario) => (
             <div key={comentario.id} className="flex gap-2.5">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground">
-                {iniciaisDe(nomeExibicao(comentario.usuario))}
+                {iniciaisDe(nomeOuRemovido(comentario.usuario))}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-baseline gap-2">
                   <span className="text-sm font-semibold text-foreground">
-                    {nomeExibicao(comentario.usuario)}
+                    {nomeOuRemovido(comentario.usuario)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {formatarDataHora(comentario.created_at)}
