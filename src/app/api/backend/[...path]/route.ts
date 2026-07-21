@@ -30,14 +30,23 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   destino.search = request.nextUrl.search;
 
   const temCorpo = !["GET", "HEAD"].includes(request.method);
+  // Content-Type do próprio pedido, não fixo em "application/json" -- upload
+  // de anexo (STC-168) manda multipart/form-data com boundary própria; forçar
+  // application/json aqui quebrava o parsing multipart no Django. arrayBuffer()
+  // (não .text()) pelo mesmo motivo: texto corrompe binário -- e não
+  // request.body direto: mandar o ReadableStream pro fetch() aqui esvaziava o
+  // corpo silenciosamente (testado via E2E: POST chegava no Django sem nenhum
+  // campo, nem em JSON puro), então bufferiza mesmo com o custo de manter o
+  // upload inteiro em memória (aceitável dado o limite de 35 MB do backend).
+  const contentType = request.headers.get("content-type");
 
   const resposta = await fetch(destino, {
     method: request.method,
     headers: {
       Authorization: `Bearer ${token.backendAccessToken}`,
-      ...(temCorpo ? { "Content-Type": "application/json" } : {}),
+      ...(temCorpo && contentType ? { "Content-Type": contentType } : {}),
     },
-    body: temCorpo ? await request.text() : undefined,
+    body: temCorpo ? await request.arrayBuffer() : undefined,
   });
 
   const corpo = await resposta.text();
