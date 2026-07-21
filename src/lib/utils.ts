@@ -21,3 +21,24 @@ export function iniciaisDe(nome: string) {
       .toUpperCase() || "?"
   );
 }
+
+const FORMATADOR_DATA_HORA = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+// Pro modal de detalhe (STC-168) -- created_at vem como datetime ISO
+// completo (diferente de data_prevista, que é só "YYYY-MM-DD" e já tem seu
+// próprio formatarData em DemandaCard.tsx).
+export function formatarDataHora(iso: string) {
+  return FORMATADOR_DATA_HORA.format(new Date(iso)).replace(",", " ·");
+}
+
+export function formatarTamanhoArquivo(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

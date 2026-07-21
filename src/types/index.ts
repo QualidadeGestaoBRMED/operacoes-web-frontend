@@ -148,3 +148,53 @@ export interface ResumoDemandas {
   estatisticas: EstatisticaResumo[];
   ocorrencias: OcorrenciaResumo[];
 }
+
+// GET/POST /demandas/{id}/comentarios/ (STC-159/STC-168) -- texto é o único
+// campo de escrita, demanda/usuario vêm do contexto da requisição no backend.
+export interface Comentario {
+  id: number;
+  usuario: Usuario;
+  texto: string;
+  created_at: string;
+}
+
+// GET/POST /demandas/{id}/anexos/ (STC-160/STC-168). "arquivo" é a URL do
+// arquivo -- relativa em dev local (FileSystemStorage), absoluta em produção
+// (R2/S3Boto3Storage já devolve URL completa). Ver lib/demandas.ts.
+export interface Anexo {
+  id: number;
+  usuario: Usuario;
+  arquivo: string;
+  nome_original: string;
+  tamanho: number;
+  created_at: string;
+}
+
+// Valores reais de HistoricoAlteracao.campo_alterado (backend/demandas/
+// historico.py: CAMPOS_EDICAO_AUDITADOS + "criacao"/"status"/"responsavel"
+// registrados à parte pelos outros 3 gatilhos de auditoria).
+export type CampoHistorico =
+  | "criacao"
+  | "titulo"
+  | "descricao"
+  | "tipo_gestao"
+  | "prioridade"
+  | "unidade"
+  | "setor"
+  | "categoria"
+  | "data_prevista"
+  | "confidencial"
+  | "status"
+  | "responsavel";
+
+// GET /demandas/{id}/historico/ (STC-159/STC-168) -- só leitura, nunca
+// escrito pelo cliente.
+export interface HistoricoAlteracao {
+  id: number;
+  usuario: Usuario;
+  campo_alterado: CampoHistorico;
+  valor_anterior: string;
+  valor_novo: string;
+  justificativa: string;
+  created_at: string;
+}
