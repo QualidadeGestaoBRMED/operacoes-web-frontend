@@ -165,7 +165,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
         </button>
       )}
 
-      <Button className="ml-auto" onClick={onNovaDemanda} disabled title="Em breve">
+      <Button className="ml-auto" onClick={onNovaDemanda}>
         Nova Demanda
       </Button>
     </div>
