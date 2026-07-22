@@ -63,7 +63,7 @@ export function ComentarioFeed({
                     {formatarDataHora(comentario.created_at)}
                   </span>
                 </div>
-                <div className="rounded-r-lg rounded-bl-lg bg-muted/50 px-3.5 py-2.5 text-sm text-foreground">
+                <div className="rounded-r-lg rounded-bl-lg bg-muted/50 px-3.5 py-2.5 text-sm whitespace-pre-wrap text-foreground">
                   {comentario.texto}
                 </div>
               </div>
