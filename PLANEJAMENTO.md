@@ -456,7 +456,7 @@ Ao clicar no card → abre `DetalheCard` modal.
 > - **Destaque da coluna-alvo é durante o arraste** (`ring` na coluna sob o cursor via `isOver` do `useDroppable`), não uma animação de "flash" de 300ms pós-solta como descrito aqui.
 > - **Cartão sendo arrastado usa `DragOverlay`** (portalado pro `document.body`) em vez do `transform` aplicado no lugar — necessário porque um card transformado dentro de um container com `overflow` conta pra área de scroll do ancestral e ficava atrás das colunas vizinhas.
 > - **Ordenação dentro da coluna**: prazo mais próximo primeiro, desempatado por prioridade — não estava definido neste plano (o padrão do backend, `-created_at`, ficaria "mais recente primeiro", menos operacional).
-> - **Etiquetas** (`Demanda.etiquetas`) aparecem no card ao lado da tag de unidade. **Contadores de comentários/anexos não existem** — não há model de Comentário/Anexo no backend ainda (Pacote 5).
+> - **Etiquetas** (`Demanda.etiquetas`) aparecem no card ao lado da tag de unidade. **Contadores de comentários/anexos implementados depois** (junto com o filtro de Setor da 4.4, sem issue própria — ver nota no fim desta seção): ícone de mensagem + `comentarios_count` e clipe + `anexos_count` no rodapé do card, ao lado do avatar. Backend anota os dois via `Subquery` (não `Count()` direto — inflaria com o `JOIN` de `responsaveis` que a queryset RBAC já faz pra usuário não-admin).
 > - **Cards de KPI acima do board** (`ResumoCards.tsx`, "Atrasadas"/"Sem responsável"), não previstos neste plano — inspirados nas telas do ProntuAI, reaproveitando o `/resumo/` que já existia pra Hub. Clicáveis: funcionam como atalho de filtro rápido do board (client-side, sem endpoint novo). Respeitam os mesmos filtros do board (unidade/prioridade/categoria/busca) — achado e corrigido à parte (ver nota de bug abaixo).
 > - **Clicar no card não abre nenhum modal ainda** — `selecionarDemanda` é um no-op de propósito, aguardando a STC-168 (ver Pacote 5).
 >
@@ -484,9 +484,11 @@ const [filters, setFilters] = useSearchParams()  // Next.js useSearchParams
 - Persistir filtros na URL: `?unidade=1&prioridade=urgente`
 - Revalidar dados ao mudar filtros (SWR re-fetch automático)
 
-> ✅ **Concluído (STC-166), em `KanbanFiltros.tsx`.** Controles reais: Unidade, Prioridade, Categoria (só aparece com mais de 1 cadastrada — hoje só existe 1, então fica escondido) e busca textual — **sem Setor nem DateRange**, que não estavam no mockup de referência e não foram pedidos. Filtros persistem na URL como planejado; `useDemandas`/`useResumoDemandas` usam `keepPreviousData` do SWR pra trocar de filtro sem o board inteiro sumir e reaparecer (achado nesta sessão: `isLoading` do SWR é por chave de cache, não é afetado por `keepPreviousData` — o critério certo pra saber se já existe dado pra mostrar é o retorno bruto ainda ser `undefined`, não `isLoading`).
+> ✅ **Concluído (STC-166), em `KanbanFiltros.tsx`.** Controles reais: Unidade, Prioridade, Categoria (só aparece com mais de 1 cadastrada — hoje só existe 1, então fica escondido) e busca textual — **sem Setor nem DateRange** na entrega original, que não estavam no mockup de referência e não foram pedidos. Filtros persistem na URL como planejado; `useDemandas`/`useResumoDemandas` usam `keepPreviousData` do SWR pra trocar de filtro sem o board inteiro sumir e reaparecer (achado nesta sessão: `isLoading` do SWR é por chave de cache, não é afetado por `keepPreviousData` — o critério certo pra saber se já existe dado pra mostrar é o retorno bruto ainda ser `undefined`, não `isLoading`).
 >
-> Botão "Nova Demanda" existe na barra, mas fica desabilitado (`title="Em breve"`) — aguardando STC-167.
+> **Filtro por Setor adicionado depois** (sem issue própria, pedido direto): backend já aceitava (`DEMANDA_FILTERSET_FIELDS` inclui `setor`), só faltava o controle. Reaproveita `useSetores()` escopado por módulo (mesmo critério do formulário de Nova Demanda, 4.5 — Setor não é module-scoped por URL como tipos-gestao/categorias, então o hook recebe o id do módulo derivado de `TipoGestao.modulo`).
+>
+> Botão "Nova Demanda" existe na barra e agora abre o formulário de verdade — ver 4.5.
 
 ### 4.5 Formulário de Nova Demanda (`FormNovaDemanda.tsx`)
 
@@ -522,16 +524,30 @@ const schema = z.object({
 
 Submit: `POST /api/modulos/gestao-demandas/demandas/` → fechar modal → `mutate()` do board.
 
-> ⚠️ **Não iniciado.** Rastreado como STC-167. `criarDemanda`/`useCriarDemanda` já existem (`src/lib/demandas.ts`, `src/hooks/useDemandaMutations.ts`, feitos na STC-165) mas sem nenhuma UI conectada — o botão "Nova Demanda" da barra de filtros fica desabilitado até essa issue.
+> ✅ **Implementado (STC-167), com escopo menor que o descrito aqui — 2 seções removidas de propósito, não esquecidas:**
+> - **Sem Responsável no formulário.** `GET /api/plataforma/usuarios/` é restrito a `IsAdminOperacoes` — a maioria dos usuários (nível Unidade/Setor) tomaria 403 tentando listar pessoas pro multi-select. Atribuir responsável continua disponível depois, no modal de detalhe (`DetalheCard`, seção 5.1).
+> - **Sem upload de Anexos no formulário.** O endpoint (`POST .../demandas/{id}/anexos/`) exige uma demanda já existente — não dá pra anexar antes de criar. Anexar continua no modal de detalhe, logo após criar.
+> - **Sem Etiquetas** (multi-select) — não pedido, `Etiqueta` já existe no model mas não tem fluxo de atribuição em lugar nenhum ainda (nem no modal de detalhe).
+> - Campos reais: Título, Prioridade (chips reaproveitando `COR_PRIORIDADE`/`LABEL_PRIORIDADE` de `lib/kanban.ts`), Unidade, Setor (opcional), **Tipo de Gestão** (obrigatório — não estava neste plano, mas o backend exige; só existe "Operacional" cadastrado hoje), Categoria (mesmo critério condicional da 4.4), Prazo, Descrição, Confidencial (checkbox).
+> - **Primeiro uso de `react-hook-form` + `zod` no projeto** (instalados desde o Pacote 1, nunca usados até aqui) — `zodResolver`, com o cuidado de separar tipo de entrada/saída do schema (`z.input`/`z.output`) por causa de `z.coerce.number()` nos selects, que o TypeScript não casa sozinho com o `Resolver` do `zodResolver`.
+> - Usa `useCriarDemanda` (STC-165), que já invalida o cache da lista via matcher (achado do Tech Lead na própria STC-165).
+>
+> **4 achados de review corrigidos antes do push, nenhum do Tech Lead ainda (autochecagem própria):**
+> - Campos coeridos (Unidade/Tipo de Gestão) vazios mostravam o erro cru do zod ("Invalid input: expected number, received NaN") em vez da mensagem em português — a mensagem customizada estava presa no `.positive()` em vez do `z.coerce.number()` base, que falha primeiro na coerção.
+> - `--input` (cor de borda de `Input`/`Select`/`Textarea`/`Checkbox` via `border-input`) era idêntico a `--background`/`--card` (`#F3F3F3`) no tema claro — borda existia no CSS mas ficava invisível, só o `shadow-xs` dava algum indício do contorno do campo. Trocado pra reaproveitar `--border` (`#BFC3C6`) — correção de token **global**, afeta todo campo de formulário do app, não só este.
+> - Modal só limitava a largura a partir do breakpoint `sm:` (≥640px) — numa janela não maximizada, caía no fallback padrão do Dialog (quase edge-to-edge). Trocado pra `max-w-[min(32rem,calc(100%-2rem))]`, sempre com margem.
+> - "Tipo de gestão" sozinho numa grid de 2 colunas (quando Categoria não aparece) deixava um vão vazio do lado direito — grid vira 1 coluna nesse caso.
+>
+> **Nota de processo:** esta issue acabou mergeada em `main` sem passar por PR/review do Tech Lead — uma branch menor (contadores de comentário/anexo + filtro de Setor, sem issue própria) foi criada em cima da branch da STC-167 pra reaproveitar hooks já prontos, e o merge dessa branch menor arrastou os 5 commits da STC-167 junto. Decisão consciente do responsável do projeto ao ser avisado (não desfazer o já pushado), mas registrado aqui pra próximas issues numeradas sempre abrirem PR próprio, mesmo quando outra coisa pequena depender delas.
 
 ---
 
 ## Pacote 5 — Colaboração, Anexos e Auditoria
 **Datas:** 28/07 – 30/07 · 3 dias úteis
 
-> ⚠️ **Não iniciado (frontend).** O modal de detalhe (5.1, sem abas de Comentários/Anexos/Histórico) é a STC-168 — clicar num card do Kanban hoje não faz nada (`selecionarDemanda` é um no-op de propósito). Nem os contadores no `DemandaCard` foram construídos por causa disso. Badge de notificações (5.5) também não iniciado.
+> ✅ **Modal de detalhe concluído (STC-168)** — clicar num card do Kanban abre `DetalheCard` com as 3 abas reais (Comentários/Anexos/Histórico). `DemandaCard` ganhou os contadores depois, junto com o filtro de Setor (ver 4.3/4.4). Só falta o **Badge de Notificações (5.5)** — não iniciado, depende do backend de Notificações (5.4 do `PLANEJAMENTO.md` do backend), também não iniciado.
 >
-> ✅ **Backend de Comentários e Histórico pronto (STC-159).** `Comentario` e `HistoricoAlteracao` existem, com `GET/POST .../comentarios/`, `GET .../historico/` e `GET .../timeline/` (combina os dois, não previsto neste plano — ver seção 2.5). Histórico cobre os 4 gatilhos (criação, edição, status, responsável), tanto pela API quanto pelo Django admin. Só falta a UI (5.2–5.4) e o `Anexo`/STC-160, que ainda bloqueia 5.3.
+> ✅ **Backend de Comentários, Anexos e Histórico pronto (STC-159/STC-160).** `Comentario`/`Anexo`/`HistoricoAlteracao` existem, com `GET/POST .../comentarios/`, `GET/POST/DELETE .../anexos/`, `GET .../historico/` e `GET .../timeline/` (combina histórico+comentários, não previsto neste plano — ver seção 2.5). Histórico cobre criação/edição/status/responsável/anexo, tanto pela API quanto pelo Django admin.
 
 ### 5.1 Modal de Detalhe (`DetalheCard.tsx`)
 
@@ -556,6 +572,12 @@ Backlog → Em Andamento → Em Revisão → Concluído
 - Se `em_andamento → backlog`: modal pedindo justificativa
 - Se `concluido → em_andamento` ou `concluido → backlog`: apenas admins, modal pedindo justificativa
 
+> ✅ **Implementado (STC-168), com diferenças em relação ao planejado:**
+> - **Sem título editável inline, sem stepper de status clicável.** O modal ficou focado em leitura + colaboração (comentar/anexar) — mudar status continua só pelo drag-and-drop do board. Header mostra badge de status (não editável) ao lado da prioridade, não um stepper de 4 etapas.
+> - Layout 2 colunas como planejado, mas proporção diferente: esquerda fixa (270px, metadados), direita ocupa o resto (abas).
+> - **2 falhas críticas achadas em review próprio antes do push:** comentário/anexo/histórico de um autor com conta excluída (`usuario` é `SET_NULL` de propósito nesses 3 models, mas os tipos TypeScript declaravam `Usuario` não-nulável) causava crash real da página inteira — confirmado simulando o cenário (criar usuário, gerar registro, excluir a conta) antes de corrigir com `nomeOuRemovido()`; e o modal ficava preso em "carregando" pra sempre em caso de erro real (`isLoading || !demanda` engolia o branch de erro).
+> - **Achado testando upload de anexo num navegador real:** o proxy BFF (`route.ts`) forçava `Content-Type: application/json` e lia o corpo via `.text()` em toda requisição não-GET — quebrava upload multipart. Corrigido repassando o `Content-Type` original e bufferizando via `arrayBuffer()` (uma tentativa inicial com o corpo como stream parecia certa no código mas esvaziava a requisição silenciosamente — só descoberto testando de ponta a ponta, não só lendo o código).
+
 ### 5.2 Aba Comentários (`ComentarioFeed.tsx`)
 
 ```tsx
@@ -573,6 +595,10 @@ Backlog → Em Andamento → Em Revisão → Concluído
 
 `ComentarioItem`: avatar (iniciais), nome em negrito, data/hora relativa (ex: "há 2h"), texto do comentário.
 
+> ✅ **Implementado (STC-168).** Data/hora **absoluta** (`dd/mm/aaaa · hh:mm`), não relativa como planejado — mais previsível numa timeline de auditoria. Enter envia, Shift+Enter quebra linha.
+>
+> **Achado do Tech Lead:** a `<div>` que renderiza o texto do comentário não tinha `whitespace-pre-wrap` — como o textarea aceita Shift+Enter, um comentário multilinha enviado aparecia tudo numa linha só pra quem lê (CSS padrão colapsa `\n` em espaço). Corrigido.
+
 ### 5.3 Aba Anexos (`AnexoList.tsx`)
 
 - Lista de arquivos: ícone por tipo (PDF, DOC, IMG), nome, tamanho, data, botão download
@@ -580,6 +606,8 @@ Backlog → Em Andamento → Em Revisão → Concluído
 - Upload: dropzone (`input type="file"` estilizado) + preview da fila
   - Tipos aceitos: PDF, DOC, DOCX, PNG, JPG, JPEG (máx 35 MB)
   - Submit: `POST /api/modulos/gestao-demandas/demandas/{id}/anexos/` multipart/form-data
+
+> ✅ **Implementado (STC-168), com remoção adicionada depois** (sem issue própria, pedido direto): botão de excluir, visível só pra quem enviou o anexo ou é admin (mesma regra do backend), com `window.confirm()` nativo antes de excluir — irreversível de verdade (arquivo some do storage), diferente do soft delete de Demanda, mas não justificou construir um `AlertDialog` novo só pra isso ainda. `urlAbsolutaDoAnexo()` normaliza a URL do arquivo: relativa em dev local (`FileSystemStorage`, sem host) e absoluta em produção (R2, já vem completa).
 
 ### 5.4 Aba Histórico (`HistoricoTimeline.tsx`)
 
@@ -598,6 +626,8 @@ const CAMPO_LABELS: Record<string, string> = {
   data_prevista: 'prazo',
 }
 ```
+
+> ✅ **Implementado (STC-168).** Frases completas em português por tipo de evento (`criacao`/`status`/`responsavel`/`anexo`/campo editado), não só rótulo de campo + valores brutos — ex.: "Felipe Claudino moveu de Backlog para Em Andamento", "Felipe Claudino anexou \"laudo.pdf\"". Ícone + cor por tipo de evento (verde criação, azul mudança de status, âmbar o resto). Sem separador por dia — lista corrida, mais recente primeiro (`HistoricoAlteracao.Meta.ordering`).
 
 ### 5.5 Badge de Notificações
 
