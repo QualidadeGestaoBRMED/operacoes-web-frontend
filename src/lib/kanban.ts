@@ -95,11 +95,13 @@ export function passaNoFoco(demanda: Demanda, foco: string | null): boolean {
 
 export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const filtros: DemandaFiltros = {};
+  const tipoGestao = searchParams.get("tipo_gestao");
   const unidade = searchParams.get("unidade");
   const setor = searchParams.get("setor");
   const prioridade = searchParams.get("prioridade");
   const categoria = searchParams.get("categoria");
   const search = searchParams.get("search");
+  if (tipoGestao) filtros.tipo_gestao = Number(tipoGestao);
   if (unidade) filtros.unidade = Number(unidade);
   if (setor) filtros.setor = Number(setor);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;
