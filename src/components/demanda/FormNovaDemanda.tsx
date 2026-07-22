@@ -127,7 +127,14 @@ export function FormNovaDemanda({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+      <DialogContent
+        // max-w-[min(32rem,calc(100%-2rem))]: antes só limitava em sm:
+        // (>=640px) -- abaixo disso caía no fallback padrão do Dialog
+        // (calc(100%-2rem), quase edge-to-edge). Isso garante uma margem
+        // mínima ao redor sempre, sem depender do usuário maximizar a janela,
+        // e sem nunca passar do próprio viewport numa tela bem estreita.
+        className="flex max-h-[85vh] max-w-[min(32rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0"
+      >
         <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle>Nova Demanda</DialogTitle>
         </DialogHeader>
@@ -235,7 +242,10 @@ export function FormNovaDemanda({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* grid-cols-1 quando Categoria não aparece -- senão Tipo de
+                gestão ficava sozinho preso na coluna esquerda, com um vão
+                vazio do lado direito. */}
+            <div className={cn("grid gap-3", categorias.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
               <div className="space-y-1.5">
                 <Label>
                   Tipo de gestão <span className="text-destructive">*</span>
@@ -325,7 +335,10 @@ export function FormNovaDemanda({
               control={control}
               name="confidencial"
               render={({ field }) => (
-                <Label className="flex w-fit cursor-pointer items-center gap-2">
+                // Mesmo peso visual dos outros campos (borda + fundo) --
+                // sozinho, um checkbox de 16px ficava visualmente perdido ao
+                // lado dos Select/Input com borda grossa e sombra.
+                <Label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-input bg-background px-3 py-2.5 transition-colors hover:bg-muted/40">
                   <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                   Demanda confidencial
                 </Label>
