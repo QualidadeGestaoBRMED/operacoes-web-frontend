@@ -71,7 +71,14 @@
   --destructive: #CC851E;
   --destructive-foreground: #FFFFFF;
   --border: #BFC3C6;
-  --input: #F3F3F3;
+  /* Achado no review: --input igual a --background/--card (#F3F3F3) tornava
+   * a borda de Input/Select/Textarea/Checkbox invisível no tema claro -- só
+   * dava pra perceber o campo pelo shadow-xs, quase imperceptível num
+   * formulário denso. Reaproveita --border (mesmo tom já usado em "Bordas
+   * gerais"), que tem contraste real contra o fundo. qeg_design.json também
+   * tem F3F3F3 aqui -- valor original da fonte, não erro de cópia, mas
+   * insuficiente na prática nesta combinação de cores. */
+  --input: #BFC3C6;
   --ring: #007891;
   --chart-1: #7EBFCC;
   --chart-2: #9BD5E1;
