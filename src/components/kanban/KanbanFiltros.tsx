@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCategorias } from "@/hooks/useCategorias";
+import { useSetores } from "@/hooks/useSetores";
+import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import type { DemandaFiltros, Prioridade } from "@/types";
 
@@ -31,6 +33,11 @@ interface KanbanFiltrosProps {
 export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: KanbanFiltrosProps) {
   const { unidades } = useUnidades();
   const { categorias } = useCategorias();
+  const { tiposGestao } = useTiposGestao();
+  // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
+  // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
+  // via TipoGestao em vez de assumir/hardcodar um id.
+  const { setores } = useSetores(tiposGestao[0]?.modulo);
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
@@ -66,7 +73,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   }, [buscaLocal]);
 
   const temFiltrosAtivos = Boolean(
-    filtros.unidade || filtros.prioridade || filtros.categoria || filtros.search,
+    filtros.unidade || filtros.setor || filtros.prioridade || filtros.categoria || filtros.search,
   );
 
   function limparFiltros() {
@@ -104,6 +111,25 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           {unidades.map((unidade) => (
             <SelectItem key={unidade.id} value={String(unidade.id)}>
               {unidade.nome}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filtros.setor ? String(filtros.setor) : "todos"}
+        onValueChange={(valor) =>
+          onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
+        }
+      >
+        <SelectTrigger size="sm" className="h-8">
+          <SelectValue placeholder="Setor" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos os setores</SelectItem>
+          {setores.map((setor) => (
+            <SelectItem key={setor.id} value={String(setor.id)}>
+              {setor.nome}
             </SelectItem>
           ))}
         </SelectContent>

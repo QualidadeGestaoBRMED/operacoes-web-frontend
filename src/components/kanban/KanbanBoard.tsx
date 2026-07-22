@@ -153,6 +153,7 @@ export function KanbanBoard() {
   function atualizarFiltrosNaUrl(novosFiltros: DemandaFiltros) {
     const params = new URLSearchParams();
     if (novosFiltros.unidade) params.set("unidade", String(novosFiltros.unidade));
+    if (novosFiltros.setor) params.set("setor", String(novosFiltros.setor));
     if (novosFiltros.prioridade) params.set("prioridade", novosFiltros.prioridade);
     if (novosFiltros.categoria) params.set("categoria", String(novosFiltros.categoria));
     if (novosFiltros.search) params.set("search", novosFiltros.search);

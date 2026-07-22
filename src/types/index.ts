@@ -90,6 +90,8 @@ export interface Demanda {
   data_prevista: string;
   data_conclusao: string | null;
   confidencial: boolean;
+  comentarios_count: number;
+  anexos_count: number;
   created_at: string;
   updated_at: string;
 }

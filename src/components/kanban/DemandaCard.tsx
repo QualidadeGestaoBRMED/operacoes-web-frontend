@@ -1,7 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { Calendar, Lock, RotateCcw } from "lucide-react";
+import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-react";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda } from "@/types";
@@ -121,14 +121,21 @@ function ConteudoCard({
           >
             {principal ? iniciaisDe(nomeExibicao(principal.usuario)) : "—"}
           </div>
-          {demanda.confidencial && (
-            <span
-              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground"
-              title="Demanda confidencial"
-            >
-              <Lock className="size-3.5" />
+          <div className="flex items-center gap-2.5 text-[11px] font-medium text-muted-foreground">
+            <span className="flex items-center gap-1" title="Comentários">
+              <MessageSquare className="size-3.5" />
+              {demanda.comentarios_count}
             </span>
-          )}
+            <span className="flex items-center gap-1" title="Anexos">
+              <Paperclip className="size-3.5" />
+              {demanda.anexos_count}
+            </span>
+            {demanda.confidencial && (
+              <span title="Demanda confidencial">
+                <Lock className="size-3.5" />
+              </span>
+            )}
+          </div>
         </div>
       )}
     </>

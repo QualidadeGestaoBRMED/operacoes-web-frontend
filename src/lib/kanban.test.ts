@@ -34,6 +34,8 @@ function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
     data_prevista: "2026-07-20",
     data_conclusao: null,
     confidencial: false,
+    comentarios_count: 0,
+    anexos_count: 0,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-01T10:00:00Z",
     ...overrides,
