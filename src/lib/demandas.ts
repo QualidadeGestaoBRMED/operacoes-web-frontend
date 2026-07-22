@@ -1,10 +1,13 @@
 import api from "./api";
 import type {
+  Anexo,
   Categoria,
+  Comentario,
   Demanda,
   DemandaFiltros,
   DemandaPayload,
   DemandaStatusPayload,
+  HistoricoAlteracao,
   ResumoDemandas,
 } from "@/types";
 
@@ -77,4 +80,45 @@ export async function buscarResumoDemandas(filtros?: DemandaFiltros): Promise<Re
 export async function listarCategorias(): Promise<Categoria[]> {
   const { data } = await api.get<Categoria[]>(`${MODULO_URL}categorias/`);
   return data;
+}
+
+export async function listarComentarios(demandaId: number): Promise<Comentario[]> {
+  const { data } = await api.get<Comentario[]>(`${BASE_URL}${demandaId}/comentarios/`);
+  return data;
+}
+
+export async function criarComentario(demandaId: number, texto: string): Promise<Comentario> {
+  const { data } = await api.post<Comentario>(`${BASE_URL}${demandaId}/comentarios/`, { texto });
+  return data;
+}
+
+export async function listarHistorico(demandaId: number): Promise<HistoricoAlteracao[]> {
+  const { data } = await api.get<HistoricoAlteracao[]>(`${BASE_URL}${demandaId}/historico/`);
+  return data;
+}
+
+export async function listarAnexos(demandaId: number): Promise<Anexo[]> {
+  const { data } = await api.get<Anexo[]>(`${BASE_URL}${demandaId}/anexos/`);
+  return data;
+}
+
+export async function enviarAnexo(demandaId: number, arquivo: File): Promise<Anexo> {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  const { data } = await api.post<Anexo>(`${BASE_URL}${demandaId}/anexos/`, formData);
+  return data;
+}
+
+export async function excluirAnexo(demandaId: number, anexoId: number): Promise<void> {
+  await api.delete(`${BASE_URL}${demandaId}/anexos/${anexoId}/`);
+}
+
+// Anexo.arquivo já vem como URL (FileField serializado com use_url) -- mas
+// relativa em dev local (FileSystemStorage só conhece MEDIA_URL, sem host) e
+// absoluta em produção (S3Boto3Storage/R2 sempre devolve URL completa). Sem
+// isso, um link relativo resolveria contra a origem do FRONTEND, não do
+// backend Django que de fato serve o arquivo.
+export function urlAbsolutaDoAnexo(url: string): string {
+  if (/^https?:\/\//.test(url)) return url;
+  return `${process.env.NEXT_PUBLIC_API_URL}${url}`;
 }

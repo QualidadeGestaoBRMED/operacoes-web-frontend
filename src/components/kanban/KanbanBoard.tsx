@@ -17,6 +17,7 @@ import {
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
+import { DetalheCard } from "@/components/demanda/DetalheCard";
 import { useDemandas } from "@/hooks/useDemandas";
 import { atualizarStatusDemanda, excluirDemanda, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -65,6 +66,10 @@ export function KanbanBoard() {
   // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
   const [foco, setFoco] = useState<string | null>(null);
+  // Modal de detalhe (STC-168) -- guarda só o id, não a Demanda inteira: o
+  // DetalheCard busca a própria via useDemanda(id), sempre com dado fresco
+  // (a cópia na lista pode estar desatualizada se algo mudou fora do board).
+  const [demandaSelecionadaId, setDemandaSelecionadaId] = useState<number | null>(null);
 
   // Antes cada coluna filtrava+ordenava a lista inteira de novo dentro do
   // JSX (5 passagens completas a cada render do board). Agrupa tudo numa
@@ -241,8 +246,7 @@ export function KanbanBoard() {
   }
 
   function selecionarDemanda(demanda: Demanda) {
-    // Abrir o modal de detalhe é escopo da STC-168 -- por enquanto, sem ação.
-    void demanda;
+    setDemandaSelecionadaId(demanda.id);
   }
 
   return (
@@ -321,6 +325,13 @@ export function KanbanBoard() {
           </DragOverlay>
         </DndContext>
       )}
+
+      <DetalheCard
+        demandaId={demandaSelecionadaId}
+        onOpenChange={(open) => {
+          if (!open) setDemandaSelecionadaId(null);
+        }}
+      />
     </div>
   );
 }

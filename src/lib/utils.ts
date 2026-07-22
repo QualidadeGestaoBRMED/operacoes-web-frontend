@@ -12,6 +12,16 @@ export function nomeExibicao(usuario: Pick<Usuario, "first_name" | "last_name" |
   return [usuario.first_name, usuario.last_name].filter(Boolean).join(" ").trim() || usuario.username;
 }
 
+// Achado no review: Comentario/Anexo/HistoricoAlteracao.usuario é SET_NULL
+// de propósito no backend (o registro sobrevive à exclusão da conta do
+// autor) -- nomeExibicao() sozinho quebraria (lendo first_name de null) pra
+// qualquer registro cujo autor já não existe mais.
+export function nomeOuRemovido(
+  usuario: Pick<Usuario, "first_name" | "last_name" | "username"> | null,
+) {
+  return usuario ? nomeExibicao(usuario) : "Usuário removido";
+}
+
 export function iniciaisDe(nome: string) {
   const partes = nome.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   return (
@@ -20,4 +30,25 @@ export function iniciaisDe(nome: string) {
       .join("")
       .toUpperCase() || "?"
   );
+}
+
+const FORMATADOR_DATA_HORA = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+// Pro modal de detalhe (STC-168) -- created_at vem como datetime ISO
+// completo (diferente de data_prevista, que é só "YYYY-MM-DD" e já tem seu
+// próprio formatarData em DemandaCard.tsx).
+export function formatarDataHora(iso: string) {
+  return FORMATADOR_DATA_HORA.format(new Date(iso)).replace(",", " ·");
+}
+
+export function formatarTamanhoArquivo(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -148,3 +148,59 @@ export interface ResumoDemandas {
   estatisticas: EstatisticaResumo[];
   ocorrencias: OcorrenciaResumo[];
 }
+
+// GET/POST /demandas/{id}/comentarios/ (STC-159/STC-168) -- texto é o único
+// campo de escrita, demanda/usuario vêm do contexto da requisição no backend.
+// usuario é nulável de propósito no model (on_delete=SET_NULL) -- o
+// comentário sobrevive à exclusão da conta do autor, então o campo pode vir
+// null aqui. Ver nomeOuRemovido() em lib/utils.ts.
+export interface Comentario {
+  id: number;
+  usuario: Usuario | null;
+  texto: string;
+  created_at: string;
+}
+
+// GET/POST /demandas/{id}/anexos/ (STC-160/STC-168). "arquivo" é a URL do
+// arquivo -- relativa em dev local (FileSystemStorage), absoluta em produção
+// (R2/S3Boto3Storage já devolve URL completa). Ver lib/demandas.ts. usuario
+// nulável pelo mesmo motivo de Comentario (SET_NULL na exclusão da conta).
+export interface Anexo {
+  id: number;
+  usuario: Usuario | null;
+  arquivo: string;
+  nome_original: string;
+  tamanho: number;
+  created_at: string;
+}
+
+// Valores reais de HistoricoAlteracao.campo_alterado (backend/demandas/
+// historico.py: CAMPOS_EDICAO_AUDITADOS + "criacao"/"status"/"responsavel"/
+// "anexo" registrados à parte pelos outros gatilhos de auditoria).
+export type CampoHistorico =
+  | "criacao"
+  | "titulo"
+  | "descricao"
+  | "tipo_gestao"
+  | "prioridade"
+  | "unidade"
+  | "setor"
+  | "categoria"
+  | "data_prevista"
+  | "confidencial"
+  | "anexo"
+  | "status"
+  | "responsavel";
+
+// GET /demandas/{id}/historico/ (STC-159/STC-168) -- só leitura, nunca
+// escrito pelo cliente. usuario nulável pelo mesmo motivo de Comentario/
+// Anexo (SET_NULL na exclusão da conta).
+export interface HistoricoAlteracao {
+  id: number;
+  usuario: Usuario | null;
+  campo_alterado: CampoHistorico;
+  valor_anterior: string;
+  valor_novo: string;
+  justificativa: string;
+  created_at: string;
+}

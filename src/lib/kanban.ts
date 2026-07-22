@@ -1,5 +1,24 @@
 import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
 
+// Semáforo de severidade -- cores reais de status, não os tokens de marca
+// (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
+// Tailwind pros indicadores de severidade/aprovação, reservando os tokens
+// de qeg_design.json pro chrome da UI). Compartilhado entre DemandaCard e
+// DetalheCard (STC-168) -- antes vivia só dentro de DemandaCard.tsx.
+export const COR_PRIORIDADE: Record<Prioridade, string> = {
+  urgente: "bg-red-600",
+  alta: "bg-orange-600",
+  media: "bg-yellow-600",
+  baixa: "bg-green-600",
+};
+
+export const LABEL_PRIORIDADE: Record<Prioridade, string> = {
+  urgente: "Urgente",
+  alta: "Alta",
+  media: "Média",
+  baixa: "Baixa",
+};
+
 export const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "backlog", titulo: "Backlog" },
   { status: "em_andamento", titulo: "Em Andamento" },

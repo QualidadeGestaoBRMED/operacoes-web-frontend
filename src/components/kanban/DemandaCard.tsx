@@ -2,26 +2,9 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Calendar, Lock, RotateCcw } from "lucide-react";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
-import type { Demanda, Prioridade } from "@/types";
-
-// Semáforo de severidade -- cores reais de status, não os tokens de marca
-// (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
-// Tailwind pros indicadores de severidade/aprovação, reservando os tokens
-// de qeg_design.json pro chrome da UI).
-const COR_PRIORIDADE: Record<Prioridade, string> = {
-  urgente: "bg-red-600",
-  alta: "bg-orange-600",
-  media: "bg-yellow-600",
-  baixa: "bg-green-600",
-};
-
-const LABEL_PRIORIDADE: Record<Prioridade, string> = {
-  urgente: "Urgente",
-  alta: "Alta",
-  media: "Média",
-  baixa: "Baixa",
-};
+import type { Demanda } from "@/types";
 
 function InfoPrazo({ demanda }: { demanda: Demanda }) {
   if (demanda.status === "concluido") {
