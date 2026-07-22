@@ -9,6 +9,7 @@ import type {
   DemandaStatusPayload,
   HistoricoAlteracao,
   ResumoDemandas,
+  TipoGestao,
 } from "@/types";
 
 const MODULO_URL = "/modulos/gestao-demandas/";
@@ -79,6 +80,11 @@ export async function buscarResumoDemandas(filtros?: DemandaFiltros): Promise<Re
 
 export async function listarCategorias(): Promise<Categoria[]> {
   const { data } = await api.get<Categoria[]>(`${MODULO_URL}categorias/`);
+  return data;
+}
+
+export async function listarTiposGestao(): Promise<TipoGestao[]> {
+  const { data } = await api.get<TipoGestao[]>(`${MODULO_URL}tipos-gestao/`);
   return data;
 }
 
