@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,10 @@ function statusPermitidosParaUsuario(
     const par = `${demanda.status}->${statusAlvo}`;
     if (TRANSICOES_ADMIN_ONLY.has(par)) return isAdminOps;
     if (TRANSICOES_SO_APROVADOR_OU_ADMIN.has(par)) {
-      return isAdminOps || demanda.aprovador?.id === usuarioId;
+      // usuarioId !== undefined explícito: sem isso, os dois undefined
+      // (sessão ainda carregando E demanda sem aprovador) bateriam entre
+      // si e liberariam a opção indevidamente.
+      return isAdminOps || (usuarioId !== undefined && demanda.aprovador?.id === usuarioId);
     }
     return true;
   });
@@ -48,18 +51,37 @@ function statusPermitidosParaUsuario(
 export function TransicaoStatusSection({
   demanda,
   podeEscrever,
+  ativo,
+  aoAbrir,
+  aoFechar,
 }: {
   demanda: Demanda;
   podeEscrever: boolean;
+  // Coordenado pelo DetalheCard (junto com o "ativo" do ResponsavelSection)
+  // pra só uma seção com formulário ficar aberta por vez -- achado no
+  // review: sem isso, "Mudar status" e "Adicionar responsável"/"Trocar"
+  // principal podiam ficar abertos ao mesmo tempo, empilhados na coluna.
+  ativo: boolean;
+  aoAbrir: () => void;
+  aoFechar: () => void;
 }) {
   const { user, isAdminOps } = useAuth();
-  const [formAberto, setFormAberto] = useState(false);
   const [statusAlvo, setStatusAlvo] = useState<StatusDemanda | "">("");
   const [aprovadorId, setAprovadorId] = useState("");
   const [justificativa, setJustificativa] = useState("");
 
   const { usuarios } = useUsuarios();
   const { atualizarStatus, isLoading } = useAtualizarStatusDemanda(demanda.id);
+
+  // Reseta os campos quando outra seção assume (ativo vira false de fora),
+  // não só quando este componente fecha por conta própria.
+  useEffect(() => {
+    if (!ativo) {
+      setStatusAlvo("");
+      setAprovadorId("");
+      setJustificativa("");
+    }
+  }, [ativo]);
 
   const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
@@ -73,13 +95,6 @@ export function TransicaoStatusSection({
     (!exigeAprovador || !!aprovadorId) &&
     (!exigeJustificativa || justificativa.trim() !== "");
 
-  function fecharForm() {
-    setFormAberto(false);
-    setStatusAlvo("");
-    setAprovadorId("");
-    setJustificativa("");
-  }
-
   async function aoConfirmar() {
     if (!statusAlvo) return;
     try {
@@ -88,7 +103,7 @@ export function TransicaoStatusSection({
         ...(exigeAprovador ? { aprovador_id: Number(aprovadorId) } : {}),
         ...(exigeJustificativa ? { justificativa } : {}),
       });
-      fecharForm();
+      aoFechar();
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     }
@@ -96,11 +111,11 @@ export function TransicaoStatusSection({
 
   if (!podeEscrever || opcoesStatus.length === 0) return null;
 
-  if (!formAberto) {
+  if (!ativo) {
     return (
       <button
         type="button"
-        onClick={() => setFormAberto(true)}
+        onClick={aoAbrir}
         className="flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
       >
         Mudar status
@@ -170,7 +185,7 @@ export function TransicaoStatusSection({
         >
           Confirmar
         </Button>
-        <Button size="xs" variant="ghost" onClick={fecharForm}>
+        <Button size="xs" variant="ghost" onClick={aoFechar}>
           Cancelar
         </Button>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Calendar, Lock, MessageSquare, Paperclip, Clock as ClockIcon } from "lucide-react";
 import {
   Dialog,
@@ -72,6 +73,12 @@ export function DetalheCard({
   const { historico } = useHistorico(demandaId);
 
   const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
+
+  // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
+  // trocar principal) e TransicaoStatusSection (mudar status) são
+  // independentes, mas só uma pode estar expandida por vez (achado no
+  // review: sem isso, as duas ficavam abertas juntas, empilhadas na coluna).
+  const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | null>(null);
 
   return (
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
@@ -174,10 +181,22 @@ export function DetalheCard({
                   </CampoMeta>
                 )}
 
-                <TransicaoStatusSection demanda={demanda} podeEscrever={podeEscrever} />
+                <TransicaoStatusSection
+                  demanda={demanda}
+                  podeEscrever={podeEscrever}
+                  ativo={secaoAberta === "status"}
+                  aoAbrir={() => setSecaoAberta("status")}
+                  aoFechar={() => setSecaoAberta(null)}
+                />
 
                 <CampoMeta rotulo="Responsáveis">
-                  <ResponsavelSection demanda={demanda} podeEscrever={podeEscrever} />
+                  <ResponsavelSection
+                    demanda={demanda}
+                    podeEscrever={podeEscrever}
+                    ativo={secaoAberta === "responsavel"}
+                    aoAbrir={() => setSecaoAberta("responsavel")}
+                    aoFechar={() => setSecaoAberta(null)}
+                  />
                 </CampoMeta>
 
                 <div className="h-px bg-border" />
