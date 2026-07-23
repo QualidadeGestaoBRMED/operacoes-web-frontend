@@ -21,11 +21,13 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
 
 // UsuarioViewSet.list era admin-only até o STC-193 -- passou a aceitar
 // qualquer usuário com Perfil, já que atribuir responsável também é (mesma
-// regra do backend: quem tem acesso de escrita à demanda, não só admin).
-// unidadeId escopa a busca de candidatos à unidade da própria demanda.
-export async function listarUsuarios(unidadeId?: number): Promise<Usuario[]> {
+// regra do backend: quem tem acesso de escrita à demanda, não só admin). Sem
+// filtro de unidade aqui: o backend permite um usuário sem unidade (admin)
+// como responsável de qualquer demanda, e o filtro por unidade é aplicado no
+// cliente (ver ResponsavelSection), não na busca.
+export async function listarUsuarios(): Promise<Usuario[]> {
   const { data } = await api.get<Usuario[]>("/plataforma/usuarios/", {
-    params: { ativo: true, ...(unidadeId ? { unidade_id: unidadeId } : {}) },
+    params: { ativo: true },
   });
   return data;
 }
