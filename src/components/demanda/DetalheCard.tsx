@@ -14,10 +14,11 @@ import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
 import { COLUNAS, COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
-import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
+import { cn, nomeExibicao } from "@/lib/utils";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
 import { HistoricoTimeline } from "./HistoricoTimeline";
+import { ResponsavelSection } from "./ResponsavelSection";
 
 const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
   COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
@@ -171,27 +172,7 @@ export function DetalheCard({
                 </CampoMeta>
 
                 <CampoMeta rotulo="Responsáveis">
-                  <div className="flex w-full flex-col gap-1.5">
-                    {demanda.responsaveis.length === 0 ? (
-                      <span className="text-sm text-muted-foreground">Sem responsáveis</span>
-                    ) : (
-                      demanda.responsaveis.map((responsavel) => (
-                        <div key={responsavel.usuario.id} className="flex items-center gap-1.5">
-                          <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                            {iniciaisDe(nomeExibicao(responsavel.usuario))}
-                          </div>
-                          <span className="text-[13.5px] font-medium text-foreground">
-                            {nomeExibicao(responsavel.usuario)}
-                          </span>
-                          {responsavel.tipo === "principal" && (
-                            <span className="text-[10.5px] font-semibold text-muted-foreground uppercase">
-                              principal
-                            </span>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <ResponsavelSection demanda={demanda} podeEscrever={podeEscrever} />
                 </CampoMeta>
 
                 <div className="h-px bg-border" />
