@@ -92,7 +92,7 @@ describe("mensagemBloqueioConhecido", () => {
   it("bloqueia em_andamento -> em_revisao (exige aprovador, não coletado no drag)", () => {
     const demanda = criarDemanda({ status: "em_andamento" });
     expect(mensagemBloqueioConhecido(demanda, "em_revisao")).toBe(
-      "Selecione um aprovador para enviar à revisão.",
+      'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".',
     );
   });
 
@@ -105,7 +105,7 @@ describe("mensagemBloqueioConhecido", () => {
   ])("bloqueia %s -> %s (exige justificativa, não coletada no drag)", (statusAtual, novoStatus) => {
     const demanda = criarDemanda({ status: statusAtual });
     expect(mensagemBloqueioConhecido(demanda, novoStatus)).toBe(
-      "Justificativa obrigatória para essa transição.",
+      'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
     );
   });
 
