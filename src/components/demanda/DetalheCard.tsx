@@ -13,16 +13,13 @@ import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COLUNAS, COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
 import { HistoricoTimeline } from "./HistoricoTimeline";
 import { ResponsavelSection } from "./ResponsavelSection";
-
-const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
-  COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
-);
+import { TransicaoStatusSection } from "./TransicaoStatusSection";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -170,6 +167,14 @@ export function DetalheCard({
                     );
                   })()}
                 </CampoMeta>
+
+                {demanda.aprovador && (
+                  <CampoMeta rotulo="Aprovador">
+                    <Pill>{nomeExibicao(demanda.aprovador)}</Pill>
+                  </CampoMeta>
+                )}
+
+                <TransicaoStatusSection demanda={demanda} podeEscrever={podeEscrever} />
 
                 <CampoMeta rotulo="Responsáveis">
                   <ResponsavelSection demanda={demanda} podeEscrever={podeEscrever} />
