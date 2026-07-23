@@ -2,13 +2,9 @@
 
 import { ArrowRightLeft, Paperclip, Pencil, Plus, UserRound, type LucideIcon } from "lucide-react";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COLUNAS } from "@/lib/kanban";
+import { ROTULO_STATUS } from "@/lib/kanban";
 import { cn, formatarDataHora, nomeOuRemovido } from "@/lib/utils";
 import type { CampoHistorico, HistoricoAlteracao } from "@/types";
-
-const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
-  COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
-);
 
 const ROTULO_CAMPO: Record<CampoHistorico, string> = {
   criacao: "criação",
@@ -56,7 +52,8 @@ function textoDoEvento(evento: HistoricoAlteracao): string {
   }
 
   if (campo === "status") {
-    return `${nome} moveu de ${valorLegivel(campo, de)} para ${valorLegivel(campo, para)}`;
+    const base = `${nome} moveu de ${valorLegivel(campo, de)} para ${valorLegivel(campo, para)}`;
+    return evento.justificativa ? `${base} ("${truncado(evento.justificativa)}")` : base;
   }
 
   const rotulo = ROTULO_CAMPO[campo] ?? campo;
