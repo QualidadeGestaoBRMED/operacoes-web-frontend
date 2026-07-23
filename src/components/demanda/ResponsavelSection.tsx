@@ -157,7 +157,10 @@ export function ResponsavelSection({
                 (ehUnicoPrincipal(responsavel) ? (
                   <button
                     type="button"
-                    onClick={() => setTrocandoUsuarioId(responsavel.usuario.id)}
+                    onClick={() => {
+                      setTrocandoUsuarioId(responsavel.usuario.id);
+                      setFormularioAberto(false);
+                    }}
                     className="ml-auto flex items-center gap-1 text-[11.5px] font-medium text-secondary hover:underline"
                     title="Este é o único responsável principal -- troque por outra pessoa em vez de remover"
                   >
@@ -252,7 +255,11 @@ export function ResponsavelSection({
         ) : (
           <button
             type="button"
-            onClick={() => setFormularioAberto(true)}
+            onClick={() => {
+              setFormularioAberto(true);
+              setTrocandoUsuarioId(null);
+              setNovoPrincipalId("");
+            }}
             className="mt-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
           >
             <Plus className="size-3" />
