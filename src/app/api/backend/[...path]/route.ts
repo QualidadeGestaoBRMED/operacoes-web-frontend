@@ -9,9 +9,19 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   // sozinho a partir do NextAuth({...}) principal. Precisa receber
   // explicitamente, senão lança MissingSecret (nunca tinha sido exercitado
   // de ponta a ponta localmente até agora).
+  //
+  // Achado em produção: secureCookie não é autodetectado por getToken() --
+  // sem passar, ele assume "false" e procura o cookie "authjs.session-token"
+  // (sem prefixo). Em produção (HTTPS) o NextAuth grava a sessão como
+  // "__Secure-authjs.session-token"; sem secureCookie:true aqui, getToken()
+  // nunca acha o cookie certo e sempre volta null -- todo request pro
+  // backend caía em 401 mesmo com o usuário de fato logado. Vercel só serve
+  // por HTTPS (produção e preview), então NODE_ENV === "production" é sinal
+  // confiável; localmente (dev, HTTP) continua usando o cookie sem prefixo.
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
   });
 
   if (!token?.backendAccessToken) {
