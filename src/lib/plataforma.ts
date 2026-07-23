@@ -1,5 +1,5 @@
 import api from "./api";
-import type { Setor, Unidade } from "@/types";
+import type { Notificacao, RespostaPaginada, Setor, Unidade } from "@/types";
 
 export async function listarUnidades(): Promise<Unidade[]> {
   const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
@@ -17,4 +17,22 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
     params: moduloId ? { modulo: moduloId } : undefined,
   });
   return data;
+}
+
+export async function listarNotificacoes(
+  filtros?: { lida?: boolean },
+): Promise<RespostaPaginada<Notificacao>> {
+  const { data } = await api.get<RespostaPaginada<Notificacao>>("/plataforma/notificacoes/", {
+    params: filtros,
+  });
+  return data;
+}
+
+export async function marcarNotificacaoComoLida(id: number): Promise<Notificacao> {
+  const { data } = await api.patch<Notificacao>(`/plataforma/notificacoes/${id}/marcar-lida/`);
+  return data;
+}
+
+export async function marcarTodasNotificacoesComoLidas(): Promise<void> {
+  await api.post("/plataforma/notificacoes/marcar-todas-lidas/");
 }

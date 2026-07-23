@@ -206,3 +206,36 @@ export interface HistoricoAlteracao {
   justificativa: string;
   created_at: string;
 }
+
+// Valores reais de tipo em demandas/notificacoes.py (STC-161) -- string
+// livre no model (igual CampoHistorico), não TextChoices.
+export type TipoNotificacao =
+  | "demanda_criada"
+  | "responsavel_atribuido"
+  | "comentario_novo"
+  | "status_alterado"
+  | "aprovador_designado";
+
+// GET /plataforma/notificacoes/ (STC-161/STC-169). "link" é uma string
+// genérica pro frontend navegar (ex.: "/modulos/gestao-demandas?demanda=5"),
+// não uma FK -- Notificacao é model de plataforma, não depende de nenhum
+// módulo específico. Pode vir "" quando o tipo de notificação não leva a
+// lugar nenhum.
+export interface Notificacao {
+  id: number;
+  tipo: TipoNotificacao;
+  titulo: string;
+  link: string;
+  lida: boolean;
+  created_at: string;
+}
+
+// NotificacaoViewSet é o único recurso de plataforma paginado (crescimento
+// não-limitado por usuário ao longo do tempo) -- formato padrão do
+// PageNumberPagination do DRF.
+export interface RespostaPaginada<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
