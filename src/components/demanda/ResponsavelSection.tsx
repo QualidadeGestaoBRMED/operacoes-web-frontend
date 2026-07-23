@@ -72,17 +72,32 @@ export function ResponsavelSection({
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
   const { remover, isLoading: removendo } = useRemoverResponsavel(demanda.id);
 
-  const idsJaResponsaveis = new Set(demanda.responsaveis.map((r) => r.usuario.id));
   // Não filtra a busca de usuários pela unidade da demanda: o backend
   // (validate_usuario_id) permite um usuário sem unidade (admin) como
   // responsável de qualquer demanda, então o filtro precisa reproduzir essa
   // mesma regra em vez de só comparar unidade_id.
-  const candidatos = usuarios.filter(
-    (usuario) =>
-      !idsJaResponsaveis.has(usuario.id) &&
-      (usuario.unidade_id === demanda.unidade.id ||
-        (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)),
+  function elegivel(usuario: Usuario) {
+    return (
+      usuario.unidade_id === demanda.unidade.id ||
+      (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)
+    );
+  }
+
+  const idsJaResponsaveis = new Set(demanda.responsaveis.map((r) => r.usuario.id));
+  // Pra "Adicionar responsável": exclui quem já é responsável (duplicar dá
+  // 400 no backend).
+  const candidatosParaAdicionar = usuarios.filter(
+    (usuario) => !idsJaResponsaveis.has(usuario.id) && elegivel(usuario),
   );
+  // Achado no review do Tech Lead: candidatosParaAdicionar excluía TODO
+  // responsável já existente -- inclusive um colaborador da própria demanda,
+  // que é justamente quem mais faz sentido promover a principal. Pra
+  // "Trocar", só o próprio usuário sendo substituído fica de fora.
+  function candidatosParaTrocarPrincipal(usuarioSendoTrocadoId: number) {
+    return usuarios.filter(
+      (usuario) => usuario.id !== usuarioSendoTrocadoId && elegivel(usuario),
+    );
+  }
 
   const quantidadePrincipais = demanda.responsaveis.filter(
     (r) => r.tipo === "principal",
@@ -118,12 +133,20 @@ export function ResponsavelSection({
 
   async function aoTrocarPrincipal(antigoUsuarioId: number) {
     if (!novoPrincipalId) return;
+    const novoId = Number(novoPrincipalId);
     setTrocando(true);
     try {
+      // Se o escolhido já é colaborador desta demanda, precisa sair antes
+      // de voltar como principal -- o backend recusa duplicar o par
+      // demanda+usuario (não dá pra só "trocar o tipo" de um responsável
+      // existente, esse endpoint não tem PATCH).
+      if (demanda.responsaveis.some((r) => r.usuario.id === novoId)) {
+        await remover(novoId);
+      }
       // Adiciona o novo principal antes de remover o antigo: só depois
       // disso o antigo deixa de ser "o único principal" e a remoção passa
       // no guard do backend.
-      await adicionar({ usuario_id: Number(novoPrincipalId), tipo: "principal" });
+      await adicionar({ usuario_id: novoId, tipo: "principal" });
       await remover(antigoUsuarioId);
       setNovoPrincipalId("");
       setTrocandoUsuarioId(null);
@@ -188,7 +211,7 @@ export function ResponsavelSection({
                   Novo principal
                 </span>
                 <SeletorCandidato
-                  candidatos={candidatos}
+                  candidatos={candidatosParaTrocarPrincipal(responsavel.usuario.id)}
                   value={novoPrincipalId}
                   onValueChange={setNovoPrincipalId}
                 />
@@ -222,7 +245,7 @@ export function ResponsavelSection({
         (formularioAberto ? (
           <div className="mt-1 flex flex-col gap-1.5 rounded-md border border-border p-2">
             <SeletorCandidato
-              candidatos={candidatos}
+              candidatos={candidatosParaAdicionar}
               value={usuarioSelecionadoId}
               onValueChange={setUsuarioSelecionadoId}
             />
