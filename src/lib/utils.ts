@@ -47,6 +47,23 @@ export function formatarDataHora(iso: string) {
   return FORMATADOR_DATA_HORA.format(new Date(iso)).replace(",", " ·");
 }
 
+// Pro menu de notificações (STC-169) -- created_at vem como datetime ISO
+// completo, mas ali "22/07/2026 · 14:30" (formatarDataHora) é verboso
+// demais pra uma lista curta e recente; relativo ("5min atrás") é o padrão
+// desse tipo de UI. Cai pra formatarDataHora depois de 7 dias -- "12d
+// atrás" fica menos legível que a data em si a partir daí.
+export function formatarTempoRelativo(iso: string) {
+  const segundos = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (segundos < 60) return "agora";
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `${minutos}min atrás`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `${horas}h atrás`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 7) return `${dias}d atrás`;
+  return formatarDataHora(iso);
+}
+
 export function formatarTamanhoArquivo(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
