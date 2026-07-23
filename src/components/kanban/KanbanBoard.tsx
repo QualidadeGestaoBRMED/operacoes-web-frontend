@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -39,6 +39,7 @@ import { ResumoCards } from "./ResumoCards";
 
 export function KanbanBoard() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
 
@@ -349,10 +350,14 @@ export function KanbanBoard() {
           setDemandaSelecionadaId(null);
           // Limpa o "?demanda=" deixado por uma notificação (STC-169) ao
           // fechar -- sem isso, um F5 reabriria o modal sozinho de novo.
+          // Achado no review do Tech Lead: monta a partir do pathname atual
+          // em vez de só "?" quando não sobra nenhum parâmetro -- "?" sozinho
+          // é ambíguo (URL relativa à query atual, não necessariamente a
+          // raiz da página).
           if (searchParams.has("demanda")) {
             const params = new URLSearchParams(searchParams);
             params.delete("demanda");
-            router.replace(params.size > 0 ? `?${params.toString()}` : "?");
+            router.replace(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
           }
         }}
       />
