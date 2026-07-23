@@ -27,7 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       user.username ||
       "Usuário"
     : "";
-  const usuarioTopbar = user ? { nome, iniciais: iniciaisDe(nome) } : undefined;
+  const usuarioTopbar = user
+    ? { nome, iniciais: iniciaisDe(nome), imagem: user.image }
+    : undefined;
 
   return (
     // bg-sidebar preenche o vão dos cantos arredondados do main -- sem

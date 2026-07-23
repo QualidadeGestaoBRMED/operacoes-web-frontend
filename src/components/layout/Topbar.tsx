@@ -1,14 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, PanelLeft } from "lucide-react";
+import { Bell, LogOut, PanelLeft } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PAGINAS } from "@/config/paginas";
 
 interface TopbarProps {
   usuario?: {
     nome: string;
     iniciais: string;
+    imagem?: string | null;
   };
   // Distingue "sessao ainda carregando" de "sem sessao" -- sem isso, a
   // janela entre o mount do client e a resposta de useSession() mostrava
@@ -17,6 +26,34 @@ interface TopbarProps {
   carregando?: boolean;
   sidebarAberta: boolean;
   onToggleSidebar: () => void;
+}
+
+function AvatarUsuario({ imagem, iniciais }: { imagem?: string | null; iniciais: string }) {
+  const [erro, setErro] = useState(false);
+
+  if (imagem && !erro) {
+    return (
+      // referrerPolicy="no-referrer": sem isso, a foto de perfil do Google
+      // costuma falhar ao carregar (o Google recusa servir a imagem com o
+      // Referer do nosso domínio). <img> puro de propósito, não next/image
+      // -- é um avatar de 32px, não justifica configurar remotePatterns no
+      // next.config.ts só por isso.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imagem}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="size-8 shrink-0 rounded-full object-cover"
+        onError={() => setErro(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
+      {iniciais}
+    </div>
+  );
 }
 
 export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: TopbarProps) {
@@ -67,18 +104,32 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
             <div className="size-8 animate-pulse rounded-full bg-sidebar-foreground/15" />
             <div className="h-4 w-24 animate-pulse rounded bg-sidebar-foreground/15" />
           </div>
+        ) : usuario ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-foreground/10"
+              >
+                <AvatarUsuario imagem={usuario.imagem} iniciais={usuario.iniciais} />
+                <span>
+                  Olá, <strong>{usuario.nome}</strong>
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => void signOut({ redirectTo: "/login" })}>
+                <LogOut className="size-4" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
             <div className="flex size-8 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
-              {usuario?.iniciais ?? "?"}
+              ?
             </div>
-            {usuario ? (
-              <span>
-                Olá, <strong>{usuario.nome}</strong>
-              </span>
-            ) : (
-              <span className="text-sidebar-foreground/60">Não autenticado</span>
-            )}
+            <span className="text-sidebar-foreground/60">Não autenticado</span>
           </div>
         )}
       </div>
