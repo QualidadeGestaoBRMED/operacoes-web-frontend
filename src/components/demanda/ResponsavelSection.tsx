@@ -17,6 +17,8 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda, DemandaResponsavel } from "@/types";
 
+const NIVEL_ADMIN_OPERACOES = 2;
+
 export function ResponsavelSection({
   demanda,
   podeEscrever,
@@ -29,15 +31,21 @@ export function ResponsavelSection({
   const [tipoSelecionado, setTipoSelecionado] =
     useState<DemandaResponsavel["tipo"]>("colaborador");
 
-  // Escopado à unidade da demanda -- mesmo critério que o backend já aplica
-  // em validate_usuario_id (unidade diferente é rejeitada, exceto usuário
-  // sem unidade, como admin).
-  const { usuarios } = useUsuarios(demanda.unidade.id);
+  const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
   const { remover, isLoading: removendo } = useRemoverResponsavel(demanda.id);
 
   const idsJaResponsaveis = new Set(demanda.responsaveis.map((r) => r.usuario.id));
-  const candidatos = usuarios.filter((usuario) => !idsJaResponsaveis.has(usuario.id));
+  // Não filtra a busca de usuários pela unidade da demanda: o backend
+  // (validate_usuario_id) permite um usuário sem unidade (admin) como
+  // responsável de qualquer demanda, então o filtro precisa reproduzir essa
+  // mesma regra em vez de só comparar unidade_id.
+  const candidatos = usuarios.filter(
+    (usuario) =>
+      !idsJaResponsaveis.has(usuario.id) &&
+      (usuario.unidade_id === demanda.unidade.id ||
+        (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)),
+  );
 
   async function aoAdicionar() {
     if (!usuarioSelecionadoId) return;
