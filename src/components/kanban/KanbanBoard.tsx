@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { DetalheCard } from "@/components/demanda/DetalheCard";
 import { FormNovaDemanda } from "@/components/demanda/FormNovaDemanda";
 import { useDemandas } from "@/hooks/useDemandas";
+import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { atualizarStatusDemanda, excluirDemanda, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
@@ -36,12 +37,25 @@ import { DemandaCardArrastando } from "./DemandaCard";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanFiltros } from "./KanbanFiltros";
 import { ResumoCards } from "./ResumoCards";
+import { TipoGestaoTabs } from "./TipoGestaoTabs";
 
 export function KanbanBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
+  const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
+
+  // tipo_gestao troca o board inteiro (STC-182), então sempre precisa de UM
+  // selecionado -- nunca "todos". Se a URL não trouxer nenhum (1º acesso,
+  // ou um link antigo sem o parâmetro) e existir mais de um tipo cadastrado,
+  // escolhe o primeiro por "ordem" assim que a lista carregar. Com 0 ou 1
+  // tipo, não faz nada -- comportamento atual (sem filtro) preservado.
+  useEffect(() => {
+    if (carregandoTipos || filtros.tipo_gestao || tiposGestao.length <= 1) return;
+    atualizarFiltrosNaUrl({ ...filtros, tipo_gestao: tiposGestao[0].id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregandoTipos, tiposGestao, filtros.tipo_gestao]);
 
   const {
     demandas: demandasAtivas,
@@ -168,6 +182,7 @@ export function KanbanBoard() {
 
   function atualizarFiltrosNaUrl(novosFiltros: DemandaFiltros) {
     const params = new URLSearchParams();
+    if (novosFiltros.tipo_gestao) params.set("tipo_gestao", String(novosFiltros.tipo_gestao));
     if (novosFiltros.unidade) params.set("unidade", String(novosFiltros.unidade));
     if (novosFiltros.setor) params.set("setor", String(novosFiltros.setor));
     if (novosFiltros.prioridade) params.set("prioridade", novosFiltros.prioridade);
@@ -268,8 +283,21 @@ export function KanbanBoard() {
     setDemandaSelecionadaId(demanda.id);
   }
 
+  // Cobre a janela entre "tiposGestao carregou" e "o efeito acima escreveu
+  // o tipo_gestao padrão na URL" -- sem isso, useDemandas(filtros) já
+  // dispara uma primeira busca SEM filtro nesse meio-tempo, e o board pisca
+  // mostrando os dois tipos misturados antes de estreitar pro selecionado.
+  const resolvendoTipoGestaoPadrao =
+    !carregandoTipos && tiposGestao.length > 1 && !filtros.tipo_gestao;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <TipoGestaoTabs
+        tiposGestao={tiposGestao}
+        valorSelecionado={filtros.tipo_gestao}
+        onMudar={(tipoGestaoId) => atualizarFiltrosNaUrl({ ...filtros, tipo_gestao: tipoGestaoId })}
+      />
+
       <ResumoCards
         filtros={filtros}
         focoAtivo={foco}
@@ -290,7 +318,7 @@ export function KanbanBoard() {
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
           {mensagemErro ?? mensagemErroLixeira}
         </div>
-      ) : carregandoPrimeiraVez || carregandoLixeiraPrimeiraVez ? (
+      ) : carregandoPrimeiraVez || carregandoLixeiraPrimeiraVez || resolvendoTipoGestaoPadrao ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Carregando demandas...
         </div>
