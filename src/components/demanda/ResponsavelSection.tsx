@@ -181,8 +181,8 @@ export function ResponsavelSection({
 
             {trocandoUsuarioId === responsavel.usuario.id && (
               <div className="ml-7 flex flex-col gap-1.5 rounded-md border border-border p-2">
-                <span className="text-[11.5px] text-muted-foreground">
-                  Quem vai assumir como responsável principal?
+                <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+                  Novo principal
                 </span>
                 <SeletorCandidato
                   candidatos={candidatos}
