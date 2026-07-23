@@ -40,6 +40,7 @@ export function NotificacoesMenu() {
           <Bell className="size-4" />
           {naoLidasCount > 0 && (
             <Badge
+              aria-hidden="true"
               variant="destructive"
               className="absolute top-0.5 right-0.5 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
             >
