@@ -37,7 +37,13 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
   // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
   // via TipoGestao em vez de assumir/hardcodar um id.
-  const { setores } = useSetores(tiposGestao[0]?.modulo);
+  // Achado no review: usar tiposGestao[0] direto funcionava só por
+  // coincidência (hoje todo TipoGestao desse módulo compartilha o mesmo
+  // modulo) -- deriva do tipo_gestao realmente ativo, com o primeiro item
+  // como fallback só pro instante antes da aba padrão ser aplicada na URL.
+  const moduloAtivo =
+    tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao)?.modulo ?? tiposGestao[0]?.modulo;
+  const { setores } = useSetores(moduloAtivo);
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
@@ -77,8 +83,13 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   );
 
   function limparFiltros() {
+    // Achado no review: onMudarFiltros({}) zerava tipo_gestao junto -- o
+    // efeito de aba padrão em KanbanBoard via a URL sem esse campo e
+    // repunha a primeira aba sozinho, mesmo com o usuário na segunda.
+    // "Limpar filtros" deve limpar os filtros de fato (unidade/setor/
+    // prioridade/categoria/busca), não trocar de aba.
     setBuscaLocal("");
-    onMudarFiltros({});
+    onMudarFiltros({ tipo_gestao: filtros.tipo_gestao });
   }
 
   return (
