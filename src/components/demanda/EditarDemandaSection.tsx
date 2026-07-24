@@ -26,6 +26,17 @@ import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Demanda, Prioridade } from "@/types";
 
+// Sentinela só de UI pro Select "desmarcar" -- nunca é enviado ao backend
+// como se fosse um id real (Radix Select não aceita value="", e não pode
+// colidir com nenhum id real, que o Select sempre recebe como string
+// numérica). setor/categoria ficam como string simples aqui (SEM_SELECAO ou
+// o id) -- nada de coerção/undefined no meio do valor controlado do Select
+// (achado no review: um vaivém undefined <-> sentinela ali causava o
+// Select mostrar a opção antiga mesmo depois de escolher "Nenhum", embora
+// o valor real já estivesse certo por baixo). A tradução pra null só
+// acontece no submit (aoSubmeter), fora do caminho de renderização.
+const SEM_SELECAO = "__nenhum__";
+
 // Mesmo shape de FormNovaDemanda.tsx, sem tipo_gestao/unidade -- não são
 // editáveis por aqui.
 const schema = z.object({
@@ -34,24 +45,23 @@ const schema = z.object({
   prioridade: z.enum(["urgente", "alta", "media", "baixa"], {
     error: "Selecione a prioridade.",
   }),
-  setor: z.coerce.number().int().positive().optional(),
-  categoria: z.coerce.number().int().positive().optional(),
+  setor: z.string(),
+  categoria: z.string(),
   data_prevista: z.string().min(1, "Prazo é obrigatório."),
   confidencial: z.boolean(),
 });
 
-type FormValuesEntrada = z.input<typeof schema>;
-type FormValuesSaida = z.output<typeof schema>;
+type FormValues = z.infer<typeof schema>;
 
 const PRIORIDADES: Prioridade[] = ["urgente", "alta", "media", "baixa"];
 
-function valoresDe(demanda: Demanda): FormValuesEntrada {
+function valoresDe(demanda: Demanda): FormValues {
   return {
     titulo: demanda.titulo,
     descricao: demanda.descricao,
     prioridade: demanda.prioridade,
-    setor: demanda.setor?.id,
-    categoria: demanda.categoria?.id,
+    setor: demanda.setor ? String(demanda.setor.id) : SEM_SELECAO,
+    categoria: demanda.categoria ? String(demanda.categoria.id) : SEM_SELECAO,
     data_prevista: demanda.data_prevista,
     confidencial: demanda.confidencial,
   };
@@ -82,8 +92,8 @@ export function EditarDemandaSection({
     handleSubmit,
     control,
     reset,
-    formState: { errors },
-  } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
+    formState: { errors, isDirty },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: valoresDe(demanda),
   });
@@ -91,19 +101,31 @@ export function EditarDemandaSection({
   // Repopula com os valores atuais toda vez que o formulário abre -- o
   // inverso do reset-ao-fechar de FormNovaDemanda (aqui é edição, não
   // criação: precisa partir do que já existe, não de um formulário vazio).
+  // Sempre incondicional (não olha isDirty): descarta qualquer "sujeira"
+  // deixada por uma sessão anterior cancelada sem salvar.
   useEffect(() => {
     if (ativo) reset(valoresDe(demanda));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo]);
 
-  async function aoSubmeter(valores: FormValuesSaida) {
+  // Achado no review: com o polling do STC-206, `demanda` pode mudar por
+  // baixo do formulário já aberto (outra pessoa editando ao mesmo tempo) --
+  // sem isso, o Salvar sobrescrevia essa mudança concorrente silenciosamente,
+  // baseado num retrato desatualizado. Só resincroniza se o usuário ainda
+  // não tiver mexido em nada (!isDirty) -- não descarta edição em andamento.
+  useEffect(() => {
+    if (ativo && !isDirty) reset(valoresDe(demanda));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demanda]);
+
+  async function aoSubmeter(valores: FormValues) {
     try {
       await atualizar({
         titulo: valores.titulo,
         descricao: valores.descricao,
         prioridade: valores.prioridade,
-        setor: valores.setor ?? null,
-        categoria: valores.categoria ?? null,
+        setor: valores.setor === SEM_SELECAO ? null : Number(valores.setor),
+        categoria: valores.categoria === SEM_SELECAO ? null : Number(valores.categoria),
         data_prevista: valores.data_prevista,
         confidencial: valores.confidencial,
       });
@@ -189,14 +211,12 @@ export function EditarDemandaSection({
           control={control}
           name="setor"
           render={({ field }) => (
-            <Select
-              value={field.value ? String(field.value) : undefined}
-              onValueChange={(valor) => field.onChange(Number(valor))}
-            >
+            <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger size="sm" className="h-8 w-full text-[13px]">
-                <SelectValue placeholder="Nenhum" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={SEM_SELECAO}>Nenhum</SelectItem>
                 {setores.map((setor) => (
                   <SelectItem key={setor.id} value={String(setor.id)}>
                     {setor.nome}
@@ -217,14 +237,12 @@ export function EditarDemandaSection({
             control={control}
             name="categoria"
             render={({ field }) => (
-              <Select
-                value={field.value ? String(field.value) : undefined}
-                onValueChange={(valor) => field.onChange(Number(valor))}
-              >
+              <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger size="sm" className="h-8 w-full text-[13px]">
-                  <SelectValue placeholder="Nenhuma" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={SEM_SELECAO}>Nenhuma</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria.id} value={String(categoria.id)}>
                       {categoria.nome}
