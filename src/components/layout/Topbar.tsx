@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, PanelLeft } from "lucide-react";
+import { LogOut, PanelLeft } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PAGINAS } from "@/config/paginas";
+import { NotificacoesMenu } from "./NotificacoesMenu";
 
 interface TopbarProps {
   usuario?: {
@@ -89,15 +90,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
       )}
 
       <div className="ml-auto flex shrink-0 items-center gap-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Notificações"
-          className="text-sidebar-foreground hover:text-accent-foreground"
-        >
-          <Bell className="size-4" />
-        </Button>
+        <NotificacoesMenu />
 
         {carregando ? (
           <div className="flex items-center gap-2" role="status" aria-label="Carregando sessão">

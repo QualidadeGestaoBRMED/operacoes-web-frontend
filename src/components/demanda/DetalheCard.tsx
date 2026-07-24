@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Calendar, Lock, MessageSquare, Paperclip, Clock as ClockIcon } from "lucide-react";
 import {
   Dialog,
@@ -13,15 +14,13 @@ import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COLUNAS, COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
-import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
+import { cn, nomeExibicao } from "@/lib/utils";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
 import { HistoricoTimeline } from "./HistoricoTimeline";
-
-const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
-  COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
-);
+import { ResponsavelSection } from "./ResponsavelSection";
+import { TransicaoStatusSection } from "./TransicaoStatusSection";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -74,6 +73,12 @@ export function DetalheCard({
   const { historico } = useHistorico(demandaId);
 
   const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
+
+  // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
+  // trocar principal) e TransicaoStatusSection (mudar status) são
+  // independentes, mas só uma pode estar expandida por vez (achado no
+  // review: sem isso, as duas ficavam abertas juntas, empilhadas na coluna).
+  const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | null>(null);
 
   return (
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
@@ -170,28 +175,28 @@ export function DetalheCard({
                   })()}
                 </CampoMeta>
 
+                {demanda.aprovador && (
+                  <CampoMeta rotulo="Aprovador">
+                    <Pill>{nomeExibicao(demanda.aprovador)}</Pill>
+                  </CampoMeta>
+                )}
+
+                <TransicaoStatusSection
+                  demanda={demanda}
+                  podeEscrever={podeEscrever}
+                  ativo={secaoAberta === "status"}
+                  aoAbrir={() => setSecaoAberta("status")}
+                  aoFechar={() => setSecaoAberta(null)}
+                />
+
                 <CampoMeta rotulo="Responsáveis">
-                  <div className="flex w-full flex-col gap-1.5">
-                    {demanda.responsaveis.length === 0 ? (
-                      <span className="text-sm text-muted-foreground">Sem responsáveis</span>
-                    ) : (
-                      demanda.responsaveis.map((responsavel) => (
-                        <div key={responsavel.usuario.id} className="flex items-center gap-1.5">
-                          <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                            {iniciaisDe(nomeExibicao(responsavel.usuario))}
-                          </div>
-                          <span className="text-[13.5px] font-medium text-foreground">
-                            {nomeExibicao(responsavel.usuario)}
-                          </span>
-                          {responsavel.tipo === "principal" && (
-                            <span className="text-[10.5px] font-semibold text-muted-foreground uppercase">
-                              principal
-                            </span>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <ResponsavelSection
+                    demanda={demanda}
+                    podeEscrever={podeEscrever}
+                    ativo={secaoAberta === "responsavel"}
+                    aoAbrir={() => setSecaoAberta("responsavel")}
+                    aoFechar={() => setSecaoAberta(null)}
+                  />
                 </CampoMeta>
 
                 <div className="h-px bg-border" />
