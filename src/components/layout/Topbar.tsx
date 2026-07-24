@@ -45,12 +45,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
         <PanelLeft className="size-4" />
       </Button>
 
-      {pagina && (
-        <div className="flex items-center gap-2">
-          <pagina.icon className="size-5 text-sidebar-foreground/70" />
-          <h1 className="text-lg font-semibold">{pagina.titulo}</h1>
-        </div>
-      )}
+      {pagina && <h1 className="text-lg font-semibold">{pagina.titulo}</h1>}
 
       <div className="ml-auto flex shrink-0 items-center gap-4">
         <NotificacoesMenu />
