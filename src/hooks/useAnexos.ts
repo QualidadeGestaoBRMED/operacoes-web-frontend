@@ -9,6 +9,8 @@ export function useAnexos(demandaId: number | null) {
   const { data, error, isLoading, mutate } = useSWR(
     demandaId ? ["demanda", demandaId, "anexos"] : null,
     () => listarAnexos(demandaId as number),
+    // STC-206: mesmo motivo de useComentarios -- só roda com o modal aberto.
+    { refreshInterval: 10_000 },
   );
 
   return {
