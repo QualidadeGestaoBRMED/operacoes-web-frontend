@@ -18,6 +18,21 @@ async function trocarTokenComBackend(idToken: string) {
   return response.json() as Promise<{ access: string; refresh: string; user: Usuario }>;
 }
 
+async function invalidarRefreshNoBackend(refresh: string) {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+  } catch (erro) {
+    // Best-effort: se o backend estiver fora do ar nesse instante, o cookie
+    // local já foi limpo de qualquer forma -- o usuário não fica preso. O
+    // refresh só continua válido até expirar sozinho (7 dias) nesse caso raro.
+    console.error("Falha ao invalidar o refresh token no logout:", erro);
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
@@ -91,6 +106,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // usuarioId só existe quando o backend confirmou o login (token.backendUser).
       // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
       return !!sessao?.user?.usuarioId;
+    },
+  },
+  events: {
+    // Roda server-side toda vez que signOut() é chamado -- cobre tanto o
+    // automático (interceptor de 401 em src/lib/api.ts) quanto o botão
+    // manual "Sair" (STC-192), sem precisar tocar em nenhum dos dois. Sem
+    // isso, o refresh token continuava válido no backend por até 7 dias
+    // depois do usuário já ter "saído" da conta no navegador.
+    async signOut(mensagem) {
+      if ("token" in mensagem && mensagem.token?.backendRefreshToken) {
+        await invalidarRefreshNoBackend(mensagem.token.backendRefreshToken);
+      }
     },
   },
 });
