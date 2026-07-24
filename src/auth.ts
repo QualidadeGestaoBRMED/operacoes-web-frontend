@@ -15,9 +15,7 @@ async function trocarTokenComBackend(idToken: string) {
     throw new Error("Falha ao autenticar com o backend.");
   }
 
-  // O backend também devolve "refresh", mas não há fluxo de refresh
-  // implementado no frontend ainda — não armazenamos o que não usamos.
-  return response.json() as Promise<{ access: string; user: Usuario }>;
+  return response.json() as Promise<{ access: string; refresh: string; user: Usuario }>;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -44,6 +42,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dados = await trocarTokenComBackend(account.id_token);
           token.backendAccessToken = dados.access;
+          // Renovação de verdade acontece no proxy BFF (route.ts, STC-208) --
+          // é o único ponto por onde 100% das chamadas ao backend passam.
+          // Este callback jwt não roda pra requisições de /api/backend/...
+          // (getToken() ali é standalone, não dispara callback; e o
+          // middleware, que dispara, exclui /api do matcher). Só guarda o
+          // refresh aqui pra ele existir no cookie.
+          token.backendRefreshToken = dados.refresh;
           token.backendUser = dados.user;
           delete token.error;
         } catch (erro) {
