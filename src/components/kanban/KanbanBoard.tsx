@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -41,6 +41,7 @@ import { TipoGestaoTabs } from "./TipoGestaoTabs";
 
 export function KanbanBoard() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
   const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
@@ -86,6 +87,21 @@ export function KanbanBoard() {
   // (a cópia na lista pode estar desatualizada se algo mudou fora do board).
   const [demandaSelecionadaId, setDemandaSelecionadaId] = useState<number | null>(null);
   const [formNovaDemandaAberto, setFormNovaDemandaAberto] = useState(false);
+
+  // Notificações (STC-169) linkam pra cá como "?demanda=<id>" -- abre o
+  // modal de detalhe automaticamente. A limpeza do parâmetro fica pro
+  // fechamento do modal (abaixo), não aqui: um router.replace() disparado
+  // na mesma janela do router.push() que trouxe o parâmetro (NotificacoesMenu)
+  // não pegava -- a URL ficava presa em "?demanda=X" mesmo depois do
+  // replace "rodar". Limpar só no fechamento, como reação a uma ação real
+  // do usuário, evita essa corrida.
+  useEffect(() => {
+    const idParam = searchParams.get("demanda");
+    if (!idParam) return;
+    const id = Number(idParam);
+    if (Number.isNaN(id)) return;
+    setDemandaSelecionadaId(id);
+  }, [searchParams]);
 
   // Antes cada coluna filtrava+ordenava a lista inteira de novo dentro do
   // JSX (5 passagens completas a cada render do board). Agrupa tudo numa
@@ -358,7 +374,19 @@ export function KanbanBoard() {
       <DetalheCard
         demandaId={demandaSelecionadaId}
         onOpenChange={(open) => {
-          if (!open) setDemandaSelecionadaId(null);
+          if (open) return;
+          setDemandaSelecionadaId(null);
+          // Limpa o "?demanda=" deixado por uma notificação (STC-169) ao
+          // fechar -- sem isso, um F5 reabriria o modal sozinho de novo.
+          // Achado no review do Tech Lead: monta a partir do pathname atual
+          // em vez de só "?" quando não sobra nenhum parâmetro -- "?" sozinho
+          // é ambíguo (URL relativa à query atual, não necessariamente a
+          // raiz da página).
+          if (searchParams.has("demanda")) {
+            const params = new URLSearchParams(searchParams);
+            params.delete("demanda");
+            router.replace(params.size > 0 ? `${pathname}?${params.toString()}` : pathname);
+          }
         }}
       />
       <FormNovaDemanda open={formNovaDemandaAberto} onOpenChange={setFormNovaDemandaAberto} />
