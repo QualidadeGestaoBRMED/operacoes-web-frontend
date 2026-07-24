@@ -40,6 +40,11 @@ export function useAtualizarDemanda(id: number) {
       onSuccess: () => {
         mutate(["demanda", id]);
         mutate(ehChaveDeListaDemandas);
+        // Achado no review do Tech Lead (mesmo bug já corrigido em
+        // useAtualizarStatusDemanda/useResponsaveis.ts): sem isso, os campos
+        // alterados só apareciam na aba Histórico depois de um refresh
+        // manual -- HistoricoTimeline lê uma chave separada.
+        mutate(["demanda", id, "historico"]);
       },
     },
   );
