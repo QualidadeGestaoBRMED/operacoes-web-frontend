@@ -20,7 +20,10 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex h-20 items-center justify-center px-3">
+      {/* pl-5.5: alinha o ícone da logo com os ícones dos links abaixo --
+          nav tem p-3 (12px) + SidebarLink tem px-2.5 (10px) = 22px de
+          inset até o ícone, mesmo valor aqui. */}
+      <div className="flex h-20 items-center pr-3 pl-5.5">
         <Image
           src="/brand/logo-brmed.webp"
           alt="BR MED Saúde Corporativa"
