@@ -4,13 +4,18 @@ import useSWR from "swr";
 import { buscarResumoDemandas } from "@/lib/demandas";
 import type { DemandaFiltros, ResumoDemandas } from "@/types";
 
-export function useResumoDemandas(filtros?: DemandaFiltros) {
+// STC-206: mesmo motivo/valor de useDemandas.ts -- pausado enquanto há uma
+// demanda sendo arrastada no board (o KPI reagir a isso não tem por quê
+// perturbar o drag-and-drop, mesmo não sendo ele mesmo alvo do arraste).
+const INTERVALO_POLL_MS = 10_000;
+
+export function useResumoDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boolean }) {
   // keepPreviousData: mesmo motivo do useDemandas -- sem isso, trocar um
   // filtro fazia os cards de KPI virarem skeleton e reaparecerem do zero.
   const { data, error, isLoading, isValidating } = useSWR<ResumoDemandas>(
     ["resumo-demandas", filtros],
     () => buscarResumoDemandas(filtros),
-    { keepPreviousData: true },
+    { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
 
   return {

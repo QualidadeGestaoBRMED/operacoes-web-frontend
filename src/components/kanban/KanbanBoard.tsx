@@ -57,6 +57,12 @@ export function KanbanBoard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregandoTipos, tiposGestao, filtros.tipo_gestao]);
 
+  const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  // STC-206: pausa o polling do board (e dos KPIs) enquanto uma demanda está
+  // sendo arrastada -- um refresh em segundo plano no meio do drag-and-drop
+  // (@dnd-kit) reordenaria os cards debaixo do cursor.
+  const pausarPolling = demandaArrastando !== null;
+
   const {
     demandas: demandasAtivas,
     isValidating,
@@ -64,7 +70,7 @@ export function KanbanBoard() {
     error,
     mensagemErro,
     mutate,
-  } = useDemandas(filtros);
+  } = useDemandas(filtros, { pausado: pausarPolling });
   // O backend exclui a lixeira por padrão em qualquer listagem sem filtro
   // (STC-178) -- só enxerga itens excluídos quando ?status=lixeira é
   // passado explicitamente. Por isso a coluna Lixeira precisa da própria
@@ -77,8 +83,7 @@ export function KanbanBoard() {
     error: erroLixeira,
     mensagemErro: mensagemErroLixeira,
     mutate: mutateLixeira,
-  } = useDemandas(filtrosLixeira);
-  const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  } = useDemandas(filtrosLixeira, { pausado: pausarPolling });
   // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
   const [foco, setFoco] = useState<string | null>(null);
@@ -302,6 +307,7 @@ export function KanbanBoard() {
         filtros={filtros}
         focoAtivo={foco}
         onFocoClick={(rotulo) => setFoco((atual) => (atual === rotulo ? null : rotulo))}
+        pausarPolling={pausarPolling}
       />
 
       <KanbanFiltros

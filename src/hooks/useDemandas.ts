@@ -5,7 +5,13 @@ import { buscarDemanda, listarDemandas } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { Demanda, DemandaFiltros } from "@/types";
 
-export function useDemandas(filtros?: DemandaFiltros) {
+// STC-206: sem isso, uma mudança feita por outro usuário (novo card, card
+// mudando de coluna) só aparecia com F5. pausado (achado no review):
+// enquanto uma demanda está sendo arrastada, um refresh em segundo plano
+// reordenaria a lista debaixo do cursor -- @dnd-kit não lida bem com isso.
+const INTERVALO_POLL_MS = 10_000;
+
+export function useDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boolean }) {
   // keepPreviousData: sem isso, trocar um filtro fazia data virar
   // undefined na hora -- o board inteiro sumia e reaparecia (chave nova do
   // SWR = sem cache, mesmo já tendo os dados da consulta anterior na
@@ -15,7 +21,7 @@ export function useDemandas(filtros?: DemandaFiltros) {
   const { data, error, isLoading, isValidating, mutate } = useSWR<Demanda[]>(
     ["demandas", filtros],
     () => listarDemandas(filtros),
-    { keepPreviousData: true },
+    { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
 
   return {
@@ -37,8 +43,10 @@ export function useDemandas(filtros?: DemandaFiltros) {
 }
 
 export function useDemanda(id: number | null) {
-  const { data, error, isLoading, mutate } = useSWR<Demanda>(id ? ["demanda", id] : null, () =>
-    buscarDemanda(id as number),
+  const { data, error, isLoading, mutate } = useSWR<Demanda>(
+    id ? ["demanda", id] : null,
+    () => buscarDemanda(id as number),
+    { refreshInterval: INTERVALO_POLL_MS },
   );
 
   return {
