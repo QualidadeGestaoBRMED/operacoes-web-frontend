@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { buscarResumoDemandas } from "@/lib/demandas";
+import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type { DemandaFiltros, ResumoDemandas } from "@/types";
 
 // STC-206: mesmo motivo/valor de useDemandas.ts -- pausado enquanto há uma
@@ -17,11 +18,12 @@ export function useResumoDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?:
     () => buscarResumoDemandas(filtros),
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
+  const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
 
   return {
     resumo: data,
     isLoading,
-    isValidating,
+    isValidating: trocandoFiltro,
     // Ver comentário equivalente em useDemandas.ts -- isLoading é por
     // chave, não reflete o fallback do keepPreviousData.
     carregandoPrimeiraVez: data === undefined,

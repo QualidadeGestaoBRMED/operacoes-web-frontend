@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { buscarDemanda, listarDemandas } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
+import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type { Demanda, DemandaFiltros } from "@/types";
 
 // STC-206: sem isso, uma mudança feita por outro usuário (novo card, card
@@ -23,11 +24,12 @@ export function useDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boole
     () => listarDemandas(filtros),
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
+  const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
 
   return {
     demandas: data ?? [],
     isLoading,
-    isValidating,
+    isValidating: trocandoFiltro,
     // isLoading é por chave de cache -- a primeira vez que uma combinação
     // de filtro é usada, isLoading vem true mesmo com keepPreviousData
     // ativo (ele só afeta o "data" retornado, não esse flag). O sinal
