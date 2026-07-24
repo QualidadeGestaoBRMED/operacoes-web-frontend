@@ -31,6 +31,24 @@ describe("extrairMensagemErro", () => {
     expect(extrairMensagemErro(erro)).toBe("Não encontrado.");
   });
 
+  it("um 401 sempre vira a mensagem de sessão expirada, mesmo com corpo do SimpleJWT", () => {
+    // Achado no review: o corpo real de um token inválido tem "detail" +
+    // "code" (+ "messages") -- sem o tratamento especial de 401, isso virava
+    // "O token informado não é válido para qualquer tipo de token
+    // token_not_valid" na tela (achado no review).
+    const erro = erroComResposta(
+      {
+        detail: "O token informado não é válido para qualquer tipo de token",
+        code: "token_not_valid",
+        messages: [{ token_class: "AccessToken", token_type: "access", message: "O token é inválido" }],
+      },
+      401,
+    );
+    expect(extrairMensagemErro(erro)).toBe(
+      "Sua sessão expirou. Você será redirecionado para o login.",
+    );
+  });
+
   it("aceita corpo de resposta que já é uma string", () => {
     const erro = erroComResposta("Erro interno do servidor.");
     expect(extrairMensagemErro(erro)).toBe("Erro interno do servidor.");
