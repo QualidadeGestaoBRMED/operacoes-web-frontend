@@ -1,5 +1,5 @@
 import api from "./api";
-import type { Notificacao, RespostaPaginada, Setor, Unidade } from "@/types";
+import type { Notificacao, RespostaPaginada, Setor, Unidade, Usuario } from "@/types";
 
 export async function listarUnidades(): Promise<Unidade[]> {
   const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
@@ -15,6 +15,19 @@ export async function listarUnidades(): Promise<Unidade[]> {
 export async function listarSetores(moduloId?: number): Promise<Setor[]> {
   const { data } = await api.get<Setor[]>("/plataforma/setores/", {
     params: moduloId ? { modulo: moduloId } : undefined,
+  });
+  return data;
+}
+
+// UsuarioViewSet.list era admin-only até o STC-193 -- passou a aceitar
+// qualquer usuário com Perfil, já que atribuir responsável também é (mesma
+// regra do backend: quem tem acesso de escrita à demanda, não só admin). Sem
+// filtro de unidade aqui: o backend permite um usuário sem unidade (admin)
+// como responsável de qualquer demanda, e o filtro por unidade é aplicado no
+// cliente (ver ResponsavelSection), não na busca.
+export async function listarUsuarios(): Promise<Usuario[]> {
+  const { data } = await api.get<Usuario[]>("/plataforma/usuarios/", {
+    params: { ativo: true },
   });
   return data;
 }

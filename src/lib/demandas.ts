@@ -6,6 +6,7 @@ import type {
   Demanda,
   DemandaFiltros,
   DemandaPayload,
+  DemandaResponsavel,
   DemandaStatusPayload,
   HistoricoAlteracao,
   ResumoDemandas,
@@ -101,6 +102,24 @@ export async function criarComentario(demandaId: number, texto: string): Promise
 export async function listarHistorico(demandaId: number): Promise<HistoricoAlteracao[]> {
   const { data } = await api.get<HistoricoAlteracao[]>(`${BASE_URL}${demandaId}/historico/`);
   return data;
+}
+
+export async function adicionarResponsavel(
+  demandaId: number,
+  payload: { usuario_id: number; tipo?: DemandaResponsavel["tipo"] },
+): Promise<DemandaResponsavel> {
+  const { data } = await api.post<DemandaResponsavel>(
+    `${BASE_URL}${demandaId}/responsaveis/`,
+    payload,
+  );
+  return data;
+}
+
+// DELETE do backend espera usuario_id no corpo, não no path (o "responsável"
+// não tem id próprio útil pro cliente -- é o par demanda+usuario que
+// identifica a remoção, mesmo contrato do POST).
+export async function removerResponsavel(demandaId: number, usuarioId: number): Promise<void> {
+  await api.delete(`${BASE_URL}${demandaId}/responsaveis/`, { data: { usuario_id: usuarioId } });
 }
 
 export async function listarAnexos(demandaId: number): Promise<Anexo[]> {
