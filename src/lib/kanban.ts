@@ -29,6 +29,11 @@ export const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
 
 export const ORDEM_COLUNAS = COLUNAS.map((coluna) => coluna.status);
 
+// Antes duplicado identicamente em DetalheCard.tsx e HistoricoTimeline.tsx.
+export const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
+  COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
+);
+
 const PESO_PRIORIDADE: Record<Prioridade, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 };
 
 // Antes vinha só na ordem que o backend devolve (-created_at, "mais
@@ -41,14 +46,40 @@ export function compararDemandas(a: Demanda, b: Demanda): number {
   return PESO_PRIORIDADE[a.prioridade] - PESO_PRIORIDADE[b.prioridade];
 }
 
-// Transições que o backend sempre rejeita hoje porque exigem um dado que
-// o drag-and-drop do board não coleta (aprovador_id/justificativa -- isso
-// é a mini-formulário da rota "completa" discutida, ainda não construída).
-// Bloquear aqui ANTES do optimistic update evita o floop visual de mover o
-// card, a coluna se reorganizar, e tudo voltar de novo alguns instantes
-// depois quando o rollback chega.
-const TRANSICOES_SEM_DADO_COLETADO = new Set([
-  "em_andamento->em_revisao",
+// Espelha TRANSICOES_PERMITIDAS de backend/demandas/views.py -- "lixeira"
+// fica de fora de propósito (é soft delete via DELETE, não essa rota).
+export const TRANSICOES_PERMITIDAS: Record<StatusDemanda, StatusDemanda[]> = {
+  backlog: ["em_andamento"],
+  em_andamento: ["backlog", "em_revisao"],
+  em_revisao: ["em_andamento", "backlog", "concluido"],
+  concluido: ["em_andamento", "backlog"],
+  lixeira: [],
+};
+
+export function proximosStatusValidos(statusAtual: StatusDemanda): StatusDemanda[] {
+  return TRANSICOES_PERMITIDAS[statusAtual];
+}
+
+// Espelha TRANSICOES_ADMIN_ONLY (views.py) -- só Admin Q&G/Admin Operações
+// pode executar. Usado pelo TransicaoStatusSection pra decidir quais
+// status-alvo mostrar pro usuário atual (mesmo padrão de esconder ação sem
+// permissão já usado em AnexoList.tsx, em vez de deixar o backend rejeitar).
+export const TRANSICOES_ADMIN_ONLY = new Set([
+  "em_revisao->backlog",
+  "concluido->em_andamento",
+  "concluido->backlog",
+]);
+
+// Espelha TRANSICOES_SO_APROVADOR_OU_ADMIN (views.py) -- só o aprovador
+// designado da demanda ou um admin pode decidir a revisão.
+export const TRANSICOES_SO_APROVADOR_OU_ADMIN = new Set([
+  "em_revisao->concluido",
+  "em_revisao->em_andamento",
+]);
+
+// Espelha TRANSICOES_COM_JUSTIFICATIVA_OBRIGATORIA (views.py) + o único par
+// que exige aprovador (em_andamento->em_revisao) -- nunca os dois juntos.
+const TRANSICOES_QUE_EXIGEM_JUSTIFICATIVA = new Set([
   "em_andamento->backlog",
   "em_revisao->em_andamento",
   "em_revisao->backlog",
@@ -56,14 +87,23 @@ const TRANSICOES_SEM_DADO_COLETADO = new Set([
   "concluido->backlog",
 ]);
 
+export function precisaAprovador(de: StatusDemanda, para: StatusDemanda): boolean {
+  return de === "em_andamento" && para === "em_revisao";
+}
+
+export function precisaJustificativa(de: StatusDemanda, para: StatusDemanda): boolean {
+  return TRANSICOES_QUE_EXIGEM_JUSTIFICATIVA.has(`${de}->${para}`);
+}
+
 export function mensagemBloqueioConhecido(
   demanda: Demanda,
   novoStatus: StatusDemanda,
 ): string | null {
-  if (TRANSICOES_SEM_DADO_COLETADO.has(`${demanda.status}->${novoStatus}`)) {
-    return novoStatus === "em_revisao"
-      ? "Selecione um aprovador para enviar à revisão."
-      : "Justificativa obrigatória para essa transição.";
+  if (precisaAprovador(demanda.status, novoStatus)) {
+    return 'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".';
+  }
+  if (precisaJustificativa(demanda.status, novoStatus)) {
+    return 'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".';
   }
 
   if (demanda.status === "backlog" && novoStatus === "em_andamento") {

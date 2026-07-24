@@ -61,6 +61,12 @@ export function useAtualizarStatusDemanda(id: number) {
       onSuccess: () => {
         mutate(["demanda", id]);
         mutate(ehChaveDeListaDemandas);
+        // Achado no review do Tech Lead: sem isso, a justificativa e o novo
+        // evento de status não apareciam na aba Histórico logo após a
+        // transição -- HistoricoTimeline lê uma chave separada
+        // (["demanda", id, "historico"]), mesmo padrão já usado em
+        // useResponsaveis.ts.
+        mutate(["demanda", id, "historico"]);
       },
     },
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Calendar, Lock, MessageSquare, Paperclip, Clock as ClockIcon } from "lucide-react";
 import {
   Dialog,
@@ -13,16 +14,13 @@ import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COLUNAS, COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
 import { HistoricoTimeline } from "./HistoricoTimeline";
 import { ResponsavelSection } from "./ResponsavelSection";
-
-const ROTULO_STATUS: Record<string, string> = Object.fromEntries(
-  COLUNAS.map((coluna) => [coluna.status, coluna.titulo]),
-);
+import { TransicaoStatusSection } from "./TransicaoStatusSection";
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
@@ -75,6 +73,12 @@ export function DetalheCard({
   const { historico } = useHistorico(demandaId);
 
   const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
+
+  // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
+  // trocar principal) e TransicaoStatusSection (mudar status) são
+  // independentes, mas só uma pode estar expandida por vez (achado no
+  // review: sem isso, as duas ficavam abertas juntas, empilhadas na coluna).
+  const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | null>(null);
 
   return (
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
@@ -171,8 +175,28 @@ export function DetalheCard({
                   })()}
                 </CampoMeta>
 
+                {demanda.aprovador && (
+                  <CampoMeta rotulo="Aprovador">
+                    <Pill>{nomeExibicao(demanda.aprovador)}</Pill>
+                  </CampoMeta>
+                )}
+
+                <TransicaoStatusSection
+                  demanda={demanda}
+                  podeEscrever={podeEscrever}
+                  ativo={secaoAberta === "status"}
+                  aoAbrir={() => setSecaoAberta("status")}
+                  aoFechar={() => setSecaoAberta(null)}
+                />
+
                 <CampoMeta rotulo="Responsáveis">
-                  <ResponsavelSection demanda={demanda} podeEscrever={podeEscrever} />
+                  <ResponsavelSection
+                    demanda={demanda}
+                    podeEscrever={podeEscrever}
+                    ativo={secaoAberta === "responsavel"}
+                    aoAbrir={() => setSecaoAberta("responsavel")}
+                    aoFechar={() => setSecaoAberta(null)}
+                  />
                 </CampoMeta>
 
                 <div className="h-px bg-border" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRightLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,17 @@ function SeletorCandidato({
 export function ResponsavelSection({
   demanda,
   podeEscrever,
+  ativo,
+  aoAbrir,
+  aoFechar,
 }: {
   demanda: Demanda;
   podeEscrever: boolean;
+  // Coordenado pelo DetalheCard junto com o "ativo" do TransicaoStatusSection
+  // -- só uma seção com formulário aberto por vez (achado no review).
+  ativo: boolean;
+  aoAbrir: () => void;
+  aoFechar: () => void;
 }) {
   const [formularioAberto, setFormularioAberto] = useState(false);
   const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState("");
@@ -67,6 +75,18 @@ export function ResponsavelSection({
   const [trocandoUsuarioId, setTrocandoUsuarioId] = useState<number | null>(null);
   const [novoPrincipalId, setNovoPrincipalId] = useState("");
   const [trocando, setTrocando] = useState(false);
+
+  // Reseta os dois formulários quando outra seção assume (ativo vira false
+  // de fora), não só quando um deles fecha por conta própria.
+  useEffect(() => {
+    if (!ativo) {
+      setFormularioAberto(false);
+      setUsuarioSelecionadoId("");
+      setTipoSelecionado("colaborador");
+      setTrocandoUsuarioId(null);
+      setNovoPrincipalId("");
+    }
+  }, [ativo]);
 
   const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
@@ -117,6 +137,7 @@ export function ResponsavelSection({
       setUsuarioSelecionadoId("");
       setTipoSelecionado("colaborador");
       setFormularioAberto(false);
+      aoFechar();
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     }
@@ -150,6 +171,7 @@ export function ResponsavelSection({
       await remover(antigoUsuarioId);
       setNovoPrincipalId("");
       setTrocandoUsuarioId(null);
+      aoFechar();
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     } finally {
@@ -183,6 +205,7 @@ export function ResponsavelSection({
                     onClick={() => {
                       setTrocandoUsuarioId(responsavel.usuario.id);
                       setFormularioAberto(false);
+                      aoAbrir();
                     }}
                     className="ml-auto flex items-center gap-1 text-[11.5px] font-medium text-secondary hover:underline"
                     title="Este é o único responsável principal -- troque por outra pessoa em vez de remover"
@@ -230,6 +253,7 @@ export function ResponsavelSection({
                     onClick={() => {
                       setTrocandoUsuarioId(null);
                       setNovoPrincipalId("");
+                      aoFechar();
                     }}
                   >
                     Cancelar
@@ -270,7 +294,14 @@ export function ResponsavelSection({
               >
                 Adicionar
               </Button>
-              <Button size="xs" variant="ghost" onClick={() => setFormularioAberto(false)}>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => {
+                  setFormularioAberto(false);
+                  aoFechar();
+                }}
+              >
                 Cancelar
               </Button>
             </div>
@@ -282,6 +313,7 @@ export function ResponsavelSection({
               setFormularioAberto(true);
               setTrocandoUsuarioId(null);
               setNovoPrincipalId("");
+              aoAbrir();
             }}
             className="mt-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
           >
