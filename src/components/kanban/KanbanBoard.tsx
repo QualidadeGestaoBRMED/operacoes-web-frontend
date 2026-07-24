@@ -58,10 +58,13 @@ export function KanbanBoard() {
   }, [carregandoTipos, tiposGestao, filtros.tipo_gestao]);
 
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  // Também cobre a mutação disparada pelo drop, não só o gesto visual de
+  // arrastar -- ver comentário em moverDemanda.
+  const [movimentoPendente, setMovimentoPendente] = useState(false);
   // STC-206: pausa o polling do board (e dos KPIs) enquanto uma demanda está
   // sendo arrastada -- um refresh em segundo plano no meio do drag-and-drop
   // (@dnd-kit) reordenaria os cards debaixo do cursor.
-  const pausarPolling = demandaArrastando !== null;
+  const pausarPolling = demandaArrastando !== null || movimentoPendente;
 
   const {
     demandas: demandasAtivas,
@@ -207,49 +210,63 @@ export function KanbanBoard() {
       return;
     }
 
-    // "lixeira" fica fora do endpoint de status de propósito no backend
-    // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
-    // separada (demandasLixeira) -- então sair de "ativas" e revalidar
-    // "lixeira" à parte, em vez de só trocar o status no mesmo array.
-    if (novoStatus === "lixeira") {
-      const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
-      // Achado no review: antes a mutação e o refetch (listarDemandas) iam
-      // juntos numa Promise só, com rollbackOnError -- se a exclusão desse
-      // certo no backend mas só o refetch falhasse (timeout, 500), o SWR
-      // desfazia o card visualmente mesmo já excluído de verdade. Agora o
-      // rollback (mutate() sem args, buscando o estado real) só roda se a
-      // mutação em si falhar; sucesso da exclusão sempre mantém o otimista
-      // e revalida as duas listas à parte, sem acoplar o resultado de uma à
-      // da outra.
+    // Achado no review: demandaArrastando (e por tabela pausarPolling) já
+    // volta a false assim que o card é solto, ANTES dessa função sequer
+    // começar -- ou seja, o polling do board reativava bem no meio da
+    // janela entre o update otimista abaixo e a confirmação do backend. Um
+    // poll calhando de cair nesse intervalo buscava o estado antigo e
+    // sobrescrevia o otimista por um instante (card "piscando" de volta
+    // pra coluna anterior). setMovimentoPendente mantém o polling pausado
+    // até essa mutação específica assentar, não só até o gesto de arrastar
+    // visualmente terminar.
+    setMovimentoPendente(true);
+    try {
+      // "lixeira" fica fora do endpoint de status de propósito no backend
+      // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
+      // separada (demandasLixeira) -- então sair de "ativas" e revalidar
+      // "lixeira" à parte, em vez de só trocar o status no mesmo array.
+      if (novoStatus === "lixeira") {
+        const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
+        // Achado no review: antes a mutação e o refetch (listarDemandas) iam
+        // juntos numa Promise só, com rollbackOnError -- se a exclusão desse
+        // certo no backend mas só o refetch falhasse (timeout, 500), o SWR
+        // desfazia o card visualmente mesmo já excluído de verdade. Agora o
+        // rollback (mutate() sem args, buscando o estado real) só roda se a
+        // mutação em si falhar; sucesso da exclusão sempre mantém o otimista
+        // e revalida as duas listas à parte, sem acoplar o resultado de uma à
+        // da outra.
+        mutate(dadosOtimistas, { revalidate: false });
+        try {
+          await excluirDemanda(demanda.id);
+        } catch (erro) {
+          toast.error(extrairMensagemErro(erro));
+          void mutate();
+          return;
+        }
+        void mutate();
+        void mutateLixeira();
+        return;
+      }
+
+      const dadosOtimistas = demandasAtivas.map((item) =>
+        item.id === demanda.id ? { ...item, status: novoStatus } : item,
+      );
+
       mutate(dadosOtimistas, { revalidate: false });
       try {
-        await excluirDemanda(demanda.id);
+        await atualizarStatusDemanda(demanda.id, { status: novoStatus });
       } catch (erro) {
+        // Backend é a fonte de verdade: se a transição não for permitida (ex.:
+        // faltando responsável principal ou aprovador), revalida pra buscar o
+        // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
         toast.error(extrairMensagemErro(erro));
         void mutate();
         return;
       }
       void mutate();
-      void mutateLixeira();
-      return;
+    } finally {
+      setMovimentoPendente(false);
     }
-
-    const dadosOtimistas = demandasAtivas.map((item) =>
-      item.id === demanda.id ? { ...item, status: novoStatus } : item,
-    );
-
-    mutate(dadosOtimistas, { revalidate: false });
-    try {
-      await atualizarStatusDemanda(demanda.id, { status: novoStatus });
-    } catch (erro) {
-      // Backend é a fonte de verdade: se a transição não for permitida (ex.:
-      // faltando responsável principal ou aprovador), revalida pra buscar o
-      // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
-      toast.error(extrairMensagemErro(erro));
-      void mutate();
-      return;
-    }
-    void mutate();
   }
 
   async function restaurar(demanda: Demanda) {
