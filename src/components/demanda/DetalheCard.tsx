@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnexos } from "@/hooks/useAnexos";
+import { useAuth } from "@/hooks/useAuth";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
@@ -18,6 +19,7 @@ import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
+import { EditarDemandaSection } from "./EditarDemandaSection";
 import { HistoricoTimeline } from "./HistoricoTimeline";
 import { ResponsavelSection } from "./ResponsavelSection";
 import { TransicaoStatusSection } from "./TransicaoStatusSection";
@@ -71,14 +73,27 @@ export function DetalheCard({
   const { comentarios } = useComentarios(demandaId);
   const { anexos } = useAnexos(demandaId);
   const { historico } = useHistorico(demandaId);
+  const { user, isAdminOps } = useAuth();
 
   const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
+  // Mesmo critério do backend (PodeEditarDemanda, STC-204): solicitante,
+  // qualquer responsável ou admin -- calculado no cliente pra esconder a
+  // ação, mesmo padrão já usado em AnexoList.tsx.
+  const podeEditar =
+    !!demanda &&
+    podeEscrever &&
+    (isAdminOps ||
+      demanda.solicitante.id === user?.usuarioId ||
+      demanda.responsaveis.some((r) => r.usuario.id === user?.usuarioId));
 
   // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
-  // trocar principal) e TransicaoStatusSection (mudar status) são
-  // independentes, mas só uma pode estar expandida por vez (achado no
-  // review: sem isso, as duas ficavam abertas juntas, empilhadas na coluna).
-  const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | null>(null);
+  // trocar principal), TransicaoStatusSection (mudar status) e agora
+  // EditarDemandaSection são independentes, mas só uma pode estar expandida
+  // por vez (achado no review: sem isso, as seções ficavam abertas juntas,
+  // empilhadas na coluna).
+  const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | "editar" | null>(
+    null,
+  );
 
   return (
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
@@ -139,10 +154,21 @@ export function DetalheCard({
             <div className="grid min-h-0 flex-1 grid-cols-[270px_1fr] overflow-hidden">
               {/* ESQUERDA: metadados */}
               <div className="scrollbar-discreta flex flex-col gap-4 overflow-y-auto border-r border-border p-4.5">
+                <EditarDemandaSection
+                  demanda={demanda}
+                  podeEditar={podeEditar}
+                  ativo={secaoAberta === "editar"}
+                  aoAbrir={() => setSecaoAberta("editar")}
+                  aoFechar={() => setSecaoAberta(null)}
+                />
+
                 <CampoMeta rotulo="Unidade">
                   <Pill>{demanda.unidade.nome}</Pill>
                 </CampoMeta>
-                {demanda.setor && (
+                {/* Setor/Categoria/Prazo/Descrição somem enquanto o
+                    formulário de edição está aberto -- ele já mostra os
+                    três como input, mostrar os dois ao mesmo tempo duplicaria. */}
+                {secaoAberta !== "editar" && demanda.setor && (
                   <CampoMeta rotulo="Setor">
                     <Pill>{demanda.setor.nome}</Pill>
                   </CampoMeta>
@@ -150,30 +176,32 @@ export function DetalheCard({
                 <CampoMeta rotulo="Tipo de gestão">
                   <Pill>{demanda.tipo_gestao.nome}</Pill>
                 </CampoMeta>
-                {demanda.categoria && (
+                {secaoAberta !== "editar" && demanda.categoria && (
                   <CampoMeta rotulo="Categoria">
                     <Pill>{demanda.categoria.nome}</Pill>
                   </CampoMeta>
                 )}
 
-                <CampoMeta rotulo="Prazo">
-                  {(() => {
-                    const prazo = formatarPrazo(demanda.data_prevista);
-                    return (
-                      <span
-                        className={cn(
-                          "flex items-center gap-1.5",
-                          prazo.atrasada && "text-destructive",
-                          prazo.proxima && !prazo.atrasada && "text-destructive/70",
-                        )}
-                      >
-                        <Calendar className="size-3.5 shrink-0" />
-                        {prazo.texto}
-                        {prazo.atrasada && " · atrasada"}
-                      </span>
-                    );
-                  })()}
-                </CampoMeta>
+                {secaoAberta !== "editar" && (
+                  <CampoMeta rotulo="Prazo">
+                    {(() => {
+                      const prazo = formatarPrazo(demanda.data_prevista);
+                      return (
+                        <span
+                          className={cn(
+                            "flex items-center gap-1.5",
+                            prazo.atrasada && "text-destructive",
+                            prazo.proxima && !prazo.atrasada && "text-destructive/70",
+                          )}
+                        >
+                          <Calendar className="size-3.5 shrink-0" />
+                          {prazo.texto}
+                          {prazo.atrasada && " · atrasada"}
+                        </span>
+                      );
+                    })()}
+                  </CampoMeta>
+                )}
 
                 {demanda.aprovador && (
                   <CampoMeta rotulo="Aprovador">
@@ -201,11 +229,13 @@ export function DetalheCard({
 
                 <div className="h-px bg-border" />
 
-                <CampoMeta rotulo="Descrição">
-                  <p className="rounded-md bg-muted/40 p-2.5 text-[13px] leading-relaxed font-normal text-foreground">
-                    {demanda.descricao || "Sem descrição."}
-                  </p>
-                </CampoMeta>
+                {secaoAberta !== "editar" && (
+                  <CampoMeta rotulo="Descrição">
+                    <p className="rounded-md bg-muted/40 p-2.5 text-[13px] leading-relaxed font-normal text-foreground">
+                      {demanda.descricao || "Sem descrição."}
+                    </p>
+                  </CampoMeta>
+                )}
 
                 <div className="mt-auto border-t border-border pt-3 text-[11.5px] leading-relaxed text-muted-foreground">
                   Criado por <strong className="font-semibold text-foreground">
