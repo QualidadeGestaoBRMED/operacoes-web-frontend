@@ -97,8 +97,8 @@ export default function LoginPage() {
         <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
           <div className="text-center">
             <h1 className="text-5xl font-bold tracking-tight text-primary">Atlas</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Plataforma de Operações · BR MED
+            <p className="mt-2 text-base font-medium text-foreground">
+              Plataforma de Operações · <span className="font-semibold">BR MED</span>
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
               Faça login com sua conta Google Corporativa para continuar.
