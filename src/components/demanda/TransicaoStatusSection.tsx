@@ -79,20 +79,35 @@ export function TransicaoStatusSection({
   const { usuarios } = useUsuarios();
   const { atualizarStatus, isLoading } = useAtualizarStatusDemanda(demanda.id);
 
+  const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
+
   // Reseta os campos quando outra seção assume (ativo vira false de fora),
   // não só quando este componente fecha por conta própria. Ao abrir, parte
-  // de statusAlvoInicial se veio de fora (STC-203).
+  // de statusAlvoInicial se veio de fora (STC-203) -- mas só se ainda for
+  // uma opção válida pro usuário atual: mensagemBloqueioConhecido/
+  // secaoDoBloqueio (lib/kanban.ts) checam só a estrutura da transição, sem
+  // saber quem está arrastando. Um usuário comum arrastando Em Revisão ->
+  // Em Andamento (rejeição, exige aprovador/admin) cai aqui com
+  // "em_andamento" como destino, mas opcoesStatus filtra essa opção fora
+  // pra quem não é aprovador/admin -- sem essa checagem, o Select
+  // receberia um value sem SelectItem correspondente (mesma classe de bug
+  // já achada no Select de "Nenhum" da STC-205). opcoesStatus de propósito
+  // fora das deps: só precisa ser validado no instante em que a seção abre,
+  // não a cada re-render (senão o array novo a cada render reabriria o
+  // efeito e apagaria a escolha manual do usuário no meio da interação).
   useEffect(() => {
     if (ativo) {
-      setStatusAlvo(statusAlvoInicial ?? "");
+      setStatusAlvo(
+        statusAlvoInicial && opcoesStatus.includes(statusAlvoInicial) ? statusAlvoInicial : "",
+      );
     } else {
       setStatusAlvo("");
       setAprovadorId("");
       setJustificativa("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ativo, statusAlvoInicial]);
 
-  const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
   const candidatosAprovador = usuarios.filter(
