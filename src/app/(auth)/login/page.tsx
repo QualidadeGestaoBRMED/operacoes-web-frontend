@@ -71,9 +71,12 @@ function BotaoEntrar() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-svh">
-      {/* Mesmo bg-sidebar usado no shell autenticado (Sidebar.tsx) -- reaproveita
-          a identidade visual já estabelecida, em vez de uma cor nova só pra isso. */}
-      <div className="hidden w-1/2 flex-col bg-sidebar p-10 text-sidebar-foreground md:flex">
+      {/* Mesmo azul do bg-sidebar (Sidebar.tsx) por trás da imagem, caso ela
+          demore a carregar ou não cubra 100% da área (bg-cover). */}
+      <div
+        className="hidden w-1/2 flex-col bg-sidebar bg-cover bg-center p-10 text-sidebar-foreground md:flex"
+        style={{ backgroundImage: "url(/brand/degrade-login.png)" }}
+      >
         <Image
           src="/brand/logo-brmed.webp"
           alt="BR MED Saúde Corporativa"
