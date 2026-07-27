@@ -228,9 +228,14 @@ export function EditarDemandaSection({
         />
       </div>
 
-      {/* Mesmo critério de FormNovaDemanda: sem sentido escolher entre uma
-          única categoria. */}
-      {categorias.length > 1 && (
+      {/* Achado no review do Tech Lead: o critério de FormNovaDemanda
+          (esconder com <= 1 categoria, sem sentido "escolher" com uma única
+          opção) não vale em edição -- aqui sempre existe algo real pra
+          fazer mesmo com 1 categoria só: atribuí-la a uma demanda hoje sem
+          categoria, ou limpar a categoria atual de volta pra "Nenhuma". Só
+          esconde quando não há categoria nenhuma cadastrada (nada real pra
+          escolher além do que já é o estado atual). */}
+      {categorias.length > 0 && (
         <div className="space-y-1">
           <Label className="text-[10.5px] font-bold tracking-wide uppercase">Categoria</Label>
           <Controller
