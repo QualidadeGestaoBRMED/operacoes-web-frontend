@@ -71,6 +71,7 @@ interface ResumoCardsProps {
   filtros?: DemandaFiltros;
   focoAtivo?: string | null;
   onFocoClick?: (rotulo: string) => void;
+  pausarPolling?: boolean;
 }
 
 // KPIs de "de relance" acima do board -- inspirado nas telas do ProntuAI
@@ -78,8 +79,11 @@ interface ResumoCardsProps {
 // pra Hub (hoje bloqueada) em vez de criar um endpoint novo. Clicáveis:
 // funcionam como atalho pra filtrar o board só pelas demandas daquela
 // métrica (ex.: só as atrasadas), sem precisar de um filtro dedicado.
-export function ResumoCards({ filtros, focoAtivo, onFocoClick }: ResumoCardsProps) {
-  const { resumo, isValidating, carregandoPrimeiraVez, error } = useResumoDemandas(filtros);
+export function ResumoCards({ filtros, focoAtivo, onFocoClick, pausarPolling }: ResumoCardsProps) {
+  const { resumo, isFilterChangeValidating, carregandoPrimeiraVez, error } = useResumoDemandas(
+    filtros,
+    { pausado: pausarPolling },
+  );
 
   if (error) return null;
 
@@ -103,7 +107,7 @@ export function ResumoCards({ filtros, focoAtivo, onFocoClick }: ResumoCardsProp
         // Troca de filtro: mantém os cards antigos visíveis (keepPreviousData
         // no hook) em vez de sumir pra um skeleton -- só esmaece um pouco
         // enquanto a resposta nova não chega, pra não parecer travado.
-        isValidating && "opacity-60",
+        isFilterChangeValidating && "opacity-60",
       )}
     >
       {estatisticas.map((estatistica) => (

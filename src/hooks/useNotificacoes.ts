@@ -14,8 +14,9 @@ const CHAVE_LISTA = "notificacoes";
 const CHAVE_CONTAGEM = "notificacoes-nao-lidas";
 // Sem push/WebSocket (fora do escopo do STC-161/169) -- poll periódico é o
 // único jeito do sino saber de notificação nova sem o usuário recarregar a
-// página.
-const INTERVALO_POLL_MS = 30_000;
+// página. 10s (era 30s) pra bater com o intervalo dos outros dados
+// "colaborativos" da STC-206 (comentários, anexos, board etc.).
+const INTERVALO_POLL_MS = 10_000;
 
 // A lista (até 20 mais recentes, único recurso paginado de plataforma) e a
 // contagem de não lidas (?lida=false, só o "count" importa) são duas chaves

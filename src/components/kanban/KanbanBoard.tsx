@@ -57,14 +57,23 @@ export function KanbanBoard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregandoTipos, tiposGestao, filtros.tipo_gestao]);
 
+  const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  // Também cobre a mutação disparada pelo drop, não só o gesto visual de
+  // arrastar -- ver comentário em moverDemanda.
+  const [movimentoPendente, setMovimentoPendente] = useState(false);
+  // STC-206: pausa o polling do board (e dos KPIs) enquanto uma demanda está
+  // sendo arrastada -- um refresh em segundo plano no meio do drag-and-drop
+  // (@dnd-kit) reordenaria os cards debaixo do cursor.
+  const pausarPolling = demandaArrastando !== null || movimentoPendente;
+
   const {
     demandas: demandasAtivas,
-    isValidating,
+    isFilterChangeValidating,
     carregandoPrimeiraVez,
     error,
     mensagemErro,
     mutate,
-  } = useDemandas(filtros);
+  } = useDemandas(filtros, { pausado: pausarPolling });
   // O backend exclui a lixeira por padrão em qualquer listagem sem filtro
   // (STC-178) -- só enxerga itens excluídos quando ?status=lixeira é
   // passado explicitamente. Por isso a coluna Lixeira precisa da própria
@@ -72,13 +81,12 @@ export function KanbanBoard() {
   const filtrosLixeira: DemandaFiltros = { ...filtros, status: "lixeira" };
   const {
     demandas: demandasLixeira,
-    isValidating: isValidatingLixeira,
+    isFilterChangeValidating: isFilterChangeValidatingLixeira,
     carregandoPrimeiraVez: carregandoLixeiraPrimeiraVez,
     error: erroLixeira,
     mensagemErro: mensagemErroLixeira,
     mutate: mutateLixeira,
-  } = useDemandas(filtrosLixeira);
-  const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
+  } = useDemandas(filtrosLixeira, { pausado: pausarPolling });
   // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
   const [foco, setFoco] = useState<string | null>(null);
@@ -202,49 +210,63 @@ export function KanbanBoard() {
       return;
     }
 
-    // "lixeira" fica fora do endpoint de status de propósito no backend
-    // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
-    // separada (demandasLixeira) -- então sair de "ativas" e revalidar
-    // "lixeira" à parte, em vez de só trocar o status no mesmo array.
-    if (novoStatus === "lixeira") {
-      const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
-      // Achado no review: antes a mutação e o refetch (listarDemandas) iam
-      // juntos numa Promise só, com rollbackOnError -- se a exclusão desse
-      // certo no backend mas só o refetch falhasse (timeout, 500), o SWR
-      // desfazia o card visualmente mesmo já excluído de verdade. Agora o
-      // rollback (mutate() sem args, buscando o estado real) só roda se a
-      // mutação em si falhar; sucesso da exclusão sempre mantém o otimista
-      // e revalida as duas listas à parte, sem acoplar o resultado de uma à
-      // da outra.
+    // Achado no review: demandaArrastando (e por tabela pausarPolling) já
+    // volta a false assim que o card é solto, ANTES dessa função sequer
+    // começar -- ou seja, o polling do board reativava bem no meio da
+    // janela entre o update otimista abaixo e a confirmação do backend. Um
+    // poll calhando de cair nesse intervalo buscava o estado antigo e
+    // sobrescrevia o otimista por um instante (card "piscando" de volta
+    // pra coluna anterior). setMovimentoPendente mantém o polling pausado
+    // até essa mutação específica assentar, não só até o gesto de arrastar
+    // visualmente terminar.
+    setMovimentoPendente(true);
+    try {
+      // "lixeira" fica fora do endpoint de status de propósito no backend
+      // (soft delete via DELETE, não PATCH .../status/) e mora numa lista
+      // separada (demandasLixeira) -- então sair de "ativas" e revalidar
+      // "lixeira" à parte, em vez de só trocar o status no mesmo array.
+      if (novoStatus === "lixeira") {
+        const dadosOtimistas = demandasAtivas.filter((item) => item.id !== demanda.id);
+        // Achado no review: antes a mutação e o refetch (listarDemandas) iam
+        // juntos numa Promise só, com rollbackOnError -- se a exclusão desse
+        // certo no backend mas só o refetch falhasse (timeout, 500), o SWR
+        // desfazia o card visualmente mesmo já excluído de verdade. Agora o
+        // rollback (mutate() sem args, buscando o estado real) só roda se a
+        // mutação em si falhar; sucesso da exclusão sempre mantém o otimista
+        // e revalida as duas listas à parte, sem acoplar o resultado de uma à
+        // da outra.
+        mutate(dadosOtimistas, { revalidate: false });
+        try {
+          await excluirDemanda(demanda.id);
+        } catch (erro) {
+          toast.error(extrairMensagemErro(erro));
+          void mutate();
+          return;
+        }
+        void mutate();
+        void mutateLixeira();
+        return;
+      }
+
+      const dadosOtimistas = demandasAtivas.map((item) =>
+        item.id === demanda.id ? { ...item, status: novoStatus } : item,
+      );
+
       mutate(dadosOtimistas, { revalidate: false });
       try {
-        await excluirDemanda(demanda.id);
+        await atualizarStatusDemanda(demanda.id, { status: novoStatus });
       } catch (erro) {
+        // Backend é a fonte de verdade: se a transição não for permitida (ex.:
+        // faltando responsável principal ou aprovador), revalida pra buscar o
+        // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
         toast.error(extrairMensagemErro(erro));
         void mutate();
         return;
       }
       void mutate();
-      void mutateLixeira();
-      return;
+    } finally {
+      setMovimentoPendente(false);
     }
-
-    const dadosOtimistas = demandasAtivas.map((item) =>
-      item.id === demanda.id ? { ...item, status: novoStatus } : item,
-    );
-
-    mutate(dadosOtimistas, { revalidate: false });
-    try {
-      await atualizarStatusDemanda(demanda.id, { status: novoStatus });
-    } catch (erro) {
-      // Backend é a fonte de verdade: se a transição não for permitida (ex.:
-      // faltando responsável principal ou aprovador), revalida pra buscar o
-      // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
-      toast.error(extrairMensagemErro(erro));
-      void mutate();
-      return;
-    }
-    void mutate();
   }
 
   async function restaurar(demanda: Demanda) {
@@ -302,6 +324,7 @@ export function KanbanBoard() {
         filtros={filtros}
         focoAtivo={foco}
         onFocoClick={(rotulo) => setFoco((atual) => (atual === rotulo ? null : rotulo))}
+        pausarPolling={pausarPolling}
       />
 
       <KanbanFiltros
@@ -351,7 +374,7 @@ export function KanbanBoard() {
           <div
             className={cn(
               "flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5 transition-opacity",
-              (isValidating || isValidatingLixeira) && "opacity-60",
+              (isFilterChangeValidating || isFilterChangeValidatingLixeira) && "opacity-60",
             )}
           >
             {COLUNAS.map((coluna) => (

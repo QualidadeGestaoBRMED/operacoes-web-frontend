@@ -9,6 +9,9 @@ export function useComentarios(demandaId: number | null) {
   const { data, error, isLoading, mutate } = useSWR(
     demandaId ? ["demanda", demandaId, "comentarios"] : null,
     () => listarComentarios(demandaId as number),
+    // STC-206: um comentário de outro usuário só aparecia com F5 -- key vira
+    // null (sem polling) quando o modal fecha, então isso só roda com ele aberto.
+    { refreshInterval: 10_000 },
   );
 
   return {

@@ -10,6 +10,8 @@ export function useHistorico(demandaId: number | null) {
   const { data, error, isLoading } = useSWR(
     demandaId ? ["demanda", demandaId, "historico"] : null,
     () => listarHistorico(demandaId as number),
+    // STC-206: mesmo motivo de useComentarios -- só roda com o modal aberto.
+    { refreshInterval: 10_000 },
   );
 
   return {
