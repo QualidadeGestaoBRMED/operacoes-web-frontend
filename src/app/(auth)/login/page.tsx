@@ -73,7 +73,7 @@ export default function LoginPage() {
     <div className="flex min-h-svh">
       {/* Mesmo bg-sidebar usado no shell autenticado (Sidebar.tsx) -- reaproveita
           a identidade visual já estabelecida, em vez de uma cor nova só pra isso. */}
-      <div className="hidden w-1/2 flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
+      <div className="hidden w-1/2 flex-col bg-sidebar p-10 text-sidebar-foreground md:flex">
         <Image
           src="/brand/logo-brmed.webp"
           alt="BR MED Saúde Corporativa"
@@ -83,7 +83,7 @@ export default function LoginPage() {
           className="h-12 w-auto self-start"
         />
 
-        <div>
+        <div className="mt-10">
           <h1 className="text-3xl font-bold">
             Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
           </h1>
@@ -91,8 +91,6 @@ export default function LoginPage() {
             Processos, indicadores e ações em um só lugar.
           </p>
         </div>
-
-        <div />
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-background p-6">
