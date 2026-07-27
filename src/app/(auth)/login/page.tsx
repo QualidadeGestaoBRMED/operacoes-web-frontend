@@ -75,7 +75,7 @@ export default function LoginPage() {
           demore a carregar ou não cubra 100% da área (bg-cover). */}
       <div
         className="hidden w-1/2 flex-col bg-sidebar bg-cover bg-center p-10 text-sidebar-foreground md:flex"
-        style={{ backgroundImage: "url(/brand/degrade-login.png)" }}
+        style={{ backgroundImage: "url(/brand/degrade-login.webp)" }}
       >
         <Image
           src="/brand/logo-brmed.webp"
@@ -87,9 +87,11 @@ export default function LoginPage() {
         />
 
         <div className="mt-16">
-          <h1 className="text-3xl font-bold">
+          {/* p, não h1 -- o h1 de verdade da página é o "Atlas" do painel
+              direito; esse painel é decorativo/oculto no mobile. */}
+          <p className="text-3xl font-bold">
             Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
-          </h1>
+          </p>
           <p className="mt-4 text-lg text-sidebar-foreground/80">
             Processos, indicadores e ações em um só lugar.
           </p>
