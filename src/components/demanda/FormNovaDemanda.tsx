@@ -33,6 +33,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Prioridade } from "@/types";
+import { SeletorEtiquetas } from "./SeletorEtiquetas";
 
 // Título tem max_length=329 no model (Demanda.titulo) -- backend rejeitaria
 // com 400 sem essa validação de propósito espelhada aqui.
@@ -51,6 +52,7 @@ const schema = z.object({
   unidade: z.coerce.number({ error: "Selecione a unidade." }).int().positive(),
   setor: z.coerce.number().int().positive().optional(),
   categoria: z.coerce.number().int().positive().optional(),
+  etiquetas: z.array(z.number()).default([]),
   data_prevista: z.string().min(1, "Prazo é obrigatório."),
   confidencial: z.boolean(),
 });
@@ -68,6 +70,7 @@ const PRIORIDADES: Prioridade[] = ["urgente", "alta", "media", "baixa"];
 const valoresPadrao: Partial<FormValuesEntrada> = {
   titulo: "",
   descricao: "",
+  etiquetas: [],
   confidencial: false,
 };
 
@@ -115,6 +118,7 @@ export function FormNovaDemanda({
         unidade: valores.unidade,
         setor: valores.setor ?? null,
         categoria: valores.categoria ?? null,
+        etiquetas: valores.etiquetas,
         data_prevista: valores.data_prevista,
         confidencial: valores.confidencial,
       });
@@ -304,6 +308,21 @@ export function FormNovaDemanda({
                   />
                 </div>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Etiquetas</Label>
+              <Controller
+                control={control}
+                name="etiquetas"
+                render={({ field }) => (
+                  <SeletorEtiquetas
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                    modulo={tiposGestao[0]?.modulo}
+                  />
+                )}
+              />
             </div>
 
             <div className="space-y-1.5">
