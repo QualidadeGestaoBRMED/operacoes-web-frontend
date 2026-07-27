@@ -30,6 +30,7 @@ import {
   filtrosDaUrl,
   mensagemBloqueioConhecido,
   passaNoFoco,
+  secaoDoBloqueio,
 } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Demanda, DemandaFiltros, StatusDemanda } from "@/types";
@@ -94,6 +95,15 @@ export function KanbanBoard() {
   // DetalheCard busca a própria via useDemanda(id), sempre com dado fresco
   // (a cópia na lista pode estar desatualizada se algo mudou fora do board).
   const [demandaSelecionadaId, setDemandaSelecionadaId] = useState<number | null>(null);
+  // STC-203: quando um drag-and-drop bloqueado abre o modal automaticamente,
+  // guarda qual seção/destino resolve o bloqueio -- só é aplicado enquanto
+  // demandaId bater com demandaSelecionadaId (ver uso no <DetalheCard>
+  // abaixo), pra não "grudar" numa reabertura por clique normal depois.
+  const [aberturaBloqueio, setAberturaBloqueio] = useState<{
+    demandaId: number;
+    secao: "status" | "responsavel";
+    statusAlvo?: StatusDemanda;
+  } | null>(null);
   const [formNovaDemandaAberto, setFormNovaDemandaAberto] = useState(false);
 
   // Notificações (STC-169) linkam pra cá como "?demanda=<id>" -- abre o
@@ -207,6 +217,18 @@ export function KanbanBoard() {
       // Já sabemos que essa transição vai falhar -- nem tenta mover o
       // card visualmente (dnd-kit já devolve ele pro lugar sozinho).
       toast.error(bloqueio);
+      // STC-203: além do toast, abre o modal já na seção que resolve o
+      // bloqueio (com o destino pré-selecionado, se for de status) -- em
+      // vez de deixar o usuário refazer tudo manualmente.
+      const secao = secaoDoBloqueio(demanda, novoStatus);
+      if (secao) {
+        setAberturaBloqueio({
+          demandaId: demanda.id,
+          secao,
+          statusAlvo: secao === "status" ? novoStatus : undefined,
+        });
+        setDemandaSelecionadaId(demanda.id);
+      }
       return;
     }
 
@@ -396,9 +418,18 @@ export function KanbanBoard() {
 
       <DetalheCard
         demandaId={demandaSelecionadaId}
+        secaoInicial={
+          aberturaBloqueio?.demandaId === demandaSelecionadaId ? aberturaBloqueio.secao : undefined
+        }
+        statusAlvoInicial={
+          aberturaBloqueio?.demandaId === demandaSelecionadaId
+            ? aberturaBloqueio.statusAlvo
+            : undefined
+        }
         onOpenChange={(open) => {
           if (open) return;
           setDemandaSelecionadaId(null);
+          setAberturaBloqueio(null);
           // Limpa o "?demanda=" deixado por uma notificação (STC-169) ao
           // fechar -- sem isso, um F5 reabriria o modal sozinho de novo.
           // Achado no review do Tech Lead: monta a partir do pathname atual

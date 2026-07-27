@@ -95,23 +95,57 @@ export function precisaJustificativa(de: StatusDemanda, para: StatusDemanda): bo
   return TRANSICOES_QUE_EXIGEM_JUSTIFICATIVA.has(`${de}->${para}`);
 }
 
-export function mensagemBloqueioConhecido(
+type SecaoDeBloqueio = "status" | "responsavel";
+
+// Compartilhado entre mensagemBloqueioConhecido (toast) e secaoDoBloqueio
+// (STC-203: qual seção do DetalheCard abrir pra resolver o bloqueio) -- as
+// duas precisam concordar sobre qual transição está bloqueada e por quê,
+// então derivam da mesma árvore de condições em vez de cada uma reimplementá-la.
+function bloqueioDetalhado(
   demanda: Demanda,
   novoStatus: StatusDemanda,
-): string | null {
+): { mensagem: string; secao: SecaoDeBloqueio } | null {
   if (precisaAprovador(demanda.status, novoStatus)) {
-    return 'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".';
+    return {
+      mensagem: 'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".',
+      secao: "status",
+    };
   }
   if (precisaJustificativa(demanda.status, novoStatus)) {
-    return 'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".';
+    return {
+      mensagem: 'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
+      secao: "status",
+    };
   }
 
   if (demanda.status === "backlog" && novoStatus === "em_andamento") {
     const temPrincipal = demanda.responsaveis.some((r) => r.tipo === "principal");
-    if (!temPrincipal) return "Defina um responsável principal antes de iniciar a execução.";
+    if (!temPrincipal) {
+      return {
+        mensagem: "Defina um responsável principal antes de iniciar a execução.",
+        secao: "responsavel",
+      };
+    }
   }
 
   return null;
+}
+
+export function mensagemBloqueioConhecido(
+  demanda: Demanda,
+  novoStatus: StatusDemanda,
+): string | null {
+  return bloqueioDetalhado(demanda, novoStatus)?.mensagem ?? null;
+}
+
+// STC-203: qual seção do DetalheCard abrir automaticamente quando o
+// drag-and-drop é bloqueado -- em vez de só mostrar o toast e deixar o
+// usuário refazer tudo manualmente.
+export function secaoDoBloqueio(
+  demanda: Demanda,
+  novoStatus: StatusDemanda,
+): SecaoDeBloqueio | null {
+  return bloqueioDetalhado(demanda, novoStatus)?.secao ?? null;
 }
 
 // Mesmo critério do backend (ResumoView) pras métricas "atrasadas"/"sem

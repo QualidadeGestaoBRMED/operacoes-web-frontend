@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Demanda, DemandaResponsavel, StatusDemanda } from "@/types";
-import { compararDemandas, filtrosDaUrl, mensagemBloqueioConhecido, passaNoFoco } from "./kanban";
+import {
+  compararDemandas,
+  filtrosDaUrl,
+  mensagemBloqueioConhecido,
+  passaNoFoco,
+  secaoDoBloqueio,
+} from "./kanban";
 
 let proximoId = 1;
 
@@ -112,6 +118,36 @@ describe("mensagemBloqueioConhecido", () => {
   it("não bloqueia transições sem regra especial (ex.: backlog -> lixeira via card normal)", () => {
     const demanda = criarDemanda({ status: "em_andamento", responsaveis: [responsavelPrincipal()] });
     expect(mensagemBloqueioConhecido(demanda, "lixeira")).toBeNull();
+  });
+});
+
+describe("secaoDoBloqueio", () => {
+  // STC-203: mesmas transições já cobertas acima, mas verificando qual
+  // seção do DetalheCard cada bloqueio deve abrir automaticamente.
+  it("aponta pra 'responsavel' quando falta responsável principal", () => {
+    const demanda = criarDemanda({ status: "backlog", responsaveis: [] });
+    expect(secaoDoBloqueio(demanda, "em_andamento")).toBe("responsavel");
+  });
+
+  it("aponta pra 'status' quando falta aprovador", () => {
+    const demanda = criarDemanda({ status: "em_andamento" });
+    expect(secaoDoBloqueio(demanda, "em_revisao")).toBe("status");
+  });
+
+  it.each<[StatusDemanda, StatusDemanda]>([
+    ["em_andamento", "backlog"],
+    ["em_revisao", "em_andamento"],
+    ["em_revisao", "backlog"],
+    ["concluido", "em_andamento"],
+    ["concluido", "backlog"],
+  ])("aponta pra 'status' quando %s -> %s exige justificativa", (statusAtual, novoStatus) => {
+    const demanda = criarDemanda({ status: statusAtual });
+    expect(secaoDoBloqueio(demanda, novoStatus)).toBe("status");
+  });
+
+  it("não aponta seção nenhuma sem bloqueio conhecido", () => {
+    const demanda = criarDemanda({ status: "em_andamento", responsaveis: [responsavelPrincipal()] });
+    expect(secaoDoBloqueio(demanda, "lixeira")).toBeNull();
   });
 });
 

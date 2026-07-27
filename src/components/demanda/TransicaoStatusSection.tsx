@@ -54,6 +54,7 @@ export function TransicaoStatusSection({
   ativo,
   aoAbrir,
   aoFechar,
+  statusAlvoInicial,
 }: {
   demanda: Demanda;
   podeEscrever: boolean;
@@ -64,6 +65,11 @@ export function TransicaoStatusSection({
   ativo: boolean;
   aoAbrir: () => void;
   aoFechar: () => void;
+  // STC-203: quando o DetalheCard abre por causa de um drag-and-drop
+  // bloqueado, já chega com o destino que o usuário tinha arrastado --
+  // evita que ele precise escolher de novo o que já tinha escolhido.
+  // undefined no clique manual em "Mudar status" (comportamento de sempre).
+  statusAlvoInicial?: StatusDemanda;
 }) {
   const { user, isAdminOps } = useAuth();
   const [statusAlvo, setStatusAlvo] = useState<StatusDemanda | "">("");
@@ -74,14 +80,17 @@ export function TransicaoStatusSection({
   const { atualizarStatus, isLoading } = useAtualizarStatusDemanda(demanda.id);
 
   // Reseta os campos quando outra seção assume (ativo vira false de fora),
-  // não só quando este componente fecha por conta própria.
+  // não só quando este componente fecha por conta própria. Ao abrir, parte
+  // de statusAlvoInicial se veio de fora (STC-203).
   useEffect(() => {
-    if (!ativo) {
+    if (ativo) {
+      setStatusAlvo(statusAlvoInicial ?? "");
+    } else {
       setStatusAlvo("");
       setAprovadorId("");
       setJustificativa("");
     }
-  }, [ativo]);
+  }, [ativo, statusAlvoInicial]);
 
   const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;

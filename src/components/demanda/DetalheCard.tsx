@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar, Lock, MessageSquare, Paperclip, Clock as ClockIcon } from "lucide-react";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
+import type { StatusDemanda } from "@/types";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
 import { EditarDemandaSection } from "./EditarDemandaSection";
@@ -61,9 +62,18 @@ function formatarPrazo(dataPrevista: string) {
 export function DetalheCard({
   demandaId,
   onOpenChange,
+  secaoInicial,
+  statusAlvoInicial,
 }: {
   demandaId: number | null;
   onOpenChange: (open: boolean) => void;
+  // STC-203: quando o modal abre por causa de um drag-and-drop bloqueado,
+  // já chega com a seção que resolve o bloqueio pré-expandida (e, no caso
+  // de status, o destino já pré-selecionado) -- em vez de só o toast e o
+  // usuário refazendo tudo manualmente. undefined no clique normal num
+  // card (comportamento de sempre: nenhuma seção aberta).
+  secaoInicial?: "status" | "responsavel";
+  statusAlvoInicial?: StatusDemanda;
 }) {
   const { demanda, isLoading, mensagemErro } = useDemanda(demandaId);
   // Chamados aqui só pra alimentar os contadores das abas (badge de
@@ -94,6 +104,14 @@ export function DetalheCard({
   const [secaoAberta, setSecaoAberta] = useState<"status" | "responsavel" | "editar" | null>(
     null,
   );
+
+  // STC-203: toda vez que uma demanda é aberta (incluindo por um clique
+  // normal, onde secaoInicial vem undefined), sincroniza a seção aberta a
+  // partir do que foi pedido de fora -- sem isso, abrir uma demanda depois
+  // de fechar outra com uma seção expandida deixava essa seção "grudada".
+  useEffect(() => {
+    if (demandaId !== null) setSecaoAberta(secaoInicial ?? null);
+  }, [demandaId, secaoInicial]);
 
   return (
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
@@ -215,6 +233,7 @@ export function DetalheCard({
                   ativo={secaoAberta === "status"}
                   aoAbrir={() => setSecaoAberta("status")}
                   aoFechar={() => setSecaoAberta(null)}
+                  statusAlvoInicial={statusAlvoInicial}
                 />
 
                 <CampoMeta rotulo="Responsáveis">
@@ -224,6 +243,7 @@ export function DetalheCard({
                     ativo={secaoAberta === "responsavel"}
                     aoAbrir={() => setSecaoAberta("responsavel")}
                     aoFechar={() => setSecaoAberta(null)}
+                    abrirComFormularioDeAdicionar={secaoInicial === "responsavel"}
                   />
                 </CampoMeta>
 
