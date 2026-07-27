@@ -15,9 +15,22 @@ async function trocarTokenComBackend(idToken: string) {
     throw new Error("Falha ao autenticar com o backend.");
   }
 
-  // O backend também devolve "refresh", mas não há fluxo de refresh
-  // implementado no frontend ainda — não armazenamos o que não usamos.
-  return response.json() as Promise<{ access: string; user: Usuario }>;
+  return response.json() as Promise<{ access: string; refresh: string; user: Usuario }>;
+}
+
+async function invalidarRefreshNoBackend(refresh: string) {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+  } catch (erro) {
+    // Best-effort: se o backend estiver fora do ar nesse instante, o cookie
+    // local já foi limpo de qualquer forma -- o usuário não fica preso. O
+    // refresh só continua válido até expirar sozinho (7 dias) nesse caso raro.
+    console.error("Falha ao invalidar o refresh token no logout:", erro);
+  }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -44,6 +57,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dados = await trocarTokenComBackend(account.id_token);
           token.backendAccessToken = dados.access;
+          // Renovação de verdade acontece no proxy BFF (route.ts, STC-208) --
+          // é o único ponto por onde 100% das chamadas ao backend passam.
+          // Este callback jwt não roda pra requisições de /api/backend/...
+          // (getToken() ali é standalone, não dispara callback; e o
+          // middleware, que dispara, exclui /api do matcher). Só guarda o
+          // refresh aqui pra ele existir no cookie.
+          token.backendRefreshToken = dados.refresh;
           token.backendUser = dados.user;
           delete token.error;
         } catch (erro) {
@@ -86,6 +106,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // usuarioId só existe quando o backend confirmou o login (token.backendUser).
       // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
       return !!sessao?.user?.usuarioId;
+    },
+  },
+  events: {
+    // Roda server-side toda vez que signOut() é chamado -- cobre tanto o
+    // automático (interceptor de 401 em src/lib/api.ts) quanto o botão
+    // manual "Sair" (STC-192), sem precisar tocar em nenhum dos dois. Sem
+    // isso, o refresh token continuava válido no backend por até 7 dias
+    // depois do usuário já ter "saído" da conta no navegador.
+    async signOut(mensagem) {
+      if ("token" in mensagem && mensagem.token?.backendRefreshToken) {
+        await invalidarRefreshNoBackend(mensagem.token.backendRefreshToken);
+      }
     },
   },
 });

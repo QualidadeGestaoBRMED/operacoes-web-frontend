@@ -15,6 +15,10 @@ declare module "@auth/core/types" {
 declare module "@auth/core/jwt" {
   interface JWT {
     backendAccessToken?: string;
+    // Usado só pelo proxy BFF (route.ts) pra renovar o access token sozinho
+    // quando ele expira -- STC-208. Nunca chega no client (mesmo motivo do
+    // backendAccessToken não entrar em Session acima).
+    backendRefreshToken?: string;
     backendUser?: Usuario;
     error?: "BackendAuthError";
   }
