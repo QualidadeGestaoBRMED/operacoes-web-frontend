@@ -100,6 +100,9 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Plataforma de Operações · BR MED
             </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Faça login com sua conta Google Corporativa para continuar.
+            </p>
           </div>
 
           <Suspense fallback={null}>
