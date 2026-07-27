@@ -88,7 +88,7 @@ export default function LoginPage() {
             Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
           </h1>
           <p className="mt-4 text-lg text-sidebar-foreground/80">
-            Organize demandas, aprovações e prazos em um só lugar.
+            Processos, indicadores e ações em um só lugar.
           </p>
         </div>
 
