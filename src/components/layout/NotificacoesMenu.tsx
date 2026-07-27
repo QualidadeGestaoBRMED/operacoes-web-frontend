@@ -77,22 +77,28 @@ export function NotificacoesMenu() {
             <DropdownMenuItem
               key={notificacao.id}
               onSelect={() => abrirNotificacao(notificacao)}
-              className="flex flex-col items-start gap-0.5 whitespace-normal py-2"
+              // group: DropdownMenuItem já troca o fundo pra bg-accent (teal)
+              // no hover/foco, mas os <span> abaixo tinham cor própria
+              // (text-foreground/text-muted-foreground) que não herdava
+              // isso -- ficava com texto escuro/cinza quase ilegível em cima
+              // do teal. group-focus:text-accent-foreground acompanha o
+              // mesmo estado do item pai.
+              className="group flex flex-col items-start gap-0.5 whitespace-normal py-2"
             >
               <div className="flex w-full items-start gap-2">
                 {!notificacao.lida && (
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-secondary" />
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-secondary group-focus:bg-accent-foreground" />
                 )}
                 <span
                   className={cn(
-                    "text-sm",
+                    "text-sm group-focus:text-accent-foreground",
                     notificacao.lida ? "text-muted-foreground" : "font-medium text-foreground",
                   )}
                 >
                   {notificacao.titulo}
                 </span>
               </div>
-              <span className="pl-3.5 text-xs text-muted-foreground">
+              <span className="pl-3.5 text-xs text-muted-foreground group-focus:text-accent-foreground/80">
                 {formatarTempoRelativo(notificacao.created_at)}
               </span>
             </DropdownMenuItem>
