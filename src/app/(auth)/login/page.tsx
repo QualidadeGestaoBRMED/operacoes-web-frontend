@@ -83,7 +83,7 @@ export default function LoginPage() {
           className="h-12 w-auto self-start"
         />
 
-        <div className="mt-10">
+        <div className="mt-16">
           <h1 className="text-3xl font-bold">
             Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
           </h1>
