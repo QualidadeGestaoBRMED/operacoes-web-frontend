@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -69,22 +70,48 @@ function BotaoEntrar() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background p-6">
-      <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold tracking-tight text-primary">Atlas</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Plataforma de Operações · BR MED
+    <div className="flex min-h-svh">
+      {/* Mesmo bg-sidebar usado no shell autenticado (Sidebar.tsx) -- reaproveita
+          a identidade visual já estabelecida, em vez de uma cor nova só pra isso. */}
+      <div className="hidden w-1/2 flex-col justify-between bg-sidebar p-10 text-sidebar-foreground md:flex">
+        <Image
+          src="/brand/logo-brmed.webp"
+          alt="BR MED Saúde Corporativa"
+          width={200}
+          height={45}
+          priority
+          className="h-9 w-auto"
+        />
+
+        <div>
+          <h1 className="text-3xl font-bold">
+            Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
+          </h1>
+          <p className="mt-4 text-lg text-sidebar-foreground/80">
+            Organize demandas, aprovações e prazos em um só lugar.
           </p>
         </div>
 
-        <Suspense fallback={null}>
-          <MensagemErro />
-        </Suspense>
+        <div />
+      </div>
 
-        <Suspense fallback={<Button className="w-full" disabled><GoogleIcon />Entrar com Google</Button>}>
-          <BotaoEntrar />
-        </Suspense>
+      <div className="flex flex-1 items-center justify-center bg-background p-6">
+        <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold tracking-tight text-primary">Atlas</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Plataforma de Operações · BR MED
+            </p>
+          </div>
+
+          <Suspense fallback={null}>
+            <MensagemErro />
+          </Suspense>
+
+          <Suspense fallback={<Button className="w-full" disabled><GoogleIcon />Entrar com Google</Button>}>
+            <BotaoEntrar />
+          </Suspense>
+        </div>
       </div>
     </div>
   );
