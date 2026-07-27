@@ -80,7 +80,7 @@ export default function LoginPage() {
           width={200}
           height={45}
           priority
-          className="h-9 w-auto"
+          className="h-9 w-auto self-start"
         />
 
         <div>
