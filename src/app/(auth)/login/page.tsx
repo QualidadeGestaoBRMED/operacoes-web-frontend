@@ -77,10 +77,10 @@ export default function LoginPage() {
         <Image
           src="/brand/logo-brmed.webp"
           alt="BR MED Saúde Corporativa"
-          width={200}
-          height={45}
+          width={220}
+          height={50}
           priority
-          className="h-9 w-auto self-start"
+          className="h-12 w-auto self-start"
         />
 
         <div>
