@@ -68,7 +68,7 @@ export function KanbanBoard() {
 
   const {
     demandas: demandasAtivas,
-    isValidating,
+    isFilterChangeValidating,
     carregandoPrimeiraVez,
     error,
     mensagemErro,
@@ -81,7 +81,7 @@ export function KanbanBoard() {
   const filtrosLixeira: DemandaFiltros = { ...filtros, status: "lixeira" };
   const {
     demandas: demandasLixeira,
-    isValidating: isValidatingLixeira,
+    isFilterChangeValidating: isFilterChangeValidatingLixeira,
     carregandoPrimeiraVez: carregandoLixeiraPrimeiraVez,
     error: erroLixeira,
     mensagemErro: mensagemErroLixeira,
@@ -374,7 +374,7 @@ export function KanbanBoard() {
           <div
             className={cn(
               "flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5 transition-opacity",
-              (isValidating || isValidatingLixeira) && "opacity-60",
+              (isFilterChangeValidating || isFilterChangeValidatingLixeira) && "opacity-60",
             )}
           >
             {COLUNAS.map((coluna) => (

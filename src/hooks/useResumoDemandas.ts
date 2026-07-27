@@ -23,7 +23,10 @@ export function useResumoDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?:
   return {
     resumo: data,
     isLoading,
-    isValidating: trocandoFiltro,
+    // Ver comentário equivalente em useDemandas.ts -- valor bruto do SWR
+    // preservado, troca de filtro exposta à parte.
+    isValidating,
+    isFilterChangeValidating: trocandoFiltro,
     // Ver comentário equivalente em useDemandas.ts -- isLoading é por
     // chave, não reflete o fallback do keepPreviousData.
     carregandoPrimeiraVez: data === undefined,
