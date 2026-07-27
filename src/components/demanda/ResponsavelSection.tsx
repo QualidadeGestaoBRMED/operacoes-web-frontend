@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -75,6 +76,11 @@ export function ResponsavelSection({
   const [trocandoUsuarioId, setTrocandoUsuarioId] = useState<number | null>(null);
   const [novoPrincipalId, setNovoPrincipalId] = useState("");
   const [trocando, setTrocando] = useState(false);
+  // ConfirmDialog substitui o window.confirm() de antes.
+  const [responsavelParaRemover, setResponsavelParaRemover] = useState<{
+    usuarioId: number;
+    nome: string;
+  } | null>(null);
 
   // Reseta os dois formulários quando outra seção assume (ativo vira false
   // de fora), não só quando um deles fecha por conta própria.
@@ -143,12 +149,14 @@ export function ResponsavelSection({
     }
   }
 
-  async function aoRemover(usuarioId: number, nome: string) {
-    if (!window.confirm(`Remover ${nome} dos responsáveis desta demanda?`)) return;
+  async function confirmarRemocao() {
+    if (!responsavelParaRemover) return;
     try {
-      await remover(usuarioId);
+      await remover(responsavelParaRemover.usuarioId);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+    } finally {
+      setResponsavelParaRemover(null);
     }
   }
 
@@ -217,7 +225,10 @@ export function ResponsavelSection({
                   <button
                     type="button"
                     onClick={() =>
-                      void aoRemover(responsavel.usuario.id, nomeExibicao(responsavel.usuario))
+                      setResponsavelParaRemover({
+                        usuarioId: responsavel.usuario.id,
+                        nome: nomeExibicao(responsavel.usuario),
+                      })
                     }
                     disabled={removendo}
                     aria-label={`Remover ${nomeExibicao(responsavel.usuario)}`}
@@ -321,6 +332,17 @@ export function ResponsavelSection({
             Adicionar responsável
           </button>
         ))}
+
+      <ConfirmDialog
+        open={responsavelParaRemover !== null}
+        onOpenChange={(open) => !open && setResponsavelParaRemover(null)}
+        titulo="Remover responsável"
+        descricao={`Remover ${responsavelParaRemover?.nome} dos responsáveis desta demanda?`}
+        textoConfirmar="Remover"
+        destrutivo
+        isLoading={removendo}
+        onConfirmar={() => void confirmarRemocao()}
+      />
     </div>
   );
 }

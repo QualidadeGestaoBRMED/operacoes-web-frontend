@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Download, Paperclip, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnexos, useEnviarAnexo, useExcluirAnexo } from "@/hooks/useAnexos";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -37,6 +38,13 @@ export function AnexoList({
   const { excluir, isLoading: excluindo } = useExcluirAnexo(demandaId);
   const { user, isAdminOps } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
+  // ConfirmDialog substitui o window.confirm() de antes -- exclusão de
+  // anexo é irreversível (o arquivo some do storage, diferente do soft
+  // delete de Demanda), por isso a confirmação continua existindo.
+  const [anexoParaExcluir, setAnexoParaExcluir] = useState<{
+    id: number;
+    nomeOriginal: string;
+  } | null>(null);
 
   async function aoEscolherArquivo(evento: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = evento.target.files?.[0];
@@ -49,17 +57,14 @@ export function AnexoList({
     }
   }
 
-  async function aoExcluir(anexoId: number, nomeOriginal: string) {
-    // window.confirm() de propósito -- exclusão de anexo é irreversível (o
-    // arquivo some do storage, diferente do soft delete de Demanda), mas
-    // não justifica construir um AlertDialog novo só pra isso ainda.
-    if (!window.confirm(`Remover o anexo "${nomeOriginal}"? Essa ação não pode ser desfeita.`)) {
-      return;
-    }
+  async function confirmarExclusao() {
+    if (!anexoParaExcluir) return;
     try {
-      await excluir(anexoId);
+      await excluir(anexoParaExcluir.id);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+    } finally {
+      setAnexoParaExcluir(null);
     }
   }
 
@@ -113,7 +118,9 @@ export function AnexoList({
               {podeExcluir && (
                 <button
                   type="button"
-                  onClick={() => void aoExcluir(anexo.id, anexo.nome_original)}
+                  onClick={() =>
+                    setAnexoParaExcluir({ id: anexo.id, nomeOriginal: anexo.nome_original })
+                  }
                   disabled={excluindo}
                   title="Remover"
                   className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
@@ -155,6 +162,17 @@ export function AnexoList({
           </button>
         </>
       )}
+
+      <ConfirmDialog
+        open={anexoParaExcluir !== null}
+        onOpenChange={(open) => !open && setAnexoParaExcluir(null)}
+        titulo="Remover anexo"
+        descricao={`Remover o anexo "${anexoParaExcluir?.nomeOriginal}"? Essa ação não pode ser desfeita.`}
+        textoConfirmar="Remover"
+        destrutivo
+        isLoading={excluindo}
+        onConfirmar={() => void confirmarExclusao()}
+      />
     </div>
   );
 }
