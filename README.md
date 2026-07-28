@@ -28,14 +28,13 @@ Login só funciona com conta `@grupobrmed.com.br`.
 ## Comandos
 
 ```bash
-npm run dev         # servidor de desenvolvimento (Turbopack)
-npm run build        # build de produção
-npm run lint          # eslint
-npm run test           # vitest run
-npm run test:watch      # vitest em modo watch
+npm run dev        # servidor de desenvolvimento (Turbopack)
+npm run build      # build de produção
+npm run lint       # eslint
+npm run test       # vitest run
+npm run test:watch # vitest em modo watch
 ```
 
 ## Documentação
 
 - [`PLANEJAMENTO.md`](PLANEJAMENTO.md) — planejamento técnico detalhado, pacote por pacote, com o estado real de cada issue.
-- [`../Plano de Ação - Gestão de Demandas.md`](<../Plano de Ação - Gestão de Demandas.md>) — plano de ação do projeto como um todo (backend + frontend), decisões tomadas, log de execução.
