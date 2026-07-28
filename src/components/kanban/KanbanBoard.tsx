@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { DetalheCard } from "@/components/demanda/DetalheCard";
 import { FormNovaDemanda } from "@/components/demanda/FormNovaDemanda";
+import { useAuth } from "@/hooks/useAuth";
 import { useDemandas } from "@/hooks/useDemandas";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { atualizarStatusDemanda, excluirDemanda, restaurarDemanda } from "@/lib/demandas";
@@ -46,6 +47,7 @@ export function KanbanBoard() {
   const searchParams = useSearchParams();
   const filtros = filtrosDaUrl(searchParams);
   const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
+  const { user, isAdminOps } = useAuth();
 
   // tipo_gestao troca o board inteiro (STC-182), então sempre precisa de UM
   // selecionado -- nunca "todos". Se a URL não trouxer nenhum (1º acesso,
@@ -212,7 +214,12 @@ export function KanbanBoard() {
   async function moverDemanda(demanda: Demanda, novoStatus: StatusDemanda) {
     if (demanda.status === novoStatus) return;
 
-    const bloqueio = mensagemBloqueioConhecido(demanda, novoStatus);
+    // Achado no review: sem passar isAdminOps/usuarioId, o bloqueio só
+    // considerava a estrutura da transição -- um usuário sem permissão em
+    // em_revisao->em_andamento recebia o toast de "justificativa
+    // obrigatória, use Mudar status", mas essa opção nem aparece pra ele
+    // (TransicaoStatusSection filtra pelo mesmo critério de permissão).
+    const bloqueio = mensagemBloqueioConhecido(demanda, novoStatus, isAdminOps, user?.usuarioId);
     if (bloqueio) {
       // Já sabemos que essa transição vai falhar -- nem tenta mover o
       // card visualmente (dnd-kit já devolve ele pro lugar sozinho).
@@ -220,7 +227,7 @@ export function KanbanBoard() {
       // STC-203: além do toast, abre o modal já na seção que resolve o
       // bloqueio (com o destino pré-selecionado, se for de status) -- em
       // vez de deixar o usuário refazer tudo manualmente.
-      const secao = secaoDoBloqueio(demanda, novoStatus);
+      const secao = secaoDoBloqueio(demanda, novoStatus, isAdminOps, user?.usuarioId);
       if (secao) {
         setAberturaBloqueio({
           demandaId: demanda.id,

@@ -85,19 +85,19 @@ describe("compararDemandas", () => {
 describe("mensagemBloqueioConhecido", () => {
   it("bloqueia backlog -> em_andamento sem responsável principal", () => {
     const demanda = criarDemanda({ status: "backlog", responsaveis: [] });
-    expect(mensagemBloqueioConhecido(demanda, "em_andamento")).toBe(
+    expect(mensagemBloqueioConhecido(demanda, "em_andamento", true, undefined)).toBe(
       "Defina um responsável principal antes de iniciar a execução.",
     );
   });
 
   it("permite backlog -> em_andamento com responsável principal definido", () => {
     const demanda = criarDemanda({ status: "backlog", responsaveis: [responsavelPrincipal()] });
-    expect(mensagemBloqueioConhecido(demanda, "em_andamento")).toBeNull();
+    expect(mensagemBloqueioConhecido(demanda, "em_andamento", true, undefined)).toBeNull();
   });
 
   it("bloqueia em_andamento -> em_revisao (exige aprovador, não coletado no drag)", () => {
     const demanda = criarDemanda({ status: "em_andamento" });
-    expect(mensagemBloqueioConhecido(demanda, "em_revisao")).toBe(
+    expect(mensagemBloqueioConhecido(demanda, "em_revisao", true, undefined)).toBe(
       'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".',
     );
   });
@@ -110,14 +110,36 @@ describe("mensagemBloqueioConhecido", () => {
     ["concluido", "backlog"],
   ])("bloqueia %s -> %s (exige justificativa, não coletada no drag)", (statusAtual, novoStatus) => {
     const demanda = criarDemanda({ status: statusAtual });
-    expect(mensagemBloqueioConhecido(demanda, novoStatus)).toBe(
+    expect(mensagemBloqueioConhecido(demanda, novoStatus, true, undefined)).toBe(
       'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
     );
   });
 
   it("não bloqueia transições sem regra especial (ex.: backlog -> lixeira via card normal)", () => {
     const demanda = criarDemanda({ status: "em_andamento", responsaveis: [responsavelPrincipal()] });
-    expect(mensagemBloqueioConhecido(demanda, "lixeira")).toBeNull();
+    expect(mensagemBloqueioConhecido(demanda, "lixeira", true, undefined)).toBeNull();
+  });
+
+  // Achado no review do STC-203: sem checar permissão, um usuário comum
+  // arrastando em_revisao -> em_andamento (decisão exclusiva de
+  // aprovador/admin) caía na regra de "justificativa obrigatória" e era
+  // instruído a usar "Mudar status" -- opção que TransicaoStatusSection
+  // nem mostra pra ele (filtra pelo mesmo critério de permissão).
+  it("bloqueia por falta de permissão antes de checar justificativa/aprovador", () => {
+    const demanda = criarDemanda({ status: "em_revisao", aprovador: null });
+    expect(mensagemBloqueioConhecido(demanda, "em_andamento", false, 99)).toBe(
+      "Você não tem permissão para fazer essa transição.",
+    );
+  });
+
+  it("libera o aprovador designado, mesmo sem ser admin", () => {
+    const demanda = criarDemanda({
+      status: "em_revisao",
+      aprovador: { id: 42, username: "aprov", email: "a@grupobrmed.com.br", first_name: "", last_name: "", perfil: null, unidade_id: 1, setor_id: null, ativo: true, ultimo_acesso: null },
+    });
+    expect(mensagemBloqueioConhecido(demanda, "em_andamento", false, 42)).toBe(
+      'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
+    );
   });
 });
 
@@ -126,12 +148,12 @@ describe("secaoDoBloqueio", () => {
   // seção do DetalheCard cada bloqueio deve abrir automaticamente.
   it("aponta pra 'responsavel' quando falta responsável principal", () => {
     const demanda = criarDemanda({ status: "backlog", responsaveis: [] });
-    expect(secaoDoBloqueio(demanda, "em_andamento")).toBe("responsavel");
+    expect(secaoDoBloqueio(demanda, "em_andamento", true, undefined)).toBe("responsavel");
   });
 
   it("aponta pra 'status' quando falta aprovador", () => {
     const demanda = criarDemanda({ status: "em_andamento" });
-    expect(secaoDoBloqueio(demanda, "em_revisao")).toBe("status");
+    expect(secaoDoBloqueio(demanda, "em_revisao", true, undefined)).toBe("status");
   });
 
   it.each<[StatusDemanda, StatusDemanda]>([
@@ -142,12 +164,19 @@ describe("secaoDoBloqueio", () => {
     ["concluido", "backlog"],
   ])("aponta pra 'status' quando %s -> %s exige justificativa", (statusAtual, novoStatus) => {
     const demanda = criarDemanda({ status: statusAtual });
-    expect(secaoDoBloqueio(demanda, novoStatus)).toBe("status");
+    expect(secaoDoBloqueio(demanda, novoStatus, true, undefined)).toBe("status");
   });
 
   it("não aponta seção nenhuma sem bloqueio conhecido", () => {
     const demanda = criarDemanda({ status: "em_andamento", responsaveis: [responsavelPrincipal()] });
-    expect(secaoDoBloqueio(demanda, "lixeira")).toBeNull();
+    expect(secaoDoBloqueio(demanda, "lixeira", true, undefined)).toBeNull();
+  });
+
+  // Achado no review: abrir "status" pra um bloqueio de permissão seria
+  // mandar o usuário pra uma opção que TransicaoStatusSection nem mostra.
+  it("não aponta seção nenhuma quando o bloqueio é falta de permissão", () => {
+    const demanda = criarDemanda({ status: "em_revisao", aprovador: null });
+    expect(secaoDoBloqueio(demanda, "em_andamento", false, 99)).toBeNull();
   });
 });
 

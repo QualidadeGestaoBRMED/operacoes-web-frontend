@@ -17,36 +17,14 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   ROTULO_STATUS,
-  TRANSICOES_ADMIN_ONLY,
-  TRANSICOES_SO_APROVADOR_OU_ADMIN,
   precisaAprovador,
   precisaJustificativa,
-  proximosStatusValidos,
+  statusPermitidosParaUsuario,
 } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
 import type { Demanda, StatusDemanda } from "@/types";
 
 const NIVEL_ADMIN_OPERACOES = 2;
-
-// Mesmo padrão de AnexoList.tsx: esconde a opção que o usuário atual não tem
-// como executar (em vez de mostrar tudo e deixar o backend rejeitar com 403).
-function statusPermitidosParaUsuario(
-  demanda: Demanda,
-  isAdminOps: boolean,
-  usuarioId: number | undefined,
-): StatusDemanda[] {
-  return proximosStatusValidos(demanda.status).filter((statusAlvo) => {
-    const par = `${demanda.status}->${statusAlvo}`;
-    if (TRANSICOES_ADMIN_ONLY.has(par)) return isAdminOps;
-    if (TRANSICOES_SO_APROVADOR_OU_ADMIN.has(par)) {
-      // usuarioId !== undefined explícito: sem isso, os dois undefined
-      // (sessão ainda carregando E demanda sem aprovador) bateriam entre
-      // si e liberariam a opção indevidamente.
-      return isAdminOps || (usuarioId !== undefined && demanda.aprovador?.id === usuarioId);
-    }
-    return true;
-  });
-}
 
 export function TransicaoStatusSection({
   demanda,
@@ -71,7 +49,7 @@ export function TransicaoStatusSection({
   // undefined no clique manual em "Mudar status" (comportamento de sempre).
   statusAlvoInicial?: StatusDemanda;
 }) {
-  const { user, isAdminOps } = useAuth();
+  const { user, isAdminOps, isLoading: carregandoAuth } = useAuth();
   const [statusAlvo, setStatusAlvo] = useState<StatusDemanda | "">("");
   const [aprovadorId, setAprovadorId] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -95,18 +73,27 @@ export function TransicaoStatusSection({
   // fora das deps: só precisa ser validado no instante em que a seção abre,
   // não a cada re-render (senão o array novo a cada render reabriria o
   // efeito e apagaria a escolha manual do usuário no meio da interação).
+  //
+  // Achado no review: carregandoAuth entra nas deps de propósito -- se a
+  // seção abre (ativo=true) antes de useAuth() estabilizar, isAdminOps/user
+  // ainda estão no valor "deslogado" e opcoesStatus sai incompleta/vazia
+  // nesse primeiro cálculo, gravando "" mesmo com um statusAlvoInicial
+  // válido. Sem carregandoAuth nas deps, o efeito não reavaliava quando a
+  // sessão terminava de carregar um instante depois, perdendo o destino
+  // pré-selecionado pro resto da interação.
   useEffect(() => {
-    if (ativo) {
-      setStatusAlvo(
-        statusAlvoInicial && opcoesStatus.includes(statusAlvoInicial) ? statusAlvoInicial : "",
-      );
-    } else {
+    if (!ativo) {
       setStatusAlvo("");
       setAprovadorId("");
       setJustificativa("");
+      return;
     }
+    if (carregandoAuth) return;
+    setStatusAlvo(
+      statusAlvoInicial && opcoesStatus.includes(statusAlvoInicial) ? statusAlvoInicial : "",
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ativo, statusAlvoInicial]);
+  }, [ativo, statusAlvoInicial, carregandoAuth]);
 
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
