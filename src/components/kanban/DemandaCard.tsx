@@ -183,7 +183,18 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
         // em vez de deixar o container (overflow-y-auto) rolar, cortando o
         // rodapé de cada card (linha colorida + avatar) pelo overflow-hidden
         // abaixo. Achado testando com 5 cards numa coluna.
-        "shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
+        // touch-pan-y (não touch-none): sem tocar nisso, o gesto de tocar e
+        // arrastar por toque (mobile) é interceptado pelo navegador como
+        // rolagem da coluna antes do dnd-kit conseguir reagir. touch-none
+        // resolvia o drag mas quebrava o scroll por completo -- achado na
+        // auditoria de responsividade (STC-186), 2ª rodada: um card cheio
+        // de itens ficava impossível de rolar tocando nele, TODO toque virava
+        // tentativa de drag. touch-pan-y deixa o navegador decidir pela
+        // DIREÇÃO do gesto (não por tempo/distância, como uma
+        // activationConstraint faria): começou vertical, rola nativamente,
+        // sempre; começou horizontal/diagonal (único jeito de mudar uma
+        // demanda de coluna de verdade), fica livre pro PointerSensor.
+        "shrink-0 touch-pan-y cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
         naLixeira && "opacity-55",
         // O visual de "sendo arrastado" é o clone no DragOverlay (portalado
         // pra fora dos containers com overflow, senão o card fica atrás das

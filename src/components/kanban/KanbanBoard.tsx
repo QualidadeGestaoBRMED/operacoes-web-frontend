@@ -7,8 +7,7 @@ import {
   DragOverlay,
   KeyboardCode,
   KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
+  PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -172,23 +171,24 @@ export function KanbanBoard() {
     return { x: rect.left, y: rect.top };
   };
 
-  // Achado na auditoria de responsividade (STC-186): um único PointerSensor
-  // (distance: 6) cobre mouse e toque ao mesmo tempo via Pointer Events, mas
-  // isso exige touch-action:none no card pra funcionar -- e touch-action:none
-  // bloqueia QUALQUER scroll nativo a partir do card, não só durante o drag.
-  // Testado e confirmado: com um card cheio de itens (mais do que cabe na
-  // tela), um gesto de rolar a coluna tocando num card sempre virava um
-  // drag acidental (scrollTop nunca mudava, o card entrava em modo
-  // "arrastando"). MouseSensor (distance, igual mouse sempre foi) +
-  // TouchSensor (delay+tolerance) resolve os dois: no toque, um
-  // arraste só ativa depois de ~200ms parado no mesmo lugar -- um gesto
-  // rápido de rolar (que excede a tolerância antes do delay vencer) é
-  // cancelado pelo próprio dnd-kit sem nunca chamar preventDefault(),
-  // deixando o scroll nativo da coluna acontecer normalmente (confirmado
-  // lendo AbstractPointerSensor.handleMove no código-fonte do @dnd-kit).
+  // Achado na auditoria de responsividade (STC-186), com uma volta atrás no
+  // meio do caminho: a 1ª tentativa (MouseSensor + TouchSensor com
+  // delay/tolerance) resolvia "rolar rápido a coluna funciona", mas ainda
+  // quebrava um caso real -- um toque que fica parado por >200ms antes de
+  // começar a mover (comportamento normal de um arraste devagar e
+  // deliberado, exatamente como o mouse do DevTools simula toque) arma o
+  // drag de qualquer jeito, e a partir daí nenhum movimento seguinte vira
+  // scroll, por mais devagar que seja -- baseado em TEMPO, não em direção
+  // do gesto. A correção de verdade fica no touch-action do card (ver
+  // DemandaCard.tsx: touch-pan-y no lugar de touch-none): deixa o navegador
+  // decidir pela DIREÇÃO do gesto, não por tempo -- um toque que começa
+  // predominantemente vertical vira scroll nativo sempre, não importa
+  // velocidade nem quanto tempo o dedo ficou parado antes. Movimento
+  // horizontal/diagonal (o único jeito de mudar uma demanda de coluna de
+  // verdade, já que as colunas ficam lado a lado) continua livre pro
+  // PointerSensor de sempre -- não precisa mais separar mouse de toque.
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: coordenadasPorFase }),
   );
 
