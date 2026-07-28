@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -95,6 +95,7 @@ export function FormNovaDemanda({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -107,6 +108,16 @@ export function FormNovaDemanda({
   useEffect(() => {
     if (!open) reset(valoresPadrao);
   }, [open, reset]);
+
+  // Achado no review: SeletorEtiquetas usava tiposGestao[0]?.modulo (sempre
+  // o primeiro da lista), não o módulo do tipo_gestao de fato selecionado
+  // no formulário -- com mais de um tipo de gestão em módulos diferentes, a
+  // tela mostrava/criava etiquetas do módulo errado e podia enviar IDs
+  // incompatíveis com a demanda.
+  const tipoGestaoSelecionadoId = useWatch({ control, name: "tipo_gestao" });
+  const moduloSelecionado = tiposGestao.find(
+    (tipo) => tipo.id === Number(tipoGestaoSelecionadoId),
+  )?.modulo;
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
@@ -260,7 +271,16 @@ export function FormNovaDemanda({
                   render={({ field }) => (
                     <Select
                       value={field.value ? String(field.value) : undefined}
-                      onValueChange={(valor) => field.onChange(Number(valor))}
+                      onValueChange={(valor) => {
+                        field.onChange(Number(valor));
+                        // Achado no review: etiquetas escolhidas ficavam
+                        // "presas" no form ao trocar de tipo_gestao (e por
+                        // tabela, de módulo) -- mesmo corrigindo o módulo
+                        // exibido no seletor, os IDs antigos, de outro
+                        // módulo, ainda eram enviados ocultamente no
+                        // payload, causando associação errada ou 400.
+                        setValue("etiquetas", []);
+                      }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecionar..." />
@@ -319,7 +339,7 @@ export function FormNovaDemanda({
                   <SeletorEtiquetas
                     value={field.value ?? []}
                     onChange={field.onChange}
-                    modulo={tiposGestao[0]?.modulo}
+                    modulo={moduloSelecionado}
                   />
                 )}
               />
