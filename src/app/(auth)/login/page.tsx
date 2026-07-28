@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -69,22 +70,68 @@ function BotaoEntrar() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background p-6">
-      <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold tracking-tight text-primary">Atlas</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Plataforma de Operações · BR MED
-          </p>
+    <div className="flex min-h-svh">
+      {/* Achado no review: background-image via CSS perde a otimização do
+          next/image (formato automático, srcset responsivo). relative +
+          fill + object-cover reproduz o mesmo visual de antes (bg-cover),
+          com bg-sidebar por trás como fallback caso a imagem demore/falhe. */}
+      <div className="relative hidden w-1/2 flex-col overflow-hidden bg-sidebar p-10 text-sidebar-foreground md:flex">
+        <Image
+          src="/brand/degrade-login.webp"
+          alt=""
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+        />
+
+        {/* z-10: o Image de fundo acima é position:absolute (fill) -- sem
+            isso, ele pintaria por cima do conteúdo estático (regra de
+            stacking do CSS: elemento posicionado pinta depois do conteúdo
+            estático em fluxo normal, mesmo vindo antes no DOM). */}
+        <div className="relative z-10 flex h-full flex-col">
+          <Image
+            src="/brand/logo-brmed.webp"
+            alt="BR MED Saúde Corporativa"
+            width={220}
+            height={50}
+            priority
+            className="h-12 w-auto self-start"
+          />
+
+          <div className="mt-16">
+            {/* p, não h1 -- o h1 de verdade da página é o "Atlas" do painel
+                direito; esse painel é decorativo/oculto no mobile. */}
+            <p className="text-3xl font-bold">
+              Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
+            </p>
+            <p className="mt-4 text-lg text-sidebar-foreground/80">
+              Processos, indicadores e ações em um só lugar.
+            </p>
+          </div>
         </div>
+      </div>
 
-        <Suspense fallback={null}>
-          <MensagemErro />
-        </Suspense>
+      <div className="flex flex-1 items-center justify-center bg-background p-6">
+        <div className="flex w-full flex-col items-center gap-8 sm:w-[350px]">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold tracking-tight text-primary">Atlas</h1>
+            <p className="mt-2 text-base font-medium text-foreground">
+              Plataforma de Operações · <span className="font-semibold">BR MED</span>
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Faça login com sua conta Google Corporativa para continuar.
+            </p>
+          </div>
 
-        <Suspense fallback={<Button className="w-full" disabled><GoogleIcon />Entrar com Google</Button>}>
-          <BotaoEntrar />
-        </Suspense>
+          <Suspense fallback={null}>
+            <MensagemErro />
+          </Suspense>
+
+          <Suspense fallback={<Button className="w-full" disabled><GoogleIcon />Entrar com Google</Button>}>
+            <BotaoEntrar />
+          </Suspense>
+        </div>
       </div>
     </div>
   );
