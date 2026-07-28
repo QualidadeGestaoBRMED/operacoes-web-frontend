@@ -394,15 +394,26 @@ export function KanbanBoard() {
             indiceColunaArrastandoRef.current = null;
           }}
         >
-          {/* justify-center: as colunas têm maxWidth (340px) e param de
-              crescer bem antes de preencher telas largas -- sem centralizar,
-              a sobra de espaço toda ficava jogada à direita. opacity: troca
+          {/* justify-content:safe center (não justify-center puro): as
+              colunas têm maxWidth (340px) e param de crescer bem antes de
+              preencher telas largas -- sem centralizar, a sobra de espaço
+              toda ficava jogada à direita. Achado na auditoria de
+              responsividade (STC-186): com as 5 colunas não cabendo mais
+              (basta a sidebar estar aberta num notebook comum, ~1440px já é
+              suficiente), um justify-center comum deixa a coluna Backlog
+              parcialmente fora da área de scroll e IRRECUPERÁVEL --
+              scrollLeft não vai abaixo de 0, então esse recorte nunca é
+              alcançável arrastando pra esquerda (confirmado medindo
+              getBoundingClientRect() antes/depois). "safe" (CSS Box
+              Alignment L3) é o fallback do próprio spec pra isso: centraliza
+              quando cabe, cai pra alinhamento ao início quando não cabe, sem
+              nunca cortar conteúdo fora do alcance do scroll. opacity: troca
               de filtro mantém os cards antigos (keepPreviousData no hook)
               em vez de colapsar pra "Carregando demandas..." -- só esmaece
               um pouco enquanto a resposta nova não chega. */}
           <div
             className={cn(
-              "flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5 transition-opacity",
+              "flex min-h-0 flex-1 [justify-content:safe_center] gap-4 overflow-x-auto p-5 transition-opacity",
               (isFilterChangeValidating || isFilterChangeValidatingLixeira) && "opacity-60",
             )}
           >
