@@ -71,30 +71,44 @@ function BotaoEntrar() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-svh">
-      {/* Mesmo azul do bg-sidebar (Sidebar.tsx) por trás da imagem, caso ela
-          demore a carregar ou não cubra 100% da área (bg-cover). */}
-      <div
-        className="hidden w-1/2 flex-col bg-sidebar bg-cover bg-center p-10 text-sidebar-foreground md:flex"
-        style={{ backgroundImage: "url(/brand/degrade-login.webp)" }}
-      >
+      {/* Achado no review: background-image via CSS perde a otimização do
+          next/image (formato automático, srcset responsivo). relative +
+          fill + object-cover reproduz o mesmo visual de antes (bg-cover),
+          com bg-sidebar por trás como fallback caso a imagem demore/falhe. */}
+      <div className="relative hidden w-1/2 flex-col overflow-hidden bg-sidebar p-10 text-sidebar-foreground md:flex">
         <Image
-          src="/brand/logo-brmed.webp"
-          alt="BR MED Saúde Corporativa"
-          width={220}
-          height={50}
+          src="/brand/degrade-login.webp"
+          alt=""
+          fill
           priority
-          className="h-12 w-auto self-start"
+          sizes="50vw"
+          className="object-cover"
         />
 
-        <div className="mt-16">
-          {/* p, não h1 -- o h1 de verdade da página é o "Atlas" do painel
-              direito; esse painel é decorativo/oculto no mobile. */}
-          <p className="text-3xl font-bold">
-            Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
-          </p>
-          <p className="mt-4 text-lg text-sidebar-foreground/80">
-            Processos, indicadores e ações em um só lugar.
-          </p>
+        {/* z-10: o Image de fundo acima é position:absolute (fill) -- sem
+            isso, ele pintaria por cima do conteúdo estático (regra de
+            stacking do CSS: elemento posicionado pinta depois do conteúdo
+            estático em fluxo normal, mesmo vindo antes no DOM). */}
+        <div className="relative z-10 flex h-full flex-col">
+          <Image
+            src="/brand/logo-brmed.webp"
+            alt="BR MED Saúde Corporativa"
+            width={220}
+            height={50}
+            priority
+            className="h-12 w-auto self-start"
+          />
+
+          <div className="mt-16">
+            {/* p, não h1 -- o h1 de verdade da página é o "Atlas" do painel
+                direito; esse painel é decorativo/oculto no mobile. */}
+            <p className="text-3xl font-bold">
+              Atlas <span className="font-normal">- A Plataforma de Operações da BR MED.</span>
+            </p>
+            <p className="mt-4 text-lg text-sidebar-foreground/80">
+              Processos, indicadores e ações em um só lugar.
+            </p>
+          </div>
         </div>
       </div>
 
