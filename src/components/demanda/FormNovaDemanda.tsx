@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -33,6 +33,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Prioridade } from "@/types";
+import { SeletorEtiquetas } from "./SeletorEtiquetas";
 
 // Título tem max_length=329 no model (Demanda.titulo) -- backend rejeitaria
 // com 400 sem essa validação de propósito espelhada aqui.
@@ -51,6 +52,7 @@ const schema = z.object({
   unidade: z.coerce.number({ error: "Selecione a unidade." }).int().positive(),
   setor: z.coerce.number().int().positive().optional(),
   categoria: z.coerce.number().int().positive().optional(),
+  etiquetas: z.array(z.number()).default([]),
   data_prevista: z.string().min(1, "Prazo é obrigatório."),
   confidencial: z.boolean(),
 });
@@ -68,6 +70,7 @@ const PRIORIDADES: Prioridade[] = ["urgente", "alta", "media", "baixa"];
 const valoresPadrao: Partial<FormValuesEntrada> = {
   titulo: "",
   descricao: "",
+  etiquetas: [],
   confidencial: false,
 };
 
@@ -92,6 +95,7 @@ export function FormNovaDemanda({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -105,6 +109,16 @@ export function FormNovaDemanda({
     if (!open) reset(valoresPadrao);
   }, [open, reset]);
 
+  // Achado no review: SeletorEtiquetas usava tiposGestao[0]?.modulo (sempre
+  // o primeiro da lista), não o módulo do tipo_gestao de fato selecionado
+  // no formulário -- com mais de um tipo de gestão em módulos diferentes, a
+  // tela mostrava/criava etiquetas do módulo errado e podia enviar IDs
+  // incompatíveis com a demanda.
+  const tipoGestaoSelecionadoId = useWatch({ control, name: "tipo_gestao" });
+  const moduloSelecionado = tiposGestao.find(
+    (tipo) => tipo.id === Number(tipoGestaoSelecionadoId),
+  )?.modulo;
+
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
       await criar({
@@ -115,6 +129,7 @@ export function FormNovaDemanda({
         unidade: valores.unidade,
         setor: valores.setor ?? null,
         categoria: valores.categoria ?? null,
+        etiquetas: valores.etiquetas,
         data_prevista: valores.data_prevista,
         confidencial: valores.confidencial,
       });
@@ -256,7 +271,16 @@ export function FormNovaDemanda({
                   render={({ field }) => (
                     <Select
                       value={field.value ? String(field.value) : undefined}
-                      onValueChange={(valor) => field.onChange(Number(valor))}
+                      onValueChange={(valor) => {
+                        field.onChange(Number(valor));
+                        // Achado no review: etiquetas escolhidas ficavam
+                        // "presas" no form ao trocar de tipo_gestao (e por
+                        // tabela, de módulo) -- mesmo corrigindo o módulo
+                        // exibido no seletor, os IDs antigos, de outro
+                        // módulo, ainda eram enviados ocultamente no
+                        // payload, causando associação errada ou 400.
+                        setValue("etiquetas", []);
+                      }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecionar..." />
@@ -304,6 +328,21 @@ export function FormNovaDemanda({
                   />
                 </div>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Etiquetas</Label>
+              <Controller
+                control={control}
+                name="etiquetas"
+                render={({ field }) => (
+                  <SeletorEtiquetas
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                    modulo={moduloSelecionado}
+                  />
+                )}
+              />
             </div>
 
             <div className="space-y-1.5">

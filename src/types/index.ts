@@ -107,6 +107,7 @@ export interface DemandaPayload {
   unidade: number;
   setor?: number | null;
   categoria?: number | null;
+  etiquetas?: number[];
   data_prevista: string;
   confidencial?: boolean;
 }

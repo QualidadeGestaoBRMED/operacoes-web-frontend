@@ -8,6 +8,7 @@ import type {
   DemandaPayload,
   DemandaResponsavel,
   DemandaStatusPayload,
+  Etiqueta,
   HistoricoAlteracao,
   ResumoDemandas,
   TipoGestao,
@@ -86,6 +87,24 @@ export async function listarCategorias(): Promise<Categoria[]> {
 
 export async function listarTiposGestao(): Promise<TipoGestao[]> {
   const { data } = await api.get<TipoGestao[]>(`${MODULO_URL}tipos-gestao/`);
+  return data;
+}
+
+// STC-197: mesmo padrão de listarSetores (lib/plataforma.ts) -- moduloId
+// opcional escopa a listagem, sem ele cai no catálogo inteiro.
+export async function listarEtiquetas(moduloId?: number): Promise<Etiqueta[]> {
+  const { data } = await api.get<Etiqueta[]>(`${MODULO_URL}etiquetas/`, {
+    params: moduloId ? { modulo: moduloId } : undefined,
+  });
+  return data;
+}
+
+export async function criarEtiqueta(payload: {
+  modulo: number;
+  nome: string;
+  cor: string;
+}): Promise<Etiqueta> {
+  const { data } = await api.post<Etiqueta>(`${MODULO_URL}etiquetas/`, payload);
   return data;
 }
 

@@ -25,6 +25,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Demanda, Prioridade } from "@/types";
+import { SeletorEtiquetas } from "./SeletorEtiquetas";
 
 // Sentinela só de UI pro Select "desmarcar" -- nunca é enviado ao backend
 // como se fosse um id real (Radix Select não aceita value="", e não pode
@@ -47,6 +48,7 @@ const schema = z.object({
   }),
   setor: z.string(),
   categoria: z.string(),
+  etiquetas: z.array(z.number()),
   data_prevista: z.string().min(1, "Prazo é obrigatório."),
   confidencial: z.boolean(),
 });
@@ -62,6 +64,7 @@ function valoresDe(demanda: Demanda): FormValues {
     prioridade: demanda.prioridade,
     setor: demanda.setor ? String(demanda.setor.id) : SEM_SELECAO,
     categoria: demanda.categoria ? String(demanda.categoria.id) : SEM_SELECAO,
+    etiquetas: demanda.etiquetas.map((etiqueta) => etiqueta.id),
     data_prevista: demanda.data_prevista,
     confidencial: demanda.confidencial,
   };
@@ -126,6 +129,7 @@ export function EditarDemandaSection({
         prioridade: valores.prioridade,
         setor: valores.setor === SEM_SELECAO ? null : Number(valores.setor),
         categoria: valores.categoria === SEM_SELECAO ? null : Number(valores.categoria),
+        etiquetas: valores.etiquetas,
         data_prevista: valores.data_prevista,
         confidencial: valores.confidencial,
       });
@@ -259,6 +263,21 @@ export function EditarDemandaSection({
           />
         </div>
       )}
+
+      <div className="space-y-1">
+        <Label className="text-[10.5px] font-bold tracking-wide uppercase">Etiquetas</Label>
+        <Controller
+          control={control}
+          name="etiquetas"
+          render={({ field }) => (
+            <SeletorEtiquetas
+              value={field.value}
+              onChange={field.onChange}
+              modulo={demanda.tipo_gestao.modulo}
+            />
+          )}
+        />
+      </div>
 
       <div className="space-y-1">
         <Label htmlFor="ed-descricao" className="text-[10.5px] font-bold tracking-wide uppercase">
