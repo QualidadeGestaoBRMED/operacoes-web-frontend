@@ -7,7 +7,8 @@ import {
   DragOverlay,
   KeyboardCode,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -171,8 +172,23 @@ export function KanbanBoard() {
     return { x: rect.left, y: rect.top };
   };
 
+  // Achado na auditoria de responsividade (STC-186): um único PointerSensor
+  // (distance: 6) cobre mouse e toque ao mesmo tempo via Pointer Events, mas
+  // isso exige touch-action:none no card pra funcionar -- e touch-action:none
+  // bloqueia QUALQUER scroll nativo a partir do card, não só durante o drag.
+  // Testado e confirmado: com um card cheio de itens (mais do que cabe na
+  // tela), um gesto de rolar a coluna tocando num card sempre virava um
+  // drag acidental (scrollTop nunca mudava, o card entrava em modo
+  // "arrastando"). MouseSensor (distance, igual mouse sempre foi) +
+  // TouchSensor (delay+tolerance) resolve os dois: no toque, um
+  // arraste só ativa depois de ~200ms parado no mesmo lugar -- um gesto
+  // rápido de rolar (que excede a tolerância antes do delay vencer) é
+  // cancelado pelo próprio dnd-kit sem nunca chamar preventDefault(),
+  // deixando o scroll nativo da coluna acontecer normalmente (confirmado
+  // lendo AbstractPointerSensor.handleMove no código-fonte do @dnd-kit).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: coordenadasPorFase }),
   );
 
