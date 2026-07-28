@@ -64,7 +64,11 @@ async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.set
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks (não clearAllMocks) -- zera implementação, não só
+  // histórico de chamadas. Mesmo achado do autoreview de
+  // KanbanBoard.test.tsx: sem isso, um mockResolvedValue/mockRejectedValue
+  // de um teste anterior sobrevive silenciosamente pro próximo.
+  vi.resetAllMocks();
   vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
 });

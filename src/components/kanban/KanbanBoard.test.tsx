@@ -109,7 +109,13 @@ function mockarDemandas(demandas: ReturnType<typeof criarDemanda>[]) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // Achado no autoreview: clearAllMocks só limpa histórico de chamadas, não
+  // a implementação (mockResolvedValue/mockImplementation de um teste
+  // anterior sobrevivia). Hoje todo teste redefine o que usa antes de
+  // renderizar, então não quebrava nada -- mas é uma dependência de ordem
+  // silenciosa esperando pra virar teste flaky. resetAllMocks também zera
+  // a implementação, forçando cada teste a declarar o que precisa.
+  vi.resetAllMocks();
   mockarTiposGestao();
 });
 
@@ -120,9 +126,22 @@ describe("KanbanBoard", () => {
     mockarDemandas([noBacklog, emAndamento]);
 
     renderBoard();
+    await screen.findByText("Revisar contrato");
 
-    expect(await screen.findByText("Revisar contrato")).toBeInTheDocument();
-    expect(screen.getByText("Corrigir vazamento")).toBeInTheDocument();
+    // Achado no autoreview: getByText sozinho só prova que o título aparece
+    // em algum lugar da página, não que caiu na coluna certa -- o nome do
+    // teste prometia mais do que a asserção checava. .max-h-full escopa
+    // pro <div> raiz de cada KanbanColumn (sem data-testid próprio).
+    const colunaBacklog = screen.getByText("Backlog").closest<HTMLElement>(".max-h-full");
+    const colunaEmAndamento = screen
+      .getByText("Em Andamento")
+      .closest<HTMLElement>(".max-h-full");
+    expect(colunaBacklog).not.toBeNull();
+    expect(colunaEmAndamento).not.toBeNull();
+    expect(within(colunaBacklog!).getByText("Revisar contrato")).toBeInTheDocument();
+    expect(within(colunaEmAndamento!).getByText("Corrigir vazamento")).toBeInTheDocument();
+    expect(within(colunaBacklog!).queryByText("Corrigir vazamento")).not.toBeInTheDocument();
+    expect(within(colunaEmAndamento!).queryByText("Revisar contrato")).not.toBeInTheDocument();
   });
 
   it("mostra estado de carregamento antes dos dados chegarem", () => {
