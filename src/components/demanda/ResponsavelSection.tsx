@@ -57,6 +57,7 @@ export function ResponsavelSection({
   ativo,
   aoAbrir,
   aoFechar,
+  abrirComFormularioDeAdicionar,
 }: {
   demanda: Demanda;
   podeEscrever: boolean;
@@ -65,6 +66,10 @@ export function ResponsavelSection({
   ativo: boolean;
   aoAbrir: () => void;
   aoFechar: () => void;
+  // STC-203: quando o DetalheCard abre por causa de um drag-and-drop
+  // bloqueado por falta de responsável principal, já chega com o
+  // formulário de adicionar expandido -- falta só escolher quem assume.
+  abrirComFormularioDeAdicionar?: boolean;
 }) {
   const [formularioAberto, setFormularioAberto] = useState(false);
   const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState("");
@@ -83,7 +88,8 @@ export function ResponsavelSection({
   } | null>(null);
 
   // Reseta os dois formulários quando outra seção assume (ativo vira false
-  // de fora), não só quando um deles fecha por conta própria.
+  // de fora), não só quando um deles fecha por conta própria. Ao abrir,
+  // já expande o formulário de adicionar se veio de fora (STC-203).
   useEffect(() => {
     if (!ativo) {
       setFormularioAberto(false);
@@ -91,8 +97,10 @@ export function ResponsavelSection({
       setTipoSelecionado("colaborador");
       setTrocandoUsuarioId(null);
       setNovoPrincipalId("");
+    } else if (abrirComFormularioDeAdicionar) {
+      setFormularioAberto(true);
     }
-  }, [ativo]);
+  }, [ativo, abrirComFormularioDeAdicionar]);
 
   const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);

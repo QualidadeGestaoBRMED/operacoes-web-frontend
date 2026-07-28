@@ -95,23 +95,110 @@ export function precisaJustificativa(de: StatusDemanda, para: StatusDemanda): bo
   return TRANSICOES_QUE_EXIGEM_JUSTIFICATIVA.has(`${de}->${para}`);
 }
 
-export function mensagemBloqueioConhecido(
+type SecaoDeBloqueio = "status" | "responsavel";
+
+// Espelha exatamente o par TRANSICOES_ADMIN_ONLY/TRANSICOES_SO_APROVADOR_OU_ADMIN
+// checado em views.py -- única fonte da regra "esse usuário pode fazer essa
+// transição?", usada tanto pra filtrar as opções do Select (statusPermitidosParaUsuario)
+// quanto pelo bloqueio do drag-and-drop (achado no review: KanbanBoard usava
+// mensagemBloqueioConhecido/secaoDoBloqueio sem considerar permissão do
+// usuário -- um usuário sem permissão em em_revisao->em_andamento recebia
+// toast pra "usar Mudar status", mas TransicaoStatusSection nem mostra essa
+// opção pra ele, já que filtra pelo mesmo critério).
+function usuarioTemPermissaoParaTransicao(
   demanda: Demanda,
   novoStatus: StatusDemanda,
-): string | null {
+  isAdminOps: boolean,
+  usuarioId: number | undefined,
+): boolean {
+  const par = `${demanda.status}->${novoStatus}`;
+  if (TRANSICOES_ADMIN_ONLY.has(par)) return isAdminOps;
+  if (TRANSICOES_SO_APROVADOR_OU_ADMIN.has(par)) {
+    // usuarioId !== undefined explícito: sem isso, os dois undefined
+    // (sessão ainda carregando E demanda sem aprovador) bateriam entre
+    // si e liberariam a opção indevidamente.
+    return isAdminOps || (usuarioId !== undefined && demanda.aprovador?.id === usuarioId);
+  }
+  return true;
+}
+
+// Mesmo padrão de AnexoList.tsx: esconde a opção que o usuário atual não tem
+// como executar (em vez de mostrar tudo e deixar o backend rejeitar com 403).
+export function statusPermitidosParaUsuario(
+  demanda: Demanda,
+  isAdminOps: boolean,
+  usuarioId: number | undefined,
+): StatusDemanda[] {
+  return proximosStatusValidos(demanda.status).filter((statusAlvo) =>
+    usuarioTemPermissaoParaTransicao(demanda, statusAlvo, isAdminOps, usuarioId),
+  );
+}
+
+// Compartilhado entre mensagemBloqueioConhecido (toast) e secaoDoBloqueio
+// (STC-203: qual seção do DetalheCard abrir pra resolver o bloqueio) -- as
+// duas precisam concordar sobre qual transição está bloqueada e por quê,
+// então derivam da mesma árvore de condições em vez de cada uma reimplementá-la.
+function bloqueioDetalhado(
+  demanda: Demanda,
+  novoStatus: StatusDemanda,
+  isAdminOps: boolean,
+  usuarioId: number | undefined,
+): { mensagem: string; secao: SecaoDeBloqueio | null } | null {
+  if (!usuarioTemPermissaoParaTransicao(demanda, novoStatus, isAdminOps, usuarioId)) {
+    // secao: null de propósito -- TransicaoStatusSection filtra essa mesma
+    // transição fora de opcoesStatus pra esse usuário, então "abra e use
+    // Mudar status" seria uma ação impossível (achado no review).
+    return {
+      mensagem: "Você não tem permissão para fazer essa transição.",
+      secao: null,
+    };
+  }
+
   if (precisaAprovador(demanda.status, novoStatus)) {
-    return 'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".';
+    return {
+      mensagem: 'Selecione um aprovador para enviar à revisão -- abra a demanda e use "Mudar status".',
+      secao: "status",
+    };
   }
   if (precisaJustificativa(demanda.status, novoStatus)) {
-    return 'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".';
+    return {
+      mensagem: 'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
+      secao: "status",
+    };
   }
 
   if (demanda.status === "backlog" && novoStatus === "em_andamento") {
     const temPrincipal = demanda.responsaveis.some((r) => r.tipo === "principal");
-    if (!temPrincipal) return "Defina um responsável principal antes de iniciar a execução.";
+    if (!temPrincipal) {
+      return {
+        mensagem: "Defina um responsável principal antes de iniciar a execução.",
+        secao: "responsavel",
+      };
+    }
   }
 
   return null;
+}
+
+export function mensagemBloqueioConhecido(
+  demanda: Demanda,
+  novoStatus: StatusDemanda,
+  isAdminOps: boolean,
+  usuarioId: number | undefined,
+): string | null {
+  return bloqueioDetalhado(demanda, novoStatus, isAdminOps, usuarioId)?.mensagem ?? null;
+}
+
+// STC-203: qual seção do DetalheCard abrir automaticamente quando o
+// drag-and-drop é bloqueado -- em vez de só mostrar o toast e deixar o
+// usuário refazer tudo manualmente.
+export function secaoDoBloqueio(
+  demanda: Demanda,
+  novoStatus: StatusDemanda,
+  isAdminOps: boolean,
+  usuarioId: number | undefined,
+): SecaoDeBloqueio | null {
+  return bloqueioDetalhado(demanda, novoStatus, isAdminOps, usuarioId)?.secao ?? null;
 }
 
 // Mesmo critério do backend (ResumoView) pras métricas "atrasadas"/"sem

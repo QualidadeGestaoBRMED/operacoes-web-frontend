@@ -17,36 +17,14 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   ROTULO_STATUS,
-  TRANSICOES_ADMIN_ONLY,
-  TRANSICOES_SO_APROVADOR_OU_ADMIN,
   precisaAprovador,
   precisaJustificativa,
-  proximosStatusValidos,
+  statusPermitidosParaUsuario,
 } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
 import type { Demanda, StatusDemanda } from "@/types";
 
 const NIVEL_ADMIN_OPERACOES = 2;
-
-// Mesmo padrão de AnexoList.tsx: esconde a opção que o usuário atual não tem
-// como executar (em vez de mostrar tudo e deixar o backend rejeitar com 403).
-function statusPermitidosParaUsuario(
-  demanda: Demanda,
-  isAdminOps: boolean,
-  usuarioId: number | undefined,
-): StatusDemanda[] {
-  return proximosStatusValidos(demanda.status).filter((statusAlvo) => {
-    const par = `${demanda.status}->${statusAlvo}`;
-    if (TRANSICOES_ADMIN_ONLY.has(par)) return isAdminOps;
-    if (TRANSICOES_SO_APROVADOR_OU_ADMIN.has(par)) {
-      // usuarioId !== undefined explícito: sem isso, os dois undefined
-      // (sessão ainda carregando E demanda sem aprovador) bateriam entre
-      // si e liberariam a opção indevidamente.
-      return isAdminOps || (usuarioId !== undefined && demanda.aprovador?.id === usuarioId);
-    }
-    return true;
-  });
-}
 
 export function TransicaoStatusSection({
   demanda,
@@ -54,6 +32,7 @@ export function TransicaoStatusSection({
   ativo,
   aoAbrir,
   aoFechar,
+  statusAlvoInicial,
 }: {
   demanda: Demanda;
   podeEscrever: boolean;
@@ -64,8 +43,13 @@ export function TransicaoStatusSection({
   ativo: boolean;
   aoAbrir: () => void;
   aoFechar: () => void;
+  // STC-203: quando o DetalheCard abre por causa de um drag-and-drop
+  // bloqueado, já chega com o destino que o usuário tinha arrastado --
+  // evita que ele precise escolher de novo o que já tinha escolhido.
+  // undefined no clique manual em "Mudar status" (comportamento de sempre).
+  statusAlvoInicial?: StatusDemanda;
 }) {
-  const { user, isAdminOps } = useAuth();
+  const { user, isAdminOps, isLoading: carregandoAuth } = useAuth();
   const [statusAlvo, setStatusAlvo] = useState<StatusDemanda | "">("");
   const [aprovadorId, setAprovadorId] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -73,17 +57,44 @@ export function TransicaoStatusSection({
   const { usuarios } = useUsuarios();
   const { atualizarStatus, isLoading } = useAtualizarStatusDemanda(demanda.id);
 
+  const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
+
   // Reseta os campos quando outra seção assume (ativo vira false de fora),
-  // não só quando este componente fecha por conta própria.
+  // não só quando este componente fecha por conta própria. Ao abrir, parte
+  // de statusAlvoInicial se veio de fora (STC-203) -- mas só se ainda for
+  // uma opção válida pro usuário atual: mensagemBloqueioConhecido/
+  // secaoDoBloqueio (lib/kanban.ts) checam só a estrutura da transição, sem
+  // saber quem está arrastando. Um usuário comum arrastando Em Revisão ->
+  // Em Andamento (rejeição, exige aprovador/admin) cai aqui com
+  // "em_andamento" como destino, mas opcoesStatus filtra essa opção fora
+  // pra quem não é aprovador/admin -- sem essa checagem, o Select
+  // receberia um value sem SelectItem correspondente (mesma classe de bug
+  // já achada no Select de "Nenhum" da STC-205). opcoesStatus de propósito
+  // fora das deps: só precisa ser validado no instante em que a seção abre,
+  // não a cada re-render (senão o array novo a cada render reabriria o
+  // efeito e apagaria a escolha manual do usuário no meio da interação).
+  //
+  // Achado no review: carregandoAuth entra nas deps de propósito -- se a
+  // seção abre (ativo=true) antes de useAuth() estabilizar, isAdminOps/user
+  // ainda estão no valor "deslogado" e opcoesStatus sai incompleta/vazia
+  // nesse primeiro cálculo, gravando "" mesmo com um statusAlvoInicial
+  // válido. Sem carregandoAuth nas deps, o efeito não reavaliava quando a
+  // sessão terminava de carregar um instante depois, perdendo o destino
+  // pré-selecionado pro resto da interação.
   useEffect(() => {
     if (!ativo) {
       setStatusAlvo("");
       setAprovadorId("");
       setJustificativa("");
+      return;
     }
-  }, [ativo]);
+    if (carregandoAuth) return;
+    setStatusAlvo(
+      statusAlvoInicial && opcoesStatus.includes(statusAlvoInicial) ? statusAlvoInicial : "",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ativo, statusAlvoInicial, carregandoAuth]);
 
-  const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
   const candidatosAprovador = usuarios.filter(
