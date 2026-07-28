@@ -10,7 +10,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Abre em [http://localhost:3000](http://localhost:3000). Depende do [backend](../backend) rodando local (`http://localhost:8000` por padrão) — sem ele, login e qualquer chamada à API falham.
+Abre em [http://localhost:3000](http://localhost:3000). Depende do backend ([`QualidadeGestaoBRMED/operacoes-web-backend`](https://github.com/QualidadeGestaoBRMED/operacoes-web-backend)) rodando local em `http://localhost:8000` — sem ele, login e qualquer chamada à API falham.
 
 ## Variáveis de ambiente
 
@@ -21,7 +21,7 @@ Ver `.env.example`. Resumo:
 | `NEXT_PUBLIC_API_URL` | URL do backend (local: `http://localhost:8000`) |
 | `NEXTAUTH_URL` | URL do próprio frontend (local: `http://localhost:3000`) |
 | `NEXTAUTH_SECRET` | Segredo do NextAuth — gerar com `openssl rand -base64 32` |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Mesmo app OAuth do Google usado pelo backend (não são credenciais separadas) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Mesmo app OAuth do Google usado pelo backend (não são credenciais separadas) — pedir ao responsável do projeto |
 
 Login só funciona com conta `@grupobrmed.com.br`.
 
