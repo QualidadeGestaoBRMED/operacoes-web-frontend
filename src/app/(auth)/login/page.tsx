@@ -76,12 +76,25 @@ export default function LoginPage() {
           fill + object-cover reproduz o mesmo visual de antes (bg-cover),
           com bg-sidebar por trás como fallback caso a imagem demore/falhe. */}
       <div className="relative hidden w-1/2 flex-col overflow-hidden bg-sidebar p-10 text-sidebar-foreground md:flex">
+        {/* Achado (bug reportado pelo usuário): sizes="50vw" otimiza pela
+            LARGURA do painel (metade da tela), mas o painel é bem mais alto
+            que largo e a imagem-fonte é widescreen (16:9) -- object-cover
+            precisa cobrir a ALTURA, não a largura. Num viewport comum
+            (ex.: 1440x900), isso pedia uma imagem de ~720x405 pro Next.js
+            pra cobrir uma caixa de 720x900: o CSS esticava esse resultado
+            2.2x pra cobrir a altura, só que os pixels de verdade continuavam
+            na resolução baixa pedida pela largura -- daí o borrão. sizes
+            maior força o Next a servir do balde de resolução seguinte
+            (até o tamanho real da fonte, 1920px), com folga suficiente pra
+            cobrir a altura sem upscale. Sem custo real: a imagem já é
+            priority (carrega sempre, sem lazy) e só existe uma instância
+            dela na página. */}
         <Image
           src="/brand/degrade-login.webp"
           alt=""
           fill
           priority
-          sizes="50vw"
+          sizes="100vw"
           className="object-cover"
         />
 
