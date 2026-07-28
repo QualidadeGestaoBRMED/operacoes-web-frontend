@@ -183,7 +183,14 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
         // em vez de deixar o container (overflow-y-auto) rolar, cortando o
         // rodapé de cada card (linha colorida + avatar) pelo overflow-hidden
         // abaixo. Achado testando com 5 cards numa coluna.
-        "shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
+        // touch-none (touch-action: none): sem isso, o gesto de arrastar um
+        // card por toque (mobile) é interceptado pelo navegador como rolagem
+        // da coluna antes do PointerSensor do dnd-kit conseguir reagir --
+        // dnd-kit só aplica touch-action:none automaticamente no clone do
+        // DragOverlay, não no card de origem. Achado na auditoria de
+        // responsividade (STC-186), confirmado lendo o próprio código-fonte
+        // do @dnd-kit (baseStyles do PositionedOverlay).
+        "shrink-0 touch-none cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-lg",
         naLixeira && "opacity-55",
         // O visual de "sendo arrastado" é o clone no DragOverlay (portalado
         // pra fora dos containers com overflow, senão o card fica atrás das
