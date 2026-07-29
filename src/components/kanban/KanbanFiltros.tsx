@@ -119,7 +119,13 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
           }
         >
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+          {/* aria-label (não só o placeholder do SelectValue): sem rótulo
+              visível nesse componente, o placeholder é a única pista do que
+              o campo representa -- mas ele some do DOM assim que um valor é
+              selecionado, e o nome acessível vira só o valor escolhido
+              ("Niterói"), sem dizer que campo é. aria-label persiste
+              independente de ter valor selecionado ou não. */}
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
             <SelectValue placeholder="Unidade" />
           </SelectTrigger>
           <SelectContent>
@@ -138,7 +144,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
           }
         >
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor">
             <SelectValue placeholder="Setor" />
           </SelectTrigger>
           <SelectContent>
@@ -160,7 +166,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             })
           }
         >
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Prioridade">
             <SelectValue placeholder="Prioridade" />
           </SelectTrigger>
           <SelectContent>
@@ -185,7 +191,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
               })
             }
           >
-            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>

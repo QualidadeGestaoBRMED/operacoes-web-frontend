@@ -144,7 +144,7 @@ export function TransicaoStatusSection({
           setJustificativa("");
         }}
       >
-        <SelectTrigger size="sm" className="h-8 text-[13px]">
+        <SelectTrigger size="sm" className="h-8 text-[13px]" aria-label="Novo status">
           <SelectValue placeholder="Selecionar novo status" />
         </SelectTrigger>
         <SelectContent>
@@ -158,7 +158,7 @@ export function TransicaoStatusSection({
 
       {exigeAprovador && (
         <Select value={aprovadorId} onValueChange={setAprovadorId}>
-          <SelectTrigger size="sm" className="h-8 text-[13px]">
+          <SelectTrigger size="sm" className="h-8 text-[13px]" aria-label="Aprovador">
             <SelectValue placeholder="Selecionar aprovador" />
           </SelectTrigger>
           <SelectContent>
