@@ -171,6 +171,22 @@ export function KanbanBoard() {
     return { x: rect.left, y: rect.top };
   };
 
+  // Achado na auditoria de responsividade (STC-186), com uma volta atrás no
+  // meio do caminho: a 1ª tentativa (MouseSensor + TouchSensor com
+  // delay/tolerance) resolvia "rolar rápido a coluna funciona", mas ainda
+  // quebrava um caso real -- um toque que fica parado por >200ms antes de
+  // começar a mover (comportamento normal de um arraste devagar e
+  // deliberado, exatamente como o mouse do DevTools simula toque) arma o
+  // drag de qualquer jeito, e a partir daí nenhum movimento seguinte vira
+  // scroll, por mais devagar que seja -- baseado em TEMPO, não em direção
+  // do gesto. A correção de verdade fica no touch-action do card (ver
+  // DemandaCard.tsx: touch-pan-y no lugar de touch-none): deixa o navegador
+  // decidir pela DIREÇÃO do gesto, não por tempo -- um toque que começa
+  // predominantemente vertical vira scroll nativo sempre, não importa
+  // velocidade nem quanto tempo o dedo ficou parado antes. Movimento
+  // horizontal/diagonal (o único jeito de mudar uma demanda de coluna de
+  // verdade, já que as colunas ficam lado a lado) continua livre pro
+  // PointerSensor de sempre -- não precisa mais separar mouse de toque.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: coordenadasPorFase }),
@@ -394,15 +410,26 @@ export function KanbanBoard() {
             indiceColunaArrastandoRef.current = null;
           }}
         >
-          {/* justify-center: as colunas têm maxWidth (340px) e param de
-              crescer bem antes de preencher telas largas -- sem centralizar,
-              a sobra de espaço toda ficava jogada à direita. opacity: troca
+          {/* justify-content:safe center (não justify-center puro): as
+              colunas têm maxWidth (340px) e param de crescer bem antes de
+              preencher telas largas -- sem centralizar, a sobra de espaço
+              toda ficava jogada à direita. Achado na auditoria de
+              responsividade (STC-186): com as 5 colunas não cabendo mais
+              (basta a sidebar estar aberta num notebook comum, ~1440px já é
+              suficiente), um justify-center comum deixa a coluna Backlog
+              parcialmente fora da área de scroll e IRRECUPERÁVEL --
+              scrollLeft não vai abaixo de 0, então esse recorte nunca é
+              alcançável arrastando pra esquerda (confirmado medindo
+              getBoundingClientRect() antes/depois). "safe" (CSS Box
+              Alignment L3) é o fallback do próprio spec pra isso: centraliza
+              quando cabe, cai pra alinhamento ao início quando não cabe, sem
+              nunca cortar conteúdo fora do alcance do scroll. opacity: troca
               de filtro mantém os cards antigos (keepPreviousData no hook)
               em vez de colapsar pra "Carregando demandas..." -- só esmaece
               um pouco enquanto a resposta nova não chega. */}
           <div
             className={cn(
-              "flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto p-5 transition-opacity",
+              "flex min-h-0 flex-1 [justify-content:safe_center] gap-4 overflow-x-auto p-5 transition-opacity",
               (isFilterChangeValidating || isFilterChangeValidatingLixeira) && "opacity-60",
             )}
           >

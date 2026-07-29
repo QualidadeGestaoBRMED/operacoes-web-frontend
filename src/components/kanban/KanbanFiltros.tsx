@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { ListFilter, Search, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -12,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCategorias } from "@/hooks/useCategorias";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -78,9 +81,18 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     return () => clearTimeout(temporizador);
   }, [buscaLocal]);
 
-  const temFiltrosAtivos = Boolean(
-    filtros.unidade || filtros.setor || filtros.prioridade || filtros.categoria || filtros.search,
-  );
+  // Separado de "busca" de propósito: a busca continua sempre visível (é o
+  // controle mais usado, não pesa visualmente); só os selects colapsam no
+  // popover mobile, e é só a contagem deles que faz sentido no badge do
+  // botão "Filtros" -- contar a busca junto inflaria o número sem
+  // corresponder a nada que o popover realmente controla.
+  const contagemFiltrosSelect = [
+    filtros.unidade,
+    filtros.setor,
+    filtros.prioridade,
+    filtros.categoria,
+  ].filter(Boolean).length;
+  const temFiltrosAtivos = contagemFiltrosSelect > 0 || Boolean(filtros.search);
 
   function limparFiltros() {
     // Achado no review: onMudarFiltros({}) zerava tipo_gestao junto -- o
@@ -92,116 +104,180 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     onMudarFiltros({ tipo_gestao: filtros.tipo_gestao });
   }
 
-  return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-border px-7 py-4">
-      <div className="relative w-full max-w-[320px]">
-        <label htmlFor="busca-demandas" className="sr-only">
-          Buscar demanda por título ou descrição
-        </label>
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          id="busca-demandas"
-          value={buscaLocal}
-          onChange={(evento) => setBuscaLocal(evento.target.value)}
-          placeholder="Buscar demanda..."
-          className="h-9 pl-9"
-        />
-      </div>
-
-      <Select
-        value={filtros.unidade ? String(filtros.unidade) : "todas"}
-        onValueChange={(valor) =>
-          onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
-        }
-      >
-        <SelectTrigger size="sm" className="h-8">
-          <SelectValue placeholder="Unidade" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todas">Todas as unidades</SelectItem>
-          {unidades.map((unidade) => (
-            <SelectItem key={unidade.id} value={String(unidade.id)}>
-              {unidade.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filtros.setor ? String(filtros.setor) : "todos"}
-        onValueChange={(valor) =>
-          onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
-        }
-      >
-        <SelectTrigger size="sm" className="h-8">
-          <SelectValue placeholder="Setor" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todos">Todos os setores</SelectItem>
-          {setores.map((setor) => (
-            <SelectItem key={setor.id} value={String(setor.id)}>
-              {setor.nome}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filtros.prioridade ?? "todas"}
-        onValueChange={(valor) =>
-          onMudarFiltros({
-            ...filtros,
-            prioridade: valor === "todas" ? undefined : (valor as Prioridade),
-          })
-        }
-      >
-        <SelectTrigger size="sm" className="h-8">
-          <SelectValue placeholder="Prioridade" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="todas">Todas as prioridades</SelectItem>
-          {PRIORIDADES.map((prioridade) => (
-            <SelectItem key={prioridade.valor} value={prioridade.valor}>
-              {prioridade.rotulo}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Sem sentido escolher entre uma única opção -- só aparece quando
-          houver categoria de verdade pra filtrar. */}
-      {categorias.length > 1 && (
+  // Extraído pra função (não componente à parte): os 4 selects renderizam
+  // ou inline (desktop) ou dentro do Popover (mobile) -- ver useMediaQuery
+  // abaixo. Mesma árvore de elementos reaproveitada nos dois branches, só
+  // o container ao redor muda; evita duplicar a lógica/estado de cada
+  // Select em dois lugares (e o risco de um <label htmlFor> duplicado que
+  // isso geraria).
+  function camposDeFiltro() {
+    return (
+      <>
         <Select
-          value={filtros.categoria ? String(filtros.categoria) : "todas"}
+          value={filtros.unidade ? String(filtros.unidade) : "todas"}
           onValueChange={(valor) =>
-            onMudarFiltros({ ...filtros, categoria: valor === "todas" ? undefined : Number(valor) })
+            onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
           }
         >
-          <SelectTrigger size="sm" className="h-8">
-            <SelectValue placeholder="Categoria" />
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+            <SelectValue placeholder="Unidade" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todas as categorias</SelectItem>
-            {categorias.map((categoria) => (
-              <SelectItem key={categoria.id} value={String(categoria.id)}>
-                {categoria.nome}
+            <SelectItem value="todas">Todas as unidades</SelectItem>
+            {unidades.map((unidade) => (
+              <SelectItem key={unidade.id} value={String(unidade.id)}>
+                {unidade.nome}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-      )}
 
-      {temFiltrosAtivos && (
-        <button
-          type="button"
-          onClick={limparFiltros}
-          className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+        <Select
+          value={filtros.setor ? String(filtros.setor) : "todos"}
+          onValueChange={(valor) =>
+            onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
+          }
         >
-          <X className="size-3.5" />
-          Limpar filtros
-        </button>
-      )}
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+            <SelectValue placeholder="Setor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os setores</SelectItem>
+            {setores.map((setor) => (
+              <SelectItem key={setor.id} value={String(setor.id)}>
+                {setor.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
+        <Select
+          value={filtros.prioridade ?? "todas"}
+          onValueChange={(valor) =>
+            onMudarFiltros({
+              ...filtros,
+              prioridade: valor === "todas" ? undefined : (valor as Prioridade),
+            })
+          }
+        >
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as prioridades</SelectItem>
+            {PRIORIDADES.map((prioridade) => (
+              <SelectItem key={prioridade.valor} value={prioridade.valor}>
+                {prioridade.rotulo}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Sem sentido escolher entre uma única opção -- só aparece quando
+            houver categoria de verdade pra filtrar. */}
+        {categorias.length > 1 && (
+          <Select
+            value={filtros.categoria ? String(filtros.categoria) : "todas"}
+            onValueChange={(valor) =>
+              onMudarFiltros({
+                ...filtros,
+                categoria: valor === "todas" ? undefined : Number(valor),
+              })
+            }
+          >
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categorias.map((categoria) => (
+                <SelectItem key={categoria.id} value={String(categoria.id)}>
+                  {categoria.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {temFiltrosAtivos && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+          >
+            <X className="size-3.5" />
+            Limpar filtros
+          </button>
+        )}
+      </>
+    );
+  }
+
+  // Achado na avaliação de UX mobile (pós-STC-186): busca + 4 selects +
+  // limpar + Nova Demanda, tudo empilhado em telas estreitas, virava uma
+  // tela inteira de chrome antes do usuário ver qualquer card. useMediaQuery
+  // (não CSS puro): os mesmos campos aparecem inline no desktop e dentro de
+  // um popover flutuante no mobile -- é reposicionamento estrutural, não só
+  // visibilidade, então CSS sozinho exigiria duplicar os <Select>/<label>
+  // no DOM (id repetido, problema de acessibilidade). Só uma das duas
+  // árvores monta por vez.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
+
+  const busca = (
+    <div className="relative w-full max-w-[320px]">
+      <label htmlFor="busca-demandas" className="sr-only">
+        Buscar demanda por título ou descrição
+      </label>
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        id="busca-demandas"
+        value={buscaLocal}
+        onChange={(evento) => setBuscaLocal(evento.target.value)}
+        placeholder="Buscar demanda..."
+        className="h-9 pl-9"
+      />
+    </div>
+  );
+
+  if (ehMobile) {
+    return (
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        {busca}
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative shrink-0">
+              <ListFilter className="size-4" />
+              <span className="sr-only">Filtros</span>
+              {contagemFiltrosSelect > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
+                >
+                  {contagemFiltrosSelect}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="flex flex-col gap-2">
+            {camposDeFiltro()}
+          </PopoverContent>
+        </Popover>
+
+        <Button size="icon" className="shrink-0" onClick={onNovaDemanda}>
+          <span className="sr-only">Nova Demanda</span>
+          <span aria-hidden="true" className="text-lg leading-none">
+            +
+          </span>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-border px-7 py-4">
+      {busca}
+      {camposDeFiltro()}
       <Button className="ml-auto" onClick={onNovaDemanda}>
         Nova Demanda
       </Button>

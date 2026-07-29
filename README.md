@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Operações Web Frontend
 
-## Getting Started
+Frontend Next.js da Plataforma Web de Operações — módulo Gestão de Demandas.
 
-First, run the development server:
+## Desenvolvimento local
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre em [http://localhost:3000](http://localhost:3000). Depende do backend ([`QualidadeGestaoBRMED/operacoes-web-backend`](https://github.com/QualidadeGestaoBRMED/operacoes-web-backend)) rodando local em `http://localhost:8000` — sem ele, login e qualquer chamada à API falham.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variáveis de ambiente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ver `.env.example`. Resumo:
 
-## Learn More
+| Variável | Uso |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | URL do backend (local: `http://localhost:8000`) |
+| `NEXTAUTH_URL` | URL do próprio frontend (local: `http://localhost:3000`) |
+| `NEXTAUTH_SECRET` | Segredo do NextAuth — gerar com `openssl rand -base64 32` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Mesmo app OAuth do Google usado pelo backend (não são credenciais separadas) — pedir ao responsável do projeto |
 
-To learn more about Next.js, take a look at the following resources:
+Login só funciona com conta `@grupobrmed.com.br`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Comandos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev        # servidor de desenvolvimento (Turbopack)
+npm run build      # build de produção
+npm run lint       # eslint
+npm run test       # vitest run
+npm run test:watch # vitest em modo watch
+```
 
-## Deploy on Vercel
+## Documentação
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`PLANEJAMENTO.md`](PLANEJAMENTO.md) — planejamento técnico detalhado, pacote por pacote, com o estado real de cada issue.

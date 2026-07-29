@@ -169,9 +169,20 @@ export function DetalheCard({
               </div>
             </DialogHeader>
 
-            <div className="grid min-h-0 flex-1 grid-cols-[270px_1fr] overflow-hidden">
+            {/* Achado na auditoria de responsividade (STC-186): grid fixo
+                270px+1fr sem variante mobile deixava a coluna de abas com
+                ~70px de largura útil num dialog de ~340px (viewport 375px),
+                cortando texto/inputs de verdade -- não só "apertado". Abaixo
+                de sm: flex-col empilhado (metadados com scroll próprio
+                limitado a 35vh, abas ocupando o resto via flex-1 min-h-0,
+                mesmo padrão de "resto do espaço rola por conta própria" já
+                usado no resto do arquivo) -- ComentarioFeed/AnexoList/
+                HistoricoTimeline não precisaram mudar, só ganharam uma
+                coluna mais estreita e alta em vez de larga e baixa. De sm
+                pra cima, volta a ser o grid 270px+1fr original. */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
               {/* ESQUERDA: metadados */}
-              <div className="scrollbar-discreta flex flex-col gap-4 overflow-y-auto border-r border-border p-4.5">
+              <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
                 <EditarDemandaSection
                   demanda={demanda}
                   podeEditar={podeEditar}
@@ -265,7 +276,7 @@ export function DetalheCard({
               </div>
 
               {/* DIREITA: abas */}
-              <Tabs defaultValue="comentarios" className="min-h-0 gap-0">
+              <Tabs defaultValue="comentarios" className="min-h-0 flex-1 gap-0">
                 <TabsList
                   variant="line"
                   className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"

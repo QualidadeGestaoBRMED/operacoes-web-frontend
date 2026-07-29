@@ -95,12 +95,23 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
         ) : usuario ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
+              {/* Achado na auditoria de responsividade (STC-186): o texto
+                  "Olá, {nome}" sem nenhum limite de largura empurrava a
+                  Topbar inteira pra fora da viewport em 375px -- não era só
+                  visualmente apertado, causava overflow horizontal real de
+                  PÁGINA (document.documentElement.scrollWidth > clientWidth,
+                  medido e confirmado), o que o critério de aceite do ticket
+                  proíbe explicitamente. Esconde só o texto abaixo de sm
+                  (mantém o avatar, que já basta pra indicar "logado"), com
+                  aria-label no botão pra não perder o nome anunciado por
+                  leitor de tela quando o texto visível some. */}
               <button
                 type="button"
+                aria-label={`Olá, ${usuario.nome}`}
                 className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-foreground/10"
               >
                 <AvatarUsuario imagem={usuario.imagem} iniciais={usuario.iniciais} />
-                <span>
+                <span className="hidden sm:inline" aria-hidden="true">
                   Olá, <strong>{usuario.nome}</strong>
                 </span>
               </button>

@@ -31,7 +31,12 @@ function CardEstatistica({
       onClick={onClick}
       aria-pressed={ativo}
       className={cn(
-        "flex items-center justify-between rounded-xl border p-4 text-left transition-shadow",
+        // Achado na avaliação de UX mobile (pós-STC-186): p-4/text-3xl/
+        // size-9 fixos faziam os 2 cards, empilhados, tomarem uma tela
+        // inteira de altura em 375px antes do usuário ver qualquer demanda.
+        // Reduzido por padrão (telas estreitas) e restaurado ao tamanho
+        // original a partir de sm -- zero mudança visual em tablet/desktop.
+        "flex items-center justify-between rounded-xl border p-2.5 text-left transition-shadow sm:p-4",
         atencao
           ? "bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))]"
           : "bg-[color-mix(in_srgb,var(--secondary)_10%,var(--card))]",
@@ -43,12 +48,12 @@ function CardEstatistica({
       )}
     >
       <div>
-        <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <div className="text-[10.5px] leading-tight font-semibold tracking-wide text-muted-foreground uppercase sm:text-xs">
           {rotulo}
         </div>
         <div
           className={cn(
-            "mt-1 text-3xl font-bold",
+            "mt-0.5 text-xl font-bold sm:mt-1 sm:text-3xl",
             atencao ? "text-destructive" : "text-secondary",
           )}
         >
@@ -57,11 +62,11 @@ function CardEstatistica({
       </div>
       <div
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full",
+          "flex size-7 shrink-0 items-center justify-center rounded-full sm:size-9",
           atencao ? "bg-destructive/15 text-destructive" : "bg-secondary/15 text-secondary",
         )}
       >
-        <Icon className="size-4" />
+        <Icon className="size-3.5 sm:size-4" />
       </div>
     </button>
   );
@@ -89,9 +94,9 @@ export function ResumoCards({ filtros, focoAtivo, onFocoClick, pausarPolling }: 
 
   if (carregandoPrimeiraVez || !resumo) {
     return (
-      <div className="grid grid-cols-1 gap-3 px-7 pt-5 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 px-4 pt-4 sm:gap-3 sm:px-7 sm:pt-5">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-[72px] rounded-xl" />
+          <Skeleton key={i} className="h-[52px] rounded-xl sm:h-[72px]" />
         ))}
       </div>
     );
@@ -103,7 +108,10 @@ export function ResumoCards({ filtros, focoAtivo, onFocoClick, pausarPolling }: 
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-3 px-7 pt-5 transition-opacity sm:grid-cols-2",
+        // grid-cols-2 sempre (não sm:grid-cols-2): ver comentário em
+        // CardEstatistica -- condensa os 2 KPIs numa linha só compacta em
+        // qualquer largura, em vez de empilhar em mobile.
+        "grid grid-cols-2 gap-2 px-4 pt-4 transition-opacity sm:gap-3 sm:px-7 sm:pt-5",
         // Troca de filtro: mantém os cards antigos visíveis (keepPreviousData
         // no hook) em vez de sumir pra um skeleton -- só esmaece um pouco
         // enquanto a resposta nova não chega, pra não parecer travado.
