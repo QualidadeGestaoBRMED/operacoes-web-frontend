@@ -49,17 +49,22 @@ function renderForm(onOpenChange = vi.fn()) {
 
 // Preenche os campos obrigatórios (mesmos seletores já validados nos
 // scripts E2E manuais dessa sessão) e mantém as respostas prontas.
+//
+// Unidade/Tipo de gestão selecionados por nome acessível (getByLabelText),
+// não por posição no array de comboboxes -- achado no review da STC-171
+// (Linear): selecionar por posição (comboboxes[0]/[2]) é frágil a qualquer
+// mudança de layout. Só passou a funcionar depois da STC-215, que associou
+// <Label htmlFor> ao SelectTrigger correspondente em FormNovaDemanda.tsx
+// (antes, o rótulo era só visual, sem nome acessível nenhum no campo).
 async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/título/i), "Trocar lâmpada do corredor");
   await user.type(screen.getByLabelText(/descrição/i), "Lâmpada queimada há 2 dias.");
   await user.click(screen.getByRole("button", { name: "Média" }));
   await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
 
-  const comboboxes = screen.getAllByRole("combobox");
-  // Ordem visual do form: Unidade, Setor, Tipo de gestão.
-  await user.click(comboboxes[0]);
+  await user.click(screen.getByLabelText(/unidade/i));
   await user.click(await screen.findByRole("option", { name: "Niterói" }));
-  await user.click(comboboxes[2]);
+  await user.click(screen.getByLabelText(/tipo de gestão/i));
   await user.click(await screen.findByRole("option", { name: "Operacional" }));
 }
 
