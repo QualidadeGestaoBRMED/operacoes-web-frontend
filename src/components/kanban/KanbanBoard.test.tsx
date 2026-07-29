@@ -75,6 +75,17 @@ vi.mock("@/hooks/useAuth", () => ({
 // useComentarios, useHistorico) já tratam isso como `data ?? []`, então
 // não precisam de mock explícito -- só o que os testes realmente controlam.
 vi.mock("@/lib/demandas");
+// Achado na STC-215: sem mockar isso, KanbanFiltros (renderizado dentro do
+// KanbanBoard) chama listarUnidades/listarSetores de verdade via useUnidades/
+// useSetores -- suíte "passava" só por sorte, porque normalmente não há
+// nada respondendo em localhost:3000 durante `vitest run` e o fetch falha
+// com erro de rede (sem response.status, então o interceptor de 401 de
+// lib/api.ts nunca dispara). Rodar os testes com `npm run dev` ativo na
+// mesma porta já é o suficiente pra essas chamadas reais alcançarem o proxy
+// de verdade, tomarem 401 (sem sessão) e disparar signOut() -- que por sua
+// vez falha tentando montar uma URL relativa fora de um browser real,
+// vazando como unhandled rejection no meio de um teste sem nenhuma relação.
+vi.mock("@/lib/plataforma");
 
 import {
   atualizarStatusDemanda,

@@ -202,7 +202,7 @@ export function FormNovaDemanda({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>
+                <Label htmlFor="f-unidade">
                   Unidade <span className="text-destructive">*</span>
                 </Label>
                 <Controller
@@ -213,7 +213,7 @@ export function FormNovaDemanda({
                       value={field.value ? String(field.value) : undefined}
                       onValueChange={(valor) => field.onChange(Number(valor))}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="f-unidade" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -232,7 +232,7 @@ export function FormNovaDemanda({
               </div>
 
               <div className="space-y-1.5">
-                <Label>Setor</Label>
+                <Label htmlFor="f-setor">Setor</Label>
                 <Controller
                   control={control}
                   name="setor"
@@ -241,7 +241,7 @@ export function FormNovaDemanda({
                       value={field.value ? String(field.value) : undefined}
                       onValueChange={(valor) => field.onChange(Number(valor))}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="f-setor" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -262,7 +262,7 @@ export function FormNovaDemanda({
                 vazio do lado direito. */}
             <div className={cn("grid gap-3", categorias.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
               <div className="space-y-1.5">
-                <Label>
+                <Label htmlFor="f-tipo-gestao">
                   Tipo de gestão <span className="text-destructive">*</span>
                 </Label>
                 <Controller
@@ -282,7 +282,7 @@ export function FormNovaDemanda({
                         setValue("etiquetas", []);
                       }}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id="f-tipo-gestao" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -304,7 +304,7 @@ export function FormNovaDemanda({
                   uma única categoria -- só aparece quando houver mais de uma. */}
               {categorias.length > 1 && (
                 <div className="space-y-1.5">
-                  <Label>Categoria</Label>
+                  <Label htmlFor="f-categoria">Categoria</Label>
                   <Controller
                     control={control}
                     name="categoria"
@@ -313,7 +313,7 @@ export function FormNovaDemanda({
                         value={field.value ? String(field.value) : undefined}
                         onValueChange={(valor) => field.onChange(Number(valor))}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger id="f-categoria" className="w-full">
                           <SelectValue placeholder="Selecionar..." />
                         </SelectTrigger>
                         <SelectContent>

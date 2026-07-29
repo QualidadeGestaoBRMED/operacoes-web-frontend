@@ -169,13 +169,15 @@ export function EditarDemandaSection({
       </div>
 
       <div className="space-y-1">
-        <Label className="text-[10.5px] font-bold tracking-wide uppercase">Prioridade</Label>
+        <Label htmlFor="ed-prioridade" className="text-[10.5px] font-bold tracking-wide uppercase">
+          Prioridade
+        </Label>
         <Controller
           control={control}
           name="prioridade"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger size="sm" className="h-8 w-full text-[13px]">
+              <SelectTrigger id="ed-prioridade" size="sm" className="h-8 w-full text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -210,13 +212,15 @@ export function EditarDemandaSection({
       </div>
 
       <div className="space-y-1">
-        <Label className="text-[10.5px] font-bold tracking-wide uppercase">Setor</Label>
+        <Label htmlFor="ed-setor" className="text-[10.5px] font-bold tracking-wide uppercase">
+          Setor
+        </Label>
         <Controller
           control={control}
           name="setor"
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger size="sm" className="h-8 w-full text-[13px]">
+              <SelectTrigger id="ed-setor" size="sm" className="h-8 w-full text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -241,13 +245,15 @@ export function EditarDemandaSection({
           escolher além do que já é o estado atual). */}
       {categorias.length > 0 && (
         <div className="space-y-1">
-          <Label className="text-[10.5px] font-bold tracking-wide uppercase">Categoria</Label>
+          <Label htmlFor="ed-categoria" className="text-[10.5px] font-bold tracking-wide uppercase">
+            Categoria
+          </Label>
           <Controller
             control={control}
             name="categoria"
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger size="sm" className="h-8 w-full text-[13px]">
+                <SelectTrigger id="ed-categoria" size="sm" className="h-8 w-full text-[13px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -31,7 +31,7 @@ function SeletorCandidato({
 }) {
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger size="sm" className="h-8 text-[13px]">
+      <SelectTrigger size="sm" className="h-8 text-[13px]" aria-label="Usuário responsável">
         <SelectValue placeholder="Selecionar usuário" />
       </SelectTrigger>
       <SelectContent>
@@ -296,7 +296,7 @@ export function ResponsavelSection({
               value={tipoSelecionado}
               onValueChange={(valor) => setTipoSelecionado(valor as DemandaResponsavel["tipo"])}
             >
-              <SelectTrigger size="sm" className="h-8 text-[13px]">
+              <SelectTrigger size="sm" className="h-8 text-[13px]" aria-label="Tipo de responsável">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
