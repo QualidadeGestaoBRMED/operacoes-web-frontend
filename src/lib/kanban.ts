@@ -201,6 +201,23 @@ export function secaoDoBloqueio(
   return bloqueioDetalhado(demanda, novoStatus, isAdminOps, usuarioId)?.secao ?? null;
 }
 
+// Achado em autorevisão: usar new Date() aqui calcula "hoje" no fuso do
+// navegador do cliente -- o backend (ResumoView) usa timezone.now().date()
+// no fuso do servidor (TIME_ZONE=America/Sao_Paulo, core/settings/base.py).
+// Os dois podem divergir perto da virada da meia-noite ou se o cliente
+// estiver noutro fuso, fazendo esse atalho de filtro mostrar um conjunto
+// diferente do que o KPI "atrasadas" (calculado no backend) prometeu.
+// Intl.DateTimeFormat com timeZone explícito calcula "hoje" nesse fuso sem
+// depender do fuso local do navegador -- "en-CA" formata como YYYY-MM-DD,
+// mesmo formato de Demanda.data_prevista (DateField), então dá pra comparar
+// como string ISO direto, sem nem precisar parsear pra Date.
+// Exportado -- KanbanBoard.tsx reaproveita pro mesmo motivo (achado lá:
+// update otimista do drag-and-drop pra "concluido" não setava
+// data_conclusao com a data certa).
+export function hojeNoFusoDoServidor(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
 // Mesmo critério do backend (ResumoView) pras métricas "atrasadas"/"sem
 // responsável" -- clicar no card de KPI usa isso como atalho de filtro
 // rápido no board, sem precisar de um filtro dedicado (nem de refazer a
@@ -210,9 +227,7 @@ export function passaNoFoco(demanda: Demanda, foco: string | null): boolean {
   if (demanda.status === "concluido") return false;
 
   if (foco === "atrasadas") {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return new Date(`${demanda.data_prevista}T00:00:00`) < hoje;
+    return demanda.data_prevista < hojeNoFusoDoServidor();
   }
   if (foco === "sem responsável") {
     return !demanda.responsaveis.some((r) => r.tipo === "principal");
