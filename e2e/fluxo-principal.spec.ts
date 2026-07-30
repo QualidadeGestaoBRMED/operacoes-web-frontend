@@ -9,13 +9,9 @@ const TITULO = `[E2E] Demanda de teste ${Date.now()}`;
 
 test("fluxo principal: criar demanda, mover no board, comentar e concluir", async ({ page }) => {
   await page.goto("/modulos/gestao-demandas");
-  // Achado rodando a suíte pela 1ª vez: a rota ainda não tinha sido
-  // compilada pelo Turbopack (dev mode, compila sob demanda) -- toBeVisible
-  // já passava com o HTML inicial no ar, mas o clique em "Nova Demanda"
-  // chegava antes do React terminar de hidratar/anexar o onClick, e o modal
-  // nunca abria. networkidle aqui espera a leva inicial de fetches (board,
-  // filtros, resumo) assentar -- o polling de 10s (STC-206) não atrapalha,
-  // sobra folga de sobra pra achar uma janela de 500ms sem rede.
+  // networkidle espera a leva inicial de fetches (board, filtros, resumo)
+  // assentar antes de interagir -- o polling de 10s (STC-206) não
+  // atrapalha, sobra folga de sobra pra achar uma janela de 500ms sem rede.
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("button", { name: "Nova Demanda" })).toBeVisible();
 
