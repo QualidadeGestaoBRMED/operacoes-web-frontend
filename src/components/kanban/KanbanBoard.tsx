@@ -29,6 +29,7 @@ import {
   ORDEM_COLUNAS,
   compararDemandas,
   filtrosDaUrl,
+  hojeNoFusoDoServidor,
   mensagemBloqueioConhecido,
   passaNoFoco,
   secaoDoBloqueio,
@@ -293,8 +294,24 @@ export function KanbanBoard() {
         return;
       }
 
+      // Achado em autorevisão: o backend também seta data_conclusao ao
+      // entrar em "concluido" (único jeito de chegar aqui via drag direto,
+      // sem passar pelo modal, é em_revisao->concluido -- as outras
+      // transições pra "concluido" exigem justificativa/aprovador e sempre
+      // bloqueiam o drag antes de chegar aqui, ver mensagemBloqueioConhecido
+      // acima). Sem espelhar isso no otimista, o card mostrava a coluna
+      // certa mas sem nenhuma data de conclusão até a revalidação chegar
+      // (DemandaCard/InfoPrazo só renderiza a linha "concluída em" quando
+      // data_conclusao existe).
       const dadosOtimistas = demandasAtivas.map((item) =>
-        item.id === demanda.id ? { ...item, status: novoStatus } : item,
+        item.id === demanda.id
+          ? {
+              ...item,
+              status: novoStatus,
+              data_conclusao:
+                novoStatus === "concluido" ? hojeNoFusoDoServidor() : item.data_conclusao,
+            }
+          : item,
       );
 
       mutate(dadosOtimistas, { revalidate: false });
