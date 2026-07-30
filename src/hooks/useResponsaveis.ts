@@ -2,7 +2,11 @@
 
 import { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
-import { adicionarResponsavel, removerResponsavel } from "@/lib/demandas";
+import {
+  adicionarResponsavel,
+  removerResponsavel,
+  trocarPrincipalResponsavel,
+} from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { DemandaResponsavel } from "@/types";
 
@@ -39,6 +43,23 @@ export function useRemoverResponsavel(demandaId: number) {
 
   return {
     remover: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useTrocarPrincipal(demandaId: number) {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    ["demanda", demandaId],
+    (_chave, { arg }: { arg: { antigoUsuarioId: number; novoUsuarioId: number } }) =>
+      trocarPrincipalResponsavel(demandaId, arg.antigoUsuarioId, arg.novoUsuarioId),
+    { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
+  );
+
+  return {
+    trocarPrincipal: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
