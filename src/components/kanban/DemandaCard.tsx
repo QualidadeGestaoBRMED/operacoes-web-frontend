@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-react";
-import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE, diasAteOPrazo } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda } from "@/types";
 
@@ -16,10 +16,7 @@ function InfoPrazo({ demanda }: { demanda: Demanda }) {
     ) : null;
   }
 
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const prazo = new Date(`${demanda.data_prevista}T00:00:00`);
-  const diasRestantes = Math.round((prazo.getTime() - hoje.getTime()) / 86_400_000);
+  const diasRestantes = diasAteOPrazo(demanda.data_prevista);
   const atrasada = diasRestantes < 0;
   const proxima = diasRestantes >= 0 && diasRestantes <= 3;
 

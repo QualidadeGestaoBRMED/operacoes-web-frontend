@@ -218,6 +218,21 @@ export function hojeNoFusoDoServidor(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
+// Achado em autorevisão: DemandaCard (badge "atrasada") e DetalheCard (campo
+// "Prazo") calculavam "faltam quantos dias" com new Date() local -- mesma
+// classe de bug de hojeNoFusoDoServidor, só que com uma conta de dias em vez
+// de uma comparação booleana, então não dava pra só reaproveitar a string
+// "hoje" acima. "T00:00:00Z" força as duas datas a meia-noite UTC -- sem
+// isso, o parser de Date trataria "YYYY-MM-DD" e "YYYY-MM-DDT00:00:00" de
+// jeitos diferentes (o primeiro como UTC, o segundo como fuso local),
+// reintroduzindo a mesma dependência do fuso do navegador que isso existe
+// pra eliminar.
+export function diasAteOPrazo(dataPrevista: string): number {
+  const hoje = new Date(`${hojeNoFusoDoServidor()}T00:00:00Z`);
+  const prazo = new Date(`${dataPrevista}T00:00:00Z`);
+  return Math.round((prazo.getTime() - hoje.getTime()) / 86_400_000);
+}
+
 // Mesmo critério do backend (ResumoView) pras métricas "atrasadas"/"sem
 // responsável" -- clicar no card de KPI usa isso como atalho de filtro
 // rápido no board, sem precisar de um filtro dedicado (nem de refazer a

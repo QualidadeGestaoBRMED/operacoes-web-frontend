@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS } from "@/lib/kanban";
+import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS, diasAteOPrazo } from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
 import type { StatusDemanda } from "@/types";
 import { AnexoList } from "./AnexoList";
@@ -48,10 +48,7 @@ function CampoMeta({ rotulo, children }: { rotulo: string; children: React.React
 
 function formatarPrazo(dataPrevista: string) {
   const [ano, mes, dia] = dataPrevista.split("-");
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const prazo = new Date(`${dataPrevista}T00:00:00`);
-  const diasRestantes = Math.round((prazo.getTime() - hoje.getTime()) / 86_400_000);
+  const diasRestantes = diasAteOPrazo(dataPrevista);
   return {
     texto: `${dia}/${mes}/${ano}`,
     atrasada: diasRestantes < 0,
