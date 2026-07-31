@@ -77,6 +77,7 @@ interface ResumoCardsProps {
   focoAtivo?: string | null;
   onFocoClick?: (rotulo: string) => void;
   pausarPolling?: boolean;
+  desabilitado?: boolean;
 }
 
 // KPIs de "de relance" acima do board -- inspirado nas telas do ProntuAI
@@ -84,10 +85,16 @@ interface ResumoCardsProps {
 // pra Hub (hoje bloqueada) em vez de criar um endpoint novo. Clicáveis:
 // funcionam como atalho pra filtrar o board só pelas demandas daquela
 // métrica (ex.: só as atrasadas), sem precisar de um filtro dedicado.
-export function ResumoCards({ filtros, focoAtivo, onFocoClick, pausarPolling }: ResumoCardsProps) {
+export function ResumoCards({
+  filtros,
+  focoAtivo,
+  onFocoClick,
+  pausarPolling,
+  desabilitado,
+}: ResumoCardsProps) {
   const { resumo, isFilterChangeValidating, carregandoPrimeiraVez, error } = useResumoDemandas(
     filtros,
-    { pausado: pausarPolling },
+    { pausado: pausarPolling, desabilitado },
   );
 
   if (error) return null;

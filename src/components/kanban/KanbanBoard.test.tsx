@@ -315,5 +315,93 @@ describe("KanbanBoard", () => {
       await screen.findAllByText("Nenhuma demanda aqui");
       expect(substituirUrl).not.toHaveBeenCalled();
     });
+
+    // Achado em dogfooding: useTiposGestao/useDemandas carregam em paralelo,
+    // sem ordem garantida -- se demandas resolver primeiro, o board não pode
+    // renderizar o conteúdo bruto (todos os tipos misturados) só porque
+    // ainda não sabe que existe mais de 1 tipo de gestão.
+    it("continua mostrando 'Carregando demandas...' se demandas resolver antes de tipos", async () => {
+      vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
+      let resolverTipos: (tipos: TipoGestao[]) => void = () => {};
+      vi.mocked(listarTiposGestao).mockReturnValue(
+        new Promise((resolve) => {
+          resolverTipos = resolve;
+        }),
+      );
+      const demanda = criarDemanda({ titulo: "Não deveria aparecer ainda", status: "backlog" });
+      mockarDemandas([demanda]);
+
+      renderBoard();
+
+      // Demandas já resolveram (mockarDemandas resolve na hora); tipos
+      // ainda não -- sem a correção, o board mostraria o card aqui, sem
+      // nenhum filtro de aba aplicado.
+      await waitFor(() => {
+        expect(screen.getByText("Carregando demandas...")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Não deveria aparecer ainda")).not.toBeInTheDocument();
+
+      resolverTipos([TIPO_GESTAO_A, TIPO_GESTAO_B]);
+
+      await waitFor(() => {
+        expect(substituirUrl).toHaveBeenCalledWith(`?tipo_gestao=${TIPO_GESTAO_A.id}`);
+      });
+    });
+
+    // Achado em dogfooding, depois de corrigir o teste acima: a guarda de
+    // loading escondia o resultado sem filtro, mas useDemandas ainda
+    // DISPARAVA (e o keepPreviousData guardava) essa 1ª busca. Ao resolver o
+    // tipo padrão, o board saía do "Carregando" e reaproveitava esse
+    // resultado antigo -- misturado -- até a busca filtrada de verdade
+    // responder. Só sumir com o texto de loading não bastava; precisa nunca
+    // ter chamado listarDemandas sem tipo_gestao enquanto isso está em
+    // aberto (ver "desabilitado" em useDemandas.ts/useResumoDemandas.ts).
+    it("nunca busca (nem mostra) demandas sem tipo_gestao quando há mais de um tipo cadastrado", async () => {
+      vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
+      let resolverTipos: (tipos: TipoGestao[]) => void = () => {};
+      vi.mocked(listarTiposGestao).mockReturnValue(
+        new Promise((resolve) => {
+          resolverTipos = resolve;
+        }),
+      );
+      const demandaOperacional = criarDemanda({ titulo: "Card Operacional", status: "backlog" });
+      const demandaUnidades = criarDemanda({ titulo: "Card Unidades", status: "backlog" });
+      vi.mocked(listarDemandas).mockImplementation(async (filtros) => {
+        if (filtros?.status === "lixeira") return [];
+        if (filtros?.tipo_gestao === TIPO_GESTAO_A.id) return [demandaOperacional];
+        if (filtros?.tipo_gestao === TIPO_GESTAO_B.id) return [demandaUnidades];
+        return [demandaOperacional, demandaUnidades];
+      });
+
+      const { rerender } = renderBoard();
+
+      await waitFor(() => {
+        expect(screen.getByText("Carregando demandas...")).toBeInTheDocument();
+      });
+      expect(listarDemandas).not.toHaveBeenCalled();
+
+      resolverTipos([TIPO_GESTAO_A, TIPO_GESTAO_B]);
+
+      await waitFor(() => {
+        expect(substituirUrl).toHaveBeenCalledWith(`?tipo_gestao=${TIPO_GESTAO_A.id}`);
+      });
+
+      // useSearchParams é mockado (fixo), então não reage sozinho ao
+      // router.replace acima como o Next real reagiria -- simula a URL
+      // "assentando" e força o re-render que isso causaria em produção.
+      vi.mocked(useSearchParams).mockReturnValue(
+        new URLSearchParams(`tipo_gestao=${TIPO_GESTAO_A.id}`) as never,
+      );
+      rerender(
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <KanbanBoard />
+        </SWRConfig>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Card Operacional")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Card Unidades")).not.toBeInTheDocument();
+    });
   });
 });
