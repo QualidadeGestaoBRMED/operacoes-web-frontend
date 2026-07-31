@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardList, Home, Lock, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 
@@ -17,6 +18,7 @@ const MODULOS_BLOQUEADOS = [{ nome: "Hub", icon: Home }, ...MODULOS_FUTUROS];
 export function Sidebar() {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
+  const { isAdminQG } = useAuth();
 
   return (
     <aside className="flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
@@ -57,12 +59,27 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-2 border-t border-sidebar-border p-3 pt-2.5">
-        <div className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75">
-          <Settings className="size-4 shrink-0" />
-          Admin Q&amp;G
+      {/* STC-262: era texto fixo, sem função nenhuma e visível pra qualquer
+          perfil -- achado no dogfooding. isAdminQG (não isLoading nem
+          nenhum estado de transição): antes do useSession() resolver,
+          isAdminQG já nasce false, então o link nunca "pisca" pra quem não
+          é Admin Q&G, só aparece depois de confirmado. Aponta pro Django
+          Admin (outra origem, por isso <a> normal, não <Link> do Next) --
+          é login separado do Google usado no resto do Atlas, não
+          compartilha sessão. */}
+      {isAdminQG && (
+        <div className="mt-2 border-t border-sidebar-border p-3 pt-2.5">
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL}/admin`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
+          >
+            <Settings className="size-4 shrink-0" />
+            Admin Q&amp;G
+          </a>
         </div>
-      </div>
+      )}
     </aside>
   );
 }
