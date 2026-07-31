@@ -97,8 +97,11 @@ export function TransicaoStatusSection({
 
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
+  // Só Admin Operações -- pedido do usuário: Admin Q&G (nível 1) não deve
+  // aparecer como candidato a aprovador, mesmo antes incluído aqui pelo
+  // "<= NIVEL_ADMIN_OPERACOES" (que também pegava nível 1).
   const candidatosAprovador = usuarios.filter(
-    (usuario) => usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES,
+    (usuario) => usuario.perfil && usuario.perfil.nivel === NIVEL_ADMIN_OPERACOES,
   );
 
   const podeConfirmar =
