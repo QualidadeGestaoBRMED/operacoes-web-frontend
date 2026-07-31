@@ -11,7 +11,8 @@ import type { DemandaPayload, DemandaStatusPayload } from "@/types";
 // salvar/mudar status. Usamos um matcher (em vez de comparar chave exata)
 // porque a chave de leitura da lista é ["demandas", filtros] (parametrizada
 // por filtro), então uma chave fixa como "demandas" nunca bateria com ela.
-function ehChaveDeListaDemandas(chave: unknown) {
+// Exportado -- useResponsaveis.ts precisa do mesmo matcher (ver achado lá).
+export function ehChaveDeListaDemandas(chave: unknown) {
   return Array.isArray(chave) && chave[0] === "demandas";
 }
 

@@ -4,6 +4,7 @@ import { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import { adicionarResponsavel, removerResponsavel } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
+import { ehChaveDeListaDemandas } from "@/hooks/useDemandaMutations";
 import type { DemandaResponsavel } from "@/types";
 
 // Diferente de comentários/anexos/histórico, responsáveis não têm endpoint
@@ -18,7 +19,21 @@ export function useAdicionarResponsavel(demandaId: number) {
     ["demanda", demandaId],
     (_chave, { arg }: { arg: { usuario_id: number; tipo: DemandaResponsavel["tipo"] } }) =>
       adicionarResponsavel(demandaId, arg),
-    { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
+    {
+      onSuccess: () => {
+        mutate(["demanda", demandaId, "historico"]);
+        // Achado construindo a suíte E2E (STC-216): sem isso, a lista do
+        // board (KanbanBoard, chave ["demandas", filtros]) ficava com o
+        // dado velho -- sem responsável -- até o próximo poll de 10s
+        // (STC-206). Como sair do Backlog exige responsável principal
+        // (validado no cliente contra esse mesmo dado da lista, antes de
+        // chamar o backend), um usuário que atribuísse responsável e
+        // tentasse mover o card na sequência via drag-and-drop via o
+        // movimento "bloqueado" silenciosamente por até 10s. Mesmo padrão
+        // já usado em useAtualizarDemanda/useAtualizarStatusDemanda.
+        mutate(ehChaveDeListaDemandas);
+      },
+    },
   );
 
   return {
@@ -34,7 +49,13 @@ export function useRemoverResponsavel(demandaId: number) {
   const { trigger, isMutating, error } = useSWRMutation(
     ["demanda", demandaId],
     (_chave, { arg }: { arg: number }) => removerResponsavel(demandaId, arg),
-    { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
+    {
+      onSuccess: () => {
+        mutate(["demanda", demandaId, "historico"]);
+        // Mesmo achado do useAdicionarResponsavel acima, simétrico.
+        mutate(ehChaveDeListaDemandas);
+      },
+    },
   );
 
   return {

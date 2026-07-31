@@ -26,6 +26,11 @@ export function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
+      // useDroppable({ id: status }) não expõe esse id no DOM -- sem
+      // data-testid não existe nenhum seletor estável pra "a coluna Em
+      // Andamento" num teste (STC-216, suíte E2E precisa de um alvo de drop
+      // confiável).
+      data-testid={status}
       className={cn(
         "flex max-h-full min-w-60 flex-1 flex-col rounded-lg bg-muted/45 transition-colors",
         isOver && "bg-secondary/10 ring-2 ring-secondary/40",
