@@ -55,11 +55,27 @@ export function KanbanBoard() {
   // ou um link antigo sem o parâmetro) e existir mais de um tipo cadastrado,
   // escolhe o primeiro por "ordem" assim que a lista carregar. Com 0 ou 1
   // tipo, não faz nada -- comportamento atual (sem filtro) preservado.
+  //
+  // Achado em dogfooding (junto da correção de visibilidade do
+  // TipoGestaoViewSet): a URL pode trazer um tipo_gestao que EXISTIA mas
+  // deixou de ser válido pra esse usuário -- link/aba antiga de antes de
+  // uma mudança de visibilidade_padrao, por exemplo. Sem checar isso, o
+  // efeito via filtros.tipo_gestao "preenchido" e não fazia nada; o board
+  // filtrava por um tipo que o backend nunca devolve pra esse usuário
+  // (0 resultado) e, com 1 tipo só sobrando, TipoGestaoTabs nem renderiza
+  // nada -- sem nenhuma aba visível pra escolher outro valor manualmente.
+  // Mesma classe de bug já achada num Select da STC-205 (value sem opção
+  // correspondente).
+  const tipoGestaoAtualEhValido = tiposGestao.some((tipo) => tipo.id === filtros.tipo_gestao);
   useEffect(() => {
-    if (carregandoTipos || filtros.tipo_gestao || tiposGestao.length <= 1) return;
+    if (carregandoTipos || tipoGestaoAtualEhValido) return;
+    if (tiposGestao.length <= 1) {
+      if (filtros.tipo_gestao) atualizarFiltrosNaUrl({ ...filtros, tipo_gestao: undefined });
+      return;
+    }
     atualizarFiltrosNaUrl({ ...filtros, tipo_gestao: tiposGestao[0].id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carregandoTipos, tiposGestao, filtros.tipo_gestao]);
+  }, [carregandoTipos, tiposGestao, filtros.tipo_gestao, tipoGestaoAtualEhValido]);
 
   const [demandaArrastando, setDemandaArrastando] = useState<Demanda | null>(null);
   // Também cobre a mutação disparada pelo drop, não só o gesto visual de

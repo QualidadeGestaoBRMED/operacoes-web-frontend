@@ -22,12 +22,15 @@ function renderBoard() {
 }
 
 // KanbanBoard lê filtros/rota via next/navigation -- fora de um Router real
-// do Next, esses hooks quebram. Stubs simples bastam: nenhum teste aqui
-// depende de navegação de verdade acontecer.
+// do Next, esses hooks quebram. useRouter/useSearchParams viram vi.fn() (não
+// um valor fixo) porque os testes de tipo_gestao inválido na URL precisam
+// simular uma URL de entrada específica e inspecionar o que o board escreve
+// de volta -- os outros testes deste arquivo continuam com o default vazio
+// (resetado a cada teste no beforeEach).
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: vi.fn(),
   usePathname: () => "/modulos/gestao-demandas",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: vi.fn(),
 }));
 
 // Simular um drag real (mouse ou teclado) via @dnd-kit em jsdom é frágil:
@@ -87,6 +90,7 @@ vi.mock("@/lib/demandas");
 // vazando como unhandled rejection no meio de um teste sem nenhuma relação.
 vi.mock("@/lib/plataforma");
 
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   atualizarStatusDemanda,
   buscarDemanda,
@@ -105,12 +109,27 @@ const TIPO_GESTAO_UNICO: TipoGestao = {
   ordem: 0,
 };
 
+const TIPO_GESTAO_A: TipoGestao = { ...TIPO_GESTAO_UNICO, id: 1, codigo: "operacional" };
+const TIPO_GESTAO_B: TipoGestao = {
+  ...TIPO_GESTAO_UNICO,
+  id: 2,
+  nome: "Unidades",
+  codigo: "unidades",
+  visibilidade_padrao: "unidade",
+  ordem: 1,
+};
+
 // tiposGestao.length <= 1 evita o efeito de "resolver tipo de gestão
 // padrão" (KanbanBoard.tsx) -- com só 1 tipo cadastrado ele não faz nada,
 // simplificando o setup (sem precisar simular a URL ganhando ?tipo_gestao=).
 function mockarTiposGestao() {
   vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_UNICO]);
 }
+
+// router.replace mockado à parte (não descartável a cada render como o
+// resto de useRouter()) -- os testes de tipo_gestao inválido precisam
+// inspecionar exatamente o que o board tentou escrever na URL.
+const substituirUrl = vi.fn();
 
 function mockarDemandas(demandas: ReturnType<typeof criarDemanda>[]) {
   vi.mocked(listarDemandas).mockImplementation(async (filtros) => {
@@ -128,6 +147,10 @@ beforeEach(() => {
   // a implementação, forçando cada teste a declarar o que precisa.
   vi.resetAllMocks();
   mockarTiposGestao();
+  // Default equivalente ao antigo mock fixo (URL sem filtro nenhum) -- só
+  // os testes de tipo_gestao inválido sobrescrevem useSearchParams.
+  vi.mocked(useRouter).mockReturnValue({ replace: substituirUrl, push: vi.fn() } as never);
+  vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
 });
 
 describe("KanbanBoard", () => {
@@ -248,5 +271,49 @@ describe("KanbanBoard", () => {
     // Rollback do update otimista -- o card continua visível (não sumiu
     // silenciosamente da tela por causa do erro).
     expect(screen.getByText("Renovar licença")).toBeInTheDocument();
+  });
+
+  // Achado em dogfooding: URL trazendo um tipo_gestao que existiu mas não é
+  // mais válido pra esse usuário (ex.: link/aba antigos de antes de uma
+  // mudança de visibilidade_padrao) -- o efeito de "resolver tipo padrão"
+  // só agia quando a URL vinha vazia, nunca quando vinha com um valor que
+  // não corresponde a nenhum tipo da lista atual.
+  describe("tipo_gestao inválido na URL", () => {
+    it("limpa da URL quando só resta 1 tipo visível pro usuário", async () => {
+      vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams("tipo_gestao=999") as never);
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_UNICO]);
+      mockarDemandas([]);
+
+      renderBoard();
+
+      await waitFor(() => {
+        expect(substituirUrl).toHaveBeenCalledWith("?");
+      });
+    });
+
+    it("troca pro primeiro tipo válido quando existe mais de um cadastrado", async () => {
+      vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams("tipo_gestao=999") as never);
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_A, TIPO_GESTAO_B]);
+      mockarDemandas([]);
+
+      renderBoard();
+
+      await waitFor(() => {
+        expect(substituirUrl).toHaveBeenCalledWith(`?tipo_gestao=${TIPO_GESTAO_A.id}`);
+      });
+    });
+
+    it("não mexe na URL quando o tipo_gestao já é válido", async () => {
+      vi.mocked(useSearchParams).mockReturnValue(
+        new URLSearchParams(`tipo_gestao=${TIPO_GESTAO_B.id}`) as never,
+      );
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_A, TIPO_GESTAO_B]);
+      mockarDemandas([]);
+
+      renderBoard();
+
+      await screen.findAllByText("Nenhuma demanda aqui");
+      expect(substituirUrl).not.toHaveBeenCalled();
+    });
   });
 });
