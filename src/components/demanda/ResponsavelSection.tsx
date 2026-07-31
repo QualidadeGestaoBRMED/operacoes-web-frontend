@@ -99,6 +99,12 @@ export function ResponsavelSection({
       setNovoPrincipalId("");
     } else if (abrirComFormularioDeAdicionar) {
       setFormularioAberto(true);
+      // secaoDoBloqueio (lib/kanban.ts) só manda abrir esta seção por um
+      // motivo hoje: falta de responsável PRINCIPAL pra sair do Backlog --
+      // então o tipo já vem pré-selecionado certo, sem o usuário precisar
+      // trocar manualmente de "Colaborador" (default) pra "Principal" toda
+      // vez que esse bloqueio abre o formulário.
+      setTipoSelecionado("principal");
     }
   }, [ativo, abrirComFormularioDeAdicionar]);
 
