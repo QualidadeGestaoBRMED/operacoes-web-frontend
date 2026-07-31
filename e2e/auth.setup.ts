@@ -3,14 +3,36 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test as setup } from "@playwright/test";
 import { encode } from "next-auth/jwt";
+import { caminhoDoPython } from "./python-bin";
 
 const ARQUIVO_SESSAO = "playwright/.auth/user.json";
 const SETE_DIAS_EM_SEGUNDOS = 60 * 60 * 24 * 7;
+const BACKEND_DIR = path.resolve(__dirname, "../../backend");
 
-// .env.local nunca é carregado automaticamente aqui -- este script roda como
-// um processo Node isolado (fora do Next.js), não via `next dev`.
+// Achado no code review do Tech Lead: só ler de .env.local prendia a suíte
+// ao layout de dev local -- CI (e qualquer ambiente que injete segredo via
+// variável de ambiente, sem nenhum .env.local no disco) falhava mesmo com o
+// segredo disponível. process.env é a fonte de verdade quando existe (é
+// assim que o Auth.js v5 também resolve o segredo em produção); .env.local
+// vira só o fallback de conveniência pra dev local, onde `next dev` carrega
+// esse arquivo sozinho pro processo do Next mas este script roda isolado
+// (fora do Next.js) e não tem esse carregamento automático.
+function obterSegredo(): string {
+  const doAmbiente = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
+  if (doAmbiente) return doAmbiente;
+  return lerSegredoDoEnvLocal();
+}
+
 function lerSegredoDoEnvLocal(): string {
-  const conteudo = readFileSync(path.resolve(__dirname, "../.env.local"), "utf-8");
+  let conteudo: string;
+  try {
+    conteudo = readFileSync(path.resolve(__dirname, "../.env.local"), "utf-8");
+  } catch {
+    throw new Error(
+      "NEXTAUTH_SECRET não definido -- defina a variável de ambiente NEXTAUTH_SECRET " +
+        "(ou AUTH_SECRET) ou crie um .env.local com NEXTAUTH_SECRET=... pra rodar a suíte localmente.",
+    );
+  }
   const linha = conteudo.split("\n").find((l) => l.startsWith("NEXTAUTH_SECRET="));
   if (!linha) {
     throw new Error(
@@ -25,9 +47,9 @@ function lerSegredoDoEnvLocal(): string {
 // formalizada como setup automático, sem depender do Google OAuth real.
 setup("gera sessão autenticada do usuário Admin Q&G seedado", async ({ context }) => {
   const saida = execFileSync(
-    "venv/bin/python",
+    caminhoDoPython(BACKEND_DIR),
     ["manage.py", "seed_e2e_usuario", "--settings=core.settings.e2e"],
-    { cwd: path.resolve(__dirname, "../../backend"), encoding: "utf-8" },
+    { cwd: BACKEND_DIR, encoding: "utf-8" },
   );
   const ultimaLinha = saida.trim().split("\n").pop();
   if (!ultimaLinha) throw new Error("seed_e2e_usuario não imprimiu nada em stdout.");
@@ -56,7 +78,7 @@ setup("gera sessão autenticada do usuário Admin Q&G seedado", async ({ context
     backendRefreshToken: refresh,
     backendUser: user,
   };
-  const segredo = lerSegredoDoEnvLocal();
+  const segredo = obterSegredo();
 
   // Achado rodando a suíte pela 1ª vez: a suíte roda `next start` sobre
   // HTTP puro (localhost, sem TLS) -- uma combinação que nunca acontece

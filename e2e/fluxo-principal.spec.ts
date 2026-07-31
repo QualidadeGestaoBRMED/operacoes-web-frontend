@@ -6,6 +6,13 @@ import { expect, test } from "@playwright/test";
 // TRANSICOES_ADMIN_ONLY e TRANSICOES_SO_APROVADOR_OU_ADMIN, ver
 // src/lib/kanban.ts) sem precisar de um segundo usuário.
 const TITULO = `[E2E] Demanda de teste ${Date.now()}`;
+// Achado no code review do Tech Lead: selecionar a opção pelo nome
+// (nomeExibicao() de seed_e2e_usuario.py: first_name "E2E" + last_name
+// "Tester") em vez de getByRole("option").first() -- ".first()" só
+// funciona hoje porque o seed cria um único usuário; se um segundo
+// aparecer (seed mudar, ordenação mudar), o teste continuaria "passando"
+// escolhendo a pessoa errada, sem nenhum sinal de que quebrou.
+const NOME_USUARIO_E2E = "E2E Tester";
 
 test("fluxo principal: criar demanda, mover no board, comentar e concluir", async ({ page }) => {
   await page.goto("/modulos/gestao-demandas");
@@ -44,7 +51,7 @@ test("fluxo principal: criar demanda, mover no board, comentar e concluir", asyn
 
   await modal.getByRole("button", { name: "Adicionar responsável" }).click();
   await modal.getByLabel("Usuário responsável").click();
-  await page.getByRole("option").first().click();
+  await page.getByRole("option", { name: NOME_USUARIO_E2E, exact: true }).click();
   await modal.getByLabel("Tipo de responsável").click();
   await page.getByRole("option", { name: "Principal" }).click();
   await modal.getByRole("button", { name: "Adicionar", exact: true }).click();
@@ -93,7 +100,7 @@ test("fluxo principal: criar demanda, mover no board, comentar e concluir", asyn
   await modal.getByLabel("Novo status").click();
   await page.getByRole("option", { name: "Em Revisão" }).click();
   await modal.getByLabel("Aprovador").click();
-  await page.getByRole("option").first().click();
+  await page.getByRole("option", { name: NOME_USUARIO_E2E, exact: true }).click();
   await modal.getByRole("button", { name: "Confirmar" }).click();
 
   await expect(modal.getByText("Em Revisão", { exact: true })).toBeVisible();

@@ -1,4 +1,6 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { caminhoDoPython } from "./e2e/python-bin";
 
 // Portas dedicadas (8001/3100), diferentes das que o dev usa manualmente
 // (8000/3000) -- reuseExistingServer:false garante que a suíte nunca
@@ -7,6 +9,8 @@ import { defineConfig, devices } from "@playwright/test";
 // desenvolvimento normal.
 const BACKEND_URL = "http://localhost:8001";
 const FRONTEND_URL = "http://localhost:3100";
+const BACKEND_DIR = path.resolve(__dirname, "../backend");
+const PYTHON = caminhoDoPython(BACKEND_DIR);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -35,9 +39,11 @@ export default defineConfig({
     {
       // rm -f garante estado limpo a cada execução -- sem isso, demandas
       // criadas por uma rodada da suíte ficariam acumulando no banco e
-      // poderiam quebrar asserções de rodadas futuras.
+      // poderiam quebrar asserções de rodadas futuras. PYTHON (não mais
+      // "venv/bin/python" hardcoded) vem de e2e/python-bin.ts -- ver
+      // comentário lá sobre por que caminho absoluto e PYTHON_BIN.
       command:
-        "rm -f db.e2e.sqlite3 && venv/bin/python manage.py migrate --settings=core.settings.e2e --noinput && venv/bin/python manage.py runserver 8001 --settings=core.settings.e2e",
+        `rm -f db.e2e.sqlite3 && "${PYTHON}" manage.py migrate --settings=core.settings.e2e --noinput && "${PYTHON}" manage.py runserver 8001 --settings=core.settings.e2e`,
       cwd: "../backend",
       url: `${BACKEND_URL}/health/`,
       reuseExistingServer: false,
