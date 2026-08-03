@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useModulos } from "@/hooks/useModulos";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -50,6 +51,10 @@ const ACOES: AcaoPermissao[] = [
 // efeito nenhum, sem nenhum erro avisando). Se um recurso novo aparecer no
 // backend, precisa ser adicionado aqui também -- não tem como descobrir a
 // lista dinamicamente hoje (não existe um catálogo consultável via API).
+// Convenção "<código do módulo>.<recurso>" (ver Modulo.codigo, backend) --
+// aoSubmeter usa o prefixo antes do "." pra achar o modulo_id certo e
+// preencher PermissaoUsuario.modulo, sem precisar mapear aqui de novo. Um
+// módulo novo só precisa de uma entrada aqui com o código dele como prefixo.
 const RECURSOS: { valor: string; rotulo: string }[] = [
   { valor: "gestao-demandas.kanban", rotulo: "Gestão de Demandas -- Kanban" },
 ];
@@ -125,6 +130,7 @@ export function FormNovaPermissao({
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
   const { setores } = useSetores();
+  const { modulos } = useModulos();
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -147,6 +153,12 @@ export function FormNovaPermissao({
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
+      // recurso segue "<código do módulo>.<recurso>" -- acha o Modulo real
+      // pelo prefixo (null se o módulo ainda não tiver linha em Modulo, ex.:
+      // um dos "em breve" na Sidebar que só existe como config de frontend).
+      const codigoModulo = valores.recurso.split(".")[0];
+      const moduloId = modulos.find((modulo) => modulo.codigo === codigoModulo)?.id ?? null;
+
       // Uma chamada por ação marcada (backend não tem "lista de ações" num
       // registro só) -- sequencial, não Promise.all: criar() vem de
       // useSWRMutation, cujo isMutating/estado de erro é único por hook;
@@ -157,6 +169,7 @@ export function FormNovaPermissao({
       for (const acao of valores.acao) {
         await criar({
           usuario: valores.usuario,
+          modulo: moduloId,
           recurso: valores.recurso,
           acao,
           escopo_tipo: valores.escopo_tipo,
@@ -181,7 +194,7 @@ export function FormNovaPermissao({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] max-w-[min(32rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>Conceder permissão temporária</DialogTitle>
+          <DialogTitle>Conceder permissão</DialogTitle>
         </DialogHeader>
 
         <form

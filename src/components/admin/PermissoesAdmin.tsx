@@ -16,6 +16,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import { FormNovaPermissao } from "./FormNovaPermissao";
+import { GerenciarUsuarios } from "./GerenciarUsuarios";
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   visualizar: "Visualizar",
@@ -208,18 +209,31 @@ export function PermissoesAdmin() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-7">
+      <div className="flex items-center gap-2.5 pb-5">
+        <ShieldCheck className="size-5 text-secondary" />
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Administração de usuários</h1>
+          <p className="text-sm text-muted-foreground">
+            Cargo, lotação e acessos de cada pessoa -- sem depender do Django Admin.
+          </p>
+        </div>
+      </div>
+
+      {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario (acessos
+          extras pontuais). Faltava a parte "estrutural" -- Perfil/Unidade/Setor
+          da pessoa -- que hoje só existia no Django Admin, mesmo o backend
+          (UsuarioViewSet) já aceitando Admin Operações editar isso via API. */}
+      <GerenciarUsuarios />
+
+      <div className="my-7 h-px bg-border" />
+
       <div className="flex items-center justify-between gap-3 pb-5">
-        <div className="flex items-center gap-2.5">
-          <ShieldCheck className="size-5 text-secondary" />
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">
-              Permissões individuais
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Acesso temporário concedido a uma pessoa específica -- ex.: cobertura de
-              férias entre unidades.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
+          <p className="text-sm text-muted-foreground">
+            Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
+            férias entre unidades.
+          </p>
         </div>
         <Button onClick={() => setFormAberto(true)}>
           <Plus className="size-4" />
@@ -233,7 +247,10 @@ export function PermissoesAdmin() {
         <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
       ) : (
         <div className="scrollbar-discreta overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table
+            aria-label="Permissões individuais"
+            className="w-full min-w-[720px] text-left text-sm"
+          >
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="px-4 py-2.5">Pessoa</th>

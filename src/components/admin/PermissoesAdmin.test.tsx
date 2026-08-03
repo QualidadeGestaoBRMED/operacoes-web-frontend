@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatarDataHora } from "@/lib/utils";
-import type { PermissaoUsuario, Unidade, Usuario } from "@/types";
+import type { Modulo, PermissaoUsuario, Unidade, Usuario } from "@/types";
 import { PermissoesAdmin } from "./PermissoesAdmin";
 
 const replace = vi.fn();
@@ -18,6 +18,8 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { useAuth } from "@/hooks/useAuth";
 import {
   criarPermissao,
+  listarModulos,
+  listarPerfis,
   listarPermissoes,
   listarSetores,
   listarUnidades,
@@ -44,6 +46,15 @@ const UNIDADE_NITEROI: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+};
+
+const MODULO_GESTAO_DEMANDAS: Modulo = {
+  id: 7,
+  nome: "Gestão de Demandas",
+  codigo: "gestao-demandas",
+  descricao: "",
+  status: "ativo",
+  versao: "0.1.0",
 };
 
 const ADMIN_CONCEDENTE: Usuario = {
@@ -92,6 +103,8 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
   vi.mocked(listarSetores).mockResolvedValue([]);
   vi.mocked(listarPermissoes).mockResolvedValue([]);
+  vi.mocked(listarModulos).mockResolvedValue([MODULO_GESTAO_DEMANDAS]);
+  vi.mocked(listarPerfis).mockResolvedValue([]);
 });
 
 describe("PermissoesAdmin (STC-266)", () => {
@@ -128,11 +141,14 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    expect(await screen.findByText("Fernanda Lima")).toBeInTheDocument();
+    // Escopado à tabela de permissões: "Fernanda Lima" também aparece na
+    // tabela de Perfil/Unidade/Setor (GerenciarUsuarios, mesma página).
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    expect(tabela.getByText("Fernanda Lima")).toBeInTheDocument();
     // "Niterói" não é o texto inteiro do elemento (vem depois de "-- " no
     // mesmo <span>) -- regex casa por conter, não por igualdade exata.
-    expect(screen.getByText(/niterói/i)).toBeInTheDocument();
-    expect(screen.getByText("Ativa")).toBeInTheDocument();
+    expect(tabela.getByText(/niterói/i)).toBeInTheDocument();
+    expect(tabela.getByText("Ativa")).toBeInTheDocument();
   });
 
   // Achado no dogfooding: só o período de validade não bastava pra
@@ -146,13 +162,14 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    expect(await screen.findByText("Nathalya Admin")).toBeInTheDocument();
+    // Escopado à tabela de permissões: "Nathalya Admin" (concedente) também
+    // aparece na tabela de Perfil/Unidade/Setor, mesma página.
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    expect(tabela.getByText("Nathalya Admin")).toBeInTheDocument();
     // formatarDataHora() reaproveitado em vez de calcular a string à mão --
     // o timestamp fixo (created_at) é UTC, e o fuso de quem roda o teste
     // muda a hora local exibida.
-    expect(
-      screen.getByText(formatarDataHora(permissaoBase().created_at)),
-    ).toBeInTheDocument();
+    expect(tabela.getByText(formatarDataHora(permissaoBase().created_at))).toBeInTheDocument();
   });
 
   it("mostra 'Revogada' pra permissão com ativo=false", async () => {
@@ -197,6 +214,9 @@ describe("PermissoesAdmin (STC-266)", () => {
       expect(criarPermissao).toHaveBeenCalledWith(
         expect.objectContaining({
           usuario: USUARIO.id,
+          // modulo resolvido a partir do prefixo de "recurso" ("gestao-demandas")
+          // batendo com o Modulo.codigo real, não hardcoded no formulário.
+          modulo: MODULO_GESTAO_DEMANDAS.id,
           recurso: "gestao-demandas.kanban",
           acao: "visualizar",
           escopo_tipo: "unidade",
@@ -265,10 +285,11 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    expect(await screen.findByText("Fernanda Lima")).toBeInTheDocument();
-    expect(screen.getByText("Visualizar, Editar, Aprovar")).toBeInTheDocument();
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    expect(tabela.getByText("Fernanda Lima")).toBeInTheDocument();
+    expect(tabela.getByText("Visualizar, Editar, Aprovar")).toBeInTheDocument();
     // uma linha só -- só um botão "Revogar", não três
-    expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(1);
+    expect(tabela.getAllByRole("button", { name: "Revogar" })).toHaveLength(1);
   });
 
   it("não agrupa permissões de períodos diferentes (submissões distintas)", async () => {
