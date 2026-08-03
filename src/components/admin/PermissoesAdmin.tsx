@@ -239,7 +239,7 @@ export function PermissoesAdmin() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden p-4 sm:p-7">
-      <div className="flex items-center gap-2.5 pb-5">
+      <div className="flex items-center gap-2.5 pb-7">
         <ShieldCheck className="size-5 shrink-0 text-secondary" />
         <div>
           <h1 className="text-lg font-semibold text-foreground">Administração de usuários</h1>
@@ -307,7 +307,12 @@ export function PermissoesAdmin() {
                 férias entre unidades.
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            {/* self-end (só até sm:): achado no dogfooding -- empilhado em
+                tela estreita, esse grupo ficava colado à esquerda enquanto
+                o botão de expandir da outra seção (sozinho, com o mesmo
+                self-end) ia pro canto direito -- os dois desalinhados
+                entre si. */}
+            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
               <Button onClick={() => setFormAberto(true)}>
                 <Plus className="size-4" />
                 Nova permissão
@@ -336,7 +341,7 @@ export function PermissoesAdmin() {
           ) : grupos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
           ) : (
-            <div className="scrollbar-discreta min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
+            <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
               <table
                 aria-label="Permissões individuais"
                 className="w-full min-w-[720px] text-left text-sm"

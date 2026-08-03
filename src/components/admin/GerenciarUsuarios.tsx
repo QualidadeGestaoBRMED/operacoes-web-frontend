@@ -119,7 +119,7 @@ export function GerenciarUsuarios({
           min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
           inteira mais larga que a viewport em telas estreitas, em vez de
           só essa caixa rolar horizontalmente. */}
-      <div className="scrollbar-discreta min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
+      <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
         <table
           aria-label="Perfil, unidade e setor"
           className="w-full min-w-[640px] text-left text-sm"
