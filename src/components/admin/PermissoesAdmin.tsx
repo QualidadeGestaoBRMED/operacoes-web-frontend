@@ -192,8 +192,9 @@ export function PermissoesAdmin() {
                         )}
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">
-                      {formatarData(permissao.data_inicio)} até{" "}
-                      {permissao.data_fim ? formatarData(permissao.data_fim) : "sem data fim"}
+                      {permissao.data_fim
+                        ? `${formatarData(permissao.data_inicio)} até ${formatarData(permissao.data_fim)}`
+                        : `A partir de ${formatarData(permissao.data_inicio)}`}
                     </td>
                     <td className="px-4 py-2.5">
                       <Badge variant={status.variante}>{status.rotulo}</Badge>
