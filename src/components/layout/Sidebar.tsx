@@ -66,8 +66,15 @@ export function Sidebar() {
           é Admin Q&G, só aparece depois de confirmado. Aponta pro Django
           Admin (outra origem, por isso <a> normal, não <Link> do Next) --
           é login separado do Google usado no resto do Atlas, não
-          compartilha sessão. */}
-      {isAdminQG && (
+          compartilha sessão.
+
+          Achado no code review do Tech Lead: NEXT_PUBLIC_API_URL é
+          inlined em build time -- se a env vier ausente/vazia nesse
+          build, todo mundo Admin Q&G veria um link pra "undefined/admin"
+          até o próximo deploy. process.env.NEXT_PUBLIC_API_URL entra na
+          condição também: sem a env, não mostra o bloco (falha fechada),
+          em vez de expor um link quebrado em produção. */}
+      {isAdminQG && process.env.NEXT_PUBLIC_API_URL && (
         <div className="mt-2 border-t border-sidebar-border p-3 pt-2.5">
           <a
             href={`${process.env.NEXT_PUBLIC_API_URL}/admin`}

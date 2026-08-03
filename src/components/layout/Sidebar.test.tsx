@@ -33,6 +33,20 @@ describe("Sidebar -- bloco Admin Q&G (STC-262)", () => {
     expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
   });
 
+  // Achado no code review do Tech Lead: NEXT_PUBLIC_API_URL é inlined em
+  // build time -- ausente/vazia nesse build, o link viraria "undefined/admin"
+  // até o próximo deploy. vi.stubEnv com string vazia simula esse cenário
+  // (o valor "não populado" real do Vitest, undefined, já está coberto
+  // implicitamente por todo teste que não chama stubEnv).
+  it("não mostra o bloco se NEXT_PUBLIC_API_URL estiver ausente, mesmo pra Admin Q&G", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    vi.mocked(useAuth).mockReturnValue({ isAdminQG: true } as ReturnType<typeof useAuth>);
+
+    render(<Sidebar />);
+
+    expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
+  });
+
   it("aparece como link pro Django Admin pra quem é Admin Q&G", () => {
     // Achado escrevendo o teste: process.env.NEXT_PUBLIC_API_URL não é
     // populado pelo Vitest (só pelo build real do Next.js) -- sem
