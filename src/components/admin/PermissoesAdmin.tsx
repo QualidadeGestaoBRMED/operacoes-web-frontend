@@ -16,9 +16,21 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import { FormNovaPermissao } from "./FormNovaPermissao";
-import { GerenciarUsuarios } from "./GerenciarUsuarios";
+import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
 
 type Secao = "usuarios" | "permissoes";
+
+// Achado no dogfooding: 50/50 fixo desperdiçava espaço quando uma seção
+// tinha poucas linhas e a outra, mais -- em vez de flex-1 igual pras duas,
+// o "peso" (flex-grow) de cada seção acompanha quantas linhas ela realmente
+// tem. PESO_MINIMO evita que uma seção vazia suma; PESO_MAXIMO evita que uma
+// tabela enorme empurre a outra pra quase nada.
+const PESO_MINIMO = 1;
+const PESO_MAXIMO = 6;
+
+function pesoSecao(linhas: number) {
+  return Math.min(Math.max(linhas, PESO_MINIMO), PESO_MAXIMO);
+}
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   visualizar: "Visualizar",
@@ -152,10 +164,11 @@ export function PermissoesAdmin() {
   const [paraRevogar, setParaRevogar] = useState<GrupoPermissao | null>(null);
   // Achado no dogfooding: com muitos usuários, "Perfil, unidade e setor"
   // (tabela sem paginação) empurrava "Permissões individuais" pra fora da
-  // tela. null = as duas seções dividem a altura disponível meio a meio,
-  // cada uma com scroll próprio; "usuarios"/"permissoes" = essa seção ocupa
-  // o espaço das duas, a outra fica oculta (mas continua montada -- volta
-  // do jeito que estava ao desfazer).
+  // tela. null = as duas seções dividem a altura disponível proporcional ao
+  // que cada uma tem (ver pesoSecao), cada uma com scroll próprio;
+  // "usuarios"/"permissoes" = essa seção ocupa o espaço das duas, a outra
+  // fica oculta (mas continua montada -- volta do jeito que estava ao
+  // desfazer).
   const [secaoExpandida, setSecaoExpandida] = useState<Secao | null>(null);
 
   function alternarExpansao(secao: Secao) {
@@ -163,6 +176,8 @@ export function PermissoesAdmin() {
   }
 
   const grupos = agruparPermissoes(permissoes);
+  const pesoUsuarios = pesoSecao(usuariosGerenciaveis(usuarios).length);
+  const pesoPermissoes = pesoSecao(grupos.length);
 
   // Mesmo padrão de guarda de página usado em nenhum outro lugar do app
   // ainda (achado construindo o STC-266: hoje o controle de admin só
@@ -232,11 +247,12 @@ export function PermissoesAdmin() {
         </div>
       </div>
 
-      {/* Cada seção reparte a altura disponível 50/50 (flex-1 nas duas) e
-          rola por conta própria -- uma tabela grande nunca empurra a outra
-          seção pra fora da tela. Expandida, uma vira flex-1 sozinha e a
-          outra leva "hidden" (fica montada, só invisível: preserva
-          scroll/estado ao desfazer). */}
+      {/* Cada seção reparte a altura disponível proporcional a quantas
+          linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
+          própria -- uma tabela grande nunca empurra a outra seção pra fora
+          da tela, e uma seção rala não fica com metade da tela vazia.
+          Expandida, uma toma o espaço das duas e a outra leva "hidden"
+          (fica montada, só invisível: preserva scroll/estado ao desfazer). */}
       <div className="flex min-h-0 flex-1 flex-col gap-7">
         <div
           data-testid="secao-usuarios"
@@ -244,6 +260,7 @@ export function PermissoesAdmin() {
             "flex min-h-0 flex-col",
             secaoExpandida === "permissoes" ? "hidden" : "flex-1",
           )}
+          style={{ flexGrow: pesoUsuarios }}
         >
           {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario
               (acessos extras pontuais). Faltava a parte "estrutural" --
@@ -264,6 +281,7 @@ export function PermissoesAdmin() {
             "flex min-h-0 flex-col",
             secaoExpandida === "usuarios" ? "hidden" : "flex-1",
           )}
+          style={{ flexGrow: pesoPermissoes }}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 pb-5">
             <div>

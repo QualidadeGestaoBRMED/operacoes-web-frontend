@@ -31,6 +31,15 @@ const NIVEL_ADMIN_OPERACOES = 2;
 // selects (perfil/unidade/setor podem ser desvinculados).
 const SEM_VALOR = "nenhum";
 
+// Exportada pra PermissoesAdmin conseguir contar quantas linhas essa seção
+// vai renderizar (ver "peso" de altura das duas seções) sem duplicar a regra
+// de quem entra na lista.
+export function usuariosGerenciaveis(usuarios: Usuario[]): Usuario[] {
+  return usuarios.filter(
+    (usuario) => !usuario.perfil || usuario.perfil.nivel > NIVEL_ADMIN_OPERACOES,
+  );
+}
+
 export function GerenciarUsuarios({
   expandido,
   onAlternarExpandir,
@@ -45,9 +54,7 @@ export function GerenciarUsuarios({
   const { atualizar } = useAtualizarUsuario();
 
   const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
-  const usuariosListados = usuarios.filter(
-    (usuario) => !usuario.perfil || usuario.perfil.nivel > NIVEL_ADMIN_OPERACOES,
-  );
+  const usuariosListados = usuariosGerenciaveis(usuarios);
 
   async function aoMudarPerfil(usuario: Usuario, valor: string) {
     try {
