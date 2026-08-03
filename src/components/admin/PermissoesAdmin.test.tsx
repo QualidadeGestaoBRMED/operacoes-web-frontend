@@ -1,0 +1,270 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SWRConfig } from "swr";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatarDataHora } from "@/lib/utils";
+import type { PermissaoUsuario, Unidade, Usuario } from "@/types";
+import { PermissoesAdmin } from "./PermissoesAdmin";
+
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, push: vi.fn() }),
+}));
+
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
+vi.mock("@/lib/plataforma");
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+import { useAuth } from "@/hooks/useAuth";
+import {
+  criarPermissao,
+  listarPermissoes,
+  listarSetores,
+  listarUnidades,
+  listarUsuarios,
+  revogarPermissao,
+} from "@/lib/plataforma";
+
+const USUARIO: Usuario = {
+  id: 5,
+  username: "fernanda",
+  email: "fernanda@grupobrmed.com.br",
+  first_name: "Fernanda",
+  last_name: "Lima",
+  perfil: null,
+  unidade_id: 2,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+};
+
+const UNIDADE_NITEROI: Unidade = {
+  id: 1,
+  nome: "Niterói",
+  codigo: "NIT",
+  cidade: "Niterói",
+  ativa: true,
+};
+
+const ADMIN_CONCEDENTE: Usuario = {
+  id: 1,
+  username: "nathalya",
+  email: "nathalya@grupobrmed.com.br",
+  first_name: "Nathalya",
+  last_name: "Admin",
+  perfil: null,
+  unidade_id: null,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+};
+
+function permissaoBase(overrides: Partial<PermissaoUsuario> = {}): PermissaoUsuario {
+  return {
+    id: 1,
+    usuario: USUARIO.id,
+    modulo: null,
+    recurso: "gestao-demandas.kanban",
+    acao: "visualizar",
+    escopo_tipo: "unidade",
+    unidade: UNIDADE_NITEROI.id,
+    setor: null,
+    concedido_por: ADMIN_CONCEDENTE.id,
+    data_inicio: "2026-01-01",
+    data_fim: null,
+    ativo: true,
+    created_at: "2026-01-15T14:30:00Z",
+    ...overrides,
+  };
+}
+
+function renderTela() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <PermissoesAdmin />
+    </SWRConfig>,
+  );
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
+  vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
+  vi.mocked(listarSetores).mockResolvedValue([]);
+  vi.mocked(listarPermissoes).mockResolvedValue([]);
+});
+
+describe("PermissoesAdmin (STC-266)", () => {
+  it("redireciona quem não é admin", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/modulos/gestao-demandas");
+    });
+  });
+
+  it("não redireciona enquanto a sessão ainda está carregando", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isLoading: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("lista permissões existentes com nome resolvido e status", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    expect(await screen.findByText("Fernanda Lima")).toBeInTheDocument();
+    // "Niterói" não é o texto inteiro do elemento (vem depois de "-- " no
+    // mesmo <span>) -- regex casa por conter, não por igualdade exata.
+    expect(screen.getByText(/niterói/i)).toBeInTheDocument();
+    expect(screen.getByText("Ativa")).toBeInTheDocument();
+  });
+
+  // Achado no dogfooding: só o período de validade não bastava pra
+  // auditoria -- faltava quem concedeu e quando.
+  it("mostra quem concedeu e quando, na coluna 'Concedido'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    expect(await screen.findByText("Nathalya Admin")).toBeInTheDocument();
+    // formatarDataHora() reaproveitado em vez de calcular a string à mão --
+    // o timestamp fixo (created_at) é UTC, e o fuso de quem roda o teste
+    // muda a hora local exibida.
+    expect(
+      screen.getByText(formatarDataHora(permissaoBase().created_at)),
+    ).toBeInTheDocument();
+  });
+
+  it("mostra 'Revogada' pra permissão com ativo=false", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ ativo: false })]);
+
+    renderTela();
+
+    expect(await screen.findByText("Revogada")).toBeInTheDocument();
+  });
+
+  it("cria uma nova permissão com o payload certo", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+
+    await user.click(screen.getByLabelText(/pessoa/i));
+    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+
+    await user.click(screen.getByLabelText(/recurso/i));
+    await user.click(await screen.findByRole("option", { name: /kanban/i }));
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    const campoInicio = screen.getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+
+    await user.click(screen.getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuario: USUARIO.id,
+          recurso: "gestao-demandas.kanban",
+          acao: "visualizar",
+          escopo_tipo: "unidade",
+          unidade: UNIDADE_NITEROI.id,
+          data_inicio: "2026-03-01",
+        }),
+      );
+    });
+  });
+
+  // Achado no dogfooding: PermissaoUsuario.acao é uma ação só por registro
+  // no backend -- marcar mais de uma no form precisa virar uma chamada por
+  // ação, não uma chamada só com uma lista (que o backend rejeitaria).
+  it("marcar mais de uma ação cria uma permissão pra cada uma", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+
+    await user.click(screen.getByLabelText(/pessoa/i));
+    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+
+    await user.click(screen.getByLabelText(/recurso/i));
+    await user.click(await screen.findByRole("option", { name: /kanban/i }));
+
+    // "Visualizar" já vem marcado por padrão -- adiciona "Editar" junto
+    // (dropdown: precisa abrir antes de marcar a checkbox de dentro).
+    await user.click(screen.getByLabelText(/^ação/i));
+    await user.click(await screen.findByText("Editar"));
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    const campoInicio = screen.getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+
+    await user.click(screen.getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledTimes(2);
+    });
+    expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "visualizar" }));
+    expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "editar" }));
+  });
+
+  it("revoga uma permissão ativa", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+    vi.mocked(revogarPermissao).mockResolvedValue(permissaoBase({ ativo: false }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: "Revogar" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Revogar" }));
+
+    await waitFor(() => {
+      expect(revogarPermissao).toHaveBeenCalledWith(1);
+    });
+  });
+});
