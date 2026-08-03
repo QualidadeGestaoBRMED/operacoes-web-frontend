@@ -93,8 +93,8 @@ export function GerenciarUsuarios({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 pb-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
           <p className="text-sm text-muted-foreground">
@@ -109,13 +109,17 @@ export function GerenciarUsuarios({
           aria-label={
             expandido ? "Recolher Perfil, unidade e setor" : "Expandir Perfil, unidade e setor"
           }
-          className="shrink-0"
+          className="shrink-0 self-end sm:self-auto"
         >
           {expandido ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
         </Button>
       </div>
 
-      <div className="scrollbar-discreta min-h-0 flex-1 overflow-auto rounded-lg border border-border">
+      {/* min-w-0: mesmo achado de PermissoesAdmin -- sem isso, o
+          min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
+          inteira mais larga que a viewport em telas estreitas, em vez de
+          só essa caixa rolar horizontalmente. */}
+      <div className="scrollbar-discreta min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
         <table
           aria-label="Perfil, unidade e setor"
           className="w-full min-w-[640px] text-left text-sm"

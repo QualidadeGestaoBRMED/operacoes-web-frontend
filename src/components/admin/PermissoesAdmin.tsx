@@ -238,9 +238,9 @@ export function PermissoesAdmin() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden p-7">
+    <div className="flex h-full flex-col overflow-hidden p-4 sm:p-7">
       <div className="flex items-center gap-2.5 pb-5">
-        <ShieldCheck className="size-5 text-secondary" />
+        <ShieldCheck className="size-5 shrink-0 text-secondary" />
         <div>
           <h1 className="text-lg font-semibold text-foreground">Administração de usuários</h1>
           <p className="text-sm text-muted-foreground">
@@ -261,12 +261,19 @@ export function PermissoesAdmin() {
           não importa quão desigual seja a proporção; o espaço extra além
           dos dois pisos continua sendo repartido pelo peso.
           Expandida, uma toma o espaço das duas e a outra leva "hidden"
-          (fica montada, só invisível: preserva scroll/estado ao desfazer). */}
-      <div className="flex min-h-0 flex-1 flex-col gap-7">
+          (fica montada, só invisível: preserva scroll/estado ao desfazer).
+          min-w-0 em toda a cadeia: achado testando em telas estreitas -- a
+          tabela de dentro tem min-w-[Npx] pra rolar horizontalmente (mesmo
+          princípio do Kanban, STC-186), mas sem min-w-0 esse mínimo
+          "vaza" pro pai (mesmo bug do min-height:auto que motivou o
+          min-h-0 acima, só que no eixo horizontal) e empurra a coluna
+          inteira mais larga que a viewport -- o cabeçalho quebra
+          palavra-por-palavra e a página ganha scroll horizontal fantasma. */}
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7">
         <div
           data-testid="secao-usuarios"
           className={cn(
-            "flex min-h-[15rem] flex-col",
+            "flex min-h-[15rem] min-w-0 flex-col",
             secaoExpandida === "permissoes" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoUsuarios }}
@@ -287,12 +294,12 @@ export function PermissoesAdmin() {
         <div
           data-testid="secao-permissoes"
           className={cn(
-            "flex min-h-[15rem] flex-col",
+            "flex min-h-[15rem] min-w-0 flex-col",
             secaoExpandida === "usuarios" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoPermissoes }}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 pb-5">
+          <div className="flex flex-col gap-3 pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
               <p className="text-sm text-muted-foreground">
@@ -329,7 +336,7 @@ export function PermissoesAdmin() {
           ) : grupos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
           ) : (
-            <div className="scrollbar-discreta min-h-0 flex-1 overflow-auto rounded-lg border border-border">
+            <div className="scrollbar-discreta min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
               <table
                 aria-label="Permissões individuais"
                 className="w-full min-w-[720px] text-left text-sm"
