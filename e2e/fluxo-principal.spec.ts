@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-// Único usuário seedado (seed_e2e_usuario, Admin Q&G) atua como solicitante,
-// responsável e aprovador ao mesmo tempo -- suficiente porque Admin Q&G
-// passa em todos os gates de permissão do fluxo (isAdminOps=true cobre
-// TRANSICOES_ADMIN_ONLY e TRANSICOES_SO_APROVADOR_OU_ADMIN, ver
-// src/lib/kanban.ts) sem precisar de um segundo usuário.
+// Único usuário seedado (seed_e2e_usuario, Admin Operações) atua como
+// solicitante, responsável e aprovador ao mesmo tempo -- suficiente porque
+// Admin Operações passa em todos os gates de permissão do fluxo
+// (isAdminOps é nivel<=2, não só Admin Q&G -- cobre TRANSICOES_ADMIN_ONLY e
+// TRANSICOES_SO_APROVADOR_OU_ADMIN, ver src/lib/kanban.ts) sem precisar de
+// um segundo usuário. Não é Admin Q&G de propósito: esse perfil foi
+// excluído das listas de candidato a responsável/aprovador (ver
+// ResponsavelSection.tsx/TransicaoStatusSection.tsx) -- o próprio usuário
+// seedado deixaria de aparecer nos Selects que este teste precisa usar.
 const TITULO = `[E2E] Demanda de teste ${Date.now()}`;
 // Achado no code review do Tech Lead: selecionar a opção pelo nome
 // (nomeExibicao() de seed_e2e_usuario.py: first_name "E2E" + last_name
