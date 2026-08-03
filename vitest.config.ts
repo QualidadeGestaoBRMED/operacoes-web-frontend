@@ -12,5 +12,12 @@ export default defineConfig({
     // expect to be called here" (os dois pacotes exportam um test() global
     // incompatível entre si).
     exclude: ["**/node_modules/**", "e2e/**"],
+    // next-auth importa "next/server" (bare specifier) -- o package.json do
+    // next não tem "exports" declarado pra esse subpath, então, tratado
+    // como dependência externa (padrão do Vitest), a resolução ESM estrita
+    // do Node não achava o arquivo fora do bundler do próprio Next (achado
+    // escrevendo o teste de src/auth.ts, STC-239). "inline" processa
+    // next-auth/@auth/core pelo resolvedor do Vite em vez do Node direto.
+    server: { deps: { inline: ["next-auth", "@auth/core"] } },
   },
 });

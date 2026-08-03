@@ -1,16 +1,16 @@
 import type { NextConfig } from "next";
 
-// STC-233: Vercel não injeta nenhum header de segurança por padrão -- sem
-// isso, a aplicação podia ser carregada dentro de um <iframe> de qualquer
-// site (clickjacking contra usuário já autenticado). Nenhum lugar do app usa
-// iframe (conferido), então DENY/frame-ancestors 'none' não quebra nada.
-//
-// Content-Security-Policy completa (default-src, script-src etc.) fica de
-// fora de propósito -- exigiria levantar todo domínio externo que a
-// aplicação carrega hoje (fontes do Next, avatar do Google na Topbar) sem
-// quebrar nada, escopo maior que cabe numa issue separada. frame-ancestors
-// sozinho não precisa dessa análise (só controla quem pode enquadrar a
-// página, não o que a página carrega).
+// STC-233 (headers básicos, aplicados globalmente aqui) + STC-239 (CSP
+// completa) -- a CSP em si NÃO mora mais aqui (achado no code review do
+// Tech Lead: script-src precisava de nonce por requisição pra sair de
+// 'unsafe-inline', e headers() é estático, resolvido uma vez no
+// build/start, incompatível com um valor aleatório por requisição). A CSP
+// de verdade é montada em src/auth.ts (callback authorized), que já roda a
+// cada requisição de página -- ver construirCsp()/gerarNonce() em
+// src/lib/csp.ts (já inclui frame-ancestors 'none', não repetido aqui).
+// Isso também é correto por escopo: o matcher do middleware
+// (src/middleware.ts) exclui api/_next/arquivos com extensão -- exatamente
+// onde CSP não tem efeito nenhum (não são documentos HTML renderizados).
 const nextConfig: NextConfig = {
   // STC-216: a suite E2E sobe seu próprio build (`next build && next start`)
   // numa porta separada (3100), em paralelo a um `npm run dev` manual que o
@@ -24,11 +24,7 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          // X-Frame-Options (fallback pra navegador antigo) + frame-ancestors
-          // via CSP (o que navegador moderno de fato respeita) -- os dois
-          // juntos é a recomendação padrão, não redundância à toa.
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],

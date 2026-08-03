@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
 import Google from "next-auth/providers/google";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
+import { construirCsp, gerarNonce } from "@/lib/csp";
 import type { Usuario } from "@/types";
 
 async function trocarTokenComBackend(idToken: string) {
@@ -31,6 +34,61 @@ async function invalidarRefreshNoBackend(refresh: string) {
     // refresh só continua válido até expirar sozinho (7 dias) nesse caso raro.
     console.error("Falha ao invalidar o refresh token no logout:", erro);
   }
+}
+
+// Extraído do objeto de config da NextAuth pra dar pra testar em isolamento
+// (Vitest chama esta função direto, sem precisar montar toda a
+// infraestrutura de middleware/servidor). Achado no code review do Tech
+// Lead (STC-239): script-src usava 'unsafe-inline' -- migrado pra nonce,
+// gerado aqui (por requisição). O "allow" de antes (return true) virou
+// "monta uma NextResponse.next() com o CSP nonce'd e devolve ela" -- a
+// árvore de decisão de autorização em si (quem passa, quem é bloqueado,
+// quem é redirecionado) não mudou em nada, só o que a rota permitida
+// carrega de volta.
+export function autorizado({
+  auth: sessao,
+  request,
+}: {
+  auth: Session | null;
+  request: NextRequest;
+}) {
+  const emLogin = request.nextUrl.pathname.startsWith("/login");
+
+  if (!emLogin) {
+    if (sessao?.error === "BackendAuthError") {
+      const destino = new URL("/login", request.nextUrl.origin);
+      destino.searchParams.set("error", "BackendAuthError");
+      const resposta = NextResponse.redirect(destino);
+      // Limpa a sessão quebrada (autenticada no Google, mas sem confirmação
+      // do backend) pra próxima tentativa de login começar do zero.
+      for (const cookie of request.cookies.getAll()) {
+        if (cookie.name.endsWith("authjs.session-token")) {
+          resposta.cookies.delete(cookie.name);
+        }
+      }
+      return resposta;
+    }
+
+    // usuarioId só existe quando o backend confirmou o login (token.backendUser).
+    // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
+    if (!sessao?.user?.usuarioId) return false;
+  }
+
+  const nonce = gerarNonce();
+  const csp = construirCsp(nonce);
+  // Nos headers da REQUISIÇÃO (não só da resposta): é assim que o Next.js
+  // detecta e aplica o mesmo nonce sozinho nos scripts inline que ele
+  // injeta na hidratação -- ver comentário em src/lib/csp.ts. x-nonce à
+  // parte, cru: app/layout.tsx lê isso via headers() só pelo efeito
+  // colateral de tirar as páginas da renderização estática (obrigatório
+  // pra um nonce POR REQUISIÇÃO valer de algo -- uma página pré-renderizada
+  // em build time nunca teria o nonce certo no HTML gerado).
+  const cabecalhosDaRequisicao = new Headers(request.headers);
+  cabecalhosDaRequisicao.set("x-nonce", nonce);
+  cabecalhosDaRequisicao.set("Content-Security-Policy", csp);
+  const resposta = NextResponse.next({ request: { headers: cabecalhosDaRequisicao } });
+  resposta.headers.set("Content-Security-Policy", csp);
+  return resposta;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -85,28 +143,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    authorized({ auth: sessao, request }) {
-      const emLogin = request.nextUrl.pathname.startsWith("/login");
-      if (emLogin) return true;
-
-      if (sessao?.error === "BackendAuthError") {
-        const destino = new URL("/login", request.nextUrl.origin);
-        destino.searchParams.set("error", "BackendAuthError");
-        const resposta = NextResponse.redirect(destino);
-        // Limpa a sessão quebrada (autenticada no Google, mas sem confirmação
-        // do backend) pra próxima tentativa de login começar do zero.
-        for (const cookie of request.cookies.getAll()) {
-          if (cookie.name.endsWith("authjs.session-token")) {
-            resposta.cookies.delete(cookie.name);
-          }
-        }
-        return resposta;
-      }
-
-      // usuarioId só existe quando o backend confirmou o login (token.backendUser).
-      // backendAccessToken não fica na sessão do cliente — ver route.ts do proxy.
-      return !!sessao?.user?.usuarioId;
-    },
+    authorized: autorizado,
   },
   events: {
     // Roda server-side toda vez que signOut() é chamado -- cobre tanto o
