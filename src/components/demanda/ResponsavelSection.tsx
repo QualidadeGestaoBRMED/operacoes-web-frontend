@@ -18,6 +18,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda, DemandaResponsavel, Usuario } from "@/types";
 
+const NIVEL_ADMIN_QG = 1;
 const NIVEL_ADMIN_OPERACOES = 2;
 
 function SeletorCandidato({
@@ -99,6 +100,12 @@ export function ResponsavelSection({
       setNovoPrincipalId("");
     } else if (abrirComFormularioDeAdicionar) {
       setFormularioAberto(true);
+      // secaoDoBloqueio (lib/kanban.ts) só manda abrir esta seção por um
+      // motivo hoje: falta de responsável PRINCIPAL pra sair do Backlog --
+      // então o tipo já vem pré-selecionado certo, sem o usuário precisar
+      // trocar manualmente de "Colaborador" (default) pra "Principal" toda
+      // vez que esse bloqueio abre o formulário.
+      setTipoSelecionado("principal");
     }
   }, [ativo, abrirComFormularioDeAdicionar]);
 
@@ -110,7 +117,13 @@ export function ResponsavelSection({
   // (validate_usuario_id) permite um usuário sem unidade (admin) como
   // responsável de qualquer demanda, então o filtro precisa reproduzir essa
   // mesma regra em vez de só comparar unidade_id.
+  //
+  // Admin Q&G fica de fora sempre, mesmo se por acaso tiver a mesma unidade
+  // da demanda -- pedido do usuário: esse perfil é de supervisão/qualidade,
+  // não de quem executa a demanda, então não deve aparecer como candidato a
+  // responsável.
   function elegivel(usuario: Usuario) {
+    if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
     return (
       usuario.unidade_id === demanda.unidade.id ||
       (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)
