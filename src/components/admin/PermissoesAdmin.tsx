@@ -214,7 +214,7 @@ export function PermissoesAdmin() {
         <div>
           <h1 className="text-lg font-semibold text-foreground">Administração de usuários</h1>
           <p className="text-sm text-muted-foreground">
-            Cargo, lotação e acessos de cada pessoa -- sem depender do Django Admin.
+            Cargo, lotação e acessos de cada pessoa.
           </p>
         </div>
       </div>
