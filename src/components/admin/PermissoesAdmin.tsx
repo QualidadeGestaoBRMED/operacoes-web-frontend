@@ -56,8 +56,14 @@ function hoje() {
 // ativo=True, data_inicio já chegou, e (sem data_fim OU data_fim ainda não
 // passou). "Agendada" (data_inicio no futuro) é um estado que o manager do
 // backend também exclui de ativas() -- listado à parte aqui só pra UI não
-// confundir "nunca vai valer" com "ainda não começou".
-function statusPermissao(permissao: PermissaoUsuario): {
+// confundir "nunca vai valer" com "ainda não começou". Assinatura aceita um
+// subconjunto de campos (em vez de PermissaoUsuario inteiro) pra servir tanto
+// uma linha individual quanto um GrupoPermissao.
+function statusPermissao(permissao: {
+  ativo: boolean;
+  data_inicio: string;
+  data_fim: string | null;
+}): {
   rotulo: string;
   variante: "success" | "warning" | "muted" | "destructive";
 } {
@@ -70,6 +76,66 @@ function statusPermissao(permissao: PermissaoUsuario): {
   return { rotulo: "Ativa", variante: "success" };
 }
 
+interface GrupoPermissao {
+  ids: number[];
+  usuario: number;
+  concedido_por: number;
+  escopo_tipo: EscopoPermissao;
+  unidade: number | null;
+  setor: number | null;
+  data_inicio: string;
+  data_fim: string | null;
+  ativo: boolean;
+  created_at: string;
+  acoes: AcaoPermissao[];
+}
+
+// Achado no dogfooding: marcar várias Ações num só formulário virava várias
+// linhas na tabela (uma por PermissaoUsuario -- no backend, sempre uma ação
+// só por registro). Reagrupa pra exibição por tudo que caracteriza "o mesmo
+// pedido de acesso" (pessoa, quem concedeu, escopo, período, minuto de
+// criação), sem mudar o model: revogar continua granular por ação nos
+// bastidores (um DELETE lógico por id), só a apresentação junta em uma
+// linha. Se uma ação do grupo for revogada individualmente depois, ela sai
+// do grupo sozinha (ativo diferente vira outra chave).
+function agruparPermissoes(permissoes: PermissaoUsuario[]): GrupoPermissao[] {
+  const grupos = new Map<string, GrupoPermissao>();
+  for (const permissao of permissoes) {
+    const chave = [
+      permissao.usuario,
+      permissao.concedido_por,
+      permissao.escopo_tipo,
+      permissao.unidade,
+      permissao.setor,
+      permissao.data_inicio,
+      permissao.data_fim,
+      permissao.ativo,
+      permissao.created_at.slice(0, 16), // até o minuto -- mesma granularidade que formatarDataHora exibe
+    ].join("|");
+
+    const existente = grupos.get(chave);
+    if (existente) {
+      existente.ids.push(permissao.id);
+      existente.acoes.push(permissao.acao);
+    } else {
+      grupos.set(chave, {
+        ids: [permissao.id],
+        usuario: permissao.usuario,
+        concedido_por: permissao.concedido_por,
+        escopo_tipo: permissao.escopo_tipo,
+        unidade: permissao.unidade,
+        setor: permissao.setor,
+        data_inicio: permissao.data_inicio,
+        data_fim: permissao.data_fim,
+        ativo: permissao.ativo,
+        created_at: permissao.created_at,
+        acoes: [permissao.acao],
+      });
+    }
+  }
+  return Array.from(grupos.values());
+}
+
 export function PermissoesAdmin() {
   const router = useRouter();
   const { isAdminOps, isLoading: carregandoAuth } = useAuth();
@@ -80,7 +146,9 @@ export function PermissoesAdmin() {
   const { revogar, isLoading: revogando } = useRevogarPermissao();
 
   const [formAberto, setFormAberto] = useState(false);
-  const [paraRevogar, setParaRevogar] = useState<PermissaoUsuario | null>(null);
+  const [paraRevogar, setParaRevogar] = useState<GrupoPermissao | null>(null);
+
+  const grupos = agruparPermissoes(permissoes);
 
   // Mesmo padrão de guarda de página usado em nenhum outro lugar do app
   // ainda (achado construindo o STC-266: hoje o controle de admin só
@@ -107,7 +175,11 @@ export function PermissoesAdmin() {
     return usuario ? nomeExibicao(usuario) : `Usuário #${usuarioId}`;
   }
 
-  function nomeEscopo(permissao: PermissaoUsuario) {
+  function nomeEscopo(permissao: {
+    escopo_tipo: EscopoPermissao;
+    unidade: number | null;
+    setor: number | null;
+  }) {
     if (permissao.escopo_tipo === "unidade") {
       return unidades.find((unidade) => unidade.id === permissao.unidade)?.nome ?? "--";
     }
@@ -120,8 +192,13 @@ export function PermissoesAdmin() {
   async function confirmarRevogacao() {
     if (!paraRevogar) return;
     try {
-      await revogar(paraRevogar.id);
-      toast.success("Permissão revogada.");
+      // Sequencial (não Promise.all) -- useRevogarPermissao(), assim como
+      // useCriarPermissao(), tem um isMutating/error compartilhado por
+      // instância do hook; disparar em paralelo arrisca pisar nesse estado.
+      for (const id of paraRevogar.ids) {
+        await revogar(id);
+      }
+      toast.success(paraRevogar.ids.length > 1 ? "Permissões revogadas." : "Permissão revogada.");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     } finally {
@@ -152,7 +229,7 @@ export function PermissoesAdmin() {
 
       {carregandoPermissoes ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : permissoes.length === 0 ? (
+      ) : grupos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
       ) : (
         <div className="scrollbar-discreta overflow-x-auto rounded-lg border border-border">
@@ -169,43 +246,40 @@ export function PermissoesAdmin() {
               </tr>
             </thead>
             <tbody>
-              {permissoes.map((permissao) => {
-                const status = statusPermissao(permissao);
+              {grupos.map((grupo) => {
+                const status = statusPermissao(grupo);
                 return (
-                  <tr key={permissao.id} className="border-b border-border last:border-0">
+                  <tr key={grupo.ids.join("-")} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5 font-medium text-foreground">
-                      {nomeUsuario(permissao.usuario)}
+                      {nomeUsuario(grupo.usuario)}
                     </td>
                     {/* Achado no dogfooding: faltava rastro de quem concedeu
                         e quando -- só o período de validade não basta pra
                         auditoria ("quem deu esse acesso pra ela?"). */}
                     <td className="px-4 py-2.5 text-muted-foreground">
-                      <div>{nomeUsuario(permissao.concedido_por)}</div>
-                      <div className="text-xs">{formatarDataHora(permissao.created_at)}</div>
+                      <div>{nomeUsuario(grupo.concedido_por)}</div>
+                      <div className="text-xs">{formatarDataHora(grupo.created_at)}</div>
                     </td>
-                    <td className="px-4 py-2.5">{ROTULO_ACAO[permissao.acao]}</td>
                     <td className="px-4 py-2.5">
-                      {ROTULO_ESCOPO[permissao.escopo_tipo]}
-                      {permissao.escopo_tipo !== "global" &&
-                        permissao.escopo_tipo !== "proprio" && (
-                          <span className="text-muted-foreground"> -- {nomeEscopo(permissao)}</span>
-                        )}
+                      {grupo.acoes.map((acao) => ROTULO_ACAO[acao]).join(", ")}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {ROTULO_ESCOPO[grupo.escopo_tipo]}
+                      {grupo.escopo_tipo !== "global" && grupo.escopo_tipo !== "proprio" && (
+                        <span className="text-muted-foreground"> -- {nomeEscopo(grupo)}</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">
-                      {permissao.data_fim
-                        ? `${formatarData(permissao.data_inicio)} até ${formatarData(permissao.data_fim)}`
-                        : `A partir de ${formatarData(permissao.data_inicio)}`}
+                      {grupo.data_fim
+                        ? `${formatarData(grupo.data_inicio)} até ${formatarData(grupo.data_fim)}`
+                        : `A partir de ${formatarData(grupo.data_inicio)}`}
                     </td>
                     <td className="px-4 py-2.5">
                       <Badge variant={status.variante}>{status.rotulo}</Badge>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {permissao.ativo && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setParaRevogar(permissao)}
-                        >
+                      {grupo.ativo && (
+                        <Button size="sm" variant="outline" onClick={() => setParaRevogar(grupo)}>
                           Revogar
                         </Button>
                       )}
@@ -226,7 +300,9 @@ export function PermissoesAdmin() {
         titulo="Revogar permissão"
         descricao={
           paraRevogar
-            ? `Revogar o acesso de ${nomeUsuario(paraRevogar.usuario)}? Isso desativa a permissão imediatamente.`
+            ? `Revogar o acesso de ${nomeUsuario(paraRevogar.usuario)}? Isso desativa ${
+                paraRevogar.ids.length > 1 ? "as permissões" : "a permissão"
+              } imediatamente.`
             : ""
         }
         textoConfirmar="Revogar"

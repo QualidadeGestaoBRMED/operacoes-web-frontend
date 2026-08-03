@@ -248,6 +248,71 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "editar" }));
   });
 
+  // Achado ao usar a tela: marcar 3 ações num formulário só virava 3 linhas
+  // na tabela (uma por PermissaoUsuario -- no backend, sempre uma ação só
+  // por registro) -- agrupa de volta na exibição quando pessoa, concedente,
+  // escopo e período batem.
+  it("agrupa permissões nascidas do mesmo formulário em uma linha só", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar" }),
+      permissaoBase({ id: 2, acao: "editar" }),
+      permissaoBase({ id: 3, acao: "aprovar" }),
+    ]);
+
+    renderTela();
+
+    expect(await screen.findByText("Fernanda Lima")).toBeInTheDocument();
+    expect(screen.getByText("Visualizar, Editar, Aprovar")).toBeInTheDocument();
+    // uma linha só -- só um botão "Revogar", não três
+    expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(1);
+  });
+
+  it("não agrupa permissões de períodos diferentes (submissões distintas)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar", data_fim: "2026-02-01" }),
+      permissaoBase({ id: 2, acao: "editar", data_fim: null }),
+    ]);
+
+    renderTela();
+
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+    expect(screen.getByText("Editar")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(2);
+  });
+
+  it("revoga todas as ações do grupo de uma vez", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar" }),
+      permissaoBase({ id: 2, acao: "editar" }),
+    ]);
+    vi.mocked(revogarPermissao).mockResolvedValue(permissaoBase({ ativo: false }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: "Revogar" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Revogar" }));
+
+    await waitFor(() => {
+      expect(revogarPermissao).toHaveBeenCalledTimes(2);
+    });
+    expect(revogarPermissao).toHaveBeenCalledWith(1);
+    expect(revogarPermissao).toHaveBeenCalledWith(2);
+  });
+
   it("revoga uma permissão ativa", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
