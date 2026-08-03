@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // e2e/ é suíte do Playwright (STC-216), não do Vitest -- sem excluir,
+    // vitest tenta importar e2e/*.spec.ts e quebra em "test() did not
+    // expect to be called here" (os dois pacotes exportam um test() global
+    // incompatível entre si).
+    exclude: ["**/node_modules/**", "e2e/**"],
     // next-auth importa "next/server" (bare specifier) -- o package.json do
     // next não tem "exports" declarado pra esse subpath, então, tratado
     // como dependência externa (padrão do Vitest), a resolução ESM estrita

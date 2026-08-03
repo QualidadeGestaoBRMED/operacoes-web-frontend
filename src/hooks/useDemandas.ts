@@ -13,7 +13,10 @@ import type { Demanda, DemandaFiltros } from "@/types";
 // reordenaria a lista debaixo do cursor -- @dnd-kit não lida bem com isso.
 const INTERVALO_POLL_MS = 10_000;
 
-export function useDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boolean }) {
+export function useDemandas(
+  filtros?: DemandaFiltros,
+  opcoes?: { pausado?: boolean; desabilitado?: boolean },
+) {
   // Achado no review: pausarPolling (via refreshInterval:0 abaixo) só
   // impede um NOVO poll de ser agendado -- não cancela um que já estava em
   // voo quando o arraste começou. Se essa resposta chegar durante o drag ou
@@ -33,8 +36,20 @@ export function useDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boole
   // tela). Com isso, o board continua mostrando os dados antigos
   // (levemente esmaecidos via isValidating) até os novos chegarem, em vez
   // de colapsar pra um "carregando" genérico.
+  // desabilitado (achado ao investigar o "board mostrando os dois tipos
+  // misturados" mesmo depois da guarda de loading em KanbanBoard.tsx): key
+  // null em vez de só atrasar a exibição -- enquanto o board ainda não sabe
+  // qual tipo_gestao é o padrão, ele nunca teria dado pra confiar mesmo
+  // filtrado por undefined. Só esconder o resultado (guarda de render) não
+  // bastava: quando o filtro correto chegava, o keepPreviousData reusava
+  // esse resultado sem filtro (a chave mudou, mas havia dado anterior "bom o
+  // suficiente" pra manter) e mostrava ele esmaecido até a busca filtrada
+  // responder -- o mesmo piscar, só que através da troca de filtro em vez do
+  // load inicial. Com key null, não existe fetch nenhum pra virar esse
+  // "dado anterior" -- data começa e continua undefined (carregandoPrimeiraVez)
+  // até a primeira busca com filtro de verdade responder.
   const { data, error, isLoading, isValidating, mutate } = useSWR<Demanda[]>(
-    ["demandas", filtros],
+    opcoes?.desabilitado ? null : ["demandas", filtros],
     async () => {
       const resultado = await listarDemandas(filtros);
       return pausadoRef.current ? (dadosAtuaisRef.current ?? resultado) : resultado;

@@ -15,7 +15,13 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
+
+# playwright (STC-216)
+/playwright/.auth/
+/playwright-report/
+/test-results/
 
 # production
 /build

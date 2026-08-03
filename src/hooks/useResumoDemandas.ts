@@ -10,11 +10,17 @@ import type { DemandaFiltros, ResumoDemandas } from "@/types";
 // perturbar o drag-and-drop, mesmo não sendo ele mesmo alvo do arraste).
 const INTERVALO_POLL_MS = 10_000;
 
-export function useResumoDemandas(filtros?: DemandaFiltros, opcoes?: { pausado?: boolean }) {
+export function useResumoDemandas(
+  filtros?: DemandaFiltros,
+  opcoes?: { pausado?: boolean; desabilitado?: boolean },
+) {
   // keepPreviousData: mesmo motivo do useDemandas -- sem isso, trocar um
   // filtro fazia os cards de KPI virarem skeleton e reaparecerem do zero.
+  // desabilitado: mesmo motivo/mecanismo do useDemandas.ts -- ver comentário
+  // lá. Sem isso, os KPIs também mostravam a contagem de todos os tipos de
+  // gestão misturados por um instante ao logar, do mesmo jeito que o board.
   const { data, error, isLoading, isValidating } = useSWR<ResumoDemandas>(
-    ["resumo-demandas", filtros],
+    opcoes?.desabilitado ? null : ["resumo-demandas", filtros],
     () => buscarResumoDemandas(filtros),
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );

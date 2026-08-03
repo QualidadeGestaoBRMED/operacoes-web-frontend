@@ -141,6 +141,22 @@ export async function removerResponsavel(demandaId: number, usuarioId: number): 
   await api.delete(`${BASE_URL}${demandaId}/responsaveis/`, { data: { usuario_id: usuarioId } });
 }
 
+// STC-230/STC-231: antes, trocar o principal era feito com adicionarResponsavel()
+// + removerResponsavel() em sequência (2 requisições) -- se a 2ª falhasse depois
+// da 1ª ter sucesso, a demanda ficava com dois principais ao mesmo tempo. Essa
+// action faz a troca inteira numa única transação no backend.
+export async function trocarPrincipalResponsavel(
+  demandaId: number,
+  antigoUsuarioId: number,
+  novoUsuarioId: number,
+): Promise<DemandaResponsavel[]> {
+  const { data } = await api.post<DemandaResponsavel[]>(
+    `${BASE_URL}${demandaId}/responsaveis/trocar-principal/`,
+    { antigo_usuario_id: antigoUsuarioId, novo_usuario_id: novoUsuarioId },
+  );
+  return data;
+}
+
 export async function listarAnexos(demandaId: number): Promise<Anexo[]> {
   const { data } = await api.get<Anexo[]>(`${BASE_URL}${demandaId}/anexos/`);
   return data;

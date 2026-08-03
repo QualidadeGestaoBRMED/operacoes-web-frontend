@@ -12,12 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAdicionarResponsavel, useRemoverResponsavel } from "@/hooks/useResponsaveis";
+import {
+  useAdicionarResponsavel,
+  useRemoverResponsavel,
+  useTrocarPrincipal,
+} from "@/hooks/useResponsaveis";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda, DemandaResponsavel, Usuario } from "@/types";
 
+const NIVEL_ADMIN_QG = 1;
 const NIVEL_ADMIN_OPERACOES = 2;
 
 function SeletorCandidato({
@@ -80,7 +85,6 @@ export function ResponsavelSection({
   // do botão de remover na linha desse usuário -- ver ehUnicoPrincipal.
   const [trocandoUsuarioId, setTrocandoUsuarioId] = useState<number | null>(null);
   const [novoPrincipalId, setNovoPrincipalId] = useState("");
-  const [trocando, setTrocando] = useState(false);
   // ConfirmDialog substitui o window.confirm() de antes.
   const [responsavelParaRemover, setResponsavelParaRemover] = useState<{
     usuarioId: number;
@@ -99,18 +103,31 @@ export function ResponsavelSection({
       setNovoPrincipalId("");
     } else if (abrirComFormularioDeAdicionar) {
       setFormularioAberto(true);
+      // secaoDoBloqueio (lib/kanban.ts) só manda abrir esta seção por um
+      // motivo hoje: falta de responsável PRINCIPAL pra sair do Backlog --
+      // então o tipo já vem pré-selecionado certo, sem o usuário precisar
+      // trocar manualmente de "Colaborador" (default) pra "Principal" toda
+      // vez que esse bloqueio abre o formulário.
+      setTipoSelecionado("principal");
     }
   }, [ativo, abrirComFormularioDeAdicionar]);
 
   const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
   const { remover, isLoading: removendo } = useRemoverResponsavel(demanda.id);
+  const { trocarPrincipal, isLoading: trocando } = useTrocarPrincipal(demanda.id);
 
   // Não filtra a busca de usuários pela unidade da demanda: o backend
   // (validate_usuario_id) permite um usuário sem unidade (admin) como
   // responsável de qualquer demanda, então o filtro precisa reproduzir essa
   // mesma regra em vez de só comparar unidade_id.
+  //
+  // Admin Q&G fica de fora sempre, mesmo se por acaso tiver a mesma unidade
+  // da demanda -- pedido do usuário: esse perfil é de supervisão/qualidade,
+  // não de quem executa a demanda, então não deve aparecer como candidato a
+  // responsável.
   function elegivel(usuario: Usuario) {
+    if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
     return (
       usuario.unidade_id === demanda.unidade.id ||
       (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)
@@ -171,27 +188,18 @@ export function ResponsavelSection({
   async function aoTrocarPrincipal(antigoUsuarioId: number) {
     if (!novoPrincipalId) return;
     const novoId = Number(novoPrincipalId);
-    setTrocando(true);
     try {
-      // Se o escolhido já é colaborador desta demanda, precisa sair antes
-      // de voltar como principal -- o backend recusa duplicar o par
-      // demanda+usuario (não dá pra só "trocar o tipo" de um responsável
-      // existente, esse endpoint não tem PATCH).
-      if (demanda.responsaveis.some((r) => r.usuario.id === novoId)) {
-        await remover(novoId);
-      }
-      // Adiciona o novo principal antes de remover o antigo: só depois
-      // disso o antigo deixa de ser "o único principal" e a remoção passa
-      // no guard do backend.
-      await adicionar({ usuario_id: novoId, tipo: "principal" });
-      await remover(antigoUsuarioId);
+      // STC-230/STC-231: antes eram 2 requisições em sequência (adicionar
+      // o novo, depois remover o antigo) -- se a 2ª falhasse depois da 1ª
+      // ter sucesso, a demanda ficava com dois principais ao mesmo tempo.
+      // trocarPrincipal() faz a troca inteira numa única transação no
+      // backend.
+      await trocarPrincipal({ antigoUsuarioId, novoUsuarioId: novoId });
       setNovoPrincipalId("");
       setTrocandoUsuarioId(null);
       aoFechar();
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
-    } finally {
-      setTrocando(false);
     }
   }
 
