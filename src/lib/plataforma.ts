@@ -1,16 +1,29 @@
 import api from "./api";
 import type {
+  Modulo,
   Notificacao,
+  Perfil,
   PermissaoUsuario,
   PermissaoUsuarioPayload,
   RespostaPaginada,
   Setor,
   Unidade,
   Usuario,
+  UsuarioPayload,
 } from "@/types";
 
 export async function listarUnidades(): Promise<Unidade[]> {
   const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
+  return data;
+}
+
+export async function listarModulos(): Promise<Modulo[]> {
+  const { data } = await api.get<Modulo[]>("/plataforma/modulos/");
+  return data;
+}
+
+export async function listarPerfis(): Promise<Perfil[]> {
+  const { data } = await api.get<Perfil[]>("/plataforma/perfis/");
   return data;
 }
 
@@ -37,6 +50,16 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   const { data } = await api.get<Usuario[]>("/plataforma/usuarios/", {
     params: { ativo: true },
   });
+  return data;
+}
+
+// UsuarioViewSet aceita PATCH de Admin Operações (LeituraParaTodosEscritaParaAdminOperacoes);
+// a trava contra escalonamento de nível pra Admin Q&G já mora no
+// UsuarioSerializer.validate_perfil_id() no backend -- é sempre a fonte de
+// verdade real, o client só evita que o admin bata nela sem saber (ver
+// GerenciarUsuarios).
+export async function atualizarUsuario(id: number, payload: UsuarioPayload): Promise<Usuario> {
+  const { data } = await api.patch<Usuario>(`/plataforma/usuarios/${id}/`, payload);
   return data;
 }
 

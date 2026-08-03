@@ -18,6 +18,16 @@ export interface Usuario {
   ultimo_acesso: string | null;
 }
 
+// Payload de PATCH em /plataforma/usuarios/<id>/ -- só os campos que a tela
+// de administração (STC-266) edita (perfil/unidade/setor "base" da pessoa).
+// UsuarioSerializer aceita mais campos (first_name, ativo etc.), mas essa
+// tela não mexe neles.
+export interface UsuarioPayload {
+  perfil_id?: number | null;
+  unidade_id?: number | null;
+  setor_id?: number | null;
+}
+
 export interface Unidade {
   id: number;
   nome: string;
@@ -32,6 +42,15 @@ export interface Setor {
   codigo: string;
   modulo_id: number | null;
   ativo: boolean;
+}
+
+export interface Modulo {
+  id: number;
+  nome: string;
+  codigo: string;
+  descricao: string;
+  status: string;
+  versao: string;
 }
 
 export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos";
@@ -280,6 +299,7 @@ export interface PermissaoUsuario {
 // (perform_create) -- nunca enviado pelo cliente.
 export interface PermissaoUsuarioPayload {
   usuario: number;
+  modulo?: number | null;
   recurso: string;
   acao: AcaoPermissao;
   escopo_tipo: EscopoPermissao;
