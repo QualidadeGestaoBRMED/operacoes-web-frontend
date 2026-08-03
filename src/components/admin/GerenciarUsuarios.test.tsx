@@ -45,7 +45,7 @@ function usuario(overrides: Partial<Usuario> = {}): Usuario {
 function renderTela() {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
-      <GerenciarUsuarios />
+      <GerenciarUsuarios expandido={false} onAlternarExpandir={vi.fn()} />
     </SWRConfig>,
   );
 }

@@ -353,4 +353,52 @@ describe("PermissoesAdmin (STC-266)", () => {
       expect(revogarPermissao).toHaveBeenCalledWith(1);
     });
   });
+
+  // Achado no dogfooding: com muitos usuários, "Perfil, unidade e setor"
+  // (sem paginação) empurrava "Permissões individuais" pra fora da tela --
+  // cada seção passou a repartir a altura 50/50 por padrão, com a opção de
+  // expandir uma e esconder (não desmontar) a outra.
+  it("expandir 'Permissões individuais' esconde 'Perfil, unidade e setor', e desfazer volta ao meio a meio", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    const secaoUsuarios = await screen.findByTestId("secao-usuarios");
+    const secaoPermissoes = screen.getByTestId("secao-permissoes");
+
+    expect(secaoUsuarios).not.toHaveClass("hidden");
+    expect(secaoPermissoes).not.toHaveClass("hidden");
+
+    await user.click(screen.getByRole("button", { name: /expandir permissões individuais/i }));
+
+    expect(secaoUsuarios).toHaveClass("hidden");
+    expect(secaoPermissoes).not.toHaveClass("hidden");
+
+    await user.click(screen.getByRole("button", { name: /recolher permissões individuais/i }));
+
+    expect(secaoUsuarios).not.toHaveClass("hidden");
+    expect(secaoPermissoes).not.toHaveClass("hidden");
+  });
+
+  it("expandir 'Perfil, unidade e setor' esconde 'Permissões individuais'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    const secaoUsuarios = await screen.findByTestId("secao-usuarios");
+    const secaoPermissoes = screen.getByTestId("secao-permissoes");
+
+    await user.click(
+      screen.getByRole("button", { name: /expandir perfil, unidade e setor/i }),
+    );
+
+    expect(secaoUsuarios).not.toHaveClass("hidden");
+    expect(secaoPermissoes).toHaveClass("hidden");
+  });
 });

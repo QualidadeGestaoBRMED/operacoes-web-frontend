@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ShieldCheck } from "lucide-react";
+import { Maximize2, Minimize2, Plus, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,12 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
-import { formatarDataHora, nomeExibicao } from "@/lib/utils";
+import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import { FormNovaPermissao } from "./FormNovaPermissao";
 import { GerenciarUsuarios } from "./GerenciarUsuarios";
+
+type Secao = "usuarios" | "permissoes";
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   visualizar: "Visualizar",
@@ -148,6 +150,17 @@ export function PermissoesAdmin() {
 
   const [formAberto, setFormAberto] = useState(false);
   const [paraRevogar, setParaRevogar] = useState<GrupoPermissao | null>(null);
+  // Achado no dogfooding: com muitos usuários, "Perfil, unidade e setor"
+  // (tabela sem paginação) empurrava "Permissões individuais" pra fora da
+  // tela. null = as duas seções dividem a altura disponível meio a meio,
+  // cada uma com scroll próprio; "usuarios"/"permissoes" = essa seção ocupa
+  // o espaço das duas, a outra fica oculta (mas continua montada -- volta
+  // do jeito que estava ao desfazer).
+  const [secaoExpandida, setSecaoExpandida] = useState<Secao | null>(null);
+
+  function alternarExpansao(secao: Secao) {
+    setSecaoExpandida((atual) => (atual === secao ? null : secao));
+  }
 
   const grupos = agruparPermissoes(permissoes);
 
@@ -208,7 +221,7 @@ export function PermissoesAdmin() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-7">
+    <div className="flex h-full flex-col overflow-hidden p-7">
       <div className="flex items-center gap-2.5 pb-5">
         <ShieldCheck className="size-5 text-secondary" />
         <div>
@@ -219,95 +232,148 @@ export function PermissoesAdmin() {
         </div>
       </div>
 
-      {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario (acessos
-          extras pontuais). Faltava a parte "estrutural" -- Perfil/Unidade/Setor
-          da pessoa -- que hoje só existia no Django Admin, mesmo o backend
-          (UsuarioViewSet) já aceitando Admin Operações editar isso via API. */}
-      <GerenciarUsuarios />
-
-      <div className="my-7 h-px bg-border" />
-
-      <div className="flex items-center justify-between gap-3 pb-5">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
-          <p className="text-sm text-muted-foreground">
-            Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
-            férias entre unidades.
-          </p>
+      {/* Cada seção reparte a altura disponível 50/50 (flex-1 nas duas) e
+          rola por conta própria -- uma tabela grande nunca empurra a outra
+          seção pra fora da tela. Expandida, uma vira flex-1 sozinha e a
+          outra leva "hidden" (fica montada, só invisível: preserva
+          scroll/estado ao desfazer). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-7">
+        <div
+          data-testid="secao-usuarios"
+          className={cn(
+            "flex min-h-0 flex-col",
+            secaoExpandida === "permissoes" ? "hidden" : "flex-1",
+          )}
+        >
+          {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario
+              (acessos extras pontuais). Faltava a parte "estrutural" --
+              Perfil/Unidade/Setor da pessoa -- que hoje só existia no
+              Django Admin, mesmo o backend (UsuarioViewSet) já aceitando
+              Admin Operações editar isso via API. */}
+          <GerenciarUsuarios
+            expandido={secaoExpandida === "usuarios"}
+            onAlternarExpandir={() => alternarExpansao("usuarios")}
+          />
         </div>
-        <Button onClick={() => setFormAberto(true)}>
-          <Plus className="size-4" />
-          Nova permissão
-        </Button>
-      </div>
 
-      {carregandoPermissoes ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : grupos.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
-      ) : (
-        <div className="scrollbar-discreta overflow-x-auto rounded-lg border border-border">
-          <table
-            aria-label="Permissões individuais"
-            className="w-full min-w-[720px] text-left text-sm"
-          >
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-2.5">Pessoa</th>
-                <th className="px-4 py-2.5">Concedido</th>
-                <th className="px-4 py-2.5">Ação</th>
-                <th className="px-4 py-2.5">Escopo</th>
-                <th className="px-4 py-2.5">Período</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody>
-              {grupos.map((grupo) => {
-                const status = statusPermissao(grupo);
-                return (
-                  <tr key={grupo.ids.join("-")} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-foreground">
-                      {nomeUsuario(grupo.usuario)}
-                    </td>
-                    {/* Achado no dogfooding: faltava rastro de quem concedeu
-                        e quando -- só o período de validade não basta pra
-                        auditoria ("quem deu esse acesso pra ela?"). */}
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      <div>{nomeUsuario(grupo.concedido_por)}</div>
-                      <div className="text-xs">{formatarDataHora(grupo.created_at)}</div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {grupo.acoes.map((acao) => ROTULO_ACAO[acao]).join(", ")}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {ROTULO_ESCOPO[grupo.escopo_tipo]}
-                      {grupo.escopo_tipo !== "global" && grupo.escopo_tipo !== "proprio" && (
-                        <span className="text-muted-foreground"> -- {nomeEscopo(grupo)}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {grupo.data_fim
-                        ? `${formatarData(grupo.data_inicio)} até ${formatarData(grupo.data_fim)}`
-                        : `A partir de ${formatarData(grupo.data_inicio)}`}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Badge variant={status.variante}>{status.rotulo}</Badge>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {grupo.ativo && (
-                        <Button size="sm" variant="outline" onClick={() => setParaRevogar(grupo)}>
-                          Revogar
-                        </Button>
-                      )}
-                    </td>
+        {secaoExpandida === null && <div className="h-px shrink-0 bg-border" />}
+
+        <div
+          data-testid="secao-permissoes"
+          className={cn(
+            "flex min-h-0 flex-col",
+            secaoExpandida === "usuarios" ? "hidden" : "flex-1",
+          )}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-3 pb-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
+              <p className="text-sm text-muted-foreground">
+                Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
+                férias entre unidades.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button onClick={() => setFormAberto(true)}>
+                <Plus className="size-4" />
+                Nova permissão
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => alternarExpansao("permissoes")}
+                aria-label={
+                  secaoExpandida === "permissoes"
+                    ? "Recolher Permissões individuais"
+                    : "Expandir Permissões individuais"
+                }
+              >
+                {secaoExpandida === "permissoes" ? (
+                  <Minimize2 className="size-4" />
+                ) : (
+                  <Maximize2 className="size-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {carregandoPermissoes ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : grupos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
+          ) : (
+            <div className="scrollbar-discreta min-h-0 flex-1 overflow-auto rounded-lg border border-border">
+              <table
+                aria-label="Permissões individuais"
+                className="w-full min-w-[720px] text-left text-sm"
+              >
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <th className="px-4 py-2.5">Pessoa</th>
+                    <th className="px-4 py-2.5">Concedido</th>
+                    <th className="px-4 py-2.5">Ação</th>
+                    <th className="px-4 py-2.5">Escopo</th>
+                    <th className="px-4 py-2.5">Período</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5" />
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {grupos.map((grupo) => {
+                    const status = statusPermissao(grupo);
+                    return (
+                      <tr
+                        key={grupo.ids.join("-")}
+                        className="border-b border-border last:border-0"
+                      >
+                        <td className="px-4 py-2.5 font-medium text-foreground">
+                          {nomeUsuario(grupo.usuario)}
+                        </td>
+                        {/* Achado no dogfooding: faltava rastro de quem
+                            concedeu e quando -- só o período de validade não
+                            basta pra auditoria ("quem deu esse acesso pra
+                            ela?"). */}
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          <div>{nomeUsuario(grupo.concedido_por)}</div>
+                          <div className="text-xs">{formatarDataHora(grupo.created_at)}</div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {grupo.acoes.map((acao) => ROTULO_ACAO[acao]).join(", ")}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {ROTULO_ESCOPO[grupo.escopo_tipo]}
+                          {grupo.escopo_tipo !== "global" && grupo.escopo_tipo !== "proprio" && (
+                            <span className="text-muted-foreground"> -- {nomeEscopo(grupo)}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          {grupo.data_fim
+                            ? `${formatarData(grupo.data_inicio)} até ${formatarData(grupo.data_fim)}`
+                            : `A partir de ${formatarData(grupo.data_inicio)}`}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Badge variant={status.variante}>{status.rotulo}</Badge>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {grupo.ativo && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setParaRevogar(grupo)}
+                            >
+                              Revogar
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <FormNovaPermissao open={formAberto} onOpenChange={setFormAberto} />
 

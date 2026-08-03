@@ -1,6 +1,8 @@
 "use client";
 
+import { Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -29,7 +31,13 @@ const NIVEL_ADMIN_OPERACOES = 2;
 // selects (perfil/unidade/setor podem ser desvinculados).
 const SEM_VALOR = "nenhum";
 
-export function GerenciarUsuarios() {
+export function GerenciarUsuarios({
+  expandido,
+  onAlternarExpandir,
+}: {
+  expandido: boolean;
+  onAlternarExpandir: () => void;
+}) {
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
   const { unidades } = useUnidades();
@@ -78,14 +86,29 @@ export function GerenciarUsuarios() {
   }
 
   return (
-    <div>
-      <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
-      <p className="pb-4 text-sm text-muted-foreground">
-        Define o cargo e a lotação base de cada pessoa -- diferente das permissões
-        individuais abaixo, isso vale enquanto não for alterado de novo (sem período).
-      </p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 pb-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
+          <p className="text-sm text-muted-foreground">
+            Define o cargo e a lotação base de cada pessoa -- diferente das permissões
+            individuais abaixo, isso vale enquanto não for alterado de novo (sem período).
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onAlternarExpandir}
+          aria-label={
+            expandido ? "Recolher Perfil, unidade e setor" : "Expandir Perfil, unidade e setor"
+          }
+          className="shrink-0"
+        >
+          {expandido ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </Button>
+      </div>
 
-      <div className="scrollbar-discreta overflow-x-auto rounded-lg border border-border">
+      <div className="scrollbar-discreta min-h-0 flex-1 overflow-auto rounded-lg border border-border">
         <table
           aria-label="Perfil, unidade e setor"
           className="w-full min-w-[640px] text-left text-sm"
