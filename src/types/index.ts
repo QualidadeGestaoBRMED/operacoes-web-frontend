@@ -240,3 +240,51 @@ export interface RespostaPaginada<T> {
   previous: string | null;
   results: T[];
 }
+
+// GET/POST /plataforma/permissoes-usuario/ (PermissaoUsuarioViewSet,
+// STC-266) -- acesso individual temporário, escopado por unidade/setor/
+// próprio, com período de validade. Restrito a Admin Operações/Admin Q&G
+// no backend (IsAdminOperacoes). PermissaoUsuarioSerializer é um
+// ModelSerializer simples (sem nested), então usuario/unidade/setor/
+// concedido_por vêm como IDs crus -- a UI resolve nome cruzando com
+// useUsuarios/useUnidades/useSetores, já carregados em outros lugares do
+// app.
+export type EscopoPermissao = "global" | "unidade" | "setor" | "proprio";
+
+export type AcaoPermissao =
+  | "visualizar"
+  | "criar"
+  | "editar"
+  | "aprovar"
+  | "excluir"
+  | "restaurar"
+  | "configurar";
+
+export interface PermissaoUsuario {
+  id: number;
+  usuario: number;
+  modulo: number | null;
+  recurso: string;
+  acao: AcaoPermissao;
+  escopo_tipo: EscopoPermissao;
+  unidade: number | null;
+  setor: number | null;
+  concedido_por: number;
+  data_inicio: string;
+  data_fim: string | null;
+  ativo: boolean;
+  created_at: string;
+}
+
+// concedido_por é setado pelo backend a partir do usuário autenticado
+// (perform_create) -- nunca enviado pelo cliente.
+export interface PermissaoUsuarioPayload {
+  usuario: number;
+  recurso: string;
+  acao: AcaoPermissao;
+  escopo_tipo: EscopoPermissao;
+  unidade?: number | null;
+  setor?: number | null;
+  data_inicio: string;
+  data_fim?: string | null;
+}

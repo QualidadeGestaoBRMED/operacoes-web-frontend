@@ -1,5 +1,13 @@
 import api from "./api";
-import type { Notificacao, RespostaPaginada, Setor, Unidade, Usuario } from "@/types";
+import type {
+  Notificacao,
+  PermissaoUsuario,
+  PermissaoUsuarioPayload,
+  RespostaPaginada,
+  Setor,
+  Unidade,
+  Usuario,
+} from "@/types";
 
 export async function listarUnidades(): Promise<Unidade[]> {
   const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
@@ -48,4 +56,31 @@ export async function marcarNotificacaoComoLida(id: number): Promise<Notificacao
 
 export async function marcarTodasNotificacoesComoLidas(): Promise<void> {
   await api.post("/plataforma/notificacoes/marcar-todas-lidas/");
+}
+
+// PermissaoUsuarioViewSet (STC-266) -- restrito a Admin Operações/Admin
+// Q&G no backend (IsAdminOperacoes); a UI só chega aqui pra quem já passou
+// pelo mesmo gate no Sidebar (isAdminOps), mas o backend é sempre quem
+// decide de verdade.
+export async function listarPermissoes(): Promise<PermissaoUsuario[]> {
+  const { data } = await api.get<PermissaoUsuario[]>("/plataforma/permissoes-usuario/");
+  return data;
+}
+
+export async function criarPermissao(
+  payload: PermissaoUsuarioPayload,
+): Promise<PermissaoUsuario> {
+  const { data } = await api.post<PermissaoUsuario>("/plataforma/permissoes-usuario/", payload);
+  return data;
+}
+
+// Revogar = desativar, não excluir -- mantém o registro como histórico de
+// auditoria de quem teve acesso a quê (mesmo espírito de soft-delete já
+// usado em Demanda).
+export async function revogarPermissao(id: number): Promise<PermissaoUsuario> {
+  const { data } = await api.patch<PermissaoUsuario>(
+    `/plataforma/permissoes-usuario/${id}/`,
+    { ativo: false },
+  );
+  return data;
 }
