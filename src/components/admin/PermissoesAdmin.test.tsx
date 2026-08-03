@@ -309,6 +309,28 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(2);
   });
 
+  it("ordena por 'Concedido' do mais recente pro mais antigo", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar", created_at: "2026-01-10T10:00:00Z" }),
+      permissaoBase({ id: 2, acao: "editar", created_at: "2026-01-20T10:00:00Z" }),
+      permissaoBase({ id: 3, acao: "aprovar", created_at: "2026-01-15T10:00:00Z" }),
+    ]);
+
+    renderTela();
+
+    const tabela = await screen.findByRole("table", { name: /permissões individuais/i });
+    const linhas = within(tabela).getAllByRole("row").slice(1); // pula o cabeçalho
+    expect(linhas.map((linha) => linha.textContent)).toEqual([
+      expect.stringContaining("Editar"), // created_at mais recente (20/01)
+      expect.stringContaining("Aprovar"), // 15/01
+      expect.stringContaining("Visualizar"), // mais antiga (10/01)
+    ]);
+  });
+
   it("revoga todas as ações do grupo de uma vez", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,

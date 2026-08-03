@@ -148,7 +148,9 @@ function agruparPermissoes(permissoes: PermissaoUsuario[]): GrupoPermissao[] {
       });
     }
   }
-  return Array.from(grupos.values());
+  // Mais recente primeiro -- ordem de criação (API não garante nenhuma
+  // ordem específica), não a de qualquer outro campo do grupo.
+  return Array.from(grupos.values()).sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 export function PermissoesAdmin() {
