@@ -251,13 +251,20 @@ export function PermissoesAdmin() {
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
           própria -- uma tabela grande nunca empurra a outra seção pra fora
           da tela, e uma seção rala não fica com metade da tela vazia.
+          min-h-[15rem] (não min-h-0): achado no dogfooding -- com uma
+          diferença grande de linhas (ex.: 2 vs 19), o peso proporcional
+          sozinho espremia a seção menor abaixo da altura do próprio
+          cabeçalho (só sobrava espaço pro <thead>, nem uma linha). O piso
+          garante cabeçalho + ~2 linhas visíveis antes de precisar rolar,
+          não importa quão desigual seja a proporção; o espaço extra além
+          dos dois pisos continua sendo repartido pelo peso.
           Expandida, uma toma o espaço das duas e a outra leva "hidden"
           (fica montada, só invisível: preserva scroll/estado ao desfazer). */}
       <div className="flex min-h-0 flex-1 flex-col gap-7">
         <div
           data-testid="secao-usuarios"
           className={cn(
-            "flex min-h-0 flex-col",
+            "flex min-h-[15rem] flex-col",
             secaoExpandida === "permissoes" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoUsuarios }}
@@ -278,7 +285,7 @@ export function PermissoesAdmin() {
         <div
           data-testid="secao-permissoes"
           className={cn(
-            "flex min-h-0 flex-col",
+            "flex min-h-[15rem] flex-col",
             secaoExpandida === "usuarios" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoPermissoes }}
