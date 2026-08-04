@@ -178,30 +178,22 @@ export function GerenciarUsuarios({
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
-          <p className="text-sm text-muted-foreground">
-            Define o cargo e a lotação base de cada pessoa -- diferente das permissões
-            individuais abaixo, isso vale enquanto não for alterado de novo (sem período).
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onAlternarExpandir}
-          aria-label={
-            expandido ? "Recolher Perfil, unidade e setor" : "Expandir Perfil, unidade e setor"
-          }
-          className="shrink-0 self-end sm:self-auto"
-        >
-          {expandido ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-        </Button>
+      <div className="pb-2">
+        <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
+        <p className="text-sm text-muted-foreground">
+          Define o cargo e a lotação base de cada pessoa -- diferente das permissões
+          individuais abaixo, isso vale enquanto não for alterado de novo (sem período).
+        </p>
       </div>
 
-      {usuariosListados.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 pb-3">
-          {ehMobile ? (
+      {/* Achado no dogfooding: filtros e botão de expandir numa linha só
+          (não cabeçalho+botão numa linha e filtros noutra) -- mesmo
+          critério do KanbanFiltros (o "Nova Demanda" mora na própria
+          linha dos filtros, não no cabeçalho da página) e economiza uma
+          linha inteira de altura, principalmente em mobile. */}
+      <div className="flex flex-wrap items-center gap-2 pb-3">
+        {usuariosListados.length > 0 &&
+          (ehMobile ? (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="relative shrink-0">
@@ -223,9 +215,19 @@ export function GerenciarUsuarios({
             </Popover>
           ) : (
             camposDeFiltro()
-          )}
-        </div>
-      )}
+          ))}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onAlternarExpandir}
+          aria-label={
+            expandido ? "Recolher Perfil, unidade e setor" : "Expandir Perfil, unidade e setor"
+          }
+          className="ml-auto shrink-0"
+        >
+          {expandido ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+        </Button>
+      </div>
 
       {usuariosListados.length > 0 && usuariosFiltrados.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma pessoa encontrada com esses filtros.</p>

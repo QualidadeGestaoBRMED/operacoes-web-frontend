@@ -464,20 +464,46 @@ export function PermissoesAdmin() {
           )}
           style={{ flexGrow: pesoPermissoes }}
         >
-          <div className="flex flex-col gap-3 pb-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
-              <p className="text-sm text-muted-foreground">
-                Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
-                férias entre unidades.
-              </p>
-            </div>
-            {/* self-end (só até sm:): achado no dogfooding -- empilhado em
-                tela estreita, esse grupo ficava colado à esquerda enquanto
-                o botão de expandir da outra seção (sozinho, com o mesmo
-                self-end) ia pro canto direito -- os dois desalinhados
-                entre si. */}
-            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+          <div className="pb-2">
+            <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
+            <p className="text-sm text-muted-foreground">
+              Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
+              férias entre unidades.
+            </p>
+          </div>
+
+          {/* Achado no dogfooding: filtros e botões numa linha só (não
+              cabeçalho+botões numa linha e filtros noutra) -- mesmo
+              critério do KanbanFiltros (o "Nova Demanda" mora na própria
+              linha dos filtros, não no cabeçalho da página) e economiza
+              uma linha inteira de altura, principalmente em mobile. */}
+          <div className="flex flex-wrap items-center gap-2 pb-3">
+            {!carregandoPermissoes &&
+              grupos.length > 0 &&
+              (ehMobile ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="relative shrink-0">
+                      <ListFilter className="size-4" />
+                      <span className="sr-only">Filtros</span>
+                      {contagemFiltrosPermissoes > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
+                        >
+                          {contagemFiltrosPermissoes}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="flex flex-col gap-2">
+                    {camposDeFiltroPermissoes()}
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                camposDeFiltroPermissoes()
+              ))}
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <Button onClick={() => setFormAberto(true)}>
                 <Plus className="size-4" />
                 Nova permissão
@@ -500,34 +526,6 @@ export function PermissoesAdmin() {
               </Button>
             </div>
           </div>
-
-          {!carregandoPermissoes && grupos.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pb-3">
-              {ehMobile ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="icon" className="relative shrink-0">
-                      <ListFilter className="size-4" />
-                      <span className="sr-only">Filtros</span>
-                      {contagemFiltrosPermissoes > 0 && (
-                        <Badge
-                          variant="secondary"
-                          className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
-                        >
-                          {contagemFiltrosPermissoes}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="flex flex-col gap-2">
-                    {camposDeFiltroPermissoes()}
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                camposDeFiltroPermissoes()
-              )}
-            </div>
-          )}
 
           {carregandoPermissoes ? (
             <p className="text-sm text-muted-foreground">Carregando...</p>
