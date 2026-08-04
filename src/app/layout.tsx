@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Atlas — Plataforma de Operações",
+  title: "Atlas - BR MED",
   description: "Hub de operações BR MED",
 };
 
