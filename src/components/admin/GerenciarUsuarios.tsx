@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePerfis } from "@/hooks/usePerfis";
 import { useSetores } from "@/hooks/useSetores";
@@ -47,9 +48,13 @@ export function usuariosGerenciaveis(usuarios: Usuario[]): Usuario[] {
 export function GerenciarUsuarios({
   expandido,
   onAlternarExpandir,
+  onSobraAltura,
 }: {
   expandido: boolean;
   onAlternarExpandir: () => void;
+  // Opcional -- só o PermissoesAdmin em mobile repassa essa sobra pra
+  // "Permissões individuais" mostrar mais uma linha (ver useAlturaSemLinhaCortada).
+  onSobraAltura?: (px: number) => void;
 }) {
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
@@ -60,6 +65,11 @@ export function GerenciarUsuarios({
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem.
   const ehMobile = useMediaQuery("(max-width: 639px)");
+  const { refPai, refTabela, maxHeight, sobra } = useAlturaSemLinhaCortada();
+
+  useEffect(() => {
+    onSobraAltura?.(sobra);
+  }, [sobra, onSobraAltura]);
 
   const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
   const usuariosListados = usuariosGerenciaveis(usuarios);
@@ -177,7 +187,7 @@ export function GerenciarUsuarios({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
+    <div ref={refPai} className="flex h-full min-h-0 min-w-0 flex-col">
       <div className="pb-2">
         <h2 className="text-base font-semibold text-foreground">Perfil, unidade e setor</h2>
         <p className="text-sm text-muted-foreground">
@@ -236,7 +246,11 @@ export function GerenciarUsuarios({
             min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
             inteira mais larga que a viewport em telas estreitas, em vez de
             só essa caixa rolar horizontalmente. */
-        <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
+        <div
+          ref={refTabela}
+          style={{ maxHeight }}
+          className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border"
+        >
           <table
             aria-label="Perfil, unidade e setor"
             className="w-full min-w-[640px] text-left text-sm"
