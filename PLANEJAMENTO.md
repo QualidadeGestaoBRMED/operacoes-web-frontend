@@ -780,6 +780,7 @@ Implementado e verificado (`tsc`/lint/vitest/build); commitado em partes. Mergea
 - Mensagem técnica crua do SimpleJWT (`token_not_valid` + `detail`+`code`+`messages` concatenados por `extrairMensagemErro`) aparecendo por um instante antes do logout automático em qualquer 401 — trocada por uma mensagem amigável fixa (403 não precisou de mudança, já usa a mensagem real do backend).
 - Proxy BFF nunca achava a sessão em produção (HTTPS): `getToken()` não autodetecta `secureCookie` a partir do protocolo — sem o sinal explícito (`NODE_ENV === "production"`), todo request virava 401 mesmo logado. Só apareceu ao testar com login Google real pela primeira vez (sessões forjadas em dev sempre mascararam isso).
 - Build de produção com `--turbopack` ignorava o `matcher` customizado do middleware, caindo no padrão genérico e bloqueando até asset estático (`_next/static/**`) — página sem nenhum estilo em produção. `next build` (produção) não usa mais `--turbopack`; o dev mantém.
+- Favicon padrão do `create-next-app` (nunca trocado desde a fundação) substituído pelo símbolo da marca BR MED (recorte quadrado da marca vertical oficial, sem o texto — ilegível no tamanho de favicon); título da aba trocado de "Atlas — Plataforma de Operações" pra "Atlas - BR MED".
 
 ### 7.4 STC-171 — Testes automatizados do fluxo principal
 
