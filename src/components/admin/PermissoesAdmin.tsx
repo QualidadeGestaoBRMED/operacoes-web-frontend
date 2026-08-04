@@ -414,13 +414,17 @@ export function PermissoesAdmin() {
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
           própria -- uma tabela grande nunca empurra a outra seção pra fora
           da tela, e uma seção rala não fica com metade da tela vazia.
-          min-h-[15rem] (não min-h-0): achado no dogfooding -- com uma
+          min-h-[20rem] (não min-h-0): achado no dogfooding -- com uma
           diferença grande de linhas (ex.: 2 vs 19), o peso proporcional
           sozinho espremia a seção menor abaixo da altura do próprio
           cabeçalho (só sobrava espaço pro <thead>, nem uma linha). O piso
           garante cabeçalho + ~2 linhas visíveis antes de precisar rolar,
           não importa quão desigual seja a proporção; o espaço extra além
-          dos dois pisos continua sendo repartido pelo peso.
+          dos dois pisos continua sendo repartido pelo peso. Subiu de
+          15rem pra 20rem quando os filtros (Status/Pessoa/Ação,
+          Perfil/Unidade) ganharam sua própria linha em cada seção --
+          cabeçalho + filtro + <thead> já comiam quase todo o piso antigo,
+          sobrando espaço de menos que 1 linha de dado de verdade.
           Expandida, uma toma o espaço das duas e a outra leva "hidden"
           (fica montada, só invisível: preserva scroll/estado ao desfazer).
           min-w-0 em toda a cadeia: achado testando em telas estreitas -- a
@@ -434,7 +438,7 @@ export function PermissoesAdmin() {
         <div
           data-testid="secao-usuarios"
           className={cn(
-            "flex min-h-[15rem] min-w-0 flex-col",
+            "flex min-h-[20rem] min-w-0 flex-col",
             secaoExpandida === "permissoes" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoUsuarios }}
@@ -455,7 +459,7 @@ export function PermissoesAdmin() {
         <div
           data-testid="secao-permissoes"
           className={cn(
-            "flex min-h-[15rem] min-w-0 flex-col",
+            "flex min-h-[20rem] min-w-0 flex-col",
             secaoExpandida === "usuarios" ? "hidden" : "flex-1",
           )}
           style={{ flexGrow: pesoPermissoes }}
@@ -539,8 +543,13 @@ export function PermissoesAdmin() {
                 aria-label="Permissões individuais"
                 className="w-full min-w-[720px] text-left text-sm"
               >
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {/* sticky: achado no dogfooding (pedido testando com muitas
+                    permissões) -- sem isso, rolar a tabela escondia os
+                    rótulos das colunas junto com as linhas. bg-muted sólido
+                    (não /40): um header sticky translúcido deixaria as
+                    linhas por baixo aparecerem por trás dele ao rolar. */}
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                     <th className="px-4 py-2.5">Pessoa</th>
                     <th className="px-4 py-2.5">Concedido</th>
                     <th className="px-4 py-2.5">Ação</th>

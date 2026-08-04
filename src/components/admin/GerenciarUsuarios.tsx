@@ -239,8 +239,12 @@ export function GerenciarUsuarios({
             aria-label="Perfil, unidade e setor"
             className="w-full min-w-[640px] text-left text-sm"
           >
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {/* sticky: mesmo achado de PermissoesAdmin -- sem isso, rolar a
+                tabela escondia os rótulos das colunas junto com as linhas.
+                bg-muted sólido (não /40): translúcido deixaria as linhas
+                por baixo aparecerem por trás do header ao rolar. */}
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="px-4 py-2.5">Pessoa</th>
                 <th className="px-4 py-2.5">Perfil</th>
                 <th className="px-4 py-2.5">Unidade</th>
