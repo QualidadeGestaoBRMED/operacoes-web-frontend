@@ -130,4 +130,59 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
       expect(atualizarUsuario).toHaveBeenCalledWith(5, { setor_id: null });
     });
   });
+
+  it("filtra por perfil", async () => {
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE }),
+      usuario({ id: 2, first_name: "Bruno", perfil: PERFIL_SETOR }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Carla Lima")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/filtrar por perfil/i));
+    await user.click(await screen.findByRole("option", { name: "Setor" }));
+
+    expect(screen.queryByText("Carla Lima")).not.toBeInTheDocument();
+    expect(screen.getByText("Bruno Lima")).toBeInTheDocument();
+  });
+
+  it("filtra por unidade", async () => {
+    const VITORIA: Unidade = { id: 2, nome: "Vitória", codigo: "VIT", cidade: "Vitória", ativa: true };
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, VITORIA]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", unidade_id: UNIDADE.id }),
+      usuario({ id: 2, first_name: "Bruno", unidade_id: VITORIA.id }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Carla Lima")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/filtrar por unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Vitória" }));
+
+    expect(screen.queryByText("Carla Lima")).not.toBeInTheDocument();
+    expect(screen.getByText("Bruno Lima")).toBeInTheDocument();
+  });
+
+  it("mostra mensagem e permite limpar quando os filtros não encontram ninguém", async () => {
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/filtrar por perfil/i));
+    await user.click(await screen.findByRole("option", { name: "Setor" }));
+
+    expect(
+      await screen.findByText("Nenhuma pessoa encontrada com esses filtros."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
+
+    expect(await screen.findByText("Carla Lima")).toBeInTheDocument();
+  });
 });

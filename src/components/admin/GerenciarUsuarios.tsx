@@ -1,8 +1,11 @@
 "use client";
 
-import { Maximize2, Minimize2 } from "lucide-react";
+import { useState } from "react";
+import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -10,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePerfis } from "@/hooks/usePerfis";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -52,9 +56,89 @@ export function GerenciarUsuarios({
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { atualizar } = useAtualizarUsuario();
+  // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
+  // de filtro saem de linha e vão pra dentro de um Popover atrás de um
+  // botão só, com badge de contagem.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
 
   const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
   const usuariosListados = usuariosGerenciaveis(usuarios);
+
+  // Filtros -- só do lado do cliente: useUsuarios() já carrega tudo de uma
+  // vez (sem paginação), então filtrar em memória é suficiente.
+  const [filtroPerfil, setFiltroPerfil] = useState("todos");
+  const [filtroUnidade, setFiltroUnidade] = useState("todas");
+
+  const usuariosFiltrados = usuariosListados.filter((usuario) => {
+    if (filtroPerfil !== "todos") {
+      const valorPerfil = usuario.perfil ? String(usuario.perfil.id) : SEM_VALOR;
+      if (valorPerfil !== filtroPerfil) return false;
+    }
+    if (filtroUnidade !== "todas") {
+      const valorUnidade = usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR;
+      if (valorUnidade !== filtroUnidade) return false;
+    }
+    return true;
+  });
+  const contagemFiltros = [filtroPerfil !== "todos", filtroUnidade !== "todas"].filter(
+    Boolean,
+  ).length;
+
+  function limparFiltros() {
+    setFiltroPerfil("todos");
+    setFiltroUnidade("todas");
+  }
+
+  function camposDeFiltro() {
+    return (
+      <>
+        <Select value={filtroPerfil} onValueChange={setFiltroPerfil}>
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Filtrar por perfil">
+            <SelectValue placeholder="Perfil" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os perfis</SelectItem>
+            <SelectItem value={SEM_VALOR}>Sem perfil</SelectItem>
+            {perfisDisponiveis.map((perfil) => (
+              <SelectItem key={perfil.id} value={String(perfil.id)}>
+                {perfil.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            aria-label="Filtrar por unidade"
+          >
+            <SelectValue placeholder="Unidade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as unidades</SelectItem>
+            <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
+            {unidades.map((unidade) => (
+              <SelectItem key={unidade.id} value={String(unidade.id)}>
+                {unidade.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {contagemFiltros > 0 && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+          >
+            <X className="size-3.5" />
+            Limpar filtros
+          </button>
+        )}
+      </>
+    );
+  }
 
   async function aoMudarPerfil(usuario: Usuario, valor: string) {
     try {
@@ -115,97 +199,129 @@ export function GerenciarUsuarios({
         </Button>
       </div>
 
-      {/* min-w-0: mesmo achado de PermissoesAdmin -- sem isso, o
-          min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
-          inteira mais larga que a viewport em telas estreitas, em vez de
-          só essa caixa rolar horizontalmente. */}
-      <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
-        <table
-          aria-label="Perfil, unidade e setor"
-          className="w-full min-w-[640px] text-left text-sm"
-        >
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <th className="px-4 py-2.5">Pessoa</th>
-              <th className="px-4 py-2.5">Perfil</th>
-              <th className="px-4 py-2.5">Unidade</th>
-              <th className="px-4 py-2.5">Setor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuariosListados.map((usuario) => (
-              <tr key={usuario.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-2.5 font-medium text-foreground">
-                  {nomeExibicao(usuario)}
-                </td>
-                <td className="px-4 py-2.5">
-                  <Select
-                    value={usuario.perfil ? String(usuario.perfil.id) : SEM_VALOR}
-                    onValueChange={(valor) => void aoMudarPerfil(usuario, valor)}
-                  >
-                    <SelectTrigger
-                      aria-label={`Alterar perfil de ${nomeExibicao(usuario)}`}
-                      className="w-full min-w-[10rem]"
+      {usuariosListados.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 pb-3">
+          {ehMobile ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="relative shrink-0">
+                  <ListFilter className="size-4" />
+                  <span className="sr-only">Filtros</span>
+                  {contagemFiltros > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
                     >
-                      <SelectValue placeholder="Sem perfil" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SEM_VALOR}>Sem perfil</SelectItem>
-                      {perfisDisponiveis.map((perfil) => (
-                        <SelectItem key={perfil.id} value={String(perfil.id)}>
-                          {perfil.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="px-4 py-2.5">
-                  <Select
-                    value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
-                    onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
-                  >
-                    <SelectTrigger
-                      aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
-                      className="w-full min-w-[10rem]"
-                    >
-                      <SelectValue placeholder="Sem unidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
-                      {unidades.map((unidade) => (
-                        <SelectItem key={unidade.id} value={String(unidade.id)}>
-                          {unidade.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="px-4 py-2.5">
-                  <Select
-                    value={usuario.setor_id ? String(usuario.setor_id) : SEM_VALOR}
-                    onValueChange={(valor) => void aoMudarSetor(usuario, valor)}
-                  >
-                    <SelectTrigger
-                      aria-label={`Alterar setor de ${nomeExibicao(usuario)}`}
-                      className="w-full min-w-[10rem]"
-                    >
-                      <SelectValue placeholder="Sem setor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SEM_VALOR}>Sem setor</SelectItem>
-                      {setores.map((setor) => (
-                        <SelectItem key={setor.id} value={String(setor.id)}>
-                          {setor.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
+                      {contagemFiltros}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="flex flex-col gap-2">
+                {camposDeFiltro()}
+              </PopoverContent>
+            </Popover>
+          ) : (
+            camposDeFiltro()
+          )}
+        </div>
+      )}
+
+      {usuariosListados.length > 0 && usuariosFiltrados.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma pessoa encontrada com esses filtros.</p>
+      ) : (
+        /* min-w-0: mesmo achado de PermissoesAdmin -- sem isso, o
+            min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
+            inteira mais larga que a viewport em telas estreitas, em vez de
+            só essa caixa rolar horizontalmente. */
+        <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
+          <table
+            aria-label="Perfil, unidade e setor"
+            className="w-full min-w-[640px] text-left text-sm"
+          >
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="px-4 py-2.5">Pessoa</th>
+                <th className="px-4 py-2.5">Perfil</th>
+                <th className="px-4 py-2.5">Unidade</th>
+                <th className="px-4 py-2.5">Setor</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {usuariosFiltrados.map((usuario) => (
+                <tr key={usuario.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2.5 font-medium text-foreground">
+                    {nomeExibicao(usuario)}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Select
+                      value={usuario.perfil ? String(usuario.perfil.id) : SEM_VALOR}
+                      onValueChange={(valor) => void aoMudarPerfil(usuario, valor)}
+                    >
+                      <SelectTrigger
+                        aria-label={`Alterar perfil de ${nomeExibicao(usuario)}`}
+                        className="w-full min-w-[10rem]"
+                      >
+                        <SelectValue placeholder="Sem perfil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SEM_VALOR}>Sem perfil</SelectItem>
+                        {perfisDisponiveis.map((perfil) => (
+                          <SelectItem key={perfil.id} value={String(perfil.id)}>
+                            {perfil.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Select
+                      value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
+                      onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
+                    >
+                      <SelectTrigger
+                        aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
+                        className="w-full min-w-[10rem]"
+                      >
+                        <SelectValue placeholder="Sem unidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
+                        {unidades.map((unidade) => (
+                          <SelectItem key={unidade.id} value={String(unidade.id)}>
+                            {unidade.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Select
+                      value={usuario.setor_id ? String(usuario.setor_id) : SEM_VALOR}
+                      onValueChange={(valor) => void aoMudarSetor(usuario, valor)}
+                    >
+                      <SelectTrigger
+                        aria-label={`Alterar setor de ${nomeExibicao(usuario)}`}
+                        className="w-full min-w-[10rem]"
+                      >
+                        <SelectValue placeholder="Sem setor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={SEM_VALOR}>Sem setor</SelectItem>
+                        {setores.map((setor) => (
+                          <SelectItem key={setor.id} value={String(setor.id)}>
+                            {setor.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
