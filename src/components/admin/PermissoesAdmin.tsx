@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Maximize2, Minimize2, Plus, ShieldCheck } from "lucide-react";
+import { ListFilter, Maximize2, Minimize2, Plus, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePermissoes, useRevogarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -17,6 +26,8 @@ import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import { FormNovaPermissao } from "./FormNovaPermissao";
 import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
+
+const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
 
@@ -156,6 +167,11 @@ function agruparPermissoes(permissoes: PermissaoUsuario[]): GrupoPermissao[] {
 export function PermissoesAdmin() {
   const router = useRouter();
   const { isAdminOps, isLoading: carregandoAuth } = useAuth();
+  // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
+  // de filtro saem de linha e vão pra dentro de um Popover atrás de um
+  // botão só, com badge de contagem -- evita empilhar campo atrás de campo
+  // antes do usuário ver qualquer linha da tabela.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
   const { permissoes, isLoading: carregandoPermissoes } = usePermissoes();
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
@@ -177,9 +193,38 @@ export function PermissoesAdmin() {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
   }
 
+  // Filtros -- só do lado do cliente: usePermissoes() já carrega tudo de
+  // uma vez (sem paginação), então filtrar em memória é suficiente e evita
+  // ir e voltar no backend a cada troca de filtro.
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroPessoa, setFiltroPessoa] = useState("todas");
+  const [filtroAcao, setFiltroAcao] = useState("todas");
+
   const grupos = agruparPermissoes(permissoes);
+  // Peso das seções (ver pesoSecao) segue o total real, não o filtrado --
+  // senão a proporção "pula" a cada troca de filtro, mesmo com a mesma
+  // quantidade de dados por trás.
   const pesoUsuarios = pesoSecao(usuariosGerenciaveis(usuarios).length);
   const pesoPermissoes = pesoSecao(grupos.length);
+  const gruposFiltrados = grupos.filter((grupo) => {
+    if (filtroStatus !== "todos" && statusPermissao(grupo).rotulo !== filtroStatus) return false;
+    if (filtroPessoa !== "todas" && String(grupo.usuario) !== filtroPessoa) return false;
+    if (filtroAcao !== "todas" && !grupo.acoes.includes(filtroAcao as AcaoPermissao)) {
+      return false;
+    }
+    return true;
+  });
+  const contagemFiltrosPermissoes = [
+    filtroStatus !== "todos",
+    filtroPessoa !== "todas",
+    filtroAcao !== "todas",
+  ].filter(Boolean).length;
+
+  function limparFiltrosPermissoes() {
+    setFiltroStatus("todos");
+    setFiltroPessoa("todas");
+    setFiltroAcao("todas");
+  }
 
   // Mesmo padrão de guarda de página usado em nenhum outro lugar do app
   // ainda (achado construindo o STC-266: hoje o controle de admin só
@@ -235,6 +280,69 @@ export function PermissoesAdmin() {
     } finally {
       setParaRevogar(null);
     }
+  }
+
+  // Extraído pra função (não JSX inline duas vezes): os mesmos 3 selects
+  // renderizam inline (desktop) ou dentro do Popover (mobile), mesmo
+  // critério do KanbanFiltros -- reaproveita a árvore em vez de duplicar
+  // <Select>/aria-label nos dois branches.
+  function camposDeFiltroPermissoes() {
+    return (
+      <>
+        <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            {STATUS_PERMISSAO.map((status) => (
+              <SelectItem key={status} value={status}>
+                {status}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroPessoa} onValueChange={setFiltroPessoa}>
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Pessoa">
+            <SelectValue placeholder="Pessoa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as pessoas</SelectItem>
+            {usuarios.map((usuario) => (
+              <SelectItem key={usuario.id} value={String(usuario.id)}>
+                {nomeExibicao(usuario)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filtroAcao} onValueChange={setFiltroAcao}>
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Ação">
+            <SelectValue placeholder="Ação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas as ações</SelectItem>
+            {(Object.keys(ROTULO_ACAO) as AcaoPermissao[]).map((acao) => (
+              <SelectItem key={acao} value={acao}>
+                {ROTULO_ACAO[acao]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {contagemFiltrosPermissoes > 0 && (
+          <button
+            type="button"
+            onClick={limparFiltrosPermissoes}
+            className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+          >
+            <X className="size-3.5" />
+            Limpar filtros
+          </button>
+        )}
+      </>
+    );
   }
 
   return (
@@ -336,10 +444,42 @@ export function PermissoesAdmin() {
             </div>
           </div>
 
+          {!carregandoPermissoes && grupos.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pb-3">
+              {ehMobile ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="relative shrink-0">
+                      <ListFilter className="size-4" />
+                      <span className="sr-only">Filtros</span>
+                      {contagemFiltrosPermissoes > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
+                        >
+                          {contagemFiltrosPermissoes}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="flex flex-col gap-2">
+                    {camposDeFiltroPermissoes()}
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                camposDeFiltroPermissoes()
+              )}
+            </div>
+          )}
+
           {carregandoPermissoes ? (
             <p className="text-sm text-muted-foreground">Carregando...</p>
           ) : grupos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
+          ) : gruposFiltrados.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma permissão encontrada com esses filtros.
+            </p>
           ) : (
             <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
               <table
@@ -358,7 +498,7 @@ export function PermissoesAdmin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {grupos.map((grupo) => {
+                  {gruposFiltrados.map((grupo) => {
                     const status = statusPermissao(grupo);
                     return (
                       <tr

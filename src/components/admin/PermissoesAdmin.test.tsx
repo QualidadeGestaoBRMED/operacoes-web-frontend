@@ -423,4 +423,97 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(secaoUsuarios).not.toHaveClass("hidden");
     expect(secaoPermissoes).toHaveClass("hidden");
   });
+
+  it("filtra 'Permissões individuais' por status", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar" }),
+      permissaoBase({ id: 2, acao: "editar", ativo: false }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+    expect(screen.getByText("Editar")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(await screen.findByRole("option", { name: "Revogada" }));
+
+    expect(screen.queryByText("Visualizar")).not.toBeInTheDocument();
+    expect(screen.getByText("Editar")).toBeInTheDocument();
+  });
+
+  it("filtra 'Permissões individuais' por pessoa", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, usuario: USUARIO.id, acao: "visualizar" }),
+      permissaoBase({ id: 2, usuario: ADMIN_CONCEDENTE.id, acao: "editar" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Pessoa"));
+    await user.click(await screen.findByRole("option", { name: "Nathalya Admin" }));
+
+    expect(screen.queryByText("Visualizar")).not.toBeInTheDocument();
+    expect(screen.getByText("Editar")).toBeInTheDocument();
+  });
+
+  it("filtra 'Permissões individuais' por ação", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    // data_fim diferente -- garante grupos separados (agruparPermissoes não
+    // considera "acao" na chave, então duas ações com o resto igual
+    // virariam UMA linha só, "Visualizar, Editar", nunca um "Visualizar"
+    // isolado pro findByText bater).
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, acao: "visualizar", data_fim: "2026-02-01" }),
+      permissaoBase({ id: 2, acao: "editar", data_fim: null }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Ação"));
+    await user.click(await screen.findByRole("option", { name: "Editar" }));
+
+    // Escopado à tabela: depois de escolher "Editar" no filtro, o próprio
+    // select passa a exibir "Editar" como valor selecionado -- sem
+    // escopar, "Editar" bate duas vezes (select + célula da tabela).
+    const tabela = within(screen.getByRole("table", { name: /permissões individuais/i }));
+    expect(tabela.queryByText("Visualizar")).not.toBeInTheDocument();
+    expect(tabela.getByText("Editar")).toBeInTheDocument();
+  });
+
+  it("mostra mensagem e permite limpar quando os filtros não encontram nada", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ acao: "visualizar" })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText("Ação"));
+    await user.click(await screen.findByRole("option", { name: "Editar" }));
+
+    expect(
+      await screen.findByText("Nenhuma permissão encontrada com esses filtros."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
+
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+  });
 });
