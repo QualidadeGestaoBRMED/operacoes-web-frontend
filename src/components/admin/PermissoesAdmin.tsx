@@ -24,6 +24,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
+import { hojeNoFusoDoServidor } from "@/lib/kanban";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import { FormNovaPermissao } from "./FormNovaPermissao";
@@ -70,16 +71,6 @@ function formatarData(data: string) {
   return `${dia}/${mes}/${ano}`;
 }
 
-// Achado no dogfooding: hoje() em "YYYY-MM-DD" (mesmo formato de
-// data_inicio/data_fim) pra comparar como string, sem risco de fuso horário
-// -- mesma classe de cuidado documentada em hojeNoFusoDoServidor (lib/kanban.ts).
-function hoje() {
-  const agora = new Date();
-  const mes = String(agora.getMonth() + 1).padStart(2, "0");
-  const dia = String(agora.getDate()).padStart(2, "0");
-  return `${agora.getFullYear()}-${mes}-${dia}`;
-}
-
 // Espelha PermissaoUsuarioManager.ativas() (backend/plataforma/models.py):
 // ativo=True, data_inicio já chegou, e (sem data_fim OU data_fim ainda não
 // passou). "Agendada" (data_inicio no futuro) é um estado que o manager do
@@ -96,7 +87,7 @@ function statusPermissao(permissao: {
   variante: "success" | "warning" | "muted" | "destructive";
 } {
   if (!permissao.ativo) return { rotulo: "Revogada", variante: "destructive" };
-  const dataAtual = hoje();
+  const dataAtual = hojeNoFusoDoServidor();
   if (permissao.data_inicio > dataAtual) return { rotulo: "Agendada", variante: "warning" };
   if (permissao.data_fim && permissao.data_fim < dataAtual) {
     return { rotulo: "Expirada", variante: "muted" };
