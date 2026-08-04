@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ListFilter, Maximize2, Minimize2, Plus, ShieldCheck, X } from "lucide-react";
+import { ChevronDownIcon, ListFilter, Maximize2, Minimize2, Plus, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -197,7 +198,11 @@ export function PermissoesAdmin() {
   // uma vez (sem paginação), então filtrar em memória é suficiente e evita
   // ir e voltar no backend a cada troca de filtro.
   const [filtroStatus, setFiltroStatus] = useState("todos");
-  const [filtroPessoa, setFiltroPessoa] = useState("todas");
+  // Pessoa é multi-seleção (achado no dogfooding: útil comparar duas
+  // pessoas de uma vez) -- array vazio = sem filtro, não "todas" como um
+  // valor mágico, já que aqui não existe um "valor único" pra representar
+  // isso.
+  const [filtroPessoas, setFiltroPessoas] = useState<number[]>([]);
   const [filtroAcao, setFiltroAcao] = useState("todas");
 
   const grupos = agruparPermissoes(permissoes);
@@ -206,9 +211,17 @@ export function PermissoesAdmin() {
   // quantidade de dados por trás.
   const pesoUsuarios = pesoSecao(usuariosGerenciaveis(usuarios).length);
   const pesoPermissoes = pesoSecao(grupos.length);
+  // Achado no dogfooding: listar TODOS os usuários no filtro de pessoa
+  // mostrava gente que nunca recebeu nenhuma permissão -- opções demais,
+  // a maioria inútil. Deriva de "grupos" (não filtrado por outros campos
+  // de propósito: trocar Status/Ação não deve fazer pessoas sumirem da
+  // lista de opções, senão fica confuso qual filtro mexeu em qual).
+  const idsComPermissao = Array.from(new Set(grupos.map((grupo) => grupo.usuario))).sort((a, b) =>
+    nomeUsuario(a).localeCompare(nomeUsuario(b)),
+  );
   const gruposFiltrados = grupos.filter((grupo) => {
     if (filtroStatus !== "todos" && statusPermissao(grupo).rotulo !== filtroStatus) return false;
-    if (filtroPessoa !== "todas" && String(grupo.usuario) !== filtroPessoa) return false;
+    if (filtroPessoas.length > 0 && !filtroPessoas.includes(grupo.usuario)) return false;
     if (filtroAcao !== "todas" && !grupo.acoes.includes(filtroAcao as AcaoPermissao)) {
       return false;
     }
@@ -216,14 +229,22 @@ export function PermissoesAdmin() {
   });
   const contagemFiltrosPermissoes = [
     filtroStatus !== "todos",
-    filtroPessoa !== "todas",
+    filtroPessoas.length > 0,
     filtroAcao !== "todas",
   ].filter(Boolean).length;
 
   function limparFiltrosPermissoes() {
     setFiltroStatus("todos");
-    setFiltroPessoa("todas");
+    setFiltroPessoas([]);
     setFiltroAcao("todas");
+  }
+
+  function alternarFiltroPessoa(usuarioId: number) {
+    setFiltroPessoas((atual) =>
+      atual.includes(usuarioId)
+        ? atual.filter((id) => id !== usuarioId)
+        : [...atual, usuarioId],
+    );
   }
 
   // Mesmo padrão de guarda de página usado em nenhum outro lugar do app
@@ -303,19 +324,51 @@ export function PermissoesAdmin() {
           </SelectContent>
         </Select>
 
-        <Select value={filtroPessoa} onValueChange={setFiltroPessoa}>
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Pessoa">
-            <SelectValue placeholder="Pessoa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas as pessoas</SelectItem>
-            {usuarios.map((usuario) => (
-              <SelectItem key={usuario.id} value={String(usuario.id)}>
-                {nomeExibicao(usuario)}
-              </SelectItem>
+        {/* Multi-seleção: mesmo padrão do campo "Ação" em FormNovaPermissao
+            (Popover + Checkbox, estilizado feito um SelectTrigger) -- o
+            primitivo Select do Radix não suporta múltiplos valores. */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Pessoa"
+              className="flex h-8 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm whitespace-nowrap shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:w-auto dark:bg-input/30 dark:hover:bg-input/50"
+            >
+              <span
+                className={cn(
+                  "line-clamp-1 text-left",
+                  filtroPessoas.length === 0 && "text-muted-foreground",
+                )}
+              >
+                {filtroPessoas.length > 0
+                  ? filtroPessoas.map((id) => nomeUsuario(id)).join(", ")
+                  : "Pessoa"}
+              </span>
+              <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground opacity-50" />
+            </button>
+          </PopoverTrigger>
+          {/* min-w: achado no dogfooding -- preso só a
+              --radix-popover-trigger-width, o botão "Pessoa" (estreito
+              antes de escolher alguém) fazia nomes mais longos ("Projetos
+              BR MED") quebrarem linha dentro do popover e "descolarem" do
+              checkbox. shrink-0 no Checkbox + truncate no texto garantem
+              uma linha só mesmo assim. */}
+          <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-48 p-1">
+            {idsComPermissao.map((id) => (
+              <label
+                key={id}
+                className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+              >
+                <Checkbox
+                  checked={filtroPessoas.includes(id)}
+                  onCheckedChange={() => alternarFiltroPessoa(id)}
+                  className="shrink-0"
+                />
+                <span className="truncate">{nomeUsuario(id)}</span>
+              </label>
             ))}
-          </SelectContent>
-        </Select>
+          </PopoverContent>
+        </Popover>
 
         <Select value={filtroAcao} onValueChange={setFiltroAcao}>
           <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Ação">

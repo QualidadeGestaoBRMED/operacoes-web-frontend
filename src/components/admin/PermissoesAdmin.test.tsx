@@ -460,11 +460,55 @@ describe("PermissoesAdmin (STC-266)", () => {
     renderTela();
     expect(await screen.findByText("Visualizar")).toBeInTheDocument();
 
+    // Multi-seleção (Popover + Checkbox, não um Select comum) -- clica no
+    // checkbox pelo role, não pelo texto "Nathalya Admin" (esse texto
+    // também aparece na coluna "Concedido" da tabela, então getByText
+    // bateria em mais de um elemento).
     await user.click(screen.getByLabelText("Pessoa"));
-    await user.click(await screen.findByRole("option", { name: "Nathalya Admin" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Nathalya Admin" }));
 
     expect(screen.queryByText("Visualizar")).not.toBeInTheDocument();
     expect(screen.getByText("Editar")).toBeInTheDocument();
+  });
+
+  it("permite selecionar mais de uma pessoa no filtro", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, usuario: USUARIO.id, acao: "visualizar" }),
+      permissaoBase({ id: 2, usuario: ADMIN_CONCEDENTE.id, acao: "editar" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Pessoa"));
+    await user.click(await screen.findByRole("checkbox", { name: "Fernanda Lima" }));
+    await user.click(screen.getByRole("checkbox", { name: "Nathalya Admin" }));
+
+    // as duas continuam visíveis -- filtro é "Fernanda OU Nathalya", não
+    // "só a última marcada".
+    expect(screen.getByText("Visualizar")).toBeInTheDocument();
+    expect(screen.getByText("Editar")).toBeInTheDocument();
+  });
+
+  it("só lista no filtro de pessoa quem tem alguma permissão", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ usuario: USUARIO.id })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText("Pessoa"));
+
+    expect(await screen.findByRole("checkbox", { name: "Fernanda Lima" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Nathalya Admin" })).not.toBeInTheDocument();
   });
 
   it("filtra 'Permissões individuais' por ação", async () => {

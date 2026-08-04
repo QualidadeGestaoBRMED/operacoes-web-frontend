@@ -296,9 +296,15 @@ export function FormNovaPermissao({
                           <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground opacity-50" />
                         </button>
                       </PopoverTrigger>
+                      {/* min-w: achado no dogfooding -- preso só a
+                          --radix-popover-trigger-width, um trigger estreito
+                          (célula de filtro, tela pequena) fazia o rótulo
+                          quebrar linha dentro do popover e "descolar" do
+                          checkbox. shrink-0 no Checkbox + truncate no texto
+                          garantem uma linha só mesmo assim. */}
                       <PopoverContent
                         align="start"
-                        className="w-[var(--radix-popover-trigger-width)] p-1"
+                        className="w-[var(--radix-popover-trigger-width)] min-w-48 p-1"
                       >
                         {ACOES.map((acao) => (
                           <label
@@ -308,8 +314,9 @@ export function FormNovaPermissao({
                             <Checkbox
                               checked={selecionadas.includes(acao)}
                               onCheckedChange={() => alternar(acao)}
+                              className="shrink-0"
                             />
-                            {ROTULO_ACAO[acao]}
+                            <span className="truncate">{ROTULO_ACAO[acao]}</span>
                           </label>
                         ))}
                       </PopoverContent>
