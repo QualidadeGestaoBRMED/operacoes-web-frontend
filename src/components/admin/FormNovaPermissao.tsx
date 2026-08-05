@@ -34,14 +34,11 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { cn, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao } from "@/types";
 
-const ACOES: AcaoPermissao[] = [
+type AcaoKanban = Extract<AcaoPermissao, "visualizar" | "editar">;
+
+const ACOES: AcaoKanban[] = [
   "visualizar",
-  "criar",
   "editar",
-  "aprovar",
-  "excluir",
-  "restaurar",
-  "configurar",
 ];
 
 // recurso é texto livre no backend (PermissaoUsuario.recurso, sem choices),
@@ -89,7 +86,7 @@ const schema = z
     // não obrigar reabrir o formulário do zero pra cada ação da mesma
     // pessoa/escopo/período.
     acao: z
-      .array(z.enum(["visualizar", "criar", "editar", "aprovar", "excluir", "restaurar", "configurar"]))
+      .array(z.enum(["visualizar", "editar"]))
       .min(1, "Selecione ao menos uma ação."),
     escopo_tipo: z.enum(["global", "unidade", "setor", "proprio"], {
       error: "Selecione o escopo.",
@@ -268,7 +265,14 @@ export function FormNovaPermissao({
                 name="acao"
                 render={({ field }) => {
                   const selecionadas = field.value ?? [];
-                  function alternar(acao: AcaoPermissao) {
+                  function alternar(acao: AcaoKanban) {
+                    if (acao === "editar" && !selecionadas.includes("editar")) {
+                      // Escrita implica leitura no backend. Mantém Visualizar
+                      // explícito no formulário/listagem para o administrador
+                      // entender o conjunto efetivamente concedido.
+                      field.onChange(Array.from(new Set([...selecionadas, "visualizar", "editar"])));
+                      return;
+                    }
                     field.onChange(
                       selecionadas.includes(acao)
                         ? selecionadas.filter((item) => item !== acao)
@@ -314,6 +318,9 @@ export function FormNovaPermissao({
                             <Checkbox
                               checked={selecionadas.includes(acao)}
                               onCheckedChange={() => alternar(acao)}
+                              disabled={
+                                acao === "visualizar" && selecionadas.includes("editar")
+                              }
                               className="shrink-0"
                             />
                             <span className="truncate">{ROTULO_ACAO[acao]}</span>
@@ -325,6 +332,10 @@ export function FormNovaPermissao({
                 }}
               />
               {errors.acao && <p className="text-xs text-destructive">{errors.acao.message}</p>}
+              <p className="text-xs text-muted-foreground">
+                Editar também concede visualização. Lixeira, aprovação e configurações continuam
+                seguindo as regras administrativas do sistema.
+              </p>
             </div>
 
             <div className="space-y-1.5">

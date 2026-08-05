@@ -813,6 +813,12 @@ Sidebar/AppShell: o menu lateral em mobile deixou de "empurrar" o conteúdo (`wi
 
 **Backend companion** (branch separada, `STC-266-backend-notificacoes-perfil-e-permissao`, também não mergeada): `plataforma/notificacoes.py` (mesmo padrão de `demandas/notificacoes.py`) notifica o usuário quando o próprio perfil muda ou uma permissão é concedida/revogada.
 
+**Correção de contrato após revisão:** o formulário do recurso
+`gestao-demandas.kanban` oferece somente `Visualizar` e `Editar`, que são as
+ações realmente consumidas pelo backend. Marcar `Editar` inclui
+`Visualizar`; lixeira, aprovação e configurações permanecem regidas pelas
+regras administrativas próprias, sem criar permissões individuais sem efeito.
+
 **Achados da autorevisão de segurança/estrutura** (feita depois de fechar o pacote, sem issue própria):
 - Corrigido: `statusPermissao()` calculava "hoje" no fuso do navegador (`getFullYear()/getMonth()/getDate()` de `new Date()`), podendo divergir do critério real do backend (`PermissaoUsuarioManager.ativas()`, fuso fixo `America/Sao_Paulo`) pra quem acessa de outro fuso — a badge Ativa/Agendada/Expirada podia mostrar um estado que o backend não concordava. Trocado pelo utilitário já existente `hojeNoFusoDoServidor()` (`lib/kanban.ts`), em vez de duplicar a lógica.
 - **Não corrigido, fora do escopo deste ticket** (pré-existente em `main`, não introduzido pelo STC-266): `accounts/serializers.py` (`validate_perfil_id`) bloqueia promover/rebaixar alguém a/de Admin Q&G (nível 1) sem ser Admin Q&G, mas não tem proteção equivalente pro nível Admin Operações (nível 2) — qualquer Admin Operações pode promover qualquer pessoa (inclusive a própria conta) a Admin Operações via `PATCH` direto em `/plataforma/usuarios/{id}/`, contornando o filtro que a tela aplica só no cliente. Só existe teste cobrindo o nível 1.

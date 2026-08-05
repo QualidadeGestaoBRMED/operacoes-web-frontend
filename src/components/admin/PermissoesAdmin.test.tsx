@@ -268,6 +268,30 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "editar" }));
   });
 
+  it("oferece apenas ações que o Kanban implementa e mantém Visualizar ao marcar Editar", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    await user.click(screen.getByLabelText(/^ação/i));
+
+    expect(await screen.findByRole("checkbox", { name: "Visualizar" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Restaurar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Configurar" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Editar" }));
+
+    expect(screen.getByRole("checkbox", { name: "Visualizar" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Visualizar" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Editar" })).toBeChecked();
+  });
+
   // Achado ao usar a tela: marcar 3 ações num formulário só virava 3 linhas
   // na tabela (uma por PermissaoUsuario -- no backend, sempre uma ação só
   // por registro) -- agrupa de volta na exibição quando pessoa, concedente,
