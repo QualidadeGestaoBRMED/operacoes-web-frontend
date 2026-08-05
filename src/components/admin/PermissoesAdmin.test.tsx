@@ -227,10 +227,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     });
   });
 
-  // Achado no dogfooding: PermissaoUsuario.acao é uma ação só por registro
-  // no backend -- marcar mais de uma no form precisa virar uma chamada por
-  // ação, não uma chamada só com uma lista (que o backend rejeitaria).
-  it("marcar mais de uma ação cria uma permissão pra cada uma", async () => {
+  it("Editar cria apenas uma permissão, pois já implica Visualizar no backend", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -247,10 +244,8 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(screen.getByLabelText(/recurso/i));
     await user.click(await screen.findByRole("option", { name: /kanban/i }));
 
-    // "Visualizar" já vem marcado por padrão -- adiciona "Editar" junto
-    // (dropdown: precisa abrir antes de marcar a checkbox de dentro).
     await user.click(screen.getByLabelText(/^ação/i));
-    await user.click(await screen.findByText("Editar"));
+    await user.click(await screen.findByRole("option", { name: "Editar" }));
 
     await user.click(screen.getByLabelText(/^unidade/i));
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
@@ -262,13 +257,12 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(screen.getByRole("button", { name: /conceder permissão/i }));
 
     await waitFor(() => {
-      expect(criarPermissao).toHaveBeenCalledTimes(2);
+      expect(criarPermissao).toHaveBeenCalledTimes(1);
     });
-    expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "visualizar" }));
     expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "editar" }));
   });
 
-  it("oferece apenas ações que o Kanban implementa e mantém Visualizar ao marcar Editar", async () => {
+  it("oferece somente uma escolha entre Visualizar e Editar", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -279,24 +273,14 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
     await user.click(screen.getByLabelText(/^ação/i));
 
-    expect(await screen.findByRole("checkbox", { name: "Visualizar" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Editar" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Excluir" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Restaurar" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Configurar" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("checkbox", { name: "Editar" }));
-
-    expect(screen.getByRole("checkbox", { name: "Visualizar" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Visualizar" })).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: "Editar" })).toBeChecked();
+    expect(await screen.findByRole("option", { name: "Visualizar" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Restaurar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Configurar" })).not.toBeInTheDocument();
   });
 
-  // Achado ao usar a tela: marcar 3 ações num formulário só virava 3 linhas
-  // na tabela (uma por PermissaoUsuario -- no backend, sempre uma ação só
-  // por registro) -- agrupa de volta na exibição quando pessoa, concedente,
-  // escopo e período batem.
-  it("agrupa permissões nascidas do mesmo formulário em uma linha só", async () => {
+  it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -304,33 +288,15 @@ describe("PermissoesAdmin (STC-266)", () => {
     vi.mocked(listarPermissoes).mockResolvedValue([
       permissaoBase({ id: 1, acao: "visualizar" }),
       permissaoBase({ id: 2, acao: "editar" }),
-      permissaoBase({ id: 3, acao: "aprovar" }),
     ]);
 
     renderTela();
 
     const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
-    expect(tabela.getByText("Fernanda Lima")).toBeInTheDocument();
-    expect(tabela.getByText("Visualizar, Editar, Aprovar")).toBeInTheDocument();
-    // uma linha só -- só um botão "Revogar", não três
-    expect(tabela.getAllByRole("button", { name: "Revogar" })).toHaveLength(1);
-  });
-
-  it("não agrupa permissões de períodos diferentes (submissões distintas)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
-      isAdminOps: true,
-      isLoading: false,
-    } as ReturnType<typeof useAuth>);
-    vi.mocked(listarPermissoes).mockResolvedValue([
-      permissaoBase({ id: 1, acao: "visualizar", data_fim: "2026-02-01" }),
-      permissaoBase({ id: 2, acao: "editar", data_fim: null }),
-    ]);
-
-    renderTela();
-
-    expect(await screen.findByText("Visualizar")).toBeInTheDocument();
-    expect(screen.getByText("Editar")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(2);
+    expect(tabela.getAllByText("Fernanda Lima")).toHaveLength(2);
+    expect(tabela.getByText("Visualizar")).toBeInTheDocument();
+    expect(tabela.getByText("Editar")).toBeInTheDocument();
+    expect(tabela.getAllByRole("button", { name: "Revogar" })).toHaveLength(2);
   });
 
   it("ordena por 'Concedido' do mais recente pro mais antigo", async () => {
@@ -355,7 +321,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     ]);
   });
 
-  it("revoga todas as ações do grupo de uma vez", async () => {
+  it("revoga somente o ID da linha escolhida", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -368,16 +334,19 @@ describe("PermissoesAdmin (STC-266)", () => {
     const user = userEvent.setup();
 
     renderTela();
-    await user.click(await screen.findByRole("button", { name: "Revogar" }));
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    const linhaVisualizar = tabela.getByText("Visualizar").closest("tr");
+    expect(linhaVisualizar).not.toBeNull();
+    await user.click(within(linhaVisualizar!).getByRole("button", { name: "Revogar" }));
 
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Revogar" }));
 
     await waitFor(() => {
-      expect(revogarPermissao).toHaveBeenCalledTimes(2);
+      expect(revogarPermissao).toHaveBeenCalledTimes(1);
     });
     expect(revogarPermissao).toHaveBeenCalledWith(1);
-    expect(revogarPermissao).toHaveBeenCalledWith(2);
+    expect(revogarPermissao).not.toHaveBeenCalledWith(2);
   });
 
   it("revoga uma permissão ativa", async () => {
@@ -540,12 +509,8 @@ describe("PermissoesAdmin (STC-266)", () => {
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
-    // data_fim diferente -- garante grupos separados (agruparPermissoes não
-    // considera "acao" na chave, então duas ações com o resto igual
-    // virariam UMA linha só, "Visualizar, Editar", nunca um "Visualizar"
-    // isolado pro findByText bater).
     vi.mocked(listarPermissoes).mockResolvedValue([
-      permissaoBase({ id: 1, acao: "visualizar", data_fim: "2026-02-01" }),
+      permissaoBase({ id: 1, acao: "visualizar" }),
       permissaoBase({ id: 2, acao: "editar", data_fim: null }),
     ]);
     const user = userEvent.setup();

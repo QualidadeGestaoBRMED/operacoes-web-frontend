@@ -807,16 +807,21 @@ STC-192/STC-208/STC-210 (4.1), STC-203/STC-196/STC-197 (4.3), STC-186 — filtro
 
 **Implementada na branch `STC-266-frontend-tela-de-administracao-para-concedergerenciar-permissoes-individuais`, ainda não mergeada em `main`.** Nova tela `/admin/permissoes` (link na Sidebar, visível só pra Admin Q&G/Admin Operações), com duas seções independentes: "Perfil, unidade e setor" (`GerenciarUsuarios.tsx`) — edita `perfil_id`/`unidade_id`/`setor_id` de cada pessoa via `PATCH /plataforma/usuarios/{id}/`, nunca lista nem oferece nível admin (nível ≤2) como opção, mesmo o backend aceitando mais que isso via API (ver achado de review abaixo) — e "Permissões individuais" (`PermissoesAdmin.tsx` + `FormNovaPermissao.tsx`) — CRUD de `PermissaoUsuario` (`/plataforma/permissoes-usuario/`), concessão/revogação com escopo (global/unidade/setor/próprio) e período opcional. `hooks/usePermissoes.ts`, `usePerfis.ts`, `useModulos.ts` novos; `useUsuarios.ts` ganhou `useAtualizarUsuario`; `lib/plataforma.ts` estendido (mesmo app Django que já hospedava Unidade/Setor).
 
-Decisões de UI notáveis: como `PermissaoUsuario` não tem "lista de ações" num registro só (uma ação por linha), marcar várias Ações no formulário cria uma linha por ação — `agruparPermissoes()` reagrupa na exibição por tudo que caracteriza "o mesmo pedido de acesso" (pessoa/concedido por/escopo/período/minuto de criação), sem mudar o model; revogar continua granular por id nos bastidores. Filtros (Status/Pessoa/Ação numa seção, Perfil/Unidade na outra) seguem o padrão já estabelecido em `KanbanFiltros` (STC-186): inline no desktop, Popover+Badge atrás de um ícone abaixo de 640px. Altura das duas seções é proporcional ao número de linhas de cada uma (`pesoSecao`, com piso mínimo pra nenhuma sumir), cada uma com scroll próprio — `useAlturaSemLinhaCortada.ts` (novo hook genérico, mesmo espírito de `useMediaQuery.ts`) mede a altura real de uma linha em runtime e trava a tabela num múltiplo exato, garantindo que a última linha visível nunca apareça cortada pela metade.
+Decisões de UI notáveis: `PermissaoUsuario` possui uma ação por registro, então
+o formulário também permite uma única escolha (`Visualizar` ou `Editar`) e
+faz somente uma chamada de criação. `Editar` já implica leitura no backend.
+Cada registro da API permanece uma linha independente na tabela e a revogação
+usa apenas seu ID real; timestamps não são usados como identidade de lote.
+Filtros (Status/Pessoa/Ação numa seção, Perfil/Unidade na outra) seguem o padrão já estabelecido em `KanbanFiltros` (STC-186): inline no desktop, Popover+Badge atrás de um ícone abaixo de 640px. Altura das duas seções é proporcional ao número de linhas de cada uma (`pesoSecao`, com piso mínimo pra nenhuma sumir), cada uma com scroll próprio — `useAlturaSemLinhaCortada.ts` (novo hook genérico, mesmo espírito de `useMediaQuery.ts`) mede a altura real de uma linha em runtime e trava a tabela num múltiplo exato, garantindo que a última linha visível nunca apareça cortada pela metade.
 
 Sidebar/AppShell: o menu lateral em mobile deixou de "empurrar" o conteúdo (`width` 0↔16rem) e virou overlay flutuante (`position: fixed`, backdrop, trava de scroll do body) — achado direto do responsável do projeto ("a página principal não pode ser impactada pela presença do menu lateral").
 
 **Backend companion** (branch separada, `STC-266-backend-notificacoes-perfil-e-permissao`, também não mergeada): `plataforma/notificacoes.py` (mesmo padrão de `demandas/notificacoes.py`) notifica o usuário quando o próprio perfil muda ou uma permissão é concedida/revogada.
 
 **Correção de contrato após revisão:** o formulário do recurso
-`gestao-demandas.kanban` oferece somente `Visualizar` e `Editar`, que são as
-ações realmente consumidas pelo backend. Marcar `Editar` inclui
-`Visualizar`; lixeira, aprovação e configurações permanecem regidas pelas
+`gestao-demandas.kanban` oferece uma escolha entre `Visualizar` e `Editar`,
+que são as ações realmente consumidas pelo backend. `Editar` inclui leitura
+sem criar um segundo registro `Visualizar`; lixeira, aprovação e configurações permanecem regidas pelas
 regras administrativas próprias, sem criar permissões individuais sem efeito.
 
 **Achados da autorevisão de segurança/estrutura** (feita depois de fechar o pacote, sem issue própria):

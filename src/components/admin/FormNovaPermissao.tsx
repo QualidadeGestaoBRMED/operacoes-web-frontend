@@ -3,11 +3,9 @@
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDownIcon } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,7 +28,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
-import { cn, nomeExibicao } from "@/lib/utils";
+import { nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao } from "@/types";
 
 type AcaoKanban = Extract<AcaoPermissao, "visualizar" | "editar">;
@@ -80,14 +77,12 @@ const schema = z
   .object({
     usuario: z.coerce.number({ error: "Selecione a pessoa." }).int().positive(),
     recurso: z.string().min(1, "Selecione o recurso."),
-    // Multi-select: PermissaoUsuario.acao (backend) é uma ação só por
-    // registro -- não existe "lista de ações" no model. Selecionar mais de
-    // uma aqui cria uma permissão por ação marcada (ver aoSubmeter), só pra
-    // não obrigar reabrir o formulário do zero pra cada ação da mesma
-    // pessoa/escopo/período.
-    acao: z
-      .array(z.enum(["visualizar", "editar"]))
-      .min(1, "Selecione ao menos uma ação."),
+    // Uma escolha gera exatamente um PermissaoUsuario. "editar" já implica
+    // leitura no backend, portanto não há motivo para criar também um
+    // segundo registro "visualizar" e arriscar uma concessão parcial.
+    acao: z.enum(["visualizar", "editar"], {
+      error: "Selecione a ação.",
+    }),
     escopo_tipo: z.enum(["global", "unidade", "setor", "proprio"], {
       error: "Selecione o escopo.",
     }),
@@ -113,7 +108,7 @@ type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
 const valoresPadrao: Partial<FormValuesEntrada> = {
-  acao: ["visualizar"],
+  acao: "visualizar",
   escopo_tipo: "unidade",
 };
 
@@ -156,31 +151,18 @@ export function FormNovaPermissao({
       const codigoModulo = valores.recurso.split(".")[0];
       const moduloId = modulos.find((modulo) => modulo.codigo === codigoModulo)?.id ?? null;
 
-      // Uma chamada por ação marcada (backend não tem "lista de ações" num
-      // registro só) -- sequencial, não Promise.all: criar() vem de
-      // useSWRMutation, cujo isMutating/estado de erro é único por hook;
-      // chamar o mesmo trigger várias vezes em paralelo arriscaria pisar
-      // nesse estado compartilhado. Sequencial também deixa claro, se uma
-      // falhar no meio, que as anteriores já foram criadas de verdade (a
-      // lista, revalidada a cada sucesso, reflete isso).
-      for (const acao of valores.acao) {
-        await criar({
-          usuario: valores.usuario,
-          modulo: moduloId,
-          recurso: valores.recurso,
-          acao,
-          escopo_tipo: valores.escopo_tipo,
-          unidade: valores.escopo_tipo === "unidade" ? valores.unidade : null,
-          setor: valores.escopo_tipo === "setor" ? valores.setor : null,
-          data_inicio: valores.data_inicio,
-          data_fim: valores.data_fim || null,
-        });
-      }
-      toast.success(
-        valores.acao.length > 1
-          ? `${valores.acao.length} permissões concedidas.`
-          : "Permissão concedida.",
-      );
+      await criar({
+        usuario: valores.usuario,
+        modulo: moduloId,
+        recurso: valores.recurso,
+        acao: valores.acao,
+        escopo_tipo: valores.escopo_tipo,
+        unidade: valores.escopo_tipo === "unidade" ? valores.unidade : null,
+        setor: valores.escopo_tipo === "setor" ? valores.setor : null,
+        data_inicio: valores.data_inicio,
+        data_fim: valores.data_fim || null,
+      });
+      toast.success("Permissão concedida.");
       onOpenChange(false);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -263,73 +245,20 @@ export function FormNovaPermissao({
               <Controller
                 control={control}
                 name="acao"
-                render={({ field }) => {
-                  const selecionadas = field.value ?? [];
-                  function alternar(acao: AcaoKanban) {
-                    if (acao === "editar" && !selecionadas.includes("editar")) {
-                      // Escrita implica leitura no backend. Mantém Visualizar
-                      // explícito no formulário/listagem para o administrador
-                      // entender o conjunto efetivamente concedido.
-                      field.onChange(Array.from(new Set([...selecionadas, "visualizar", "editar"])));
-                      return;
-                    }
-                    field.onChange(
-                      selecionadas.includes(acao)
-                        ? selecionadas.filter((item) => item !== acao)
-                        : [...selecionadas, acao],
-                    );
-                  }
-                  return (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          id="p-acao"
-                          type="button"
-                          className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50"
-                        >
-                          <span
-                            className={cn(
-                              "line-clamp-1 text-left",
-                              selecionadas.length === 0 && "text-muted-foreground",
-                            )}
-                          >
-                            {selecionadas.length > 0
-                              ? selecionadas.map((acao) => ROTULO_ACAO[acao]).join(", ")
-                              : "Selecionar..."}
-                          </span>
-                          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground opacity-50" />
-                        </button>
-                      </PopoverTrigger>
-                      {/* min-w: achado no dogfooding -- preso só a
-                          --radix-popover-trigger-width, um trigger estreito
-                          (célula de filtro, tela pequena) fazia o rótulo
-                          quebrar linha dentro do popover e "descolar" do
-                          checkbox. shrink-0 no Checkbox + truncate no texto
-                          garantem uma linha só mesmo assim. */}
-                      <PopoverContent
-                        align="start"
-                        className="w-[var(--radix-popover-trigger-width)] min-w-48 p-1"
-                      >
-                        {ACOES.map((acao) => (
-                          <label
-                            key={acao}
-                            className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-                          >
-                            <Checkbox
-                              checked={selecionadas.includes(acao)}
-                              onCheckedChange={() => alternar(acao)}
-                              disabled={
-                                acao === "visualizar" && selecionadas.includes("editar")
-                              }
-                              className="shrink-0"
-                            />
-                            <span className="truncate">{ROTULO_ACAO[acao]}</span>
-                          </label>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  );
-                }}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="p-acao" className="w-full">
+                      <SelectValue placeholder="Selecionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACOES.map((acao) => (
+                        <SelectItem key={acao} value={acao}>
+                          {ROTULO_ACAO[acao]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
               {errors.acao && <p className="text-xs text-destructive">{errors.acao.message}</p>}
               <p className="text-xs text-muted-foreground">
