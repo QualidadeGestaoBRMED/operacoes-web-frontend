@@ -11,7 +11,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnexos } from "@/hooks/useAnexos";
-import { useAuth } from "@/hooks/useAuth";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
@@ -80,18 +79,11 @@ export function DetalheCard({
   const { comentarios } = useComentarios(demandaId);
   const { anexos } = useAnexos(demandaId);
   const { historico } = useHistorico(demandaId);
-  const { user, isAdminOps } = useAuth();
-
   const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
-  // Mesmo critério do backend (PodeEditarDemanda, STC-204): solicitante,
-  // qualquer responsável ou admin -- calculado no cliente pra esconder a
-  // ação, mesmo padrão já usado em AnexoList.tsx.
-  const podeEditar =
-    !!demanda &&
-    podeEscrever &&
-    (isAdminOps ||
-      demanda.solicitante.id === user?.usuarioId ||
-      demanda.responsaveis.some((r) => r.usuario.id === user?.usuarioId));
+  // Fonte de verdade no backend: inclui admin/solicitante/responsavel e a
+  // PermissaoUsuario temporaria "editar" vigente no escopo da demanda.
+  // Replicar essa regra aqui faria a UI divergir em expiracao/revogacao.
+  const podeEditar = demanda?.pode_editar ?? false;
 
   // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
   // trocar principal), TransicaoStatusSection (mudar status) e agora

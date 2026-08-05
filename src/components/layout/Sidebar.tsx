@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, Home, Lock, Settings } from "lucide-react";
+import { ClipboardList, Home, Lock, Settings, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
@@ -15,13 +15,23 @@ import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 // SidebarLink (e apontar os redirects de login/raiz pra "/hub" de novo).
 const MODULOS_BLOQUEADOS = [{ nome: "Hub", icon: Home }, ...MODULOS_FUTUROS];
 
-export function Sidebar() {
+// onNavegar: opcional -- só o AppShell em modo overlay mobile passa algo
+// (fecha o drawer ao escolher um destino); no modo "push" (desktop/tablet)
+// não tem drawer pra fechar, então não é passado.
+export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
-  const { isAdminQG } = useAuth();
+  const { isAdminQG, isAdminOps } = useAuth();
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
+    // h-full: achado no dogfooding do overlay mobile -- sem altura própria,
+    // o <aside> só cobria a altura do próprio conteúdo (logo+nav+bloco
+    // admin), bem menos que a tela inteira. No modo "push" isso não
+    // aparecia (o fundo escuro por trás, bg-sidebar no wrapper raiz do
+    // AppShell, coincidia com a mesma cor). No overlay mobile, o "resto"
+    // sem cobertura deixava o backdrop semitransparente por baixo aparecer
+    // -- sidebar parecia "repartida", com um pedaço embaixo translúcido.
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
       {/* pl-5.5: alinha o ícone da logo com os ícones dos links abaixo --
           nav tem p-3 (12px) + SidebarLink tem px-2.5 (10px) = 22px de
           inset até o ícone, mesmo valor aqui. */}
@@ -46,6 +56,7 @@ export function Sidebar() {
           icon={ClipboardList}
           label="Gestão de Demandas"
           active={emGestaoDemandas}
+          onClick={onNavegar}
         />
 
         <div className="my-2.5 h-px bg-sidebar-border/40" />
@@ -59,32 +70,55 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* STC-262: era texto fixo, sem função nenhuma e visível pra qualquer
-          perfil -- achado no dogfooding. isAdminQG (não isLoading nem
-          nenhum estado de transição): antes do useSession() resolver,
-          isAdminQG já nasce false, então o link nunca "pisca" pra quem não
-          é Admin Q&G, só aparece depois de confirmado. Aponta pro Django
-          Admin (outra origem, por isso <a> normal, não <Link> do Next) --
-          é login separado do Google usado no resto do Atlas, não
-          compartilha sessão.
+      {/* isAdminOps (nível <= Admin Operações) cobre os dois perfis que têm
+          algum link aqui -- Admin Q&G é um caso particular dele (nível 1),
+          então o wrapper (borda/espaçamento) usa só essa condição, e cada
+          link decide por conta própria se aparece. */}
+      {isAdminOps && (
+        <div className="mt-2 flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
+          {/* STC-262: era texto fixo, sem função nenhuma e visível pra
+              qualquer perfil -- achado no dogfooding. isAdminQG (não
+              isLoading nem nenhum estado de transição): antes do
+              useSession() resolver, isAdminQG já nasce false, então o link
+              nunca "pisca" pra quem não é Admin Q&G, só aparece depois de
+              confirmado. Aponta pro Django Admin (outra origem, por isso
+              <a> normal, não <Link> do Next) -- é login separado do Google
+              usado no resto do Atlas, não compartilha sessão.
 
-          Achado no code review do Tech Lead: NEXT_PUBLIC_API_URL é
-          inlined em build time -- se a env vier ausente/vazia nesse
-          build, todo mundo Admin Q&G veria um link pra "undefined/admin"
-          até o próximo deploy. process.env.NEXT_PUBLIC_API_URL entra na
-          condição também: sem a env, não mostra o bloco (falha fechada),
-          em vez de expor um link quebrado em produção. */}
-      {isAdminQG && process.env.NEXT_PUBLIC_API_URL && (
-        <div className="mt-2 border-t border-sidebar-border p-3 pt-2.5">
-          <a
-            href={`${process.env.NEXT_PUBLIC_API_URL}/admin`}
-            target="_blank"
-            rel="noopener noreferrer"
+              Achado no code review do Tech Lead: NEXT_PUBLIC_API_URL é
+              inlined em build time -- se a env vier ausente/vazia nesse
+              build, todo mundo Admin Q&G veria um link pra "undefined/admin"
+              até o próximo deploy. process.env.NEXT_PUBLIC_API_URL entra na
+              condição também: sem a env, não mostra o link (falha fechada),
+              em vez de expor um link quebrado em produção. */}
+          {isAdminQG && process.env.NEXT_PUBLIC_API_URL && (
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL}/admin`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavegar}
+              className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
+            >
+              <Settings className="size-4 shrink-0" />
+              Admin Q&amp;G
+            </a>
+          )}
+
+          {/* STC-266: tela interna pra conceder/gerenciar permissões
+              individuais temporárias (ex.: cobertura de férias entre
+              unidades) sem depender do Django Admin -- hoje só o time de
+              Q&G tem login configurado lá (ver conversa que motivou o
+              STC-262). Rótulo muda conforme o perfil: quem já vê "Admin
+              Q&G" acima ganha um segundo item ("Administração"); quem é só
+              Admin Operações vê só este, já nomeado pro perfil dele. */}
+          <Link
+            href="/admin/permissoes"
+            onClick={onNavegar}
             className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
           >
-            <Settings className="size-4 shrink-0" />
-            Admin Q&amp;G
-          </a>
+            <ShieldCheck className="size-4 shrink-0" />
+            {isAdminQG ? "Administração" : "Admin Operações"}
+          </Link>
         </div>
       )}
     </aside>
@@ -96,15 +130,18 @@ function SidebarLink({
   icon: Icon,
   label,
   active,
+  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",

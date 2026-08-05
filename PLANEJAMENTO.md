@@ -308,6 +308,7 @@ export interface Demanda {
   data_prevista: string
   data_conclusao?: string
   confidencial: boolean
+  pode_editar: boolean
   created_at: string
 }
 
@@ -766,7 +767,7 @@ Não estava no planejamento original (SRS/Plano de Pacotes) — pacote criado de
 
 Até aqui, só título/descrição/prazo/prioridade/setor/categoria/confidencial eram definidos na criação (`FormNovaDemanda`) e nunca mais editáveis. **STC-204 (backend)**: `PodeEditarDemanda`, nova permission de objeto — solicitante, qualquer responsável ou admin (nível ≤2); aprovador sozinho fica de fora de propósito (papel dele é decidir a revisão, não editar conteúdo). Plugada só em `update`/`partial_update` do `DemandaViewSet`. Mergeada em `main` (achado do Tech Lead: ignorava `PermissaoUsuario` individual ativa, corrigido).
 
-**STC-205 (frontend)**: um único formulário "Editar demanda" (não campo-a-campo) — `EditarDemandaSection.tsx`, novo — no topo do painel esquerdo do `DetalheCard`, visível só pra quem `podeEditar` no cliente (mesmo critério do STC-204, via `useAuth()`). Reaproveita o padrão `react-hook-form`+`zod` da `FormNovaDemanda.tsx`. Fix de cache reaproveitado: `useAtualizarDemanda` não invalidava `["demanda", id, "historico"]` — 3ª vez que esse mesmo bug aparece no projeto (depois de `useResponsaveis`/`useAtualizarStatusDemanda`).
+**STC-205 (frontend)**: um único formulário "Editar demanda" (não campo-a-campo) — `EditarDemandaSection.tsx`, novo — no topo do painel esquerdo do `DetalheCard`. Originalmente, sua visibilidade era inferida no cliente via `useAuth()`. Após a integração da STC-266, `DetalheCard` passou a usar exclusivamente `demanda.pode_editar`, capacidade devolvida pelo backend pela mesma regra que protege o `PATCH`; assim, uma permissão individual temporária de edição é reconhecida sem duplicar no navegador a lógica de escopo e vigência. Reaproveita o padrão `react-hook-form`+`zod` da `FormNovaDemanda.tsx`. Fix de cache reaproveitado: `useAtualizarDemanda` não invalidava `["demanda", id, "historico"]` — 3ª vez que esse mesmo bug aparece no projeto (depois de `useResponsaveis`/`useAtualizarStatusDemanda`).
 
 2 achados de review próprio, corrigidos antes do push:
 - **Select de Setor/Categoria não voltava visualmente pra "Nenhum"** depois de escolher, mesmo com o dado real já correto por baixo (confirmado via inspeção de rede + teste direto contra o backend). Causa: `value` do Radix Select derivado por ternário (`field.value ? String(...) : SEM_SELECAO`) a cada render é instável. Corrigido mantendo o campo do formulário como `string` sempre (sentinela `"__nenhum__"` ou id-como-string), `value`/`onValueChange` ligados direto no field sem nenhuma derivação; a sentinela só vira `null`/número no submit, nunca é tratada como valor de negócio real (não pode virar, por exemplo, um "tipo de setor" de verdade).
@@ -803,3 +804,57 @@ Autochecagem própria achou e corrigiu 2 bugs de infraestrutura de teste pré-ex
 ### 7.7 Fechadas nesta rodada (já cobertas nas seções acima)
 
 STC-192/STC-208/STC-210 (4.1), STC-203/STC-196/STC-197 (4.3), STC-186 — filtros/KPIs mobile (4.4), STC-204/STC-205 (7.2), STC-206 (7.1), STC-171 (7.4), STC-216 (7.5), STC-215 (7.6) — todas mergeadas em `main`. Nenhum item "rascunhado, não iniciado" sobrando no momento.
+
+### 7.8 STC-266 — Tela de administração para conceder/gerenciar permissões individuais
+
+**Implementada na branch `STC-266-frontend-tela-de-administracao-para-concedergerenciar-permissoes-individuais`, ainda não mergeada em `main`.** Nova tela `/admin/permissoes` (link na Sidebar, visível só pra Admin Q&G/Admin Operações), com duas seções independentes: "Perfil, unidade e setor" (`GerenciarUsuarios.tsx`) — edita `perfil_id`/`unidade_id`/`setor_id` de cada pessoa via `PATCH /plataforma/usuarios/{id}/`, nunca lista nem oferece nível admin (nível ≤2) como opção, mesmo o backend aceitando mais que isso via API (ver achado de review abaixo) — e "Permissões individuais" (`PermissoesAdmin.tsx` + `FormNovaPermissao.tsx`) — CRUD de `PermissaoUsuario` (`/plataforma/permissoes-usuario/`), concessão/revogação com escopo (global/unidade/setor/próprio) e período opcional. `hooks/usePermissoes.ts`, `usePerfis.ts`, `useModulos.ts` novos; `useUsuarios.ts` ganhou `useAtualizarUsuario`; `lib/plataforma.ts` estendido (mesmo app Django que já hospedava Unidade/Setor).
+
+Decisões de UI notáveis: `PermissaoUsuario` possui uma ação por registro, então
+o formulário também permite uma única escolha (`Visualizar` ou `Editar`) e
+faz somente uma chamada de criação. `Editar` já implica leitura no backend.
+Cada registro da API permanece uma linha independente na tabela e a revogação
+usa apenas seu ID real; timestamps não são usados como identidade de lote.
+Filtros (Status/Pessoa/Ação numa seção, Perfil/Unidade na outra) seguem o padrão já estabelecido em `KanbanFiltros` (STC-186): inline no desktop, Popover+Badge atrás de um ícone abaixo de 640px. Altura das duas seções é proporcional ao número de linhas de cada uma (`pesoSecao`, com piso mínimo pra nenhuma sumir), cada uma com scroll próprio — `useAlturaSemLinhaCortada.ts` (novo hook genérico, mesmo espírito de `useMediaQuery.ts`) mede a altura real de uma linha em runtime e trava a tabela num múltiplo exato, garantindo que a última linha visível nunca apareça cortada pela metade.
+
+Sidebar/AppShell: o menu lateral em mobile deixou de "empurrar" o conteúdo (`width` 0↔16rem) e virou overlay flutuante (`position: fixed`, backdrop, trava de scroll do body) — achado direto do responsável do projeto ("a página principal não pode ser impactada pela presença do menu lateral").
+
+**Backend companion de notificações** (branch separada,
+`STC-266-backend-notificacoes-perfil-e-permissao`, ainda não mergeada):
+`plataforma/notificacoes.py` (mesmo padrão de `demandas/notificacoes.py`)
+notifica o usuário quando o próprio perfil muda ou uma permissão é
+concedida/revogada. Esse companion não bloqueia o CRUD nem a aplicação das
+permissões da tela; enquanto não for integrado, fica ausente somente o envio
+dessas notificações.
+
+**Correção de contrato após revisão:** o formulário do recurso
+`gestao-demandas.kanban` oferece uma escolha entre `Visualizar` e `Editar`,
+que são as ações realmente consumidas pelo backend. `Editar` inclui leitura
+sem criar um segundo registro `Visualizar`; lixeira, aprovação e configurações permanecem regidas pelas
+regras administrativas próprias, sem criar permissões individuais sem efeito.
+As respostas de demanda trazem `pode_editar: boolean`, calculado pelo backend
+com a mesma regra que autoriza a atualização. O valor é `true` para
+administradores, solicitante, responsáveis e usuários cobertos por uma
+permissão individual `Editar` vigente e dentro do escopo; é `false` para
+permissões apenas de visualização, revogadas, agendadas, expiradas, fora do
+escopo ou quando a demanda está na lixeira. `DetalheCard` apenas repassa esse
+valor para `EditarDemandaSection`: não tenta reconstruir autorização com perfil,
+vínculos ou datas no navegador. A proteção efetiva continua no backend; ocultar
+o formulário é somente a representação correta dessa capacidade na interface.
+
+**Achados da autorevisão de segurança/estrutura** (feita depois de fechar o pacote, sem issue própria):
+- Corrigido: `statusPermissao()` calculava "hoje" no fuso do navegador (`getFullYear()/getMonth()/getDate()` de `new Date()`), podendo divergir do critério real do backend (`PermissaoUsuarioManager.ativas()`, fuso fixo `America/Sao_Paulo`) pra quem acessa de outro fuso — a badge Ativa/Agendada/Expirada podia mostrar um estado que o backend não concordava. Trocado pelo utilitário já existente `hojeNoFusoDoServidor()` (`lib/kanban.ts`), em vez de duplicar a lógica.
+- **Corrigido no backend (`main`, commit `aa7fce9`):** a validação em
+  `accounts/serializers.py` passou a tratar Admin Q&G e Admin Operações como
+  níveis administrativos protegidos. Admin Operações não pode promover outra
+  pessoa (nem a própria conta) a Admin Operações, alterar outro usuário desse
+  nível ou contornar pela API o filtro aplicado pela tela. Os cenários de
+  criação, promoção, alteração e tentativa de autoelevação possuem cobertura
+  automatizada no backend.
+- Cosmético, tentado e revertido: as duas tabelas usam `<thead>` com `position: sticky`, o que faz a scrollbar nativa (vertical) passar visualmente por cima do cabeçalho ao rolar. Uma tentativa de separar `<thead>`/`<tbody>` em containers de scroll independentes (técnica de "block display hack") introduziu regressões piores em telas pequenas (scroll duplo, seção inteira empurrando a página) sem forma de validação visual direta a cada iteração — revertida por completo. Fica registrado como problema cosmético conhecido, não como algo a reabrir sem uma forma de testar visualmente antes de cada tentativa.
+
+Validação final da branch: `tsc --noEmit`, ESLint, build de produção e suíte
+completa do Vitest passando (13 arquivos, 108 testes), incluindo o contrato de
+`pode_editar` no `DetalheCard`. O deploy de preview da Vercel para o commit
+`8d6835d` também concluiu com sucesso. Durante o desenvolvimento, 15 permissões
+de exemplo foram semeadas apenas no ambiente local (Django shell) para
+dogfooding visual; elas não fazem parte do código nem dos dados de produção.

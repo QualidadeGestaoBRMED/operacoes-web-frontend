@@ -18,6 +18,16 @@ export interface Usuario {
   ultimo_acesso: string | null;
 }
 
+// Payload de PATCH em /plataforma/usuarios/<id>/ -- só os campos que a tela
+// de administração (STC-266) edita (perfil/unidade/setor "base" da pessoa).
+// UsuarioSerializer aceita mais campos (first_name, ativo etc.), mas essa
+// tela não mexe neles.
+export interface UsuarioPayload {
+  perfil_id?: number | null;
+  unidade_id?: number | null;
+  setor_id?: number | null;
+}
+
 export interface Unidade {
   id: number;
   nome: string;
@@ -32,6 +42,15 @@ export interface Setor {
   codigo: string;
   modulo_id: number | null;
   ativo: boolean;
+}
+
+export interface Modulo {
+  id: number;
+  nome: string;
+  codigo: string;
+  descricao: string;
+  status: string;
+  versao: string;
 }
 
 export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos";
@@ -92,6 +111,10 @@ export interface Demanda {
   confidencial: boolean;
   comentarios_count: number;
   anexos_count: number;
+  // Capacidade calculada pelo backend para o usuário autenticado. Inclui
+  // papel normal e PermissaoUsuario temporária vigente; o client não
+  // replica regras de escopo/período.
+  pode_editar: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -239,4 +262,53 @@ export interface RespostaPaginada<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+// GET/POST /plataforma/permissoes-usuario/ (PermissaoUsuarioViewSet,
+// STC-266) -- acesso individual temporário, escopado por unidade/setor/
+// próprio, com período de validade. Restrito a Admin Operações/Admin Q&G
+// no backend (IsAdminOperacoes). PermissaoUsuarioSerializer é um
+// ModelSerializer simples (sem nested), então usuario/unidade/setor/
+// concedido_por vêm como IDs crus -- a UI resolve nome cruzando com
+// useUsuarios/useUnidades/useSetores, já carregados em outros lugares do
+// app.
+export type EscopoPermissao = "global" | "unidade" | "setor" | "proprio";
+
+export type AcaoPermissao =
+  | "visualizar"
+  | "criar"
+  | "editar"
+  | "aprovar"
+  | "excluir"
+  | "restaurar"
+  | "configurar";
+
+export interface PermissaoUsuario {
+  id: number;
+  usuario: number;
+  modulo: number | null;
+  recurso: string;
+  acao: AcaoPermissao;
+  escopo_tipo: EscopoPermissao;
+  unidade: number | null;
+  setor: number | null;
+  concedido_por: number;
+  data_inicio: string;
+  data_fim: string | null;
+  ativo: boolean;
+  created_at: string;
+}
+
+// concedido_por é setado pelo backend a partir do usuário autenticado
+// (perform_create) -- nunca enviado pelo cliente.
+export interface PermissaoUsuarioPayload {
+  usuario: number;
+  modulo?: number | null;
+  recurso: string;
+  acao: AcaoPermissao;
+  escopo_tipo: EscopoPermissao;
+  unidade?: number | null;
+  setor?: number | null;
+  data_inicio: string;
+  data_fim?: string | null;
 }

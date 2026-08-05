@@ -2,24 +2,57 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn, iniciaisDe } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
+const QUERY_MOBILE = "(max-width: 767px)";
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
+  const ehMobile = useMediaQuery(QUERY_MOBILE);
   const { user, isLoading } = useAuth();
 
-  // Achado no review: sidebarAberta sempre nascia "true", mesmo em tela
-  // estreita -- a sidebar (256px fixos) comia boa parte da viewport num
-  // celular por padrão. Corrige só depois do mount (sem isso, o server e o
-  // client renderizariam estados diferentes no primeiro render e o React
-  // acusaria hydration mismatch, já que window não existe no servidor).
+  // Achado no dogfooding (visto 1º na tela de Admin, mas era de qualquer
+  // página -- Kanban incluso): "push" (largura do wrapper animando entre 0
+  // e 16rem) em mobile deixava só ~130px pra página inteira quando o menu
+  // era aberto -- achatava TUDO, não só texto, não importa a página.
+  // Fecha sozinha ao entrar (ou redimensionar pra) uma tela estreita --
+  // nunca reabre sozinha (reabrir é sempre ação manual via
+  // onToggleSidebar), pra não brigar com uma escolha do usuário se
+  // ehMobile virar false de novo.
   useEffect(() => {
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      setSidebarAberta(false);
+    if (ehMobile) setSidebarAberta(false);
+  }, [ehMobile]);
+
+  // Trava o scroll do conteúdo atrás do menu aberto (mobile) -- sem isso,
+  // um gesto de rolagem sobre o backdrop ainda rola a página por baixo,
+  // mesmo com o menu por cima bloqueando clique.
+  useEffect(() => {
+    if (!ehMobile || !sidebarAberta) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [ehMobile, sidebarAberta]);
+
+  function fecharSidebar() {
+    setSidebarAberta(false);
+  }
+
+  // Esc fecha o menu -- mesma expectativa de qualquer overlay (Dialog,
+  // Popover etc. do Radix já fazem isso; isto é HTML puro, não herda de
+  // graça).
+  useEffect(() => {
+    if (!ehMobile || !sidebarAberta) return;
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key === "Escape") fecharSidebar();
     }
-  }, []);
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [ehMobile, sidebarAberta]);
 
   const nome = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
@@ -36,17 +69,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // isso o recorte não aparece, já que por trás dele o body já é claro
     // igual ao main (mesma cor, sem contraste pra revelar a curva).
     <div className="flex h-screen bg-sidebar">
-      {/* Sempre montada -- só a largura do wrapper anima (0 <-> 16rem), com
-          overflow-hidden escondendo o conteúdo durante a transição. Trocar
-          por mount/unmount condicional (como antes) não dá pra animar. */}
-      <div
-        className={cn(
-          "shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
-          sidebarAberta ? "w-64" : "w-0",
-        )}
-      >
-        <Sidebar />
-      </div>
+      {ehMobile ? (
+        <>
+          {/* Backdrop: só existe (e só bloqueia clique/toque) com o menu
+              aberto -- fecha ao tocar fora. fade-in via transition-opacity
+              (não um corte seco) + a sidebar com shadow-2xl (sensação de
+              elevação, flutuando de verdade, não só "por cima achatado"). */}
+          <div
+            data-testid="sidebar-backdrop"
+            onClick={fecharSidebar}
+            aria-hidden="true"
+            className={cn(
+              "fixed inset-0 z-40 bg-black/50 transition-opacity duration-300",
+              sidebarAberta ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+            )}
+          />
+          {/* position: fixed (não "push"): a página por trás nunca perde
+              largura nem reflui -- só o menu desliza por cima (translate-x),
+              exatamente como pedido: a presença do menu não impacta a
+              página principal em nada. */}
+          <div
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transition-transform duration-300 ease-in-out",
+              sidebarAberta ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
+            <Sidebar onNavegar={fecharSidebar} />
+          </div>
+        </>
+      ) : (
+        /* Desktop/tablet: "push" -- só a largura do wrapper anima (0 <->
+           16rem), com overflow-hidden escondendo o conteúdo durante a
+           transição. Aqui sobra espaço de sobra, então empurrar em vez de
+           flutuar é mais previsível (nada cobre o conteúdo). */
+        <div
+          className={cn(
+            "shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+            sidebarAberta ? "w-64" : "w-0",
+          )}
+        >
+          <Sidebar />
+        </div>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           usuario={usuarioTopbar}
@@ -64,13 +128,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             cabe (celular em paisagem, janela bem baixa) -- achado no code
             review: com overflow-hidden isso ficava cortado sem nenhum jeito
             de alcançar. O canto arredondado só faz sentido com a sidebar
-            visível ao lado -- sem ela, main encosta na borda esquerda da
-            tela e o arredondamento fica solto, sem chrome escuro por trás
-            pra revelar a curva. */}
+            "empurrando" de verdade (modo push) -- em mobile ela flutua por
+            cima sem tirar espaço nenhum de main, então nunca teria a curva
+            revelada mesmo aberta. */}
         <main
           className={cn(
             "min-h-0 flex-1 overflow-y-auto bg-background transition-[border-radius] duration-300",
-            sidebarAberta && "rounded-tl-3xl rounded-bl-3xl",
+            !ehMobile && sidebarAberta && "rounded-tl-3xl rounded-bl-3xl",
           )}
         >
           {children}

@@ -1,8 +1,29 @@
 import api from "./api";
-import type { Notificacao, RespostaPaginada, Setor, Unidade, Usuario } from "@/types";
+import type {
+  Modulo,
+  Notificacao,
+  Perfil,
+  PermissaoUsuario,
+  PermissaoUsuarioPayload,
+  RespostaPaginada,
+  Setor,
+  Unidade,
+  Usuario,
+  UsuarioPayload,
+} from "@/types";
 
 export async function listarUnidades(): Promise<Unidade[]> {
   const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
+  return data;
+}
+
+export async function listarModulos(): Promise<Modulo[]> {
+  const { data } = await api.get<Modulo[]>("/plataforma/modulos/");
+  return data;
+}
+
+export async function listarPerfis(): Promise<Perfil[]> {
+  const { data } = await api.get<Perfil[]>("/plataforma/perfis/");
   return data;
 }
 
@@ -32,6 +53,16 @@ export async function listarUsuarios(): Promise<Usuario[]> {
   return data;
 }
 
+// UsuarioViewSet aceita PATCH de Admin Operações (LeituraParaTodosEscritaParaAdminOperacoes);
+// a trava contra escalonamento de nível pra Admin Q&G já mora no
+// UsuarioSerializer.validate_perfil_id() no backend -- é sempre a fonte de
+// verdade real, o client só evita que o admin bata nela sem saber (ver
+// GerenciarUsuarios).
+export async function atualizarUsuario(id: number, payload: UsuarioPayload): Promise<Usuario> {
+  const { data } = await api.patch<Usuario>(`/plataforma/usuarios/${id}/`, payload);
+  return data;
+}
+
 export async function listarNotificacoes(
   filtros?: { lida?: boolean },
 ): Promise<RespostaPaginada<Notificacao>> {
@@ -48,4 +79,31 @@ export async function marcarNotificacaoComoLida(id: number): Promise<Notificacao
 
 export async function marcarTodasNotificacoesComoLidas(): Promise<void> {
   await api.post("/plataforma/notificacoes/marcar-todas-lidas/");
+}
+
+// PermissaoUsuarioViewSet (STC-266) -- restrito a Admin Operações/Admin
+// Q&G no backend (IsAdminOperacoes); a UI só chega aqui pra quem já passou
+// pelo mesmo gate no Sidebar (isAdminOps), mas o backend é sempre quem
+// decide de verdade.
+export async function listarPermissoes(): Promise<PermissaoUsuario[]> {
+  const { data } = await api.get<PermissaoUsuario[]>("/plataforma/permissoes-usuario/");
+  return data;
+}
+
+export async function criarPermissao(
+  payload: PermissaoUsuarioPayload,
+): Promise<PermissaoUsuario> {
+  const { data } = await api.post<PermissaoUsuario>("/plataforma/permissoes-usuario/", payload);
+  return data;
+}
+
+// Revogar = desativar, não excluir -- mantém o registro como histórico de
+// auditoria de quem teve acesso a quê (mesmo espírito de soft-delete já
+// usado em Demanda).
+export async function revogarPermissao(id: number): Promise<PermissaoUsuario> {
+  const { data } = await api.patch<PermissaoUsuario>(
+    `/plataforma/permissoes-usuario/${id}/`,
+    { ativo: false },
+  );
+  return data;
 }
