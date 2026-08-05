@@ -817,7 +817,13 @@ Filtros (Status/Pessoa/Ação numa seção, Perfil/Unidade na outra) seguem o pa
 
 Sidebar/AppShell: o menu lateral em mobile deixou de "empurrar" o conteúdo (`width` 0↔16rem) e virou overlay flutuante (`position: fixed`, backdrop, trava de scroll do body) — achado direto do responsável do projeto ("a página principal não pode ser impactada pela presença do menu lateral").
 
-**Backend companion** (branch separada, `STC-266-backend-notificacoes-perfil-e-permissao`, também não mergeada): `plataforma/notificacoes.py` (mesmo padrão de `demandas/notificacoes.py`) notifica o usuário quando o próprio perfil muda ou uma permissão é concedida/revogada.
+**Backend companion de notificações** (branch separada,
+`STC-266-backend-notificacoes-perfil-e-permissao`, ainda não mergeada):
+`plataforma/notificacoes.py` (mesmo padrão de `demandas/notificacoes.py`)
+notifica o usuário quando o próprio perfil muda ou uma permissão é
+concedida/revogada. Esse companion não bloqueia o CRUD nem a aplicação das
+permissões da tela; enquanto não for integrado, fica ausente somente o envio
+dessas notificações.
 
 **Correção de contrato após revisão:** o formulário do recurso
 `gestao-demandas.kanban` oferece uma escolha entre `Visualizar` e `Editar`,
@@ -836,7 +842,18 @@ o formulário é somente a representação correta dessa capacidade na interface
 
 **Achados da autorevisão de segurança/estrutura** (feita depois de fechar o pacote, sem issue própria):
 - Corrigido: `statusPermissao()` calculava "hoje" no fuso do navegador (`getFullYear()/getMonth()/getDate()` de `new Date()`), podendo divergir do critério real do backend (`PermissaoUsuarioManager.ativas()`, fuso fixo `America/Sao_Paulo`) pra quem acessa de outro fuso — a badge Ativa/Agendada/Expirada podia mostrar um estado que o backend não concordava. Trocado pelo utilitário já existente `hojeNoFusoDoServidor()` (`lib/kanban.ts`), em vez de duplicar a lógica.
-- **Não corrigido, fora do escopo deste ticket** (pré-existente em `main`, não introduzido pelo STC-266): `accounts/serializers.py` (`validate_perfil_id`) bloqueia promover/rebaixar alguém a/de Admin Q&G (nível 1) sem ser Admin Q&G, mas não tem proteção equivalente pro nível Admin Operações (nível 2) — qualquer Admin Operações pode promover qualquer pessoa (inclusive a própria conta) a Admin Operações via `PATCH` direto em `/plataforma/usuarios/{id}/`, contornando o filtro que a tela aplica só no cliente. Só existe teste cobrindo o nível 1.
+- **Corrigido no backend (`main`, commit `aa7fce9`):** a validação em
+  `accounts/serializers.py` passou a tratar Admin Q&G e Admin Operações como
+  níveis administrativos protegidos. Admin Operações não pode promover outra
+  pessoa (nem a própria conta) a Admin Operações, alterar outro usuário desse
+  nível ou contornar pela API o filtro aplicado pela tela. Os cenários de
+  criação, promoção, alteração e tentativa de autoelevação possuem cobertura
+  automatizada no backend.
 - Cosmético, tentado e revertido: as duas tabelas usam `<thead>` com `position: sticky`, o que faz a scrollbar nativa (vertical) passar visualmente por cima do cabeçalho ao rolar. Uma tentativa de separar `<thead>`/`<tbody>` em containers de scroll independentes (técnica de "block display hack") introduziu regressões piores em telas pequenas (scroll duplo, seção inteira empurrando a página) sem forma de validação visual direta a cada iteração — revertida por completo. Fica registrado como problema cosmético conhecido, não como algo a reabrir sem uma forma de testar visualmente antes de cada tentativa.
 
-`tsc`/`eslint`/`vitest` (suíte de `src/components/admin/`, 28 testes) passando. 15 permissões de exemplo semeadas localmente (Django shell) pra dogfooding visual durante o desenvolvimento.
+Validação final da branch: `tsc --noEmit`, ESLint, build de produção e suíte
+completa do Vitest passando (13 arquivos, 108 testes), incluindo o contrato de
+`pode_editar` no `DetalheCard`. O deploy de preview da Vercel para o commit
+`8d6835d` também concluiu com sucesso. Durante o desenvolvimento, 15 permissões
+de exemplo foram semeadas apenas no ambiente local (Django shell) para
+dogfooding visual; elas não fazem parte do código nem dos dados de produção.
