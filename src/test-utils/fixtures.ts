@@ -47,6 +47,7 @@ export function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
     confidencial: false,
     comentarios_count: 0,
     anexos_count: 0,
+    pode_editar: false,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-01T10:00:00Z",
     ...overrides,

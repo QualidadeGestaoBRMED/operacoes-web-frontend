@@ -308,6 +308,7 @@ export interface Demanda {
   data_prevista: string
   data_conclusao?: string
   confidencial: boolean
+  pode_editar: boolean
   created_at: string
 }
 
@@ -766,7 +767,7 @@ Não estava no planejamento original (SRS/Plano de Pacotes) — pacote criado de
 
 Até aqui, só título/descrição/prazo/prioridade/setor/categoria/confidencial eram definidos na criação (`FormNovaDemanda`) e nunca mais editáveis. **STC-204 (backend)**: `PodeEditarDemanda`, nova permission de objeto — solicitante, qualquer responsável ou admin (nível ≤2); aprovador sozinho fica de fora de propósito (papel dele é decidir a revisão, não editar conteúdo). Plugada só em `update`/`partial_update` do `DemandaViewSet`. Mergeada em `main` (achado do Tech Lead: ignorava `PermissaoUsuario` individual ativa, corrigido).
 
-**STC-205 (frontend)**: um único formulário "Editar demanda" (não campo-a-campo) — `EditarDemandaSection.tsx`, novo — no topo do painel esquerdo do `DetalheCard`, visível só pra quem `podeEditar` no cliente (mesmo critério do STC-204, via `useAuth()`). Reaproveita o padrão `react-hook-form`+`zod` da `FormNovaDemanda.tsx`. Fix de cache reaproveitado: `useAtualizarDemanda` não invalidava `["demanda", id, "historico"]` — 3ª vez que esse mesmo bug aparece no projeto (depois de `useResponsaveis`/`useAtualizarStatusDemanda`).
+**STC-205 (frontend)**: um único formulário "Editar demanda" (não campo-a-campo) — `EditarDemandaSection.tsx`, novo — no topo do painel esquerdo do `DetalheCard`. Originalmente, sua visibilidade era inferida no cliente via `useAuth()`. Após a integração da STC-266, `DetalheCard` passou a usar exclusivamente `demanda.pode_editar`, capacidade devolvida pelo backend pela mesma regra que protege o `PATCH`; assim, uma permissão individual temporária de edição é reconhecida sem duplicar no navegador a lógica de escopo e vigência. Reaproveita o padrão `react-hook-form`+`zod` da `FormNovaDemanda.tsx`. Fix de cache reaproveitado: `useAtualizarDemanda` não invalidava `["demanda", id, "historico"]` — 3ª vez que esse mesmo bug aparece no projeto (depois de `useResponsaveis`/`useAtualizarStatusDemanda`).
 
 2 achados de review próprio, corrigidos antes do push:
 - **Select de Setor/Categoria não voltava visualmente pra "Nenhum"** depois de escolher, mesmo com o dado real já correto por baixo (confirmado via inspeção de rede + teste direto contra o backend). Causa: `value` do Radix Select derivado por ternário (`field.value ? String(...) : SEM_SELECAO`) a cada render é instável. Corrigido mantendo o campo do formulário como `string` sempre (sentinela `"__nenhum__"` ou id-como-string), `value`/`onValueChange` ligados direto no field sem nenhuma derivação; a sentinela só vira `null`/número no submit, nunca é tratada como valor de negócio real (não pode virar, por exemplo, um "tipo de setor" de verdade).
@@ -823,6 +824,15 @@ Sidebar/AppShell: o menu lateral em mobile deixou de "empurrar" o conteúdo (`wi
 que são as ações realmente consumidas pelo backend. `Editar` inclui leitura
 sem criar um segundo registro `Visualizar`; lixeira, aprovação e configurações permanecem regidas pelas
 regras administrativas próprias, sem criar permissões individuais sem efeito.
+As respostas de demanda trazem `pode_editar: boolean`, calculado pelo backend
+com a mesma regra que autoriza a atualização. O valor é `true` para
+administradores, solicitante, responsáveis e usuários cobertos por uma
+permissão individual `Editar` vigente e dentro do escopo; é `false` para
+permissões apenas de visualização, revogadas, agendadas, expiradas, fora do
+escopo ou quando a demanda está na lixeira. `DetalheCard` apenas repassa esse
+valor para `EditarDemandaSection`: não tenta reconstruir autorização com perfil,
+vínculos ou datas no navegador. A proteção efetiva continua no backend; ocultar
+o formulário é somente a representação correta dessa capacidade na interface.
 
 **Achados da autorevisão de segurança/estrutura** (feita depois de fechar o pacote, sem issue própria):
 - Corrigido: `statusPermissao()` calculava "hoje" no fuso do navegador (`getFullYear()/getMonth()/getDate()` de `new Date()`), podendo divergir do critério real do backend (`PermissaoUsuarioManager.ativas()`, fuso fixo `America/Sao_Paulo`) pra quem acessa de outro fuso — a badge Ativa/Agendada/Expirada podia mostrar um estado que o backend não concordava. Trocado pelo utilitário já existente `hojeNoFusoDoServidor()` (`lib/kanban.ts`), em vez de duplicar a lógica.

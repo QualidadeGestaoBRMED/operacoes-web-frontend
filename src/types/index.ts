@@ -111,6 +111,10 @@ export interface Demanda {
   confidencial: boolean;
   comentarios_count: number;
   anexos_count: number;
+  // Capacidade calculada pelo backend para o usuário autenticado. Inclui
+  // papel normal e PermissaoUsuario temporária vigente; o client não
+  // replica regras de escopo/período.
+  pode_editar: boolean;
   created_at: string;
   updated_at: string;
 }
