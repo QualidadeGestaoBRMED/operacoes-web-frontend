@@ -19,10 +19,14 @@ const CHAVE_CONTAGEM = "notificacoes-nao-lidas";
 const INTERVALO_POLL_MS = 10_000;
 
 // A lista (até 20 mais recentes, único recurso paginado de plataforma) e a
-// contagem de não lidas (?lida=false, só o "count" importa) são duas chaves
-// SWR separadas de propósito: se a contagem viesse só de filtrar a lista
-// local, um usuário com mais de 20 notificações acumuladas veria o número
-// do sino errado (contando só o que coube na primeira página).
+// de não lidas (?lida=false) são duas chaves SWR separadas de propósito: se
+// a contagem/lista de não lidas viesse só de filtrar a lista completa
+// localmente, um usuário com mais de 20 notificações acumuladas veria o
+// número do sino errado (contando só o que coube na primeira página).
+// Achado no dogfooding: o painel de notificações virava uma parede de
+// itens antigos já lidos -- NotificacoesMenu usa esse "naoLidas" (já
+// buscado pra alimentar o sino) como visão padrão, sem precisar de mais
+// nenhuma chamada.
 export function useNotificacoes() {
   const { mutate: mutateGlobal } = useSWRConfig();
   const {
@@ -59,7 +63,13 @@ export function useNotificacoes() {
     mutateGlobal(
       CHAVE_CONTAGEM,
       (atual?: RespostaPaginada<Notificacao>) =>
-        atual && { ...atual, count: Math.max(0, atual.count - 1) },
+        atual && {
+          ...atual,
+          count: Math.max(0, atual.count - 1),
+          // results também precisa refletir na hora -- é o que alimenta a
+          // visão padrão "não lidas" do menu, não só o número do sino.
+          results: atual.results.filter((item) => item.id !== notificacao.id),
+        },
       { revalidate: false },
     );
 
@@ -96,6 +106,7 @@ export function useNotificacoes() {
 
   return {
     notificacoes: lista?.results ?? [],
+    naoLidas: naoLidas?.results ?? [],
     naoLidasCount: naoLidas?.count ?? 0,
     isLoading,
     error,

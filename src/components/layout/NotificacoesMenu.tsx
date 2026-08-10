@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +13,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNotificacoes } from "@/hooks/useNotificacoes";
 import { cn, formatarTempoRelativo } from "@/lib/utils";
 import type { Notificacao } from "@/types";
 
 export function NotificacoesMenu() {
   const router = useRouter();
-  const { notificacoes, naoLidasCount, marcarComoLida, marcarTodasComoLidas } = useNotificacoes();
+  const { notificacoes, naoLidas, naoLidasCount, marcarComoLida, marcarTodasComoLidas } =
+    useNotificacoes();
+  // Achado no dogfooding: o painel virava uma parede de notificações
+  // antigas já lidas -- "não lidas" é a visão padrão (dado que já vem
+  // pronto do hook, sem chamada extra), "todas" continua um clique
+  // distante pra quem quiser reconferir o histórico completo.
+  const [mostrarTodas, setMostrarTodas] = useState(false);
+  const notificacoesExibidas = mostrarTodas ? notificacoes : naoLidas;
 
   function abrirNotificacao(notificacao: Notificacao) {
     void marcarComoLida(notificacao);
@@ -53,27 +62,45 @@ export function NotificacoesMenu() {
         {/* sticky: o proprio DropdownMenuContent e o container com scroll
             (overflow-y-auto + max-h dinamico do Radix) -- sem precisar de
             outro wrapper, so fixar o cabecalho no topo dele. */}
-        <div className="sticky top-0 z-10 -m-1 mb-1 flex items-center justify-between bg-popover px-2 py-1.5">
-          <DropdownMenuLabel className="p-0 text-sm font-semibold">Notificações</DropdownMenuLabel>
-          {naoLidasCount > 0 && (
-            <button
-              type="button"
-              onClick={() => void marcarTodasComoLidas()}
-              className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
-            >
-              <CheckCheck className="size-3.5" />
-              Marcar todas como lidas
-            </button>
-          )}
+        <div className="sticky top-0 z-10 -m-1 mb-1 flex flex-col gap-1.5 bg-popover px-2 py-1.5">
+          <div className="flex items-center justify-between">
+            <DropdownMenuLabel className="p-0 text-sm font-semibold">
+              Notificações
+            </DropdownMenuLabel>
+            {naoLidasCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void marcarTodasComoLidas()}
+                className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+              >
+                <CheckCheck className="size-3.5" />
+                Marcar todas como lidas
+              </button>
+            )}
+          </div>
+          <Tabs value={mostrarTodas ? "todas" : "nao-lidas"}>
+            <TabsList className="h-7 w-full">
+              <TabsTrigger
+                value="nao-lidas"
+                onClick={() => setMostrarTodas(false)}
+                className="text-xs"
+              >
+                Não lidas{naoLidasCount > 0 && ` (${naoLidasCount})`}
+              </TabsTrigger>
+              <TabsTrigger value="todas" onClick={() => setMostrarTodas(true)} className="text-xs">
+                Todas
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <DropdownMenuSeparator />
 
-        {notificacoes.length === 0 ? (
+        {notificacoesExibidas.length === 0 ? (
           <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-            Nenhuma notificação por aqui.
+            {mostrarTodas ? "Nenhuma notificação por aqui." : "Nenhuma notificação não lida."}
           </p>
         ) : (
-          notificacoes.map((notificacao) => (
+          notificacoesExibidas.map((notificacao) => (
             <DropdownMenuItem
               key={notificacao.id}
               onSelect={() => abrirNotificacao(notificacao)}
