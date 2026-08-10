@@ -149,6 +149,25 @@ function bloqueioDetalhado(
   isAdminOps: boolean,
   usuarioId: number | undefined,
 ): { mensagem: string; secao: SecaoDeBloqueio | null } | null {
+  // Achado em autorevisão: usuarioTemPermissaoParaTransicao só checa QUEM
+  // pode fazer a transição, não SE ela existe -- um par fora de
+  // TRANSICOES_PERMITIDAS (ex.: backlog->concluido) não está em nenhum dos
+  // sets de permissão, então passava direto por essa função sem bloqueio
+  // nenhum. O Select de "Mudar status" nunca oferece esses pares (filtra
+  // por proximosStatusValidos em statusPermitidosParaUsuario), mas o
+  // drag-and-drop do KanbanBoard chama bloqueioDetalhado direto, sem esse
+  // filtro -- sem essa checagem, um drag pra uma coluna não-adjacente só
+  // falhava depois, na resposta 400 do backend. "lixeira" fica de fora de
+  // propósito (mesmo motivo do TRANSICOES_PERMITIDAS de backend/demandas/views.py):
+  // mover pra lá é soft-delete (moverDemanda chama excluirDemanda, não
+  // atualizarStatusDemanda), nunca uma transição de status de verdade.
+  if (novoStatus !== "lixeira" && !proximosStatusValidos(demanda.status).includes(novoStatus)) {
+    return {
+      mensagem: `Não é possível mover de "${ROTULO_STATUS[demanda.status]}" para "${ROTULO_STATUS[novoStatus]}".`,
+      secao: null,
+    };
+  }
+
   if (!usuarioTemPermissaoParaTransicao(demanda, novoStatus, isAdminOps, usuarioId)) {
     // secao: null de propósito -- TransicaoStatusSection filtra essa mesma
     // transição fora de opcoesStatus pra esse usuário, então "abra e use

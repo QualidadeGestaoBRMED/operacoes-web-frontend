@@ -97,6 +97,23 @@ describe("mensagemBloqueioConhecido", () => {
       "Você não tem permissão para fazer essa transição.",
     );
   });
+
+  // Achado em autorevisão: usuarioTemPermissaoParaTransicao (usada por
+  // bloqueioDetalhado) só sabe negar pares que ESTÃO em algum dos sets de
+  // permissão -- um par que não é uma transição válida pra começo de
+  // conversa (backlog -> concluido "pula tudo") não estava em nenhum deles,
+  // então passava sem bloqueio nenhum antes dessa checagem existir.
+  it("bloqueia uma transição que não existe (backlog -> concluido, 'pula tudo')", () => {
+    const demanda = criarDemanda({ status: "backlog" });
+    expect(mensagemBloqueioConhecido(demanda, "concluido", true, undefined)).toBe(
+      'Não é possível mover de "Backlog" para "Concluído".',
+    );
+  });
+
+  it("não bloqueia mover pra lixeira mesmo não estando em nenhum TRANSICOES_PERMITIDAS (soft-delete, não é transição de status)", () => {
+    const demanda = criarDemanda({ status: "em_andamento", responsaveis: [responsavelPrincipal()] });
+    expect(mensagemBloqueioConhecido(demanda, "lixeira", true, undefined)).toBeNull();
+  });
 });
 
 describe("secaoDoBloqueio", () => {
