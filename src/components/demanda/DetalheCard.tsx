@@ -200,6 +200,26 @@ export function DetalheCard({
                   </CampoMeta>
                 )}
 
+                {/* Achado no dogfooding: etiquetas só apareciam no modal
+                    de detalhe dentro do formulário de edição -- pra ver
+                    quais uma demanda tinha, era preciso abrir "Editar
+                    demanda" mesmo sem intenção nenhuma de editar. */}
+                {secaoAberta !== "editar" && demanda.etiquetas.length > 0 && (
+                  <CampoMeta rotulo="Etiquetas">
+                    <div className="flex flex-wrap gap-1.5">
+                      {demanda.etiquetas.map((etiqueta) => (
+                        <span
+                          key={etiqueta.id}
+                          className="rounded px-2 py-0.5 text-[11px] font-medium text-white"
+                          style={{ backgroundColor: etiqueta.cor }}
+                        >
+                          {etiqueta.nome}
+                        </span>
+                      ))}
+                    </div>
+                  </CampoMeta>
+                )}
+
                 {secaoAberta !== "editar" && (
                   <CampoMeta rotulo="Prazo">
                     {(() => {

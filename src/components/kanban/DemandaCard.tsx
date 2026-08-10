@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COR_PRIORIDADE, LABEL_PRIORIDADE, diasAteOPrazo } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda } from "@/types";
@@ -93,15 +94,24 @@ function ConteudoCard({
           </span>
         ))}
         {demanda.etiquetas.length > MAX_ETIQUETAS_NO_CARD && (
-          <span
-            className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-            title={demanda.etiquetas
-              .slice(MAX_ETIQUETAS_NO_CARD)
-              .map((etiqueta) => etiqueta.nome)
-              .join(", ")}
-          >
-            +{demanda.etiquetas.length - MAX_ETIQUETAS_NO_CARD}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                +{demanda.etiquetas.length - MAX_ETIQUETAS_NO_CARD}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="flex flex-wrap gap-1 max-w-56">
+              {demanda.etiquetas.slice(MAX_ETIQUETAS_NO_CARD).map((etiqueta) => (
+                <span
+                  key={etiqueta.id}
+                  className="rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
+                  style={{ backgroundColor: etiqueta.cor }}
+                >
+                  {etiqueta.nome}
+                </span>
+              ))}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
