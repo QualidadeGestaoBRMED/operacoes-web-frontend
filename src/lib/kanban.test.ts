@@ -83,6 +83,20 @@ describe("mensagemBloqueioConhecido", () => {
       'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
     );
   });
+
+  // "Concluir sem revisão" (pedido direto do responsável do projeto): admin
+  // libera em_andamento -> concluido direto, sem aprovador nem justificativa.
+  it("libera em_andamento -> concluido pra admin, sem exigir aprovador/justificativa", () => {
+    const demanda = criarDemanda({ status: "em_andamento" });
+    expect(mensagemBloqueioConhecido(demanda, "concluido", true, undefined)).toBeNull();
+  });
+
+  it("bloqueia em_andamento -> concluido por falta de permissão pra quem não é admin", () => {
+    const demanda = criarDemanda({ status: "em_andamento" });
+    expect(mensagemBloqueioConhecido(demanda, "concluido", false, 99)).toBe(
+      "Você não tem permissão para fazer essa transição.",
+    );
+  });
 });
 
 describe("secaoDoBloqueio", () => {
