@@ -2,7 +2,12 @@
 
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
-import { criarPermissao, listarPermissoes, revogarPermissao } from "@/lib/plataforma";
+import {
+  criarPermissao,
+  listarPermissoes,
+  reativarPermissao,
+  revogarPermissao,
+} from "@/lib/plataforma";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { PermissaoUsuarioPayload } from "@/types";
 
@@ -44,6 +49,22 @@ export function useRevogarPermissao() {
 
   return {
     revogar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useReativarPermissao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    CHAVE_LISTA,
+    (_chave, { arg }: { arg: number }) => reativarPermissao(arg),
+    { onSuccess: () => mutate(CHAVE_LISTA) },
+  );
+
+  return {
+    reativar: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

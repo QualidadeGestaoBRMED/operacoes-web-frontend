@@ -107,3 +107,16 @@ export async function revogarPermissao(id: number): Promise<PermissaoUsuario> {
   );
   return data;
 }
+
+// Só faz sentido pra uma permissão SEM data de fim (revogada, nunca teve
+// período pra ficar velho) -- reativar diretamente o mesmo registro é
+// suficiente, as datas continuam válidas. Com data de fim, a tela nem chama
+// isto: abre o formulário de nova permissão pré-preenchido em vez de tentar
+// reaproveitar datas já expiradas (ver PermissoesAdmin.tsx).
+export async function reativarPermissao(id: number): Promise<PermissaoUsuario> {
+  const { data } = await api.patch<PermissaoUsuario>(
+    `/plataforma/permissoes-usuario/${id}/`,
+    { ativo: true },
+  );
+  return data;
+}

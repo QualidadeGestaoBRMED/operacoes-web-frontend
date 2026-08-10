@@ -19,7 +19,7 @@ import {
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { usePermissoes, useRevogarPermissao } from "@/hooks/usePermissoes";
+import { usePermissoes, useReativarPermissao, useRevogarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -27,7 +27,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { hojeNoFusoDoServidor } from "@/lib/kanban";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
-import { FormNovaPermissao } from "./FormNovaPermissao";
+import { FormNovaPermissao, type ValoresIniciaisPermissao } from "./FormNovaPermissao";
 import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
 
 const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
@@ -95,6 +95,18 @@ function statusPermissao(permissao: {
   return { rotulo: "Ativa", variante: "success" };
 }
 
+// Reaproveita a ordem já estabelecida em STATUS_PERMISSAO (a mesma do
+// filtro) em vez de duplicar a lista -- Agendada entra logo depois de
+// Ativa (ainda vai valer, só não começou), não foi pedido explicitamente
+// mas segue a mesma lógica "o que importa agora primeiro".
+function prioridadeStatus(permissao: {
+  ativo: boolean;
+  data_inicio: string;
+  data_fim: string | null;
+}) {
+  return (STATUS_PERMISSAO as readonly string[]).indexOf(statusPermissao(permissao).rotulo);
+}
+
 export function PermissoesAdmin() {
   const router = useRouter();
   const { isAdminOps, isLoading: carregandoAuth } = useAuth();
@@ -120,9 +132,18 @@ export function PermissoesAdmin() {
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { revogar, isLoading: revogando } = useRevogarPermissao();
+  const { reativar, isLoading: reativando } = useReativarPermissao();
 
   const [formAberto, setFormAberto] = useState(false);
   const [paraRevogar, setParaRevogar] = useState<PermissaoUsuario | null>(null);
+  // Achado no dogfooding (pedido da Solicitante): "Reativar" uma permissão
+  // revogada/expirada. Sem data de fim, religa o mesmo registro direto
+  // (paraReativar); com data de fim, as datas antigas não servem mais pra
+  // um período novo -- abre o formulário de nova permissão pré-preenchido
+  // em vez disso (renovando), mantendo o registro velho como histórico de
+  // que ele existiu e chegou a expirar/ser revogado.
+  const [paraReativar, setParaReativar] = useState<PermissaoUsuario | null>(null);
+  const [renovando, setRenovando] = useState<PermissaoUsuario | null>(null);
   // Achado no dogfooding: com muitos usuários, "Perfil, unidade e setor"
   // (tabela sem paginação) empurrava "Permissões individuais" pra fora da
   // tela. null = as duas seções dividem a altura disponível proporcional ao
@@ -147,12 +168,16 @@ export function PermissoesAdmin() {
   const [filtroPessoas, setFiltroPessoas] = useState<number[]>([]);
   const [filtroAcao, setFiltroAcao] = useState("todas");
 
-  // A API não garante ordenação por criação. Cada registro permanece uma
-  // linha independente: timestamp nunca deve funcionar como identidade de
-  // lote, pois concessões distintas podem ocorrer no mesmo minuto.
-  const permissoesOrdenadas = [...permissoes].sort((a, b) =>
-    b.created_at.localeCompare(a.created_at),
-  );
+  // Status primeiro (Ativa/Agendada/Expirada/Revogada, ver prioridadeStatus),
+  // criação mais recente primeiro como critério de desempate dentro do mesmo
+  // status -- não como ordenação única. A API não garante ordenação por
+  // criação, e cada registro permanece uma linha independente: timestamp
+  // nunca deve funcionar como identidade de lote, pois concessões distintas
+  // podem ocorrer no mesmo minuto.
+  const permissoesOrdenadas = [...permissoes].sort((a, b) => {
+    const diferencaStatus = prioridadeStatus(a) - prioridadeStatus(b);
+    return diferencaStatus !== 0 ? diferencaStatus : b.created_at.localeCompare(a.created_at);
+  });
   // Peso das seções (ver pesoSecao) segue o total real, não o filtrado --
   // senão a proporção "pula" a cada troca de filtro, mesmo com a mesma
   // quantidade de dados por trás.
@@ -243,6 +268,35 @@ export function PermissoesAdmin() {
     } finally {
       setParaRevogar(null);
     }
+  }
+
+  async function confirmarReativacao() {
+    if (!paraReativar) return;
+    try {
+      await reativar(paraReativar.id);
+      toast.success("Permissão reativada.");
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setParaReativar(null);
+    }
+  }
+
+  // "acao" só aceita visualizar/editar em permissão nova (ver ACOES em
+  // FormNovaPermissao.tsx) -- um registro antigo com outra ação (de antes
+  // dessa restrição existir) cai em "visualizar" por padrão, não trava a
+  // renovação.
+  function valoresParaRenovar(permissao: PermissaoUsuario): ValoresIniciaisPermissao {
+    return {
+      usuario: permissao.usuario,
+      recurso: permissao.recurso,
+      acao: permissao.acao === "visualizar" || permissao.acao === "editar"
+        ? permissao.acao
+        : "visualizar",
+      escopo_tipo: permissao.escopo_tipo,
+      unidade: permissao.unidade ?? undefined,
+      setor: permissao.setor ?? undefined,
+    };
   }
 
   // Extraído pra função (não JSX inline duas vezes): os mesmos 3 selects
@@ -544,15 +598,45 @@ export function PermissoesAdmin() {
                           <Badge variant={status.variante}>{status.rotulo}</Badge>
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          {permissao.ativo && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setParaRevogar(permissao)}
-                            >
-                              Revogar
-                            </Button>
-                          )}
+                          <div className="flex justify-end gap-1.5">
+                            {/* Achado no dogfooding: permissao.ativo sozinho
+                                também é true pra "Expirada" (a data que
+                                passou, não o campo ativo) -- Revogar não faz
+                                sentido nenhum ali, já não vale de qualquer
+                                jeito. Só aparece pro que ainda está de pé
+                                (Ativa/Agendada). */}
+                            {(status.rotulo === "Ativa" || status.rotulo === "Agendada") && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setParaRevogar(permissao)}
+                              >
+                                Revogar
+                              </Button>
+                            )}
+                            {(status.rotulo === "Revogada" || status.rotulo === "Expirada") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                // Cor puxa pro verde do badge "Ativa" (--chart-3)
+                                // -- achado no dogfooding: Revogar/Reativar com
+                                // a mesma cor cinza + nomes parecidos confundia
+                                // visualmente qual botão fazia o quê.
+                                className="border-chart-3/40 text-chart-3 hover:bg-chart-3/10 hover:text-chart-3"
+                                onClick={() =>
+                                  // Sem data de fim, religa o mesmo registro
+                                  // direto -- com data de fim, as datas velhas
+                                  // não servem mais, abre o formulário
+                                  // pré-preenchido pra um período novo.
+                                  permissao.data_fim
+                                    ? setRenovando(permissao)
+                                    : setParaReativar(permissao)
+                                }
+                              >
+                                Reativar
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -564,7 +648,16 @@ export function PermissoesAdmin() {
         </div>
       </div>
 
-      <FormNovaPermissao open={formAberto} onOpenChange={setFormAberto} />
+      <FormNovaPermissao
+        open={formAberto || renovando !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFormAberto(false);
+            setRenovando(null);
+          }
+        }}
+        valoresIniciais={renovando ? valoresParaRenovar(renovando) : undefined}
+      />
 
       <ConfirmDialog
         open={paraRevogar !== null}
@@ -581,6 +674,20 @@ export function PermissoesAdmin() {
         destrutivo
         isLoading={revogando}
         onConfirmar={() => void confirmarRevogacao()}
+      />
+
+      <ConfirmDialog
+        open={paraReativar !== null}
+        onOpenChange={(open) => !open && setParaReativar(null)}
+        titulo="Reativar permissão"
+        descricao={
+          paraReativar
+            ? `Reativar o acesso de ${nomeUsuario(paraReativar.usuario)}? Isso vale a partir de agora, sem precisar de uma nova concessão.`
+            : ""
+        }
+        textoConfirmar="Reativar"
+        isLoading={reativando}
+        onConfirmar={() => void confirmarReativacao()}
       />
     </div>
   );

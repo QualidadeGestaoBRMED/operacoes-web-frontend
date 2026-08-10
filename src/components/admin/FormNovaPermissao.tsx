@@ -107,6 +107,10 @@ const schema = z
 type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
+// Exportado só pra PermissoesAdmin.tsx conseguir tipar o que monta pra
+// "Renovar" -- mesmo formato que valoresIniciais aceita abaixo.
+export type ValoresIniciaisPermissao = Partial<FormValuesEntrada>;
+
 const valoresPadrao: Partial<FormValuesEntrada> = {
   acao: "visualizar",
   escopo_tipo: "unidade",
@@ -115,9 +119,18 @@ const valoresPadrao: Partial<FormValuesEntrada> = {
 export function FormNovaPermissao({
   open,
   onOpenChange,
+  valoresIniciais,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Achado no dogfooding (pedido da Solicitante): "Reativar" uma permissão
+  // com data de fim não pode só religar o registro antigo -- as datas já
+  // passaram, religar do jeito que está voltaria "Expirada" na hora. Em vez
+  // de reescrever o registro (perderia o rastro de que ela tinha expirado/
+  // sido revogada antes), PermissoesAdmin.tsx abre este mesmo formulário
+  // pré-preenchido com tudo que definia o acesso -- só Início/Fim ficam em
+  // branco, já que as antigas não servem mais pra um período novo.
+  valoresIniciais?: Partial<FormValuesEntrada>;
 }) {
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
@@ -138,7 +151,14 @@ export function FormNovaPermissao({
   });
 
   useEffect(() => {
-    if (!open) reset(valoresPadrao);
+    // valoresIniciais deliberadamente fora das deps: o dialog sempre fecha
+    // entre um uso e outro, então cada abertura já dispara este efeito de
+    // novo com o valor mais recente da prop -- entrar nas deps só geraria
+    // reset em todo re-render enquanto aberto (valoresIniciais é um objeto
+    // novo a cada chamada de PermissoesAdmin).
+    if (open) reset({ ...valoresPadrao, ...valoresIniciais });
+    else reset(valoresPadrao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reset]);
 
   const escopoSelecionado = watch("escopo_tipo");
@@ -162,7 +182,7 @@ export function FormNovaPermissao({
         data_inicio: valores.data_inicio,
         data_fim: valores.data_fim || null,
       });
-      toast.success("Permissão concedida.");
+      toast.success(valoresIniciais ? "Permissão renovada." : "Permissão concedida.");
       onOpenChange(false);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -173,7 +193,7 @@ export function FormNovaPermissao({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] max-w-[min(32rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>Conceder permissão</DialogTitle>
+          <DialogTitle>{valoresIniciais ? "Renovar permissão" : "Conceder permissão"}</DialogTitle>
         </DialogHeader>
 
         <form
@@ -388,7 +408,13 @@ export function FormNovaPermissao({
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Concedendo..." : "Conceder permissão"}
+              {isLoading
+                ? valoresIniciais
+                  ? "Renovando..."
+                  : "Concedendo..."
+                : valoresIniciais
+                  ? "Renovar permissão"
+                  : "Conceder permissão"}
             </Button>
           </DialogFooter>
         </form>
