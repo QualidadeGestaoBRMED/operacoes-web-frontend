@@ -6,6 +6,14 @@ import { COR_PRIORIDADE, LABEL_PRIORIDADE, diasAteOPrazo } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
 import type { Demanda } from "@/types";
 
+// Achado no dogfooding: uma demanda com muitas etiquetas empurrava o resto
+// do card (prazo, avatar, contadores) pra baixo, quase escondendo o que
+// realmente importa numa visão de board. Mostra só as primeiras no card
+// (a lista completa continua no modal de detalhe) + um badge "+N" quando
+// sobra alguma -- sem impor teto nenhum em quantas etiquetas uma demanda
+// pode ter de verdade, só no que aparece condensado aqui.
+const MAX_ETIQUETAS_NO_CARD = 3;
+
 function InfoPrazo({ demanda }: { demanda: Demanda }) {
   if (demanda.status === "concluido") {
     return demanda.data_conclusao ? (
@@ -72,7 +80,7 @@ function ConteudoCard({
         <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
           {demanda.unidade.nome}
         </span>
-        {demanda.etiquetas.map((etiqueta) => (
+        {demanda.etiquetas.slice(0, MAX_ETIQUETAS_NO_CARD).map((etiqueta) => (
           // Cor vem cadastrada por etiqueta (dado do usuário, não um token de
           // design) -- por isso hex direto via style, diferente das cores de
           // prioridade/status que são fixas no código.
@@ -84,6 +92,17 @@ function ConteudoCard({
             {etiqueta.nome}
           </span>
         ))}
+        {demanda.etiquetas.length > MAX_ETIQUETAS_NO_CARD && (
+          <span
+            className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+            title={demanda.etiquetas
+              .slice(MAX_ETIQUETAS_NO_CARD)
+              .map((etiqueta) => etiqueta.nome)
+              .join(", ")}
+          >
+            +{demanda.etiquetas.length - MAX_ETIQUETAS_NO_CARD}
+          </span>
+        )}
       </div>
 
       {demanda.status === "em_revisao" && demanda.aprovador && (

@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { useCriarEtiqueta, useEtiquetas } from "@/hooks/useEtiquetas";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -14,6 +16,14 @@ const COR_PADRAO = "#007891";
 
 // STC-197: compartilhado entre FormNovaDemanda e EditarDemandaSection --
 // mesmo padrão de reuso já usado pra useSetores/useCategorias nos dois.
+//
+// Achado no dogfooding: a versão original listava TODAS as etiquetas como
+// chips clicáveis direto no formulário -- ótimo com poucas, mas o catálogo
+// não tem limite (qualquer admin pode criar uma nova) e o formulário virava
+// uma parede de chips. Reaproveita o mesmo padrão de multi-seleção em
+// Popover+Checkbox já usado em PermissoesAdmin/FormNovaPermissao (Pessoa/
+// Ação) -- com um campo de busca a mais, já que aqui o catálogo cresce sem
+// nenhum teto natural (Ação, por exemplo, tem só 7 valores fixos).
 export function SeletorEtiquetas({
   value,
   onChange,
@@ -26,9 +36,15 @@ export function SeletorEtiquetas({
   const { etiquetas } = useEtiquetas(modulo);
   const { isAdminOps } = useAuth();
   const { criar, isLoading } = useCriarEtiqueta();
+  const [busca, setBusca] = useState("");
   const [criandoNova, setCriandoNova] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(COR_PADRAO);
+
+  const selecionadas = etiquetas.filter((etiqueta) => value.includes(etiqueta.id));
+  const etiquetasFiltradas = etiquetas.filter((etiqueta) =>
+    etiqueta.nome.toLowerCase().includes(busca.trim().toLowerCase()),
+  );
 
   function alternar(id: number) {
     onChange(value.includes(id) ? value.filter((existente) => existente !== id) : [...value, id]);
@@ -49,73 +65,132 @@ export function SeletorEtiquetas({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {etiquetas.map((etiqueta) => (
-        <button
+      {/* Chips das já selecionadas continuam visíveis fora do popover --
+          diferente do filtro de Pessoa (que só mostra contagem no botão),
+          aqui vale ver de cara quais etiquetas estão marcadas, com um "x"
+          direto pra remover sem precisar reabrir o popover pra cada uma. */}
+      {selecionadas.map((etiqueta) => (
+        <span
           key={etiqueta.id}
-          type="button"
-          onClick={() => alternar(etiqueta.id)}
-          className={cn(
-            "rounded px-2 py-0.5 text-[11px] font-medium text-white transition-opacity",
-            !value.includes(etiqueta.id) && "opacity-40 hover:opacity-70",
-          )}
+          className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-white"
           style={{ backgroundColor: etiqueta.cor }}
         >
           {etiqueta.nome}
-        </button>
-      ))}
-
-      {/* Não-admin não vê a opção de criar -- mesmo padrão de esconder ação
-          sem permissão já usado em AnexoList.tsx/ResponsavelSection.tsx, e
-          mesma restrição real do backend (EtiquetaViewSet). */}
-      {isAdminOps &&
-        (criandoNova ? (
-          <div className="flex items-center gap-1">
-            <Input
-              value={novoNome}
-              onChange={(evento) => setNovoNome(evento.target.value)}
-              placeholder="Nome"
-              maxLength={50}
-              className="h-7 w-24 text-[11px]"
-              autoFocus
-            />
-            <input
-              type="color"
-              value={novaCor}
-              onChange={(evento) => setNovaCor(evento.target.value)}
-              className="h-7 w-7 shrink-0 cursor-pointer rounded border border-input p-0.5"
-              aria-label="Cor da etiqueta"
-            />
-            <Button
-              type="button"
-              size="xs"
-              onClick={() => void aoCriar()}
-              disabled={!novoNome.trim() || isLoading}
-            >
-              Criar
-            </Button>
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost"
-              onClick={() => {
-                setCriandoNova(false);
-                setNovoNome("");
-                setNovaCor(COR_PADRAO);
-              }}
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
-        ) : (
           <button
             type="button"
-            onClick={() => setCriandoNova(true)}
+            onClick={() => alternar(etiqueta.id)}
+            aria-label={`Remover etiqueta ${etiqueta.nome}`}
+            className="opacity-80 hover:opacity-100"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+
+      <Popover
+        onOpenChange={(aberto) => {
+          if (!aberto) setBusca("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
             className="flex items-center gap-0.5 rounded border border-dashed border-input px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-secondary hover:text-secondary"
           >
             <Plus className="size-3" />
-            Nova etiqueta
+            Etiqueta
           </button>
-        ))}
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-56 p-1.5">
+          <Input
+            value={busca}
+            onChange={(evento) => setBusca(evento.target.value)}
+            placeholder="Buscar etiqueta..."
+            className="mb-1.5 h-7 text-xs"
+            autoFocus
+          />
+          <div className="scrollbar-discreta max-h-48 overflow-y-auto">
+            {etiquetasFiltradas.length === 0 ? (
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                Nenhuma etiqueta encontrada.
+              </p>
+            ) : (
+              etiquetasFiltradas.map((etiqueta) => (
+                <label
+                  key={etiqueta.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                >
+                  <Checkbox
+                    checked={value.includes(etiqueta.id)}
+                    onCheckedChange={() => alternar(etiqueta.id)}
+                    className="shrink-0"
+                  />
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: etiqueta.cor }}
+                  />
+                  <span className="truncate">{etiqueta.nome}</span>
+                </label>
+              ))
+            )}
+          </div>
+
+          {/* Não-admin não vê a opção de criar -- mesmo padrão de esconder
+              ação sem permissão já usado em AnexoList.tsx/ResponsavelSection.tsx,
+              e mesma restrição real do backend (EtiquetaViewSet). */}
+          {isAdminOps &&
+            (criandoNova ? (
+              <div className="mt-1.5 flex items-center gap-1 border-t border-border pt-1.5">
+                <Input
+                  value={novoNome}
+                  onChange={(evento) => setNovoNome(evento.target.value)}
+                  placeholder="Nome"
+                  maxLength={50}
+                  className="h-7 flex-1 text-[11px]"
+                  autoFocus
+                />
+                <input
+                  type="color"
+                  value={novaCor}
+                  onChange={(evento) => setNovaCor(evento.target.value)}
+                  className="h-7 w-7 shrink-0 cursor-pointer rounded border border-input p-0.5"
+                  aria-label="Cor da etiqueta"
+                />
+                <Button
+                  type="button"
+                  size="xs"
+                  onClick={() => void aoCriar()}
+                  disabled={!novoNome.trim() || isLoading}
+                >
+                  Criar
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => {
+                    setCriandoNova(false);
+                    setNovoNome("");
+                    setNovaCor(COR_PADRAO);
+                  }}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCriandoNova(true)}
+                className={cn(
+                  "mt-1.5 flex w-full items-center gap-1 rounded-sm border-t border-border px-2 pt-2 text-[11px] font-medium text-muted-foreground hover:text-secondary",
+                )}
+              >
+                <Plus className="size-3" />
+                Nova etiqueta
+              </button>
+            ))}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
