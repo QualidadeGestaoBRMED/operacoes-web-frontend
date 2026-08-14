@@ -144,11 +144,11 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
           }
         >
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor">
-            <SelectValue placeholder="Setor" />
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor Origem">
+            <SelectValue placeholder="Setor Origem" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os setores</SelectItem>
+            <SelectItem value="todos">Todos os setores origem</SelectItem>
             {setores.map((setor) => (
               <SelectItem key={setor.id} value={String(setor.id)}>
                 {setor.nome}

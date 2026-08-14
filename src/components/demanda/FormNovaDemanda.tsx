@@ -311,7 +311,7 @@ export function FormNovaDemanda({
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="f-setor">Setor</Label>
+                <Label htmlFor="f-setor">Setor Origem</Label>
                 <Controller
                   control={control}
                   name="setor"

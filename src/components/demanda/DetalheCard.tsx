@@ -193,7 +193,7 @@ export function DetalheCard({
                     formulário de edição está aberto -- ele já mostra os
                     três como input, mostrar os dois ao mesmo tempo duplicaria. */}
                 {secaoAberta !== "editar" && demanda.setor && (
-                  <CampoMeta rotulo="Setor">
+                  <CampoMeta rotulo="Setor Origem">
                     <Pill>{demanda.setor.nome}</Pill>
                   </CampoMeta>
                 )}

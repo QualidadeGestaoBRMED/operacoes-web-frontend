@@ -213,7 +213,7 @@ export function EditarDemandaSection({
 
       <div className="space-y-1">
         <Label htmlFor="ed-setor" className="text-[10.5px] font-bold tracking-wide uppercase">
-          Setor
+          Setor Origem
         </Label>
         <Controller
           control={control}
