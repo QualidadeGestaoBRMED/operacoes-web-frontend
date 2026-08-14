@@ -175,9 +175,16 @@ function ConteudoCard({
           Restaurar
         </button>
       ) : (
-        <div className="flex items-center justify-between pt-1">
-          <AvatarResponsavel principal={principal} />
-          <div className="flex items-center gap-2.5 text-[11px] font-medium text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <AvatarResponsavel principal={principal} />
+            {principal && (
+              <span className="truncate text-[11px] font-medium text-muted-foreground">
+                {nomeExibicao(principal.usuario)}
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2.5 text-[11px] font-medium text-muted-foreground">
             <span className="flex items-center gap-1" title="Comentários">
               <MessageSquare className="size-3.5" />
               {demanda.comentarios_count}
