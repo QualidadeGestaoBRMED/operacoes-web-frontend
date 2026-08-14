@@ -38,6 +38,7 @@ function usuario(overrides: Partial<Usuario> = {}): Usuario {
     setor_id: null,
     ativo: true,
     ultimo_acesso: null,
+    foto_url: "",
     ...overrides,
   };
 }

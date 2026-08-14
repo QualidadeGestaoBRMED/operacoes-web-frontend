@@ -39,6 +39,7 @@ export function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
       setor_id: null,
       ativo: true,
       ultimo_acesso: null,
+      foto_url: "",
     },
     aprovador: null,
     responsaveis: [],
@@ -70,6 +71,7 @@ export function responsavelPrincipal(): DemandaResponsavel {
       setor_id: null,
       ativo: true,
       ultimo_acesso: null,
+      foto_url: "",
     },
   };
 }

@@ -16,6 +16,7 @@ export interface Usuario {
   setor_id: number | null;
   ativo: boolean;
   ultimo_acesso: string | null;
+  foto_url: string;
 }
 
 // Payload de PATCH em /plataforma/usuarios/<id>/ -- só os campos que a tela

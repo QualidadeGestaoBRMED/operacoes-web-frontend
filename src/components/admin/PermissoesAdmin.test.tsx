@@ -38,6 +38,7 @@ const USUARIO: Usuario = {
   setor_id: null,
   ativo: true,
   ultimo_acesso: null,
+  foto_url: "",
 };
 
 const UNIDADE_NITEROI: Unidade = {
@@ -68,6 +69,7 @@ const ADMIN_CONCEDENTE: Usuario = {
   setor_id: null,
   ativo: true,
   ultimo_acesso: null,
+  foto_url: "",
 };
 
 function permissaoBase(overrides: Partial<PermissaoUsuario> = {}): PermissaoUsuario {

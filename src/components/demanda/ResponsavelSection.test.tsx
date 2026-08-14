@@ -30,6 +30,7 @@ const NOVO_PRINCIPAL: Usuario = {
   setor_id: null,
   ativo: true,
   ultimo_acesso: null,
+  foto_url: "",
 };
 
 const COLABORADOR_EXISTENTE: Usuario = {
@@ -43,6 +44,7 @@ const COLABORADOR_EXISTENTE: Usuario = {
   setor_id: null,
   ativo: true,
   ultimo_acesso: null,
+  foto_url: "",
 };
 
 function responsavelColaboradorExistente(): DemandaResponsavel {
