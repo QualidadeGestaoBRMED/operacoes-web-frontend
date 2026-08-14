@@ -294,6 +294,9 @@ export function passaNoFoco(demanda: Demanda, foco: string | null): boolean {
   if (foco === "sem responsável") {
     return !demanda.responsaveis.some((r) => r.tipo === "principal");
   }
+  if (foco === "em andamento") {
+    return demanda.status === "em_andamento";
+  }
   return true;
 }
 

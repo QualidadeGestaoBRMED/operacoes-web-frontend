@@ -1,17 +1,18 @@
 "use client";
 
-import { AlertTriangle, Info, UserRoundX, type LucideIcon } from "lucide-react";
+import { Activity, AlertTriangle, Info, UserRoundX, type LucideIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumoDemandas } from "@/hooks/useResumoDemandas";
 import { cn } from "@/lib/utils";
 import type { DemandaFiltros, EstatisticaResumo } from "@/types";
 
-// "em andamento" fica de fora de propósito: a própria coluna "Em Andamento"
-// do board já mostra essa contagem, então o card aqui seria redundante --
-// só entram métricas que não têm equivalente visível de relance no board.
-const ROTULOS_EXIBIDOS = new Set(["atrasadas", "sem responsável"]);
+// Ordem de exibição = ordem que o backend já devolve em resumo.estatisticas
+// (em andamento, atrasadas, sem responsável) -- o filter() abaixo preserva
+// essa ordem, não precisa reordenar aqui.
+const ROTULOS_EXIBIDOS = new Set(["em andamento", "atrasadas", "sem responsável"]);
 
 const ICONE_POR_ROTULO: Record<string, LucideIcon> = {
+  "em andamento": Activity,
   atrasadas: AlertTriangle,
   "sem responsável": UserRoundX,
 };
@@ -101,8 +102,8 @@ export function ResumoCards({
 
   if (carregandoPrimeiraVez || !resumo) {
     return (
-      <div className="grid grid-cols-2 gap-2 px-4 pt-4 sm:gap-3 sm:px-7 sm:pt-5">
-        {Array.from({ length: 2 }).map((_, i) => (
+      <div className="grid grid-cols-3 gap-2 px-4 pt-4 sm:gap-3 sm:px-7 sm:pt-5">
+        {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-[52px] rounded-xl sm:h-[72px]" />
         ))}
       </div>
@@ -115,10 +116,10 @@ export function ResumoCards({
   return (
     <div
       className={cn(
-        // grid-cols-2 sempre (não sm:grid-cols-2): ver comentário em
-        // CardEstatistica -- condensa os 2 KPIs numa linha só compacta em
-        // qualquer largura, em vez de empilhar em mobile.
-        "grid grid-cols-2 gap-2 px-4 pt-4 transition-opacity sm:gap-3 sm:px-7 sm:pt-5",
+        // grid-cols-3 sempre (não sm:grid-cols-3): mesmo critério de antes
+        // (ver CardEstatistica) -- condensa os 3 KPIs numa linha só compacta
+        // em qualquer largura, em vez de empilhar em mobile.
+        "grid grid-cols-3 gap-2 px-4 pt-4 transition-opacity sm:gap-3 sm:px-7 sm:pt-5",
         // Troca de filtro: mantém os cards antigos visíveis (keepPreviousData
         // no hook) em vez de sumir pra um skeleton -- só esmaece um pouco
         // enquanto a resposta nova não chega, pra não parecer travado.

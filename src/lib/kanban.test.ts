@@ -176,6 +176,13 @@ describe("passaNoFoco", () => {
     expect(passaNoFoco(semPrincipal, "sem responsável")).toBe(true);
     expect(passaNoFoco(comPrincipal, "sem responsável")).toBe(false);
   });
+
+  it("'em andamento': só passa quando o status é 'em_andamento'", () => {
+    const emAndamento = criarDemanda({ status: "em_andamento" });
+    const backlog = criarDemanda({ status: "backlog" });
+    expect(passaNoFoco(emAndamento, "em andamento")).toBe(true);
+    expect(passaNoFoco(backlog, "em andamento")).toBe(false);
+  });
 });
 
 describe("filtrosDaUrl", () => {
