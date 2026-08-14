@@ -264,7 +264,7 @@ export function FormNovaDemanda({
                         <SelectTrigger id="f-area-responsavel" className="w-full">
                           <SelectValue placeholder="Selecionar..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper">
                           {AREAS_RESPONSAVEL.map((area) => (
                             <SelectItem key={area} value={area}>
                               {LABEL_AREA_RESPONSAVEL[area]}
@@ -294,7 +294,7 @@ export function FormNovaDemanda({
                         <SelectTrigger id="f-unidade" className="w-full">
                           <SelectValue placeholder="Selecionar..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper">
                           {unidades.map((unidade) => (
                             <SelectItem key={unidade.id} value={String(unidade.id)}>
                               {unidade.nome}
@@ -323,9 +323,11 @@ export function FormNovaDemanda({
                       <SelectTrigger id="f-setor" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
-                      {/* position="popper": ver comentário equivalente em
-                          EditarDemandaSection.tsx -- mesmo problema aqui, o
-                          Dialog inteiro tem scroll próprio. */}
+                      {/* position="popper" em todo Select deste formulário --
+                          ver comentário equivalente em
+                          EditarDemandaSection.tsx: o Dialog inteiro tem
+                          scroll próprio, "item-aligned" (padrão) não calcula
+                          altura disponível direito nesse caso. */}
                       <SelectContent position="popper">
                         {setores.map((setor) => (
                           <SelectItem key={setor.id} value={String(setor.id)}>
@@ -378,7 +380,7 @@ export function FormNovaDemanda({
                       <SelectTrigger id="f-tipo-gestao" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper">
                         {tiposGestao.map((tipo) => (
                           <SelectItem key={tipo.id} value={String(tipo.id)}>
                             {tipo.nome}
@@ -409,7 +411,7 @@ export function FormNovaDemanda({
                         <SelectTrigger id="f-categoria" className="w-full">
                           <SelectValue placeholder="Selecionar..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper">
                           {categorias.map((categoria) => (
                             <SelectItem key={categoria.id} value={String(categoria.id)}>
                               {categoria.nome}

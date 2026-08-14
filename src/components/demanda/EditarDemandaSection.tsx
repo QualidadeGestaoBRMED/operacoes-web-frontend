@@ -180,7 +180,7 @@ export function EditarDemandaSection({
               <SelectTrigger id="ed-prioridade" size="sm" className="h-8 w-full text-[13px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 {PRIORIDADES.map((prioridade) => (
                   <SelectItem key={prioridade} value={prioridade}>
                     <span className={cn("size-2 rounded-full", COR_PRIORIDADE[prioridade])} />
@@ -223,12 +223,12 @@ export function EditarDemandaSection({
               <SelectTrigger id="ed-setor" size="sm" className="h-8 w-full text-[13px]">
                 <SelectValue />
               </SelectTrigger>
-              {/* position="popper": o padrão "item-aligned" não calcula
-                  altura disponível direito quando o trigger está dentro de
-                  um contêiner com scroll próprio (o modal de detalhe) --
-                  achado ao crescer "Setor Origem" pra 20 opções, o próprio
-                  modal rolava junto em vez de só a lista abrir com scroll
-                  interno. */}
+              {/* position="popper" em todo Select desta tela: o padrão
+                  "item-aligned" não calcula altura disponível direito
+                  quando o trigger está dentro de um contêiner com scroll
+                  próprio (o modal de detalhe) -- achado ao crescer "Setor
+                  Origem" pra 20 opções, o próprio modal rolava junto em vez
+                  de só a lista abrir com scroll interno. */}
               <SelectContent position="popper">
                 <SelectItem value={SEM_SELECAO}>Nenhum</SelectItem>
                 {setores.map((setor) => (
@@ -262,7 +262,7 @@ export function EditarDemandaSection({
                 <SelectTrigger id="ed-categoria" size="sm" className="h-8 w-full text-[13px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value={SEM_SELECAO}>Nenhuma</SelectItem>
                   {categorias.map((categoria) => (
                     <SelectItem key={categoria.id} value={String(categoria.id)}>
