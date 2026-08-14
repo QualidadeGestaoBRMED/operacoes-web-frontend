@@ -93,9 +93,18 @@ export function SeletorEtiquetas({
         }}
       >
         <PopoverTrigger asChild>
+          {/* Sem modulo (Tipo de gestão ainda não selecionado em
+              FormNovaDemanda), listarEtiquetas() lista de TODOS os módulos
+              (sem filtro) e "Criar" não tinha como saber em qual módulo
+              criar -- ficava clicável, mas o clique não fazia nada,
+              silenciosamente. Desabilitar o próprio gatilho, com o motivo
+              no title, fecha esse caminho de vez, em vez de só esconder o
+              sintoma dentro do popover. */}
           <button
             type="button"
-            className="flex items-center gap-0.5 rounded border border-dashed border-input px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-secondary hover:text-secondary"
+            disabled={!modulo}
+            title={modulo ? undefined : "Selecione o tipo de gestão primeiro."}
+            className="flex items-center gap-0.5 rounded border border-dashed border-input px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-secondary hover:text-secondary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input disabled:hover:text-muted-foreground"
           >
             <Plus className="size-3" />
             Etiqueta
@@ -160,7 +169,7 @@ export function SeletorEtiquetas({
                   type="button"
                   size="xs"
                   onClick={() => void aoCriar()}
-                  disabled={!novoNome.trim() || isLoading}
+                  disabled={!novoNome.trim() || !modulo || isLoading}
                 >
                   Criar
                 </Button>
