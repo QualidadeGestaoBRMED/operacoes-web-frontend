@@ -49,8 +49,11 @@ function responsavelColaboradorExistente(): DemandaResponsavel {
   return { id: 2, tipo: "colaborador", usuario: COLABORADOR_EXISTENTE };
 }
 
-function renderSecao(responsaveis: DemandaResponsavel[] = [responsavelPrincipal()]) {
-  const demanda = criarDemanda({ responsaveis });
+function renderSecao(
+  responsaveis: DemandaResponsavel[] = [responsavelPrincipal()],
+  overrides: Partial<Demanda> = {},
+) {
+  const demanda = criarDemanda({ responsaveis, ...overrides });
   const aoAbrir = vi.fn();
   const aoFechar = vi.fn();
   const resultado = render(
@@ -199,5 +202,28 @@ describe("ResponsavelSection -- pré-seleção do tipo ao adicionar", () => {
     await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
 
     expect(screen.getByLabelText(/tipo de responsável/i)).toHaveTextContent("Colaborador");
+  });
+});
+
+describe("ResponsavelSection -- elegibilidade em demanda Operacional", () => {
+  it("só lista candidatos com perfil Admin Operações", async () => {
+    const adminOperacoes: Usuario = {
+      ...NOVO_PRINCIPAL,
+      id: 7,
+      username: "admin-ops",
+      first_name: "Admin",
+      last_name: "Operações",
+      perfil: { id: 1, nome: "Admin Operações", descricao: "", nivel: 2 },
+    };
+    const usuarioComum: Usuario = { ...COLABORADOR_EXISTENTE, perfil: null };
+    vi.mocked(listarUsuarios).mockResolvedValue([adminOperacoes, usuarioComum]);
+    const user = userEvent.setup();
+    renderSecao([], { unidade: null, area_responsavel: "gerencia" });
+
+    await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
+    await user.click(screen.getByLabelText(/usuário responsável/i));
+
+    expect(await screen.findByRole("option", { name: "Admin Operações" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Colaborador Existente" })).not.toBeInTheDocument();
   });
 });

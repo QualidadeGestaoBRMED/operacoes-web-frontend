@@ -137,9 +137,10 @@ export function ResponsavelSection({
   function elegivel(usuario: Usuario) {
     if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
     // Demanda do tipo de gestão "Operacional" não tem unidade (usa
-    // area_responsavel) -- sem unidade pra comparar, o backend aceita
-    // qualquer usuário (ver comentário de validate_usuario_id no backend).
-    if (!demanda.unidade) return true;
+    // area_responsavel) -- sem unidade pra restringir por, só Admin
+    // Operações pode ser responsável (regra espelhada de
+    // validate_usuario_id no backend).
+    if (!demanda.unidade) return usuario.perfil?.nivel === NIVEL_ADMIN_OPERACOES;
     return (
       usuario.unidade_id === demanda.unidade.id ||
       (usuario.perfil && usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES)
