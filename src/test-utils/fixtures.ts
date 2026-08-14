@@ -25,6 +25,7 @@ export function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
     prioridade: "media",
     status: "backlog",
     unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+    area_responsavel: null,
     setor: null,
     categoria: null,
     solicitante: {
@@ -38,6 +39,7 @@ export function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
       setor_id: null,
       ativo: true,
       ultimo_acesso: null,
+      foto_url: "",
     },
     aprovador: null,
     responsaveis: [],
@@ -69,6 +71,7 @@ export function responsavelPrincipal(): DemandaResponsavel {
       setor_id: null,
       ativo: true,
       ultimo_acesso: null,
+      foto_url: "",
     },
   };
 }

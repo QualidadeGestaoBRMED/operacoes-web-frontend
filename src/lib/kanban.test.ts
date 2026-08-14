@@ -77,7 +77,7 @@ describe("mensagemBloqueioConhecido", () => {
   it("libera o aprovador designado, mesmo sem ser admin", () => {
     const demanda = criarDemanda({
       status: "em_revisao",
-      aprovador: { id: 42, username: "aprov", email: "a@grupobrmed.com.br", first_name: "", last_name: "", perfil: null, unidade_id: 1, setor_id: null, ativo: true, ultimo_acesso: null },
+      aprovador: { id: 42, username: "aprov", email: "a@grupobrmed.com.br", first_name: "", last_name: "", perfil: null, unidade_id: 1, setor_id: null, ativo: true, ultimo_acesso: null, foto_url: "" },
     });
     expect(mensagemBloqueioConhecido(demanda, "em_andamento", false, 42)).toBe(
       'Justificativa obrigatória para essa transição -- abra a demanda e use "Mudar status".',
@@ -176,6 +176,13 @@ describe("passaNoFoco", () => {
     expect(passaNoFoco(semPrincipal, "sem responsável")).toBe(true);
     expect(passaNoFoco(comPrincipal, "sem responsável")).toBe(false);
   });
+
+  it("'em andamento': só passa quando o status é 'em_andamento'", () => {
+    const emAndamento = criarDemanda({ status: "em_andamento" });
+    const backlog = criarDemanda({ status: "backlog" });
+    expect(passaNoFoco(emAndamento, "em andamento")).toBe(true);
+    expect(passaNoFoco(backlog, "em andamento")).toBe(false);
+  });
 });
 
 describe("filtrosDaUrl", () => {
@@ -191,5 +198,13 @@ describe("filtrosDaUrl", () => {
 
   it("devolve objeto vazio sem nenhum parâmetro", () => {
     expect(filtrosDaUrl(new URLSearchParams())).toEqual({});
+  });
+
+  // Achado testando localmente: area_responsavel era escrito na URL mas
+  // nunca lido de volta -- o filtro do Kanban nunca aplicava de fato,
+  // mesmo a opção selecionada aparecendo marcada no Select.
+  it("lê area_responsavel da URL", () => {
+    const params = new URLSearchParams("area_responsavel=processo");
+    expect(filtrosDaUrl(params)).toEqual({ area_responsavel: "processo" });
   });
 });

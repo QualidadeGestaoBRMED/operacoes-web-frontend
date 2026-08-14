@@ -62,10 +62,19 @@ async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.set
   await user.click(screen.getByRole("button", { name: "Média" }));
   await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
 
-  await user.click(screen.getByLabelText(/unidade/i));
-  await user.click(await screen.findByRole("option", { name: "Niterói" }));
+  // Tipo de gestão primeiro: TIPO_GESTAO é codigo="operacional", então
+  // selecioná-lo troca o campo seguinte de "Unidade" pra "Responsável"
+  // (mutuamente exclusivos -- ver FormNovaDemanda.tsx). Selecionar Unidade
+  // antes seria preencher um campo que a própria seleção de tipo remove.
   await user.click(screen.getByLabelText(/tipo de gestão/i));
   await user.click(await screen.findByRole("option", { name: "Operacional" }));
+  // findByLabelText (não getByLabelText): o campo "Responsável" só existe no
+  // DOM depois que o React re-renderiza trocando Unidade->Responsável --
+  // uma query síncrona aqui corre contra esse re-render (achado rodando a
+  // suíte inteira repetidas vezes: falhava por timeout ~1 a cada 3 rodadas,
+  // nunca isolado).
+  await user.click(await screen.findByLabelText(/responsável/i));
+  await user.click(await screen.findByRole("option", { name: "Gerência" }));
 }
 
 beforeEach(() => {
@@ -93,7 +102,8 @@ describe("FormNovaDemanda", () => {
           titulo: "Trocar lâmpada do corredor",
           descricao: "Lâmpada queimada há 2 dias.",
           prioridade: "media",
-          unidade: UNIDADE.id,
+          unidade: null,
+          area_responsavel: "gerencia",
           tipo_gestao: TIPO_GESTAO.id,
           data_prevista: "2026-12-31",
           confidencial: false,

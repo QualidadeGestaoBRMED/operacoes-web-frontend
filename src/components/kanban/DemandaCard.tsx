@@ -1,11 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { COR_PRIORIDADE, LABEL_PRIORIDADE, diasAteOPrazo } from "@/lib/kanban";
+import {
+  COR_PRIORIDADE,
+  LABEL_PRIORIDADE,
+  diasAteOPrazo,
+  rotuloUnidadeOuResponsavel,
+} from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
-import type { Demanda } from "@/types";
+import type { Demanda, DemandaResponsavel } from "@/types";
 
 // Achado no dogfooding: uma demanda com muitas etiquetas empurrava o resto
 // do card (prazo, avatar, contadores) pra baixo, quase escondendo o que
@@ -50,6 +56,37 @@ function formatarData(iso: string) {
   return `${dia}/${mes}`;
 }
 
+function AvatarResponsavel({ principal }: { principal: DemandaResponsavel | undefined }) {
+  const [erro, setErro] = useState(false);
+
+  if (principal?.usuario.foto_url && !erro) {
+    return (
+      // referrerPolicy="no-referrer": mesmo achado do avatar da Topbar --
+      // sem isso, o Google recusa servir a foto de perfil pro Referer do
+      // nosso domínio.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={principal.usuario.foto_url}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="size-[22px] shrink-0 rounded-full object-cover"
+        onError={() => setErro(true)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex size-[22px] shrink-0 items-center justify-center rounded-full text-[9.5px] font-bold",
+        principal ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground",
+      )}
+    >
+      {principal ? iniciaisDe(nomeExibicao(principal.usuario)) : "—"}
+    </div>
+  );
+}
+
 function ConteudoCard({
   demanda,
   onRestaurar,
@@ -79,7 +116,7 @@ function ConteudoCard({
 
       <div className="mb-2.5 flex flex-wrap gap-1.5">
         <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
-          {demanda.unidade.nome}
+          {rotuloUnidadeOuResponsavel(demanda)}
         </span>
         {demanda.etiquetas.slice(0, MAX_ETIQUETAS_NO_CARD).map((etiqueta) => (
           // Cor vem cadastrada por etiqueta (dado do usuário, não um token de
@@ -138,16 +175,16 @@ function ConteudoCard({
           Restaurar
         </button>
       ) : (
-        <div className="flex items-center justify-between pt-1">
-          <div
-            className={cn(
-              "flex size-[22px] items-center justify-center rounded-full text-[9.5px] font-bold",
-              principal ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground",
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <AvatarResponsavel principal={principal} />
+            {principal && (
+              <span className="truncate text-[11px] font-medium text-muted-foreground">
+                {nomeExibicao(principal.usuario)}
+              </span>
             )}
-          >
-            {principal ? iniciaisDe(nomeExibicao(principal.usuario)) : "—"}
           </div>
-          <div className="flex items-center gap-2.5 text-[11px] font-medium text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-2.5 text-[11px] font-medium text-muted-foreground">
             <span className="flex items-center gap-1" title="Comentários">
               <MessageSquare className="size-3.5" />
               {demanda.comentarios_count}
@@ -193,7 +230,8 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
   // solto na ordem do DOM sem isso. Não wireia onKeyDown aqui: Enter/Espaço
   // já é a tecla que o dnd-kit usa pra iniciar o arraste por teclado: abrir
   // detalhe por teclado é decisão de interação da STC-168 (ainda um no-op).
-  const descricaoAcessivel = `Demanda ${demanda.titulo}, prioridade ${LABEL_PRIORIDADE[demanda.prioridade]}, unidade ${demanda.unidade.nome}${principal ? `, responsável ${nomeExibicao(principal.usuario)}` : ", sem responsável principal"}.`;
+  const rotuloUnidadeOuArea = demanda.area_responsavel ? "área responsável" : "unidade";
+  const descricaoAcessivel = `Demanda ${demanda.titulo}, prioridade ${LABEL_PRIORIDADE[demanda.prioridade]}, ${rotuloUnidadeOuArea} ${rotuloUnidadeOuResponsavel(demanda)}${principal ? `, responsável ${nomeExibicao(principal.usuario)}` : ", sem responsável principal"}.`;
 
   return (
     <div

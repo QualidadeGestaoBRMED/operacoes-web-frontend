@@ -18,7 +18,24 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
-import type { DemandaFiltros, Prioridade } from "@/types";
+import { useUsuarios } from "@/hooks/useUsuarios";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL, LABEL_AREA_RESPONSAVEL } from "@/lib/kanban";
+import { nomeExibicao } from "@/lib/utils";
+import type { AreaResponsavel, DemandaFiltros, Prioridade } from "@/types";
+
+const AREAS_RESPONSAVEL: AreaResponsavel[] = [
+  "gerencia",
+  "processo",
+  "qualidade",
+  "desenvolvimento",
+];
+
+// Espelha accounts/permissions.py -- mesmos níveis usados em
+// ResponsavelSection.tsx (elegibilidade pra virar responsável de uma
+// demanda específica). Aqui a regra é por tipo de gestão, não por unidade:
+// o filtro é do board inteiro, não de uma demanda com unidade já definida.
+const NIVEL_ADMIN_QG = 1;
+const NIVEL_ADMIN_OPERACOES = 2;
 
 const PRIORIDADES: { valor: Prioridade; rotulo: string }[] = [
   { valor: "urgente", rotulo: "Urgente" },
@@ -37,6 +54,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   const { unidades } = useUnidades();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
+  const { usuarios } = useUsuarios();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
   // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
   // via TipoGestao em vez de assumir/hardcodar um id.
@@ -44,9 +62,20 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // coincidência (hoje todo TipoGestao desse módulo compartilha o mesmo
   // modulo) -- deriva do tipo_gestao realmente ativo, com o primeiro item
   // como fallback só pro instante antes da aba padrão ser aplicada na URL.
-  const moduloAtivo =
-    tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao)?.modulo ?? tiposGestao[0]?.modulo;
+  const tipoGestaoAtivo = tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao);
+  const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
+  const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
   const { setores } = useSetores(moduloAtivo);
+  // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de
+  // ResponsavelSection.tsx) -- fora isso, Operacional só aceita Admin
+  // Operações como responsável (sem unidade pra restringir por local, ver
+  // DemandaResponsavelSerializer.validate_usuario_id no backend), Unidades
+  // aceita qualquer outro nível.
+  const candidatosResponsavel = usuarios.filter((usuario) => {
+    if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
+    if (ehOperacional) return usuario.perfil?.nivel === NIVEL_ADMIN_OPERACOES;
+    return true;
+  });
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
@@ -88,7 +117,9 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // corresponder a nada que o popover realmente controla.
   const contagemFiltrosSelect = [
     filtros.unidade,
+    filtros.area_responsavel,
     filtros.setor,
+    filtros.responsavel,
     filtros.prioridade,
     filtros.categoria,
   ].filter(Boolean).length;
@@ -113,30 +144,62 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   function camposDeFiltro() {
     return (
       <>
-        <Select
-          value={filtros.unidade ? String(filtros.unidade) : "todas"}
-          onValueChange={(valor) =>
-            onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
-          }
-        >
-          {/* aria-label (não só o placeholder do SelectValue): sem rótulo
-              visível nesse componente, o placeholder é a única pista do que
-              o campo representa -- mas ele some do DOM assim que um valor é
-              selecionado, e o nome acessível vira só o valor escolhido
-              ("Niterói"), sem dizer que campo é. aria-label persiste
-              independente de ter valor selecionado ou não. */}
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
-            <SelectValue placeholder="Unidade" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas as unidades</SelectItem>
-            {unidades.map((unidade) => (
-              <SelectItem key={unidade.id} value={String(unidade.id)}>
-                {unidade.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Demanda do tipo de gestão "Operacional" não tem unidade (usa
+            area_responsavel) -- mesmo critério de FormNovaDemanda.tsx. Os
+            dois filtros ocupam a mesma posição, nunca aparecem juntos. */}
+        {ehOperacional ? (
+          <Select
+            value={filtros.area_responsavel ?? "todas"}
+            onValueChange={(valor) =>
+              onMudarFiltros({
+                ...filtros,
+                area_responsavel: valor === "todas" ? undefined : (valor as AreaResponsavel),
+              })
+            }
+          >
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Área Responsável">
+              <SelectValue placeholder="Área Responsável" />
+            </SelectTrigger>
+            {/* position="popper" em todo Select deste arquivo: o padrão
+                ("item-aligned") não calcula altura disponível direito
+                quando o trigger está dentro de um contêiner com scroll
+                próprio -- aqui, o Popover de filtros no mobile. Mesmo
+                achado de EditarDemandaSection.tsx/FormNovaDemanda.tsx. */}
+            <SelectContent position="popper">
+              <SelectItem value="todas">Todas as áreas responsáveis</SelectItem>
+              {AREAS_RESPONSAVEL.map((area) => (
+                <SelectItem key={area} value={area}>
+                  {LABEL_AREA_RESPONSAVEL[area]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select
+            value={filtros.unidade ? String(filtros.unidade) : "todas"}
+            onValueChange={(valor) =>
+              onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
+            }
+          >
+            {/* aria-label (não só o placeholder do SelectValue): sem rótulo
+                visível nesse componente, o placeholder é a única pista do que
+                o campo representa -- mas ele some do DOM assim que um valor é
+                selecionado, e o nome acessível vira só o valor escolhido
+                ("Niterói"), sem dizer que campo é. aria-label persiste
+                independente de ter valor selecionado ou não. */}
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
+              <SelectValue placeholder="Unidade" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="todas">Todas as unidades</SelectItem>
+              {unidades.map((unidade) => (
+                <SelectItem key={unidade.id} value={String(unidade.id)}>
+                  {unidade.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Select
           value={filtros.setor ? String(filtros.setor) : "todos"}
@@ -144,14 +207,36 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             onMudarFiltros({ ...filtros, setor: valor === "todos" ? undefined : Number(valor) })
           }
         >
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor">
-            <SelectValue placeholder="Setor" />
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor Origem">
+            <SelectValue placeholder="Setor Origem" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os setores</SelectItem>
+          <SelectContent position="popper">
+            <SelectItem value="todos">Todos os setores origem</SelectItem>
             {setores.map((setor) => (
               <SelectItem key={setor.id} value={String(setor.id)}>
                 {setor.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filtros.responsavel ? String(filtros.responsavel) : "todos"}
+          onValueChange={(valor) =>
+            onMudarFiltros({
+              ...filtros,
+              responsavel: valor === "todos" ? undefined : Number(valor),
+            })
+          }
+        >
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Responsável">
+            <SelectValue placeholder="Responsável" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="todos">Todos os responsáveis</SelectItem>
+            {candidatosResponsavel.map((usuario) => (
+              <SelectItem key={usuario.id} value={String(usuario.id)}>
+                {nomeExibicao(usuario)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -169,7 +254,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Prioridade">
             <SelectValue placeholder="Prioridade" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectItem value="todas">Todas as prioridades</SelectItem>
             {PRIORIDADES.map((prioridade) => (
               <SelectItem key={prioridade.valor} value={prioridade.valor}>
@@ -194,7 +279,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="todas">Todas as categorias</SelectItem>
               {categorias.map((categoria) => (
                 <SelectItem key={categoria.id} value={String(categoria.id)}>

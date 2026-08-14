@@ -1,4 +1,4 @@
-import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
+import type { AreaResponsavel, Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
 
 // Semáforo de severidade -- cores reais de status, não os tokens de marca
 // (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
@@ -18,6 +18,29 @@ export const LABEL_PRIORIDADE: Record<Prioridade, string> = {
   media: "Média",
   baixa: "Baixa",
 };
+
+// Identificador estável de TipoGestao pro tipo de gestão "Operacional" --
+// espelha CODIGO_TIPO_GESTAO_OPERACIONAL de backend/demandas/serializers.py.
+// Nunca comparar pelo "nome" (rótulo pt-BR livre, editável sem constraint).
+export const CODIGO_TIPO_GESTAO_OPERACIONAL = "operacional";
+
+export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
+  gerencia: "Gerência",
+  processo: "Processo",
+  qualidade: "Qualidade",
+  desenvolvimento: "Desenvolvimento",
+};
+
+// Demandas do tipo de gestão "Operacional" usam area_responsavel em vez de
+// unidade (ver AreaResponsavel em types/index.ts) -- os dois campos nunca
+// vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
+// no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
+export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
+  if (demanda.area_responsavel) {
+    return LABEL_AREA_RESPONSAVEL[demanda.area_responsavel];
+  }
+  return demanda.unidade?.nome ?? "";
+}
 
 export const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "backlog", titulo: "Backlog" },
@@ -271,6 +294,9 @@ export function passaNoFoco(demanda: Demanda, foco: string | null): boolean {
   if (foco === "sem responsável") {
     return !demanda.responsaveis.some((r) => r.tipo === "principal");
   }
+  if (foco === "em andamento") {
+    return demanda.status === "em_andamento";
+  }
   return true;
 }
 
@@ -278,13 +304,17 @@ export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const filtros: DemandaFiltros = {};
   const tipoGestao = searchParams.get("tipo_gestao");
   const unidade = searchParams.get("unidade");
+  const areaResponsavel = searchParams.get("area_responsavel");
   const setor = searchParams.get("setor");
+  const responsavel = searchParams.get("responsavel");
   const prioridade = searchParams.get("prioridade");
   const categoria = searchParams.get("categoria");
   const search = searchParams.get("search");
   if (tipoGestao) filtros.tipo_gestao = Number(tipoGestao);
   if (unidade) filtros.unidade = Number(unidade);
+  if (areaResponsavel) filtros.area_responsavel = areaResponsavel as AreaResponsavel;
   if (setor) filtros.setor = Number(setor);
+  if (responsavel) filtros.responsavel = Number(responsavel);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;
   if (categoria) filtros.categoria = Number(categoria);
   if (search) filtros.search = search;
