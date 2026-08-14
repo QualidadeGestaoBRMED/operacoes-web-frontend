@@ -157,6 +157,7 @@ export interface DemandaFiltros {
   unidade?: number;
   area_responsavel?: AreaResponsavel;
   setor?: number;
+  responsavel?: number;
   status?: StatusDemanda;
   prioridade?: Prioridade;
   categoria?: number;

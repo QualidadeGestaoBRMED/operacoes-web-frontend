@@ -306,6 +306,7 @@ export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const unidade = searchParams.get("unidade");
   const areaResponsavel = searchParams.get("area_responsavel");
   const setor = searchParams.get("setor");
+  const responsavel = searchParams.get("responsavel");
   const prioridade = searchParams.get("prioridade");
   const categoria = searchParams.get("categoria");
   const search = searchParams.get("search");
@@ -313,6 +314,7 @@ export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   if (unidade) filtros.unidade = Number(unidade);
   if (areaResponsavel) filtros.area_responsavel = areaResponsavel as AreaResponsavel;
   if (setor) filtros.setor = Number(setor);
+  if (responsavel) filtros.responsavel = Number(responsavel);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;
   if (categoria) filtros.categoria = Number(categoria);
   if (search) filtros.search = search;

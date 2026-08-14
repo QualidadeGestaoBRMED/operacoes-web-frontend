@@ -18,7 +18,9 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import { CODIGO_TIPO_GESTAO_OPERACIONAL, LABEL_AREA_RESPONSAVEL } from "@/lib/kanban";
+import { nomeExibicao } from "@/lib/utils";
 import type { AreaResponsavel, DemandaFiltros, Prioridade } from "@/types";
 
 const AREAS_RESPONSAVEL: AreaResponsavel[] = [
@@ -27,6 +29,13 @@ const AREAS_RESPONSAVEL: AreaResponsavel[] = [
   "qualidade",
   "desenvolvimento",
 ];
+
+// Espelha accounts/permissions.py -- mesmos níveis usados em
+// ResponsavelSection.tsx (elegibilidade pra virar responsável de uma
+// demanda específica). Aqui a regra é por tipo de gestão, não por unidade:
+// o filtro é do board inteiro, não de uma demanda com unidade já definida.
+const NIVEL_ADMIN_QG = 1;
+const NIVEL_ADMIN_OPERACOES = 2;
 
 const PRIORIDADES: { valor: Prioridade; rotulo: string }[] = [
   { valor: "urgente", rotulo: "Urgente" },
@@ -45,6 +54,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   const { unidades } = useUnidades();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
+  const { usuarios } = useUsuarios();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
   // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
   // via TipoGestao em vez de assumir/hardcodar um id.
@@ -56,6 +66,16 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
   const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
   const { setores } = useSetores(moduloAtivo);
+  // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de
+  // ResponsavelSection.tsx) -- fora isso, Operacional só aceita Admin
+  // Operações como responsável (sem unidade pra restringir por local, ver
+  // DemandaResponsavelSerializer.validate_usuario_id no backend), Unidades
+  // aceita qualquer outro nível.
+  const candidatosResponsavel = usuarios.filter((usuario) => {
+    if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
+    if (ehOperacional) return usuario.perfil?.nivel === NIVEL_ADMIN_OPERACOES;
+    return true;
+  });
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
   const [buscaLocal, setBuscaLocal] = useState(filtros.search ?? "");
@@ -99,6 +119,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     filtros.unidade,
     filtros.area_responsavel,
     filtros.setor,
+    filtros.responsavel,
     filtros.prioridade,
     filtros.categoria,
   ].filter(Boolean).length;
@@ -189,6 +210,28 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             {setores.map((setor) => (
               <SelectItem key={setor.id} value={String(setor.id)}>
                 {setor.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filtros.responsavel ? String(filtros.responsavel) : "todos"}
+          onValueChange={(valor) =>
+            onMudarFiltros({
+              ...filtros,
+              responsavel: valor === "todos" ? undefined : Number(valor),
+            })
+          }
+        >
+          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Responsável">
+            <SelectValue placeholder="Responsável" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os responsáveis</SelectItem>
+            {candidatosResponsavel.map((usuario) => (
+              <SelectItem key={usuario.id} value={String(usuario.id)}>
+                {nomeExibicao(usuario)}
               </SelectItem>
             ))}
           </SelectContent>

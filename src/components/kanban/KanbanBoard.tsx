@@ -252,6 +252,7 @@ export function KanbanBoard() {
       params.set("area_responsavel", novosFiltros.area_responsavel);
     }
     if (novosFiltros.setor) params.set("setor", String(novosFiltros.setor));
+    if (novosFiltros.responsavel) params.set("responsavel", String(novosFiltros.responsavel));
     if (novosFiltros.prioridade) params.set("prioridade", novosFiltros.prioridade);
     if (novosFiltros.categoria) params.set("categoria", String(novosFiltros.categoria));
     if (novosFiltros.search) params.set("search", novosFiltros.search);
@@ -408,11 +409,16 @@ export function KanbanBoard() {
           // unidade) -- sem limpar os dois ao trocar de aba, um filtro
           // escolhido antes da troca (pro campo que já não aparece mais no
           // seletor) continuava aplicado, silenciosamente zerando o board.
+          // responsavel também é limpo: a lista de candidatos elegíveis
+          // (KanbanFiltros) muda de tipo de gestão pra tipo de gestão -- um
+          // usuário válido na aba anterior pode não ser mais uma opção
+          // depois da troca.
           atualizarFiltrosNaUrl({
             ...filtros,
             tipo_gestao: tipoGestaoId,
             unidade: undefined,
             area_responsavel: undefined,
+            responsavel: undefined,
           })
         }
       />
