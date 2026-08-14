@@ -160,7 +160,12 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Área Responsável">
               <SelectValue placeholder="Área Responsável" />
             </SelectTrigger>
-            <SelectContent>
+            {/* position="popper" em todo Select deste arquivo: o padrão
+                ("item-aligned") não calcula altura disponível direito
+                quando o trigger está dentro de um contêiner com scroll
+                próprio -- aqui, o Popover de filtros no mobile. Mesmo
+                achado de EditarDemandaSection.tsx/FormNovaDemanda.tsx. */}
+            <SelectContent position="popper">
               <SelectItem value="todas">Todas as áreas responsáveis</SelectItem>
               {AREAS_RESPONSAVEL.map((area) => (
                 <SelectItem key={area} value={area}>
@@ -185,7 +190,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
               <SelectValue placeholder="Unidade" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="todas">Todas as unidades</SelectItem>
               {unidades.map((unidade) => (
                 <SelectItem key={unidade.id} value={String(unidade.id)}>
@@ -205,7 +210,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Setor Origem">
             <SelectValue placeholder="Setor Origem" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectItem value="todos">Todos os setores origem</SelectItem>
             {setores.map((setor) => (
               <SelectItem key={setor.id} value={String(setor.id)}>
@@ -227,7 +232,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Responsável">
             <SelectValue placeholder="Responsável" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectItem value="todos">Todos os responsáveis</SelectItem>
             {candidatosResponsavel.map((usuario) => (
               <SelectItem key={usuario.id} value={String(usuario.id)}>
@@ -249,7 +254,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Prioridade">
             <SelectValue placeholder="Prioridade" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectItem value="todas">Todas as prioridades</SelectItem>
             {PRIORIDADES.map((prioridade) => (
               <SelectItem key={prioridade.valor} value={prioridade.valor}>
@@ -274,7 +279,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="todas">Todas as categorias</SelectItem>
               {categorias.map((categoria) => (
                 <SelectItem key={categoria.id} value={String(categoria.id)}>
