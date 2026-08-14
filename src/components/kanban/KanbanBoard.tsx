@@ -248,6 +248,9 @@ export function KanbanBoard() {
     const params = new URLSearchParams();
     if (novosFiltros.tipo_gestao) params.set("tipo_gestao", String(novosFiltros.tipo_gestao));
     if (novosFiltros.unidade) params.set("unidade", String(novosFiltros.unidade));
+    if (novosFiltros.area_responsavel) {
+      params.set("area_responsavel", novosFiltros.area_responsavel);
+    }
     if (novosFiltros.setor) params.set("setor", String(novosFiltros.setor));
     if (novosFiltros.prioridade) params.set("prioridade", novosFiltros.prioridade);
     if (novosFiltros.categoria) params.set("categoria", String(novosFiltros.categoria));

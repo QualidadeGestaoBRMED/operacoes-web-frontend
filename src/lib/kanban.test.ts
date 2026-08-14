@@ -192,4 +192,12 @@ describe("filtrosDaUrl", () => {
   it("devolve objeto vazio sem nenhum parâmetro", () => {
     expect(filtrosDaUrl(new URLSearchParams())).toEqual({});
   });
+
+  // Achado testando localmente: area_responsavel era escrito na URL mas
+  // nunca lido de volta -- o filtro do Kanban nunca aplicava de fato,
+  // mesmo a opção selecionada aparecendo marcada no Select.
+  it("lê area_responsavel da URL", () => {
+    const params = new URLSearchParams("area_responsavel=processo");
+    expect(filtrosDaUrl(params)).toEqual({ area_responsavel: "processo" });
+  });
 });
