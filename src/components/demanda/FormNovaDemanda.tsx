@@ -94,9 +94,14 @@ const valoresPadrao: Partial<FormValuesEntrada> = {
 export function FormNovaDemanda({
   open,
   onOpenChange,
+  tipoGestaoInicial,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Aba do Kanban ativa no momento em que "Nova Demanda" foi aberta (ver
+  // KanbanBoard.tsx) -- pré-seleciona o Tipo de gestão em vez de forçar
+  // escolher de novo algo que já estava implícito na tela de origem.
+  tipoGestaoInicial?: number;
 }) {
   const { unidades } = useUnidades();
   const { categorias } = useCategorias();
@@ -122,10 +127,16 @@ export function FormNovaDemanda({
 
   // Reseta o formulário toda vez que o modal fecha -- sem isso, reabrir
   // "Nova Demanda" mostrava os dados da última tentativa (inclusive depois
-  // de criar uma com sucesso).
+  // de criar uma com sucesso). Ao abrir, já parte do tipo_gestao da aba
+  // ativa do Kanban (tipoGestaoInicial), em vez de pedir pra escolher de
+  // novo algo que já estava implícito.
   useEffect(() => {
-    if (!open) reset(valoresPadrao);
-  }, [open, reset]);
+    if (open) {
+      reset({ ...valoresPadrao, tipo_gestao: tipoGestaoInicial });
+    } else {
+      reset(valoresPadrao);
+    }
+  }, [open, tipoGestaoInicial, reset]);
 
   // Achado no review: SeletorEtiquetas usava tiposGestao[0]?.modulo (sempre
   // o primeiro da lista), não o módulo do tipo_gestao de fato selecionado
@@ -333,6 +344,10 @@ export function FormNovaDemanda({
                 <Label htmlFor="f-tipo-gestao">
                   Tipo de gestão <span className="text-destructive">*</span>
                 </Label>
+                {/* Pré-preenchido com tipoGestaoInicial (aba ativa do Kanban)
+                    ao abrir -- ver reset() no useEffect acima -- mas
+                    continua editável, caso a demanda seja de um tipo
+                    diferente do que a aba atual sugere. */}
                 <Controller
                   control={control}
                   name="tipo_gestao"

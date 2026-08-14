@@ -515,7 +515,11 @@ export function KanbanBoard() {
           }
         }}
       />
-      <FormNovaDemanda open={formNovaDemandaAberto} onOpenChange={setFormNovaDemandaAberto} />
+      <FormNovaDemanda
+        open={formNovaDemandaAberto}
+        onOpenChange={setFormNovaDemandaAberto}
+        tipoGestaoInicial={filtros.tipo_gestao}
+      />
     </div>
   );
 }
