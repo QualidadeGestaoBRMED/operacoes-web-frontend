@@ -91,6 +91,14 @@ export function ResponsavelSection({
     nome: string;
   } | null>(null);
 
+  // Sem Principal ainda, o próximo responsável adicionado tem mais chance de
+  // ser justamente o Principal (é o que falta); já havendo um, o mais comum
+  // é adicionar um Colaborador. Pré-seleciona o tipo mais provável em vez de
+  // sempre partir de "Colaborador" e obrigar trocar manualmente.
+  const jaTemPrincipal = demanda.responsaveis.some(
+    (responsavel) => responsavel.tipo === "principal",
+  );
+
   // Reseta os dois formulários quando outra seção assume (ativo vira false
   // de fora), não só quando um deles fecha por conta própria. Ao abrir,
   // já expande o formulário de adicionar se veio de fora (STC-203).
@@ -98,19 +106,19 @@ export function ResponsavelSection({
     if (!ativo) {
       setFormularioAberto(false);
       setUsuarioSelecionadoId("");
-      setTipoSelecionado("colaborador");
+      setTipoSelecionado(jaTemPrincipal ? "colaborador" : "principal");
       setTrocandoUsuarioId(null);
       setNovoPrincipalId("");
     } else if (abrirComFormularioDeAdicionar) {
       setFormularioAberto(true);
       // secaoDoBloqueio (lib/kanban.ts) só manda abrir esta seção por um
       // motivo hoje: falta de responsável PRINCIPAL pra sair do Backlog --
-      // então o tipo já vem pré-selecionado certo, sem o usuário precisar
-      // trocar manualmente de "Colaborador" (default) pra "Principal" toda
-      // vez que esse bloqueio abre o formulário.
+      // então o tipo já vem pré-selecionado certo (sempre "principal" nesse
+      // caso -- jaTemPrincipal já seria false, mas fica explícito porque é
+      // exatamente essa garantia que justifica pular a checagem aqui).
       setTipoSelecionado("principal");
     }
-  }, [ativo, abrirComFormularioDeAdicionar]);
+  }, [ativo, abrirComFormularioDeAdicionar, jaTemPrincipal]);
 
   const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
@@ -342,6 +350,7 @@ export function ResponsavelSection({
             type="button"
             onClick={() => {
               setFormularioAberto(true);
+              setTipoSelecionado(jaTemPrincipal ? "colaborador" : "principal");
               setTrocandoUsuarioId(null);
               setNovoPrincipalId("");
               aoAbrir();

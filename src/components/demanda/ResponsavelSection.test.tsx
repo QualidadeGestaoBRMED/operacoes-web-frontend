@@ -181,3 +181,23 @@ describe("ResponsavelSection -- troca de principal (STC-230/STC-231)", () => {
     expect(screen.queryByText("Responsável Um")).not.toBeInTheDocument();
   });
 });
+
+describe("ResponsavelSection -- pré-seleção do tipo ao adicionar", () => {
+  it("pré-seleciona Principal quando a demanda ainda não tem um", async () => {
+    const user = userEvent.setup();
+    renderSecao([]);
+
+    await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
+
+    expect(screen.getByLabelText(/tipo de responsável/i)).toHaveTextContent("Principal");
+  });
+
+  it("pré-seleciona Colaborador quando a demanda já tem um Principal", async () => {
+    const user = userEvent.setup();
+    renderSecao([responsavelPrincipal()]);
+
+    await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
+
+    expect(screen.getByLabelText(/tipo de responsável/i)).toHaveTextContent("Colaborador");
+  });
+});
