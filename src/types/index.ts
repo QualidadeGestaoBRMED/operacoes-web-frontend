@@ -82,6 +82,13 @@ export interface Etiqueta {
 
 export type Prioridade = "baixa" | "media" | "alta" | "urgente";
 
+// Só se aplica a demandas cujo tipo_gestao.codigo é "operacional" -- ver
+// CODIGO_TIPO_GESTAO_OPERACIONAL em lib/kanban.ts. Demandas desse tipo não
+// têm unidade (não representam uma clínica); qualquer outro tipo tem
+// unidade e nunca area_responsavel. Os dois campos são mutuamente
+// exclusivos, nunca preenchidos ao mesmo tempo.
+export type AreaResponsavel = "gerencia" | "processo" | "qualidade" | "desenvolvimento";
+
 export type StatusDemanda = "backlog" | "em_andamento" | "em_revisao" | "concluido" | "lixeira";
 
 export interface DemandaResponsavel {
@@ -99,7 +106,8 @@ export interface Demanda {
   tipo_gestao: TipoGestao;
   prioridade: Prioridade;
   status: StatusDemanda;
-  unidade: Unidade;
+  unidade: Unidade | null;
+  area_responsavel: AreaResponsavel | null;
   setor: Setor | null;
   categoria: Categoria | null;
   solicitante: Usuario;
@@ -127,7 +135,8 @@ export interface DemandaPayload {
   descricao: string;
   tipo_gestao: number;
   prioridade: Prioridade;
-  unidade: number;
+  unidade?: number | null;
+  area_responsavel?: AreaResponsavel | null;
   setor?: number | null;
   categoria?: number | null;
   etiquetas?: number[];

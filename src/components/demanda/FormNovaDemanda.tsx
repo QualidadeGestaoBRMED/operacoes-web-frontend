@@ -30,9 +30,14 @@ import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
-import { COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
+import {
+  CODIGO_TIPO_GESTAO_OPERACIONAL,
+  COR_PRIORIDADE,
+  LABEL_AREA_RESPONSAVEL,
+  LABEL_PRIORIDADE,
+} from "@/lib/kanban";
 import { cn } from "@/lib/utils";
-import type { Prioridade } from "@/types";
+import type { AreaResponsavel, Prioridade } from "@/types";
 import { SeletorEtiquetas } from "./SeletorEtiquetas";
 
 // Título tem max_length=329 no model (Demanda.titulo) -- backend rejeitaria
@@ -49,7 +54,13 @@ const schema = z.object({
   prioridade: z.enum(["urgente", "alta", "media", "baixa"], {
     error: "Selecione a prioridade.",
   }),
-  unidade: z.coerce.number({ error: "Selecione a unidade." }).int().positive(),
+  // Mutuamente exclusivos -- qual dos dois é obrigatório depende do tipo de
+  // gestão selecionado (codigo "operacional" usa area_responsavel, os
+  // demais usam unidade). Os dois ficam opcionais aqui de propósito; a
+  // obrigatoriedade condicional é aplicada em aoSubmeter, onde o código do
+  // tipo de gestão selecionado já está disponível.
+  unidade: z.coerce.number().int().positive().optional(),
+  area_responsavel: z.enum(["gerencia", "processo", "qualidade", "desenvolvimento"]).optional(),
   setor: z.coerce.number().int().positive().optional(),
   categoria: z.coerce.number().int().positive().optional(),
   etiquetas: z.array(z.number()).default([]),
@@ -66,6 +77,12 @@ type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
 const PRIORIDADES: Prioridade[] = ["urgente", "alta", "media", "baixa"];
+const AREAS_RESPONSAVEL: AreaResponsavel[] = [
+  "gerencia",
+  "processo",
+  "qualidade",
+  "desenvolvimento",
+];
 
 const valoresPadrao: Partial<FormValuesEntrada> = {
   titulo: "",
@@ -96,6 +113,7 @@ export function FormNovaDemanda({
     control,
     reset,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -115,18 +133,32 @@ export function FormNovaDemanda({
   // tela mostrava/criava etiquetas do módulo errado e podia enviar IDs
   // incompatíveis com a demanda.
   const tipoGestaoSelecionadoId = useWatch({ control, name: "tipo_gestao" });
-  const moduloSelecionado = tiposGestao.find(
+  const tipoGestaoSelecionado = tiposGestao.find(
     (tipo) => tipo.id === Number(tipoGestaoSelecionadoId),
-  )?.modulo;
+  );
+  const moduloSelecionado = tipoGestaoSelecionado?.modulo;
+  const ehOperacional = tipoGestaoSelecionado?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
 
   async function aoSubmeter(valores: FormValuesSaida) {
+    // "unidade" e "area_responsavel" são mutuamente exclusivos -- qual dos
+    // dois é obrigatório depende do tipo de gestão selecionado, então o
+    // zod (estático) não valida isso sozinho.
+    if (ehOperacional && !valores.area_responsavel) {
+      setError("area_responsavel", { message: "Selecione a área responsável." });
+      return;
+    }
+    if (!ehOperacional && !valores.unidade) {
+      setError("unidade", { message: "Selecione a unidade." });
+      return;
+    }
     try {
       await criar({
         titulo: valores.titulo,
         descricao: valores.descricao,
         tipo_gestao: valores.tipo_gestao,
         prioridade: valores.prioridade,
-        unidade: valores.unidade,
+        unidade: ehOperacional ? null : (valores.unidade ?? null),
+        area_responsavel: ehOperacional ? (valores.area_responsavel ?? null) : null,
         setor: valores.setor ?? null,
         categoria: valores.categoria ?? null,
         etiquetas: valores.etiquetas,
@@ -201,35 +233,68 @@ export function FormNovaDemanda({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="f-unidade">
-                  Unidade <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  control={control}
-                  name="unidade"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ? String(field.value) : undefined}
-                      onValueChange={(valor) => field.onChange(Number(valor))}
-                    >
-                      <SelectTrigger id="f-unidade" className="w-full">
-                        <SelectValue placeholder="Selecionar..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unidades.map((unidade) => (
-                          <SelectItem key={unidade.id} value={String(unidade.id)}>
-                            {unidade.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              {/* Demandas do tipo de gestão "Operacional" não representam uma
+                  clínica -- usam area_responsavel em vez de unidade (pedido
+                  da solicitante, P4). Os dois campos ocupam a mesma posição
+                  no layout, nunca aparecem juntos. */}
+              {ehOperacional ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="f-area-responsavel">
+                    Área Responsável <span className="text-destructive">*</span>
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="area_responsavel"
+                    render={({ field }) => (
+                      <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+                        <SelectTrigger id="f-area-responsavel" className="w-full">
+                          <SelectValue placeholder="Selecionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AREAS_RESPONSAVEL.map((area) => (
+                            <SelectItem key={area} value={area}>
+                              {LABEL_AREA_RESPONSAVEL[area]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.area_responsavel && (
+                    <p className="text-xs text-destructive">{errors.area_responsavel.message}</p>
                   )}
-                />
-                {errors.unidade && (
-                  <p className="text-xs text-destructive">{errors.unidade.message}</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label htmlFor="f-unidade">
+                    Unidade <span className="text-destructive">*</span>
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="unidade"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ? String(field.value) : undefined}
+                        onValueChange={(valor) => field.onChange(Number(valor))}
+                      >
+                        <SelectTrigger id="f-unidade" className="w-full">
+                          <SelectValue placeholder="Selecionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {unidades.map((unidade) => (
+                            <SelectItem key={unidade.id} value={String(unidade.id)}>
+                              {unidade.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.unidade && (
+                    <p className="text-xs text-destructive">{errors.unidade.message}</p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="f-setor">Setor</Label>
@@ -280,6 +345,13 @@ export function FormNovaDemanda({
                         // módulo, ainda eram enviados ocultamente no
                         // payload, causando associação errada ou 400.
                         setValue("etiquetas", []);
+                        // Mesmo motivo: "unidade"/"area_responsavel" são
+                        // mutuamente exclusivos por tipo de gestão -- sem
+                        // isso, um valor escolhido antes da troca (pro campo
+                        // que já não aparece mais) ficava preso e ia junto
+                        // no payload.
+                        setValue("unidade", undefined);
+                        setValue("area_responsavel", undefined);
                       }}
                     >
                       <SelectTrigger id="f-tipo-gestao" className="w-full">

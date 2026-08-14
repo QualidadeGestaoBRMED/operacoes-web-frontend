@@ -1,4 +1,4 @@
-import type { Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
+import type { AreaResponsavel, Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
 
 // Semáforo de severidade -- cores reais de status, não os tokens de marca
 // (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
@@ -18,6 +18,29 @@ export const LABEL_PRIORIDADE: Record<Prioridade, string> = {
   media: "Média",
   baixa: "Baixa",
 };
+
+// Identificador estável de TipoGestao pro tipo de gestão "Operacional" --
+// espelha CODIGO_TIPO_GESTAO_OPERACIONAL de backend/demandas/serializers.py.
+// Nunca comparar pelo "nome" (rótulo pt-BR livre, editável sem constraint).
+export const CODIGO_TIPO_GESTAO_OPERACIONAL = "operacional";
+
+export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
+  gerencia: "Gerência",
+  processo: "Processo",
+  qualidade: "Qualidade",
+  desenvolvimento: "Desenvolvimento",
+};
+
+// Demandas do tipo de gestão "Operacional" usam area_responsavel em vez de
+// unidade (ver AreaResponsavel em types/index.ts) -- os dois campos nunca
+// vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
+// no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
+export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
+  if (demanda.area_responsavel) {
+    return LABEL_AREA_RESPONSAVEL[demanda.area_responsavel];
+  }
+  return demanda.unidade?.nome ?? "";
+}
 
 export const COLUNAS: { status: StatusDemanda; titulo: string }[] = [
   { status: "backlog", titulo: "Backlog" },

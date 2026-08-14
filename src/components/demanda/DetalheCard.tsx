@@ -14,7 +14,13 @@ import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
-import { COR_PRIORIDADE, LABEL_PRIORIDADE, ROTULO_STATUS, diasAteOPrazo } from "@/lib/kanban";
+import {
+  COR_PRIORIDADE,
+  LABEL_PRIORIDADE,
+  ROTULO_STATUS,
+  diasAteOPrazo,
+  rotuloUnidadeOuResponsavel,
+} from "@/lib/kanban";
 import { cn, nomeExibicao } from "@/lib/utils";
 import type { StatusDemanda } from "@/types";
 import { AnexoList } from "./AnexoList";
@@ -180,8 +186,8 @@ export function DetalheCard({
                   aoFechar={() => setSecaoAberta(null)}
                 />
 
-                <CampoMeta rotulo="Unidade">
-                  <Pill>{demanda.unidade.nome}</Pill>
+                <CampoMeta rotulo={demanda.area_responsavel ? "Área Responsável" : "Unidade"}>
+                  <Pill>{rotuloUnidadeOuResponsavel(demanda)}</Pill>
                 </CampoMeta>
                 {/* Setor/Categoria/Prazo/Descrição somem enquanto o
                     formulário de edição está aberto -- ele já mostra os
