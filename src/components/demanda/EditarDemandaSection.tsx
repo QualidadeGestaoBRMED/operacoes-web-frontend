@@ -223,7 +223,13 @@ export function EditarDemandaSection({
               <SelectTrigger id="ed-setor" size="sm" className="h-8 w-full text-[13px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              {/* position="popper": o padrão "item-aligned" não calcula
+                  altura disponível direito quando o trigger está dentro de
+                  um contêiner com scroll próprio (o modal de detalhe) --
+                  achado ao crescer "Setor Origem" pra 20 opções, o próprio
+                  modal rolava junto em vez de só a lista abrir com scroll
+                  interno. */}
+              <SelectContent position="popper">
                 <SelectItem value={SEM_SELECAO}>Nenhum</SelectItem>
                 {setores.map((setor) => (
                   <SelectItem key={setor.id} value={String(setor.id)}>

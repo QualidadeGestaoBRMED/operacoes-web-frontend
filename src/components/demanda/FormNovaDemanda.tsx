@@ -323,7 +323,10 @@ export function FormNovaDemanda({
                       <SelectTrigger id="f-setor" className="w-full">
                         <SelectValue placeholder="Selecionar..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      {/* position="popper": ver comentário equivalente em
+                          EditarDemandaSection.tsx -- mesmo problema aqui, o
+                          Dialog inteiro tem scroll próprio. */}
+                      <SelectContent position="popper">
                         {setores.map((setor) => (
                           <SelectItem key={setor.id} value={String(setor.id)}>
                             {setor.nome}
