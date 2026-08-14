@@ -399,7 +399,19 @@ export function KanbanBoard() {
       <TipoGestaoTabs
         tiposGestao={tiposGestao}
         valorSelecionado={filtros.tipo_gestao}
-        onMudar={(tipoGestaoId) => atualizarFiltrosNaUrl({ ...filtros, tipo_gestao: tipoGestaoId })}
+        onMudar={(tipoGestaoId) =>
+          // unidade/area_responsavel são mutuamente exclusivos por tipo de
+          // gestão (Operacional usa area_responsavel, os demais usam
+          // unidade) -- sem limpar os dois ao trocar de aba, um filtro
+          // escolhido antes da troca (pro campo que já não aparece mais no
+          // seletor) continuava aplicado, silenciosamente zerando o board.
+          atualizarFiltrosNaUrl({
+            ...filtros,
+            tipo_gestao: tipoGestaoId,
+            unidade: undefined,
+            area_responsavel: undefined,
+          })
+        }
       />
 
       <ResumoCards

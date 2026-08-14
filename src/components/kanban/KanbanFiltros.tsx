@@ -18,7 +18,15 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
-import type { DemandaFiltros, Prioridade } from "@/types";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL, LABEL_AREA_RESPONSAVEL } from "@/lib/kanban";
+import type { AreaResponsavel, DemandaFiltros, Prioridade } from "@/types";
+
+const AREAS_RESPONSAVEL: AreaResponsavel[] = [
+  "gerencia",
+  "processo",
+  "qualidade",
+  "desenvolvimento",
+];
 
 const PRIORIDADES: { valor: Prioridade; rotulo: string }[] = [
   { valor: "urgente", rotulo: "Urgente" },
@@ -44,8 +52,9 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // coincidência (hoje todo TipoGestao desse módulo compartilha o mesmo
   // modulo) -- deriva do tipo_gestao realmente ativo, com o primeiro item
   // como fallback só pro instante antes da aba padrão ser aplicada na URL.
-  const moduloAtivo =
-    tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao)?.modulo ?? tiposGestao[0]?.modulo;
+  const tipoGestaoAtivo = tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao);
+  const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
+  const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
   const { setores } = useSetores(moduloAtivo);
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada
   // tecla, só 300ms depois que o usuário parar de digitar.
@@ -88,6 +97,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // corresponder a nada que o popover realmente controla.
   const contagemFiltrosSelect = [
     filtros.unidade,
+    filtros.area_responsavel,
     filtros.setor,
     filtros.prioridade,
     filtros.categoria,
@@ -113,30 +123,57 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   function camposDeFiltro() {
     return (
       <>
-        <Select
-          value={filtros.unidade ? String(filtros.unidade) : "todas"}
-          onValueChange={(valor) =>
-            onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
-          }
-        >
-          {/* aria-label (não só o placeholder do SelectValue): sem rótulo
-              visível nesse componente, o placeholder é a única pista do que
-              o campo representa -- mas ele some do DOM assim que um valor é
-              selecionado, e o nome acessível vira só o valor escolhido
-              ("Niterói"), sem dizer que campo é. aria-label persiste
-              independente de ter valor selecionado ou não. */}
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
-            <SelectValue placeholder="Unidade" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todas as unidades</SelectItem>
-            {unidades.map((unidade) => (
-              <SelectItem key={unidade.id} value={String(unidade.id)}>
-                {unidade.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Demanda do tipo de gestão "Operacional" não tem unidade (usa
+            area_responsavel) -- mesmo critério de FormNovaDemanda.tsx. Os
+            dois filtros ocupam a mesma posição, nunca aparecem juntos. */}
+        {ehOperacional ? (
+          <Select
+            value={filtros.area_responsavel ?? "todas"}
+            onValueChange={(valor) =>
+              onMudarFiltros({
+                ...filtros,
+                area_responsavel: valor === "todas" ? undefined : (valor as AreaResponsavel),
+              })
+            }
+          >
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Área Responsável">
+              <SelectValue placeholder="Área Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as áreas responsáveis</SelectItem>
+              {AREAS_RESPONSAVEL.map((area) => (
+                <SelectItem key={area} value={area}>
+                  {LABEL_AREA_RESPONSAVEL[area]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select
+            value={filtros.unidade ? String(filtros.unidade) : "todas"}
+            onValueChange={(valor) =>
+              onMudarFiltros({ ...filtros, unidade: valor === "todas" ? undefined : Number(valor) })
+            }
+          >
+            {/* aria-label (não só o placeholder do SelectValue): sem rótulo
+                visível nesse componente, o placeholder é a única pista do que
+                o campo representa -- mas ele some do DOM assim que um valor é
+                selecionado, e o nome acessível vira só o valor escolhido
+                ("Niterói"), sem dizer que campo é. aria-label persiste
+                independente de ter valor selecionado ou não. */}
+            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Unidade">
+              <SelectValue placeholder="Unidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as unidades</SelectItem>
+              {unidades.map((unidade) => (
+                <SelectItem key={unidade.id} value={String(unidade.id)}>
+                  {unidade.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Select
           value={filtros.setor ? String(filtros.setor) : "todos"}

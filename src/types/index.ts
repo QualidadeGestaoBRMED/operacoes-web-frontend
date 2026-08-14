@@ -154,6 +154,7 @@ export interface DemandaStatusPayload {
 export interface DemandaFiltros {
   tipo_gestao?: number;
   unidade?: number;
+  area_responsavel?: AreaResponsavel;
   setor?: number;
   status?: StatusDemanda;
   prioridade?: Prioridade;
