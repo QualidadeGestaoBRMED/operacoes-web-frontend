@@ -158,7 +158,10 @@ export function FormNovaDemanda({
         tipo_gestao: valores.tipo_gestao,
         prioridade: valores.prioridade,
         unidade: ehOperacional ? null : (valores.unidade ?? null),
-        area_responsavel: ehOperacional ? (valores.area_responsavel ?? null) : null,
+        // area_responsavel é CharField (blank=True, sem null=True) no
+        // backend -- null explícito é rejeitado com 400. Omite a chave em
+        // vez de mandar null quando não se aplica.
+        ...(ehOperacional ? { area_responsavel: valores.area_responsavel } : {}),
         setor: valores.setor ?? null,
         categoria: valores.categoria ?? null,
         etiquetas: valores.etiquetas,
