@@ -37,7 +37,13 @@ function CardEstatistica({
         // inteira de altura em 375px antes do usuário ver qualquer demanda.
         // Reduzido por padrão (telas estreitas) e restaurado ao tamanho
         // original a partir de sm -- zero mudança visual em tablet/desktop.
-        "flex items-center justify-between rounded-xl border p-2.5 text-left transition-shadow sm:p-4",
+        // min-w-0: achado na avaliação de UX mobile (3 cards, STC-267) --
+        // "RESPONSÁVEL"/"ANDAMENTO" são palavras únicas, sem espaço pra
+        // quebrar; sem min-w-0 (grid-template-columns não encolhe um item
+        // abaixo do min-content dele por padrão), a 3ª coluna do grid
+        // crescia além de 1fr pra caber a palavra inteira, empurrando o
+        // ícone (shrink-0) pra fora da viewport em telas estreitas (360px).
+        "flex min-w-0 items-center justify-between rounded-xl border p-2.5 text-left transition-shadow sm:p-4",
         atencao
           ? "bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))]"
           : "bg-[color-mix(in_srgb,var(--secondary)_10%,var(--card))]",
@@ -48,8 +54,8 @@ function CardEstatistica({
           : "border-border",
       )}
     >
-      <div>
-        <div className="text-[10.5px] leading-tight font-semibold tracking-wide text-muted-foreground uppercase sm:text-xs">
+      <div className="min-w-0">
+        <div className="truncate text-[10.5px] leading-tight font-semibold text-muted-foreground uppercase sm:tracking-wide sm:text-xs">
           {rotulo}
         </div>
         <div
