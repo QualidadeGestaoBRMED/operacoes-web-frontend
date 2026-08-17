@@ -17,6 +17,8 @@ const COR_POR_EXTENSAO: Record<string, string> = {
   pdf: "bg-red-600",
   doc: "bg-blue-600",
   docx: "bg-blue-600",
+  pptx: "bg-orange-600",
+  xlsx: "bg-green-600",
   png: "bg-purple-600",
   jpg: "bg-purple-600",
   jpeg: "bg-purple-600",
@@ -138,7 +140,7 @@ export function AnexoList({
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+            accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg"
             className="hidden"
             onChange={(evento) => void aoEscolherArquivo(evento)}
           />
