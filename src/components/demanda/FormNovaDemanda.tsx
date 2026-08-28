@@ -30,14 +30,10 @@ import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
-import {
-  CODIGO_TIPO_GESTAO_OPERACIONAL,
-  COR_PRIORIDADE,
-  LABEL_AREA_RESPONSAVEL,
-  LABEL_PRIORIDADE,
-} from "@/lib/kanban";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL, COR_PRIORIDADE, LABEL_PRIORIDADE } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
-import type { AreaResponsavel, Prioridade } from "@/types";
+import type { Prioridade } from "@/types";
+import { SeletorAreaResponsavel } from "./SeletorAreaResponsavel";
 import { SeletorEtiquetas } from "./SeletorEtiquetas";
 
 // Título tem max_length=329 no model (Demanda.titulo) -- backend rejeitaria
@@ -60,7 +56,9 @@ const schema = z.object({
   // obrigatoriedade condicional é aplicada em aoSubmeter, onde o código do
   // tipo de gestão selecionado já está disponível.
   unidade: z.coerce.number().int().positive().optional(),
-  area_responsavel: z.enum(["gerencia", "processo", "qualidade", "desenvolvimento"]).optional(),
+  area_responsavel: z
+    .array(z.enum(["gerencia", "processo", "qualidade", "desenvolvimento"]))
+    .default([]),
   setor: z.coerce.number().int().positive().optional(),
   categoria: z.coerce.number().int().positive().optional(),
   etiquetas: z.array(z.number()).default([]),
@@ -77,17 +75,12 @@ type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
 const PRIORIDADES: Prioridade[] = ["urgente", "alta", "media", "baixa"];
-const AREAS_RESPONSAVEL: AreaResponsavel[] = [
-  "gerencia",
-  "processo",
-  "qualidade",
-  "desenvolvimento",
-];
 
 const valoresPadrao: Partial<FormValuesEntrada> = {
   titulo: "",
   descricao: "",
   etiquetas: [],
+  area_responsavel: [],
   confidencial: false,
 };
 
@@ -154,8 +147,8 @@ export function FormNovaDemanda({
     // "unidade" e "area_responsavel" são mutuamente exclusivos -- qual dos
     // dois é obrigatório depende do tipo de gestão selecionado, então o
     // zod (estático) não valida isso sozinho.
-    if (ehOperacional && !valores.area_responsavel) {
-      setError("area_responsavel", { message: "Selecione a área responsável." });
+    if (ehOperacional && valores.area_responsavel.length === 0) {
+      setError("area_responsavel", { message: "Selecione ao menos uma área responsável." });
       return;
     }
     if (!ehOperacional && !valores.unidade) {
@@ -169,10 +162,11 @@ export function FormNovaDemanda({
         tipo_gestao: valores.tipo_gestao,
         prioridade: valores.prioridade,
         unidade: ehOperacional ? null : (valores.unidade ?? null),
-        // area_responsavel é CharField (blank=True, sem null=True) no
-        // backend -- null explícito é rejeitado com 400. Omite a chave em
-        // vez de mandar null quando não se aplica.
-        ...(ehOperacional ? { area_responsavel: valores.area_responsavel } : {}),
+        // area_responsavel é M2M no backend (STC-391) -- lista vazia é um
+        // valor válido pra "não se aplica" (o campo é required=False, sem
+        // exigir null explícito nem omitir a chave, ao contrário do
+        // CharField de antes).
+        area_responsavel: ehOperacional ? valores.area_responsavel : [],
         setor: valores.setor ?? null,
         categoria: valores.categoria ?? null,
         etiquetas: valores.etiquetas,
@@ -260,18 +254,11 @@ export function FormNovaDemanda({
                     control={control}
                     name="area_responsavel"
                     render={({ field }) => (
-                      <Select value={field.value ?? undefined} onValueChange={field.onChange}>
-                        <SelectTrigger id="f-area-responsavel" className="w-full">
-                          <SelectValue placeholder="Selecionar..." />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          {AREAS_RESPONSAVEL.map((area) => (
-                            <SelectItem key={area} value={area}>
-                              {LABEL_AREA_RESPONSAVEL[area]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SeletorAreaResponsavel
+                        id="f-area-responsavel"
+                        value={field.value ?? []}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                   {errors.area_responsavel && (
@@ -374,7 +361,7 @@ export function FormNovaDemanda({
                         // que já não aparece mais) ficava preso e ia junto
                         // no payload.
                         setValue("unidade", undefined);
-                        setValue("area_responsavel", undefined);
+                        setValue("area_responsavel", []);
                       }}
                     >
                       <SelectTrigger id="f-tipo-gestao" className="w-full">

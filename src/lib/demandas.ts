@@ -22,9 +22,17 @@ function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | numb
 
   const params: Record<string, string | number> = {};
   for (const [chave, valor] of Object.entries(filtros)) {
-    if (valor !== undefined && valor !== null && valor !== "") {
-      params[chave] = valor;
+    if (valor === undefined || valor === null || valor === "") continue;
+    // area_responsavel é lista (STC-391) -- mesmo contrato de
+    // AreaResponsavelFilter (backend/demandas/views.py): uma string só,
+    // separada por vírgula, não vários params repetidos (o serializador de
+    // array padrão do axios não bateria com isso).
+    if (Array.isArray(valor)) {
+      if (valor.length === 0) continue;
+      params[chave] = valor.join(",");
+      continue;
     }
+    params[chave] = valor;
   }
   return params;
 }

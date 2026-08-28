@@ -5,6 +5,7 @@ import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
 import { criarDemanda } from "@/test-utils/fixtures";
+import type { Demanda } from "@/types";
 import { DetalheCard } from "./DetalheCard";
 
 vi.mock("@/hooks/useAnexos", () => ({ useAnexos: vi.fn() }));
@@ -23,9 +24,9 @@ vi.mock("./EditarDemandaSection", () => ({
   ),
 }));
 
-function renderizar(podeEditar: boolean) {
+function renderizar(podeEditar: boolean, overrides: Partial<Demanda> = {}) {
   vi.mocked(useDemanda).mockReturnValue({
-    demanda: criarDemanda({ pode_editar: podeEditar }),
+    demanda: criarDemanda({ pode_editar: podeEditar, ...overrides }),
     isLoading: false,
     error: undefined,
     mensagemErro: null,
@@ -70,5 +71,26 @@ describe("DetalheCard — capacidade de edição", () => {
     renderizar(false);
 
     expect(screen.getByTestId("capacidade-edicao")).toHaveTextContent("negada");
+  });
+});
+
+describe("DetalheCard — Pills de área responsável", () => {
+  // STC-392: pedido no dogfooding -- mesmo critério de DemandaCard.tsx, um
+  // Pill por área em vez de texto concatenado num Pill só.
+  it("mostra um Pill separado por área, não texto concatenado", () => {
+    renderizar(true, { unidade: null, area_responsavel: ["gerencia", "processo"] });
+
+    expect(screen.getByText("Gerência")).toBeInTheDocument();
+    expect(screen.getByText("Processo")).toBeInTheDocument();
+    expect(screen.queryByText("Gerência, Processo")).not.toBeInTheDocument();
+  });
+
+  it("mostra a unidade num Pill só quando não há área responsável", () => {
+    renderizar(true, {
+      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      area_responsavel: [],
+    });
+
+    expect(screen.getByText("Niterói")).toBeInTheDocument();
   });
 });

@@ -6,8 +6,48 @@ import {
   filtrosDaUrl,
   mensagemBloqueioConhecido,
   passaNoFoco,
+  rotuloUnidadeOuResponsavel,
   secaoDoBloqueio,
 } from "./kanban";
+
+describe("rotuloUnidadeOuResponsavel", () => {
+  it("mostra a unidade quando não há área responsável", () => {
+    const demanda = criarDemanda({
+      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      area_responsavel: [],
+    });
+    expect(rotuloUnidadeOuResponsavel(demanda)).toBe("Niterói");
+  });
+
+  it("mostra a área responsável quando a demanda é operacional", () => {
+    const demanda = criarDemanda({ unidade: null, area_responsavel: ["gerencia"] });
+    expect(rotuloUnidadeOuResponsavel(demanda)).toBe("Gerência");
+  });
+
+  // STC-391: agora aceita mais de uma área -- concatenadas, não só a primeira.
+  it("concatena áreas responsáveis", () => {
+    const demanda = criarDemanda({
+      unidade: null,
+      area_responsavel: ["gerencia", "processo"],
+    });
+    expect(rotuloUnidadeOuResponsavel(demanda)).toBe("Gerência, Processo");
+  });
+
+  // Fonte do aria-label do card (DemandaCard.tsx), que não tem limite de
+  // largura como um badge visual -- por isso nunca trunca/condensa em
+  // contagem, mesmo com 3+ áreas: os badges visíveis (renderizados à
+  // parte, um por área) sempre mostram os nomes completos, e o aria-label
+  // precisa anunciar a mesma informação que a UI visual mostra.
+  it("concatena todas as áreas responsáveis, mesmo com 3 ou mais", () => {
+    const demanda = criarDemanda({
+      unidade: null,
+      area_responsavel: ["gerencia", "processo", "qualidade", "desenvolvimento"],
+    });
+    expect(rotuloUnidadeOuResponsavel(demanda)).toBe(
+      "Gerência, Processo, Qualidade, Desenvolvimento",
+    );
+  });
+});
 
 describe("compararDemandas", () => {
   it("ordena por prazo mais próximo primeiro", () => {
@@ -205,6 +245,14 @@ describe("filtrosDaUrl", () => {
   // mesmo a opção selecionada aparecendo marcada no Select.
   it("lê area_responsavel da URL", () => {
     const params = new URLSearchParams("area_responsavel=processo");
-    expect(filtrosDaUrl(params)).toEqual({ area_responsavel: "processo" });
+    expect(filtrosDaUrl(params)).toEqual({ area_responsavel: ["processo"] });
+  });
+
+  // STC-391: area_responsavel virou lista (múltipla seleção) -- na URL,
+  // continua um único param, mas separado por vírgula (mesmo contrato de
+  // AreaResponsavelFilter no backend).
+  it("lê várias áreas responsáveis separadas por vírgula na URL", () => {
+    const params = new URLSearchParams("area_responsavel=gerencia,processo");
+    expect(filtrosDaUrl(params)).toEqual({ area_responsavel: ["gerencia", "processo"] });
   });
 });

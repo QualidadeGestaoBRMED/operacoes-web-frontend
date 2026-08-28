@@ -220,7 +220,7 @@ describe("ResponsavelSection -- elegibilidade em demanda Operacional", () => {
     const usuarioComum: Usuario = { ...COLABORADOR_EXISTENTE, perfil: null };
     vi.mocked(listarUsuarios).mockResolvedValue([adminOperacoes, usuarioComum]);
     const user = userEvent.setup();
-    renderSecao([], { unidade: null, area_responsavel: "gerencia" });
+    renderSecao([], { unidade: null, area_responsavel: ["gerencia"] });
 
     await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
     await user.click(screen.getByLabelText(/usuário responsável/i));

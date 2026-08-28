@@ -124,3 +124,70 @@ describe("KanbanFiltros -- candidatos do filtro Responsável", () => {
     );
   });
 });
+
+describe("KanbanFiltros -- filtro Área Responsável", () => {
+  // STC-392: achado no code review -- SeletorAreaResponsavel não tinha
+  // como receber um nome acessível externo, então o filtro perdeu o
+  // aria-label="Área Responsável" que o Select antigo tinha. Sem esse
+  // teste, nada aqui detectaria uma regressão futura (o gatilho continua
+  // clicável mesmo sem nome acessível nenhum -- só um leitor de tela
+  // notaria).
+  it("gatilho tem nome acessível 'Área Responsável'", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    renderFiltros({ tipo_gestao: TIPO_GESTAO_OPERACIONAL.id });
+
+    expect(await screen.findByLabelText("Área Responsável")).toBeInTheDocument();
+  });
+
+  it("selecionar uma área chama onMudarFiltros com a lista", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    const user = userEvent.setup();
+    const { onMudarFiltros } = renderFiltros({ tipo_gestao: TIPO_GESTAO_OPERACIONAL.id });
+
+    await user.click(await screen.findByLabelText("Área Responsável"));
+    await user.click(await screen.findByRole("checkbox", { name: "Gerência" }));
+
+    expect(onMudarFiltros).toHaveBeenCalledWith(
+      expect.objectContaining({ area_responsavel: ["gerencia"] }),
+    );
+  });
+
+  // STC-392: pedido no dogfooding -- "Todas as áreas responsáveis" vira uma
+  // opção de verdade na lista (mesmo padrão dos filtros vizinhos, tipo
+  // "Todos os setores origem"), não só o texto do gatilho vazio. Diferente
+  // deles (single-select, marca só "todos"), aqui é multi-seleção: marca as
+  // 4 de uma vez / desmarca todas se já estiverem todas marcadas.
+  it("opção 'Todas as áreas responsáveis' marca as 4 de uma vez", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    const user = userEvent.setup();
+    const { onMudarFiltros } = renderFiltros({ tipo_gestao: TIPO_GESTAO_OPERACIONAL.id });
+
+    await user.click(await screen.findByLabelText("Área Responsável"));
+    await user.click(await screen.findByRole("checkbox", { name: "Todas as áreas responsáveis" }));
+
+    expect(onMudarFiltros).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area_responsavel: ["gerencia", "processo", "qualidade", "desenvolvimento"],
+      }),
+    );
+  });
+
+  it("opção 'Todas as áreas responsáveis' desmarca todas quando já estão todas marcadas", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    const user = userEvent.setup();
+    const { onMudarFiltros } = renderFiltros({
+      tipo_gestao: TIPO_GESTAO_OPERACIONAL.id,
+      area_responsavel: ["gerencia", "processo", "qualidade", "desenvolvimento"],
+    });
+
+    await user.click(await screen.findByLabelText("Área Responsável"));
+    await user.click(await screen.findByRole("checkbox", { name: "Todas as áreas responsáveis" }));
+
+    // area_responsavel: undefined (não []) -- mesma representação de "sem
+    // filtro aplicado" usada pelos outros filtros (KanbanFiltros.tsx
+    // converte lista vazia pra undefined antes de chamar onMudarFiltros).
+    expect(onMudarFiltros).toHaveBeenCalledWith(
+      expect.objectContaining({ area_responsavel: undefined }),
+    );
+  });
+});

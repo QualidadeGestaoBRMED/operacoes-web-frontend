@@ -33,11 +33,15 @@ export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
 
 // Demandas do tipo de gestão "Operacional" usam area_responsavel em vez de
 // unidade (ver AreaResponsavel em types/index.ts) -- os dois campos nunca
-// vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
-// no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
+// vêm preenchidos ao mesmo tempo. Usado quando "Unidade"/"Área Responsável"
+// precisa virar um texto só (aria-label do card; o próprio nome da unidade
+// quando não há área) -- DemandaCard/DetalheCard renderizam as áreas como
+// badges/Pills separados na parte visível, sem passar por aqui, então não
+// há necessidade (nem lugar apropriado) de condensar/truncar o texto:
+// aria-label não tem limite de largura como um badge visual tem.
 export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
-  if (demanda.area_responsavel) {
-    return LABEL_AREA_RESPONSAVEL[demanda.area_responsavel];
+  if (demanda.area_responsavel.length > 0) {
+    return demanda.area_responsavel.map((area) => LABEL_AREA_RESPONSAVEL[area]).join(", ");
   }
   return demanda.unidade?.nome ?? "";
 }
@@ -312,7 +316,10 @@ export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const search = searchParams.get("search");
   if (tipoGestao) filtros.tipo_gestao = Number(tipoGestao);
   if (unidade) filtros.unidade = Number(unidade);
-  if (areaResponsavel) filtros.area_responsavel = areaResponsavel as AreaResponsavel;
+  // Mesmo contrato de AreaResponsavelFilter (backend/demandas/views.py):
+  // uma lista separada por vírgula num único param, não vários params
+  // repetidos.
+  if (areaResponsavel) filtros.area_responsavel = areaResponsavel.split(",") as AreaResponsavel[];
   if (setor) filtros.setor = Number(setor);
   if (responsavel) filtros.responsavel = Number(responsavel);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;

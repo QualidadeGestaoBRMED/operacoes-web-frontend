@@ -16,6 +16,7 @@ import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
 import {
   COR_PRIORIDADE,
+  LABEL_AREA_RESPONSAVEL,
   LABEL_PRIORIDADE,
   ROTULO_STATUS,
   diasAteOPrazo,
@@ -186,8 +187,23 @@ export function DetalheCard({
                   aoFechar={() => setSecaoAberta(null)}
                 />
 
-                <CampoMeta rotulo={demanda.area_responsavel ? "Área Responsável" : "Unidade"}>
-                  <Pill>{rotuloUnidadeOuResponsavel(demanda)}</Pill>
+                <CampoMeta
+                  rotulo={demanda.area_responsavel.length > 0 ? "Área Responsável" : "Unidade"}
+                >
+                  {/* Um Pill por área (não texto concatenado) -- mesmo
+                      padrão de etiquetas logo abaixo (div flex-wrap
+                      envolvendo vários Pill, não CampoMeta em si, que
+                      outros usos de campo único continuam sem precisar
+                      de wrap). */}
+                  {demanda.area_responsavel.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {demanda.area_responsavel.map((area) => (
+                        <Pill key={area}>{LABEL_AREA_RESPONSAVEL[area]}</Pill>
+                      ))}
+                    </div>
+                  ) : (
+                    <Pill>{rotuloUnidadeOuResponsavel(demanda)}</Pill>
+                  )}
                 </CampoMeta>
                 {/* Setor/Categoria/Prazo/Descrição somem enquanto o
                     formulário de edição está aberto -- ele já mostra os
