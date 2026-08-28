@@ -108,7 +108,7 @@ export interface Demanda {
   prioridade: Prioridade;
   status: StatusDemanda;
   unidade: Unidade | null;
-  area_responsavel: AreaResponsavel | null;
+  area_responsavel: AreaResponsavel[];
   setor: Setor | null;
   categoria: Categoria | null;
   solicitante: Usuario;
@@ -137,7 +137,7 @@ export interface DemandaPayload {
   tipo_gestao: number;
   prioridade: Prioridade;
   unidade?: number | null;
-  area_responsavel?: AreaResponsavel | null;
+  area_responsavel?: AreaResponsavel[];
   setor?: number | null;
   categoria?: number | null;
   etiquetas?: number[];
@@ -155,7 +155,7 @@ export interface DemandaStatusPayload {
 export interface DemandaFiltros {
   tipo_gestao?: number;
   unidade?: number;
-  area_responsavel?: AreaResponsavel;
+  area_responsavel?: AreaResponsavel[];
   setor?: number;
   responsavel?: number;
   status?: StatusDemanda;

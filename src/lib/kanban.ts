@@ -36,8 +36,8 @@ export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
 // vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
 // no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
 export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
-  if (demanda.area_responsavel) {
-    return LABEL_AREA_RESPONSAVEL[demanda.area_responsavel];
+  if (demanda.area_responsavel.length > 0) {
+    return demanda.area_responsavel.map((area) => LABEL_AREA_RESPONSAVEL[area]).join(", ");
   }
   return demanda.unidade?.nome ?? "";
 }
@@ -312,7 +312,10 @@ export function filtrosDaUrl(searchParams: URLSearchParams): DemandaFiltros {
   const search = searchParams.get("search");
   if (tipoGestao) filtros.tipo_gestao = Number(tipoGestao);
   if (unidade) filtros.unidade = Number(unidade);
-  if (areaResponsavel) filtros.area_responsavel = areaResponsavel as AreaResponsavel;
+  // Mesmo contrato de AreaResponsavelFilter (backend/demandas/views.py):
+  // uma lista separada por vírgula num único param, não vários params
+  // repetidos.
+  if (areaResponsavel) filtros.area_responsavel = areaResponsavel.split(",") as AreaResponsavel[];
   if (setor) filtros.setor = Number(setor);
   if (responsavel) filtros.responsavel = Number(responsavel);
   if (prioridade) filtros.prioridade = prioridade as Prioridade;
