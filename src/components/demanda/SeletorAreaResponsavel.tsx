@@ -26,11 +26,23 @@ export function SeletorAreaResponsavel({
   onChange,
   id,
   "aria-label": ariaLabel,
+  className,
+  placeholder = "Selecionar...",
 }: {
   value: AreaResponsavel[];
   onChange: (areas: AreaResponsavel[]) => void;
   id?: string;
   "aria-label"?: string;
+  // Mesmo motivo de className em SelectTrigger: o gatilho precisa de
+  // largura/altura diferentes em FormNovaDemanda (campo de formulário,
+  // w-full) e em KanbanFiltros (pill de filtro, w-auto/h-8 igual aos
+  // outros -- achado no dogfooding: sem isso o filtro ficava esticado a
+  // largura toda, destoando das outras pills ao lado).
+  className?: string;
+  // Default combina com os outros campos do formulário (Tipo de Gestão,
+  // Unidade etc., todos "Selecionar..."); KanbanFiltros passa algo no
+  // padrão "Todas as X" dos filtros vizinhos (Setor Origem, Responsável).
+  placeholder?: string;
 }) {
   function alternar(area: AreaResponsavel) {
     onChange(
@@ -48,10 +60,13 @@ export function SeletorAreaResponsavel({
           type="button"
           id={id}
           aria-label={ariaLabel}
-          className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50"
+          className={cn(
+            "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50",
+            className,
+          )}
         >
           <span className={cn("truncate text-left", !rotulo && "text-muted-foreground")}>
-            {rotulo ?? "Selecionar..."}
+            {rotulo ?? placeholder}
           </span>
           <ChevronDownIcon className="size-4 shrink-0 opacity-50" />
         </button>

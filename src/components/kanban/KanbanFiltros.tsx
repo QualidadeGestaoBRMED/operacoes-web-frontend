@@ -140,6 +140,8 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
         {ehOperacional ? (
           <SeletorAreaResponsavel
             aria-label="Área Responsável"
+            className="h-8 w-full sm:w-auto"
+            placeholder="Todas as áreas responsáveis"
             value={filtros.area_responsavel ?? []}
             onChange={(areas) =>
               onMudarFiltros({
