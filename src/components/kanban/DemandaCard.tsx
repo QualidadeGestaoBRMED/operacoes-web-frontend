@@ -116,10 +116,8 @@ function ConteudoCard({
       </div>
 
       <div className="mb-2.5 flex flex-wrap gap-1.5">
-        {/* area_responsavel: um badge por área (não texto concatenado) --
-            pedido no dogfooding pra ficar visualmente igual a etiquetas
-            (badges separados), não um único badge "Gerência, Processo".
-            Sem cap/tooltip "+N" aqui (diferente de etiquetas, abaixo): são
+        {/* area_responsavel: um badge por área, mesmo visual de etiquetas
+            (abaixo). Sem cap/tooltip "+N" aqui, diferente de etiquetas: são
             só 4 áreas fixas no catálogo (Plano de Ação -- "conjunto
             fechado, sempre as mesmas"), não uma lista livre que cresce sem
             limite, então não tem o mesmo risco de estourar o card. */}

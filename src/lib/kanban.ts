@@ -33,18 +33,13 @@ export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
 
 // Demandas do tipo de gestão "Operacional" usam area_responsavel em vez de
 // unidade (ver AreaResponsavel em types/index.ts) -- os dois campos nunca
-// vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
-// no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
-//
-// A partir de 3 áreas, mostra só a contagem -- mesmo critério de
-// SeletorAreaResponsavel.tsx (achado no dogfooding: nomes concatenados sem
-// limite quebravam o layout do filtro do Kanban) e mesmo espírito de
-// MAX_ETIQUETAS_NO_CARD em DemandaCard.tsx, que já capa outra lista por
-// esse motivo -- o Pill/badge que exibe isso não tem truncamento próprio.
+// vêm preenchidos ao mesmo tempo. Usado quando "Unidade"/"Área Responsável"
+// precisa virar um texto só (aria-label do card; o próprio nome da unidade
+// quando não há área) -- DemandaCard/DetalheCard renderizam as áreas como
+// badges/Pills separados na parte visível, sem passar por aqui, então não
+// há necessidade (nem lugar apropriado) de condensar/truncar o texto:
+// aria-label não tem limite de largura como um badge visual tem.
 export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
-  if (demanda.area_responsavel.length > 2) {
-    return `${demanda.area_responsavel.length} áreas`;
-  }
   if (demanda.area_responsavel.length > 0) {
     return demanda.area_responsavel.map((area) => LABEL_AREA_RESPONSAVEL[area]).join(", ");
   }
