@@ -6,6 +6,7 @@ import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-reac
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   COR_PRIORIDADE,
+  LABEL_AREA_RESPONSAVEL,
   LABEL_PRIORIDADE,
   diasAteOPrazo,
   rotuloUnidadeOuResponsavel,
@@ -115,9 +116,27 @@ function ConteudoCard({
       </div>
 
       <div className="mb-2.5 flex flex-wrap gap-1.5">
-        <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
-          {rotuloUnidadeOuResponsavel(demanda)}
-        </span>
+        {/* area_responsavel: um badge por área (não texto concatenado) --
+            pedido no dogfooding pra ficar visualmente igual a etiquetas
+            (badges separados), não um único badge "Gerência, Processo".
+            Sem cap/tooltip "+N" aqui (diferente de etiquetas, abaixo): são
+            só 4 áreas fixas no catálogo (Plano de Ação -- "conjunto
+            fechado, sempre as mesmas"), não uma lista livre que cresce sem
+            limite, então não tem o mesmo risco de estourar o card. */}
+        {demanda.area_responsavel.length > 0 ? (
+          demanda.area_responsavel.map((area) => (
+            <span
+              key={area}
+              className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
+            >
+              {LABEL_AREA_RESPONSAVEL[area]}
+            </span>
+          ))
+        ) : (
+          <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+            {rotuloUnidadeOuResponsavel(demanda)}
+          </span>
+        )}
         {demanda.etiquetas.slice(0, MAX_ETIQUETAS_NO_CARD).map((etiqueta) => (
           // Cor vem cadastrada por etiqueta (dado do usuário, não um token de
           // design) -- por isso hex direto via style, diferente das cores de

@@ -36,3 +36,31 @@ describe("DemandaCard -- avatar e nome do responsável principal", () => {
     expect(container.querySelector("img")).not.toBeInTheDocument();
   });
 });
+
+describe("DemandaCard -- badges de área responsável", () => {
+  // STC-392: pedido no dogfooding -- cada área vira o próprio badge (igual
+  // etiquetas), não um badge só com o texto concatenado "Gerência,
+  // Processo". Sem cap "+N" aqui (diferente de etiquetas): área responsável
+  // é catálogo fixo de 4 valores, não uma lista livre sem limite.
+  it("mostra uma badge separada por área, não texto concatenado", () => {
+    const demanda = criarDemanda({
+      unidade: null,
+      area_responsavel: ["gerencia", "processo"],
+    });
+    render(<DemandaCard demanda={demanda} onClick={vi.fn()} />);
+
+    expect(screen.getByText("Gerência")).toBeInTheDocument();
+    expect(screen.getByText("Processo")).toBeInTheDocument();
+    expect(screen.queryByText("Gerência, Processo")).not.toBeInTheDocument();
+  });
+
+  it("mostra a unidade quando não há área responsável", () => {
+    const demanda = criarDemanda({
+      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      area_responsavel: [],
+    });
+    render(<DemandaCard demanda={demanda} onClick={vi.fn()} />);
+
+    expect(screen.getByText("Niterói")).toBeInTheDocument();
+  });
+});
