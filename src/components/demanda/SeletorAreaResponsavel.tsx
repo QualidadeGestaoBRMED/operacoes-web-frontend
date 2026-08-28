@@ -28,6 +28,7 @@ export function SeletorAreaResponsavel({
   "aria-label": ariaLabel,
   className,
   placeholder = "Selecionar...",
+  opcaoTodas,
 }: {
   value: AreaResponsavel[];
   onChange: (areas: AreaResponsavel[]) => void;
@@ -43,11 +44,24 @@ export function SeletorAreaResponsavel({
   // Unidade etc., todos "Selecionar..."); KanbanFiltros passa algo no
   // padrão "Todas as X" dos filtros vizinhos (Setor Origem, Responsável).
   placeholder?: string;
+  // Item extra no topo da lista, tipo "Todos os setores origem" dos filtros
+  // vizinhos -- mas ali é single-select (marca UM item); aqui, "selecionar
+  // todas" precisa de comportamento próprio de multi-seleção: marca as 4 de
+  // uma vez quando nenhuma (ou só algumas) está marcada, desmarca todas
+  // quando as 4 já estão marcadas. Opcional -- só KanbanFiltros usa (achado
+  // no dogfooding); FormNovaDemanda não tem equivalente pedido ainda.
+  opcaoTodas?: string;
 }) {
   function alternar(area: AreaResponsavel) {
     onChange(
       value.includes(area) ? value.filter((existente) => existente !== area) : [...value, area],
     );
+  }
+
+  const todasMarcadas = value.length === AREAS_RESPONSAVEL.length;
+
+  function alternarTodas() {
+    onChange(todasMarcadas ? [] : [...AREAS_RESPONSAVEL]);
   }
 
   const rotulo =
@@ -72,6 +86,12 @@ export function SeletorAreaResponsavel({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1.5">
+        {opcaoTodas && (
+          <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+            <Checkbox checked={todasMarcadas} onCheckedChange={alternarTodas} className="shrink-0" />
+            <span className="truncate">{opcaoTodas}</span>
+          </label>
+        )}
         {AREAS_RESPONSAVEL.map((area) => (
           <label
             key={area}

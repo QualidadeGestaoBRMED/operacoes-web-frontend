@@ -151,4 +151,43 @@ describe("KanbanFiltros -- filtro Área Responsável", () => {
       expect.objectContaining({ area_responsavel: ["gerencia"] }),
     );
   });
+
+  // STC-392: pedido no dogfooding -- "Todas as áreas responsáveis" vira uma
+  // opção de verdade na lista (mesmo padrão dos filtros vizinhos, tipo
+  // "Todos os setores origem"), não só o texto do gatilho vazio. Diferente
+  // deles (single-select, marca só "todos"), aqui é multi-seleção: marca as
+  // 4 de uma vez / desmarca todas se já estiverem todas marcadas.
+  it("opção 'Todas as áreas responsáveis' marca as 4 de uma vez", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    const user = userEvent.setup();
+    const { onMudarFiltros } = renderFiltros({ tipo_gestao: TIPO_GESTAO_OPERACIONAL.id });
+
+    await user.click(await screen.findByLabelText("Área Responsável"));
+    await user.click(await screen.findByRole("checkbox", { name: "Todas as áreas responsáveis" }));
+
+    expect(onMudarFiltros).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area_responsavel: ["gerencia", "processo", "qualidade", "desenvolvimento"],
+      }),
+    );
+  });
+
+  it("opção 'Todas as áreas responsáveis' desmarca todas quando já estão todas marcadas", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    const user = userEvent.setup();
+    const { onMudarFiltros } = renderFiltros({
+      tipo_gestao: TIPO_GESTAO_OPERACIONAL.id,
+      area_responsavel: ["gerencia", "processo", "qualidade", "desenvolvimento"],
+    });
+
+    await user.click(await screen.findByLabelText("Área Responsável"));
+    await user.click(await screen.findByRole("checkbox", { name: "Todas as áreas responsáveis" }));
+
+    // area_responsavel: undefined (não []) -- mesma representação de "sem
+    // filtro aplicado" usada pelos outros filtros (KanbanFiltros.tsx
+    // converte lista vazia pra undefined antes de chamar onMudarFiltros).
+    expect(onMudarFiltros).toHaveBeenCalledWith(
+      expect.objectContaining({ area_responsavel: undefined }),
+    );
+  });
 });
