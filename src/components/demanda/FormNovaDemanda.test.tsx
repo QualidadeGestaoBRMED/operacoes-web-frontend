@@ -68,13 +68,16 @@ async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.set
   // antes seria preencher um campo que a própria seleção de tipo remove.
   await user.click(screen.getByLabelText(/tipo de gestão/i));
   await user.click(await screen.findByRole("option", { name: "Operacional" }));
-  // findByRole (não getByRole): o campo de Área Responsável só existe no
-  // DOM depois que o React re-renderiza trocando Unidade->Área Responsável --
-  // uma query síncrona aqui corre contra esse re-render (achado rodando a
-  // suíte inteira repetidas vezes: falhava por timeout ~1 a cada 3 rodadas,
-  // nunca isolado). SeletorAreaResponsavel (STC-391) é Popover+Checkbox, não
-  // um Select -- sem role="combobox"/"option" pra usar aqui.
-  await user.click(await screen.findByRole("button", { name: /selecionar área responsável/i }));
+  // findByLabelText (não getByLabelText): o campo de Área Responsável só
+  // existe no DOM depois que o React re-renderiza trocando Unidade->Área
+  // Responsável -- uma query síncrona aqui corre contra esse re-render
+  // (achado rodando a suíte inteira repetidas vezes: falhava por timeout
+  // ~1 a cada 3 rodadas, nunca isolado). SeletorAreaResponsavel (STC-391) é
+  // Popover+Checkbox, não um Select -- sem role="combobox"/"option" pra
+  // usar aqui; getByLabelText funciona porque o gatilho tem
+  // id="f-area-responsavel" associado ao <Label htmlFor> (achado no code
+  // review: tinha sumido na primeira versão do componente).
+  await user.click(await screen.findByLabelText(/área responsável/i));
   await user.click(await screen.findByRole("checkbox", { name: "Gerência" }));
 }
 

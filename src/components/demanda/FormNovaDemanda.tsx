@@ -247,14 +247,18 @@ export function FormNovaDemanda({
                   no layout, nunca aparecem juntos. */}
               {ehOperacional ? (
                 <div className="space-y-1.5">
-                  <Label>
+                  <Label htmlFor="f-area-responsavel">
                     Área Responsável <span className="text-destructive">*</span>
                   </Label>
                   <Controller
                     control={control}
                     name="area_responsavel"
                     render={({ field }) => (
-                      <SeletorAreaResponsavel value={field.value ?? []} onChange={field.onChange} />
+                      <SeletorAreaResponsavel
+                        id="f-area-responsavel"
+                        value={field.value ?? []}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                   {errors.area_responsavel && (

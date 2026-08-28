@@ -20,9 +20,20 @@ const AREAS_RESPONSAVEL: AreaResponsavel[] = [
 export function SeletorAreaResponsavel({
   value,
   onChange,
+  id,
+  "aria-label": ariaLabel,
 }: {
   value: AreaResponsavel[];
   onChange: (areas: AreaResponsavel[]) => void;
+  // id: pra Label htmlFor apontar pro gatilho (uso em FormNovaDemanda).
+  // aria-label: nome acessível fixo, independente do texto do botão --
+  // sem isso, o texto interno ("Selecionar área responsável" ->
+  // "Adicionar área" depois da 1a seleção) vira o nome acessível e perde a
+  // palavra "responsável" justamente no estado mais comum (uso em
+  // KanbanFiltros, achado no code review). Passar os dois é redundante;
+  // cada consumidor usa o que fizer sentido pro próprio layout.
+  id?: string;
+  "aria-label"?: string;
 }) {
   function alternar(area: AreaResponsavel) {
     onChange(
@@ -53,6 +64,8 @@ export function SeletorAreaResponsavel({
         <PopoverTrigger asChild>
           <button
             type="button"
+            id={id}
+            aria-label={ariaLabel}
             className="flex items-center gap-0.5 rounded border border-dashed border-input px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:border-secondary hover:text-secondary"
           >
             {value.length === 0 ? "Selecionar área responsável" : "Adicionar área"}

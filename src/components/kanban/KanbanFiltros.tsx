@@ -139,6 +139,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             dois filtros ocupam a mesma posição, nunca aparecem juntos. */}
         {ehOperacional ? (
           <SeletorAreaResponsavel
+            aria-label="Área Responsável"
             value={filtros.area_responsavel ?? []}
             onChange={(areas) =>
               onMudarFiltros({
