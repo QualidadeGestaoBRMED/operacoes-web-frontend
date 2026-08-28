@@ -68,13 +68,14 @@ async function preencherCamposObrigatorios(user: ReturnType<typeof userEvent.set
   // antes seria preencher um campo que a própria seleção de tipo remove.
   await user.click(screen.getByLabelText(/tipo de gestão/i));
   await user.click(await screen.findByRole("option", { name: "Operacional" }));
-  // findByLabelText (não getByLabelText): o campo "Responsável" só existe no
-  // DOM depois que o React re-renderiza trocando Unidade->Responsável --
+  // findByRole (não getByRole): o campo de Área Responsável só existe no
+  // DOM depois que o React re-renderiza trocando Unidade->Área Responsável --
   // uma query síncrona aqui corre contra esse re-render (achado rodando a
   // suíte inteira repetidas vezes: falhava por timeout ~1 a cada 3 rodadas,
-  // nunca isolado).
-  await user.click(await screen.findByLabelText(/responsável/i));
-  await user.click(await screen.findByRole("option", { name: "Gerência" }));
+  // nunca isolado). SeletorAreaResponsavel (STC-391) é Popover+Checkbox, não
+  // um Select -- sem role="combobox"/"option" pra usar aqui.
+  await user.click(await screen.findByRole("button", { name: /selecionar área responsável/i }));
+  await user.click(await screen.findByRole("checkbox", { name: "Gerência" }));
 }
 
 beforeEach(() => {
@@ -103,7 +104,7 @@ describe("FormNovaDemanda", () => {
           descricao: "Lâmpada queimada há 2 dias.",
           prioridade: "media",
           unidade: null,
-          area_responsavel: "gerencia",
+          area_responsavel: ["gerencia"],
           tipo_gestao: TIPO_GESTAO.id,
           data_prevista: "2026-12-31",
           confidencial: false,
@@ -112,6 +113,24 @@ describe("FormNovaDemanda", () => {
       );
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  // STC-391: area_responsavel virou lista -- confirma que dá pra marcar mais
+  // de uma sem desmarcar a anterior, e que as duas vão juntas no payload.
+  it("aceita mais de uma área responsável ao mesmo tempo", async () => {
+    vi.mocked(criarDemanda).mockResolvedValue(construirDemandaFixture());
+    const user = userEvent.setup();
+    renderForm();
+
+    await preencherCamposObrigatorios(user);
+    await user.click(await screen.findByRole("checkbox", { name: "Processo" }));
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    await waitFor(() => {
+      expect(criarDemanda).toHaveBeenCalledWith(
+        expect.objectContaining({ area_responsavel: ["gerencia", "processo"] }),
+      );
+    });
   });
 
   it("mostra erro e mantém o modal aberto quando a criação falha", async () => {
