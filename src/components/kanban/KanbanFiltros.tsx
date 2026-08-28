@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ListFilter, Search, X } from "lucide-react";
+import { SeletorAreaResponsavel } from "@/components/demanda/SeletorAreaResponsavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +20,9 @@ import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { CODIGO_TIPO_GESTAO_OPERACIONAL, LABEL_AREA_RESPONSAVEL } from "@/lib/kanban";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
-import type { AreaResponsavel, DemandaFiltros, Prioridade } from "@/types";
-
-const AREAS_RESPONSAVEL: AreaResponsavel[] = [
-  "gerencia",
-  "processo",
-  "qualidade",
-  "desenvolvimento",
-];
+import type { DemandaFiltros, Prioridade } from "@/types";
 
 // Espelha accounts/permissions.py -- mesmos níveis usados em
 // ResponsavelSection.tsx (elegibilidade pra virar responsável de uma
@@ -115,14 +109,10 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // popover mobile, e é só a contagem deles que faz sentido no badge do
   // botão "Filtros" -- contar a busca junto inflaria o número sem
   // corresponder a nada que o popover realmente controla.
-  const contagemFiltrosSelect = [
-    filtros.unidade,
-    filtros.area_responsavel,
-    filtros.setor,
-    filtros.responsavel,
-    filtros.prioridade,
-    filtros.categoria,
-  ].filter(Boolean).length;
+  const contagemFiltrosSelect =
+    [filtros.unidade, filtros.setor, filtros.responsavel, filtros.prioridade, filtros.categoria].filter(
+      Boolean,
+    ).length + (filtros.area_responsavel && filtros.area_responsavel.length > 0 ? 1 : 0);
   const temFiltrosAtivos = contagemFiltrosSelect > 0 || Boolean(filtros.search);
 
   function limparFiltros() {
@@ -148,32 +138,15 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
             area_responsavel) -- mesmo critério de FormNovaDemanda.tsx. Os
             dois filtros ocupam a mesma posição, nunca aparecem juntos. */}
         {ehOperacional ? (
-          <Select
-            value={filtros.area_responsavel ?? "todas"}
-            onValueChange={(valor) =>
+          <SeletorAreaResponsavel
+            value={filtros.area_responsavel ?? []}
+            onChange={(areas) =>
               onMudarFiltros({
                 ...filtros,
-                area_responsavel: valor === "todas" ? undefined : (valor as AreaResponsavel),
+                area_responsavel: areas.length > 0 ? areas : undefined,
               })
             }
-          >
-            <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Área Responsável">
-              <SelectValue placeholder="Área Responsável" />
-            </SelectTrigger>
-            {/* position="popper" em todo Select deste arquivo: o padrão
-                ("item-aligned") não calcula altura disponível direito
-                quando o trigger está dentro de um contêiner com scroll
-                próprio -- aqui, o Popover de filtros no mobile. Mesmo
-                achado de EditarDemandaSection.tsx/FormNovaDemanda.tsx. */}
-            <SelectContent position="popper">
-              <SelectItem value="todas">Todas as áreas responsáveis</SelectItem>
-              {AREAS_RESPONSAVEL.map((area) => (
-                <SelectItem key={area} value={area}>
-                  {LABEL_AREA_RESPONSAVEL[area]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         ) : (
           <Select
             value={filtros.unidade ? String(filtros.unidade) : "todas"}

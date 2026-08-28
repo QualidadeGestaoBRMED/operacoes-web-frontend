@@ -186,7 +186,9 @@ export function DetalheCard({
                   aoFechar={() => setSecaoAberta(null)}
                 />
 
-                <CampoMeta rotulo={demanda.area_responsavel ? "Área Responsável" : "Unidade"}>
+                <CampoMeta
+                  rotulo={demanda.area_responsavel.length > 0 ? "Área Responsável" : "Unidade"}
+                >
                   <Pill>{rotuloUnidadeOuResponsavel(demanda)}</Pill>
                 </CampoMeta>
                 {/* Setor/Categoria/Prazo/Descrição somem enquanto o

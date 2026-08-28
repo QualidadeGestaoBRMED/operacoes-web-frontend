@@ -230,7 +230,7 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
   // solto na ordem do DOM sem isso. Não wireia onKeyDown aqui: Enter/Espaço
   // já é a tecla que o dnd-kit usa pra iniciar o arraste por teclado: abrir
   // detalhe por teclado é decisão de interação da STC-168 (ainda um no-op).
-  const rotuloUnidadeOuArea = demanda.area_responsavel ? "área responsável" : "unidade";
+  const rotuloUnidadeOuArea = demanda.area_responsavel.length > 0 ? "área responsável" : "unidade";
   const descricaoAcessivel = `Demanda ${demanda.titulo}, prioridade ${LABEL_PRIORIDADE[demanda.prioridade]}, ${rotuloUnidadeOuArea} ${rotuloUnidadeOuResponsavel(demanda)}${principal ? `, responsável ${nomeExibicao(principal.usuario)}` : ", sem responsável principal"}.`;
 
   return (
