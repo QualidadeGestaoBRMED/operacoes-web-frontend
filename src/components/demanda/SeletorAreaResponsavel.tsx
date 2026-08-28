@@ -64,8 +64,26 @@ export function SeletorAreaResponsavel({
     onChange(todasMarcadas ? [] : [...AREAS_RESPONSAVEL]);
   }
 
+  // Nomes concatenados crescem sem limite (achado no dogfooding: com w-auto
+  // no filtro do Kanban, o botão empurrava os filtros vizinhos pra fora da
+  // tela -- e o catálogo, mesmo fixo em 4 hoje, não devia ditar layout por
+  // capricho). Prioridade do texto mostrado: (1) todas marcadas + opcaoTodas
+  // definida -- mostra esse rótulo (ex.: "Todas as áreas responsáveis",
+  // truncado), mais natural que uma contagem quando é exatamente esse o
+  // caso; (2) mais de 2 marcadas (parcial) -- mostra só a contagem; (3) até
+  // 2 marcadas -- nomes concatenados. O texto completo continua acessível
+  // via title (tooltip nativo) e leitor de tela. max-w-* + truncate no
+  // botão é a segunda camada, pro caso de até 2 nomes (ou um catálogo com
+  // nomes mais longos no futuro) ainda estourar a largura.
+  const nomesSelecionados = value.map((area) => LABEL_AREA_RESPONSAVEL[area]);
   const rotulo =
-    value.length > 0 ? value.map((area) => LABEL_AREA_RESPONSAVEL[area]).join(", ") : null;
+    value.length === 0
+      ? null
+      : todasMarcadas && opcaoTodas
+        ? opcaoTodas
+        : value.length > 2
+          ? `${value.length} selecionadas`
+          : nomesSelecionados.join(", ");
 
   return (
     <Popover>
@@ -74,8 +92,9 @@ export function SeletorAreaResponsavel({
           type="button"
           id={id}
           aria-label={ariaLabel}
+          title={nomesSelecionados.length > 0 ? nomesSelecionados.join(", ") : undefined}
           className={cn(
-            "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50",
+            "flex h-9 w-full max-w-64 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50",
             className,
           )}
         >
@@ -86,25 +105,35 @@ export function SeletorAreaResponsavel({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1.5">
-        {opcaoTodas && (
-          <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
-            <Checkbox checked={todasMarcadas} onCheckedChange={alternarTodas} className="shrink-0" />
-            <span className="truncate">{opcaoTodas}</span>
-          </label>
-        )}
-        {AREAS_RESPONSAVEL.map((area) => (
-          <label
-            key={area}
-            className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-          >
-            <Checkbox
-              checked={value.includes(area)}
-              onCheckedChange={() => alternar(area)}
-              className="shrink-0"
-            />
-            <span className="truncate">{LABEL_AREA_RESPONSAVEL[area]}</span>
-          </label>
-        ))}
+        {/* max-h + scroll (mesmo padrão de SeletorEtiquetas.tsx): o
+            catálogo é fixo em 4 hoje, mas a lista não devia depender disso
+            pra não crescer sem limite pela tela -- acompanha se o catálogo
+            crescer, sem precisar lembrar de adicionar isso depois. */}
+        <div className="scrollbar-discreta max-h-48 overflow-y-auto">
+          {opcaoTodas && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
+              <Checkbox
+                checked={todasMarcadas}
+                onCheckedChange={alternarTodas}
+                className="shrink-0"
+              />
+              <span className="truncate">{opcaoTodas}</span>
+            </label>
+          )}
+          {AREAS_RESPONSAVEL.map((area) => (
+            <label
+              key={area}
+              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <Checkbox
+                checked={value.includes(area)}
+                onCheckedChange={() => alternar(area)}
+                className="shrink-0"
+              />
+              <span className="truncate">{LABEL_AREA_RESPONSAVEL[area]}</span>
+            </label>
+          ))}
+        </div>
       </PopoverContent>
     </Popover>
   );

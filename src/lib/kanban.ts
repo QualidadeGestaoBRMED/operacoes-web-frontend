@@ -35,7 +35,16 @@ export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
 // unidade (ver AreaResponsavel em types/index.ts) -- os dois campos nunca
 // vêm preenchidos ao mesmo tempo. Único lugar que resolve qual rótulo exibir
 // no lugar da "Unidade", reaproveitado por DemandaCard/DetalheCard.
+//
+// A partir de 3 áreas, mostra só a contagem -- mesmo critério de
+// SeletorAreaResponsavel.tsx (achado no dogfooding: nomes concatenados sem
+// limite quebravam o layout do filtro do Kanban) e mesmo espírito de
+// MAX_ETIQUETAS_NO_CARD em DemandaCard.tsx, que já capa outra lista por
+// esse motivo -- o Pill/badge que exibe isso não tem truncamento próprio.
 export function rotuloUnidadeOuResponsavel(demanda: Demanda): string {
+  if (demanda.area_responsavel.length > 2) {
+    return `${demanda.area_responsavel.length} áreas`;
+  }
   if (demanda.area_responsavel.length > 0) {
     return demanda.area_responsavel.map((area) => LABEL_AREA_RESPONSAVEL[area]).join(", ");
   }

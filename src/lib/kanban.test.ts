@@ -25,12 +25,23 @@ describe("rotuloUnidadeOuResponsavel", () => {
   });
 
   // STC-391: agora aceita mais de uma área -- concatenadas, não só a primeira.
-  it("concatena várias áreas responsáveis", () => {
+  it("concatena até 2 áreas responsáveis", () => {
     const demanda = criarDemanda({
       unidade: null,
       area_responsavel: ["gerencia", "processo"],
     });
     expect(rotuloUnidadeOuResponsavel(demanda)).toBe("Gerência, Processo");
+  });
+
+  // STC-392: achado no dogfooding -- nomes concatenados sem limite
+  // quebravam o layout do card/filtro. A partir de 3, mostra só a
+  // contagem (mesmo critério de SeletorAreaResponsavel.tsx).
+  it("mostra só a contagem a partir de 3 áreas responsáveis", () => {
+    const demanda = criarDemanda({
+      unidade: null,
+      area_responsavel: ["gerencia", "processo", "qualidade"],
+    });
+    expect(rotuloUnidadeOuResponsavel(demanda)).toBe("3 áreas");
   });
 });
 
