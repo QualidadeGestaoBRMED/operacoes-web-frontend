@@ -10,6 +10,7 @@ import type {
   DemandaStatusPayload,
   Etiqueta,
   HistoricoAlteracao,
+  RespostaPaginada,
   ResumoDemandas,
   TipoGestao,
 } from "@/types";
@@ -38,8 +39,29 @@ function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | numb
 }
 
 export async function listarDemandas(filtros?: DemandaFiltros): Promise<Demanda[]> {
-  const { data } = await api.get<Demanda[]>(BASE_URL, { params: paramsDeFiltros(filtros) });
-  return data;
+  // STC-398 (backend): demandas/ passou a paginar (20 por página) -- o
+  // Kanban precisa do board inteiro, não de uma página por vez, então
+  // busca e concatena todas.
+  const resultados: Demanda[] = [];
+  let pagina: number | undefined;
+  for (;;) {
+    const { data } = await api.get<RespostaPaginada<Demanda>>(BASE_URL, {
+      params: { ...paramsDeFiltros(filtros), ...(pagina ? { page: pagina } : {}) },
+    });
+    resultados.push(...data.results);
+    if (!data.next) break;
+    // O DRF devolve "next" como URL absoluta apontando direto pro Django
+    // (via NEXT_PUBLIC_API_URL), não pro proxy /api/backend/ -- api.ts usa
+    // baseURL: "/api/backend" de propósito (o token só existe server-side).
+    // Seguir "next" literalmente faria o axios ignorar o baseURL e mandar a
+    // requisição sem token, direto do navegador pro backend real. Extrai só
+    // o número da página e refaz pelo cliente api de sempre.
+    const proximaPaginaStr = new URL(data.next).searchParams.get("page");
+    const proximaPagina = proximaPaginaStr ? Number(proximaPaginaStr) : NaN;
+    if (!Number.isInteger(proximaPagina)) break;
+    pagina = proximaPagina;
+  }
+  return resultados;
 }
 
 export async function buscarDemanda(id: number): Promise<Demanda> {

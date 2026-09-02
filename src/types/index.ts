@@ -266,9 +266,9 @@ export interface Notificacao {
   created_at: string;
 }
 
-// NotificacaoViewSet é o único recurso de plataforma paginado (crescimento
-// não-limitado por usuário ao longo do tempo) -- formato padrão do
-// PageNumberPagination do DRF.
+// Formato padrão do PageNumberPagination do DRF -- usado por qualquer
+// recurso com crescimento não-limitado ao longo do tempo (NotificacaoViewSet,
+// e desde a STC-398 também DemandaViewSet e AlertaRegulatorioViewSet).
 export interface RespostaPaginada<T> {
   count: number;
   next: string | null;
