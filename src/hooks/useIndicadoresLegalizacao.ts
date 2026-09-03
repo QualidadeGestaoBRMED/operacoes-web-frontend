@@ -4,8 +4,10 @@ import useSWR from "swr";
 import { buscarIndicadoresLegalizacao } from "@/lib/legalizacao";
 import type { IndicadoresLegalizacao } from "@/types/legalizacao";
 
-// Mesmo valor de useResumoDemandas.ts (MP001).
-const INTERVALO_POLL_MS = 10_000;
+// 60s (não 10s como useResumoDemandas.ts/MP001) -- mesmo motivo de
+// useDocumentosLegalizacao.ts: indicador de conformidade não muda em tempo
+// real como o Kanban, não se justifica o mesmo custo de polling.
+const INTERVALO_POLL_MS = 60_000;
 
 export function useIndicadoresLegalizacao(opcoes?: { pausado?: boolean }) {
   // keepPreviousData: mesmo motivo de useResumoDemandas.ts -- sem isso, os
