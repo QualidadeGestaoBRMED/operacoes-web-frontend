@@ -6,7 +6,7 @@
 **Início proposto:** 25/08/2026 · **Entrega proposta:** 25/09/2026 · **Go-Live:** 28/09/2026
 **Fonte:** `Plano de Ação - Legalização.md` (raiz do repositório da Plataforma) §3/§4/§7/§8, e os 6 mockups refinados em `docs/mockup_*legalizacao*.html` — este documento traduz os protótipos já validados visualmente em plano técnico de implementação.
 
-> **Plano prospectivo — nenhuma linha de código deste módulo existe ainda.** Os 6 mockups HTML estáticos já passaram por uma rodada de refinamento completa (design, remoção de sinais de IA, correção de bugs de layout) e servem de referência visual direta pra esta implementação — não é preciso redesenhar nada, só traduzir pra componentes React reais.
+> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377) e P4.1 (Matriz Lista, STC-378) já têm implementação real (ambas com PR aberto); as seções P3.1/P3.2/P4.1 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.2 em diante).
 
 ---
 
@@ -47,7 +47,12 @@ frontend/src/
 
 ## Pacote P3 (equivalente) — Tipos e Hooks
 **Datas:** dentro da janela 01/09 – 09/09, em paralelo ao backend (P3)
-**Status:** ⏳ A iniciar
+**Status:** ✅ Implementado (STC-377, PR aberto) -- shapes abaixo atualizados pra bater com o
+contrato real dos serializers do backend (a versão anterior desta seção era especulativa,
+escrita antes de qualquer código do módulo existir, e divergia em vários pontos: camelCase
+em vez de snake_case, `prazoTexto` que não existe em nenhum serializer, `criticidade` como
+campo direto de `DocumentoUnidade` quando só existe aninhado em `regra_aplicada`). Fonte da
+verdade real: `src/types/legalizacao.ts` e `src/lib/legalizacaoMatriz.ts`.
 
 ### P3.1 Tipos TypeScript
 
@@ -60,78 +65,133 @@ export type CategoriaDocumento =
   | 'regularizacao' | 'registros_tecnicos' | 'capacitacao'
   | 'infraestrutura' | 'equipamentos' | 'programas' | 'residuos';
 
-export interface TipoDocumento {
+export type AreaResponsavelDocumento = 'legalizacao' | 'coordenacao';
+
+export interface TipoDocumentoRegulatorio {
   id: number;
   codigo: string;
   nome: string;
   categoria: CategoriaDocumento;
-  areaResponsavel: 'legalizacao' | 'coordenacao';  // ⚠️ fonte não confiável, tratar como provisório — ver backend/docs/PLANEJAMENTO_LEGALIZACAO.md P2.1 e Plano de Ação §9
+  area_responsavel: AreaResponsavelDocumento;
+  setor_apoio: string;
+  exige_validade: boolean;
+  exige_protocolo: boolean;
+  exige_evidencia: boolean;
+  ativo: boolean;
+  created_at: string;
 }
 
+export type Criticidade = 'baixa' | 'media' | 'alta';
+
+// tipo_documento/unidade vêm como ID cru (número), não aninhados -- só
+// quando esta interface aparece embutida em DocumentoUnidade.regra_aplicada
+// (RegraDocumentoSerializer real não aninha os dois).
 export interface RegraDocumento {
   id: number;
-  tipoDocumentoId: number;
-  unidade: Unidade;               // obrigatória — regra é por documento E por clínica, não existe regra "geral"
-  antecedenciaDias: number;
-  periodicidadeMeses: number | null;
-  janelaDiaInicio: number | null;
-  janelaDiaFim: number | null;
-  criticidade: 'baixa' | 'media' | 'alta';
-  vigenteAPartir: string;
+  tipo_documento: number;
+  unidade: number;                // obrigatória — regra é por documento E por clínica, não existe regra "geral"
+  antecedencia_dias: number;
+  periodicidade_meses: number | null;
+  janela_dia_inicio: number | null;
+  janela_dia_fim: number | null;
+  criticidade: Criticidade;
+  vigente_a_partir: string;
   ativa: boolean;
-  geraCardDemanda: boolean;       // controla se o alerta desse documento nessa clínica gera card espelho no Kanban — ver seção nova "Administração do Catálogo" abaixo
+  gera_card_demanda: boolean;     // controla se o alerta desse documento nessa clínica gera card espelho no Kanban — ver seção nova "Administração do Catálogo" abaixo
+  created_at: string;
 }
 
+export interface ResponsavelDocumento {
+  id: number;
+  usuario: Usuario;
+  principal: boolean;
+  created_at: string;
+}
+
+// criticidade NÃO é campo direto aqui -- só existe via regra_aplicada?.criticidade
+// (achado real: DocumentoUnidadeReadSerializer não expõe criticidade solta).
+// evidencia_vigente vem como ID cru (number | null), FK não aninhada nesse serializer.
 export interface DocumentoUnidade {
   id: number;
-  tipoDocumento: TipoDocumento;
+  tipo_documento: TipoDocumentoRegulatorio;
   unidade: Unidade;                 // reaproveita o tipo já existente de plataforma
   status: StatusDocumento;
+  justificativa_excecao: string;
   validade: string | null;
-  justificativaExcecao: string;
+  evidencia_vigente: number | null;
+  regra_aplicada: RegraDocumento | null;
   responsaveis: ResponsavelDocumento[];
-  criticidade: 'baixa' | 'media' | 'alta' | null;
-  prazoTexto: string;                // "vencido há 12 dias" / "em 8 dias" — calculado no backend, não no frontend
+  created_at: string;
+  updated_at: string;
 }
 
+// prazo ("vencido há 12 dias" / "em 8 dias") é calculado no FRONTEND (não no
+// backend, que não expõe esse campo em nenhum serializer real) -- ver
+// prazoDocumento()/diasParaPrazo() em src/lib/legalizacaoMatriz.ts.
+
+// 100% leitura -- nasce só pela varredura diária ou pela movimentação
+// profissional (imediato=true). Endpoint paginado (STC-398).
 export interface AlertaRegulatorio {
   id: number;
-  documentoUnidadeId: number;
+  documento_unidade: DocumentoUnidade;
+  ciclo_referencia: string;
+  antecedencia_usada_dias: number;
+  criticidade: Criticidade | '';  // pode vir vazio -- blank=True no model, formato de escalonamento ainda não definido
   imediato: boolean;
+  status_tratamento: string;
+  data_geracao: string;
 }
 
 export interface EvidenciaRegulatoria {
   id: number;
-  arquivoUrl: string;                // URL assinada, mesmo padrão do MP001
-  nomeOriginal: string;
+  usuario: Usuario;
+  arquivo: string;                // não "arquivoUrl" -- esse é o nome real do campo
+  nome_original: string;
+  tamanho_bytes: number;
   vigente: boolean;
-  emitidoEm: string | null;
+  emitido_em: string | null;
+  validade_comprovada: string | null;
+  processo_renovacao: number | null;
+  created_at: string;
 }
 ```
 
 ### P3.2 Hooks de Dados
 
 ```ts
-// useDocumentosLegalizacao.ts — SWR, mesmo padrão de useDemandas.ts do MP001
-export function useDocumentosLegalizacao(filtros: FiltrosMatriz) { ... }
-export function useDocumentoLegalizacao(id: number) { ... }
-export function useIndicadoresLegalizacao() { ... }   // cards de resumo do Mapa
+// useDocumentosLegalizacao.ts — SWR, mesmo padrão de useDemandas.ts/useResumoDemandas.ts do MP001
+export function useDocumentosLegalizacao(
+  filtros?: DocumentoUnidadeFiltros,
+  opcoes?: { pausado?: boolean; desabilitado?: boolean },
+) { ... }
+export function useDocumentoLegalizacao(id: number | null) { ... }
+
+// useIndicadoresLegalizacao.ts — arquivo próprio, não junto do de cima
+// (mesma separação de useResumoDemandas.ts vs useDemandas.ts no MP001)
+export function useIndicadoresLegalizacao(opcoes?: { pausado?: boolean }) { ... }   // cards de resumo do Mapa
 ```
 
 ---
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** ⏳ A iniciar
+**Status:** ⏳ Em andamento (P4.1 implementado, P4.2–P4.7 a iniciar)
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
 ### P4.1 Matriz de Conformidade (Lista) — `mockup_matriz_legalizacao.html`
 
+**Status:** ✅ Implementado (STC-378, PR aberto) — componente real em
+`src/components/legalizacao/{MatrizConformidade,MatrizFiltros,MatrizTable}.tsx`. Ajustes em
+relação ao plano original abaixo:
+
 - Rota `/modulos/legalizacao`.
 - Tabela com filtros de interface: unidade, documento, status, responsável, criticidade, prazo (RF07) — mesmo padrão de filtro do Kanban de Gestão de Demandas (já citado como referência na SRS, §3.1 "Regras de Interface").
-- Linha clicável → abre `DetalheDocumentoModal`.
-- Coluna "Alerta" reflete `AlertaRegulatorio.imediato` quando aplicável.
+- **Linha clicável ainda não abre nada** — é só afordância visual por enquanto. `DetalheDocumentoModal` é a P4.3/STC-380, ainda não implementada.
+- **Coluna "Alerta" ficou de fora desta entrega** — mostrar `AlertaRegulatorio.imediato` por linha exigiria buscar todas as páginas do endpoint de alertas (paginado desde STC-398) e cruzar com cada documento, fora do escopo original da STC-378. Fica pra uma issue própria.
+- **Busca por texto adicionada** (não estava no plano original): client-side, sobre a lista já carregada — o endpoint de documentos não pagina nem tem `SearchFilter`.
+- **Ordenação por coluna clicável adicionada** (não estava no plano original): motor genérico em `src/lib/ordenacao.ts`, reaproveitável por qualquer tabela futura do Atlas.
+- Toggle Mapa/Lista do mockup **não implementado ainda** — só faz sentido quando a P4.2 (Mapa) existir também; um toggle com um lado morto seria pior UX do que não ter o toggle.
 
 ### P4.2 Matriz de Conformidade (Mapa) — `mockup_matriz_legalizacao_mapa.html`
 
