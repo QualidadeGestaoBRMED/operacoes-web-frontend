@@ -15,9 +15,13 @@ interface ToggleMapaListaProps {
 // switch de conteúdo dentro do mesmo componente. Tabs do Radix é pra troca
 // de conteúdo client-side controlada por estado, navegação entre página é
 // papel de link, só estilizado pra parecer o segmented control do mockup.
+// hidden sm:flex -- Mapa não tem layout mobile (MapaConformidade.tsx
+// redireciona pra Lista em telas estreitas), então o toggle não faz
+// sentido aparecer nesse tamanho: só sobraria "Lista" sozinha, um segmented
+// control sem pra onde ir.
 export function ToggleMapaLista({ ativo, dica }: ToggleMapaListaProps) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border px-7 py-3">
+    <div className="hidden items-center justify-between gap-4 border-b border-border px-7 py-3 sm:flex">
       <div className="flex rounded-md bg-muted p-0.5">
         <Link
           href="/modulos/legalizacao/mapa"

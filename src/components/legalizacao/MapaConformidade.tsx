@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { calcularGradeMapa, calcularResumoMapa } from "@/lib/legalizacaoMapa";
@@ -10,6 +12,18 @@ import { ResumoCards } from "./ResumoCards";
 import { ToggleMapaLista } from "./ToggleMapaLista";
 
 export function MapaConformidade() {
+  const router = useRouter();
+  // Decisão de produto -- Mapa é uma grade densa (176px + 7 colunas fixas)
+  // sem layout mobile nenhum (fast-follow, PLANEJAMENTO_LEGALIZACAO.md);
+  // em telas estreitas só a Lista fica disponível. Mesmo breakpoint de
+  // MatrizFiltros.tsx. Redireciona antes de renderizar a grade quebrada,
+  // não só esconde o link no toggle -- cobre também quem chega direto por
+  // um link salvo/compartilhado em mobile.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
+  useEffect(() => {
+    if (ehMobile) router.replace("/modulos/legalizacao");
+  }, [ehMobile, router]);
+
   // Sem filtro nenhum de propósito -- o Mapa é o panorama da rede inteira,
   // igual ResumoCards/MatrizMapaGrid precisam ver todas as unidades pra
   // calcular a grade e o resumo por conta própria (agregação client-side,
@@ -48,6 +62,10 @@ export function MapaConformidade() {
       resumo: calcularResumoMapa(documentos, gradeCalculada),
     };
   }, [documentos, unidades, carregando]);
+
+  // Depois de todos os hooks (regra dos hooks) -- evita desenhar a grade
+  // por um frame antes do redirect dar tempo de disparar.
+  if (ehMobile) return null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
