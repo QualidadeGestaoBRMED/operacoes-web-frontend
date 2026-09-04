@@ -11,7 +11,10 @@ import {
   type CampoOrdenavel,
   type Ordenacao,
 } from "@/lib/legalizacaoMatriz";
-import type { CategoriaDocumento, DocumentoUnidadeFiltros } from "@/types/legalizacao";
+import type {
+  CategoriaDocumento,
+  DocumentoUnidadeFiltros,
+} from "@/types/legalizacao";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
@@ -38,7 +41,8 @@ export function MatrizConformidade() {
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
   const [categoria, setCategoria] = useState<CategoriaDocumento | undefined>(
-    () => (searchParams.get("categoria") as CategoriaDocumento | null) ?? undefined,
+    () =>
+      (searchParams.get("categoria") as CategoriaDocumento | null) ?? undefined,
   );
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
@@ -82,7 +86,6 @@ export function MatrizConformidade() {
         onMudarBusca={setBusca}
         categoria={categoria}
         onMudarCategoria={setCategoria}
-        documentos={documentos}
       />
 
       {error ? (

@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -32,7 +33,6 @@ import { nomeExibicao } from "@/lib/utils";
 import type {
   CategoriaDocumento,
   Criticidade,
-  DocumentoUnidade,
   DocumentoUnidadeFiltros,
   StatusDocumento,
 } from "@/types/legalizacao";
@@ -50,12 +50,6 @@ interface MatrizFiltrosProps {
   // pra API, com seu próprio par de props em vez de entrar em onMudarFiltros.
   categoria: CategoriaDocumento | undefined;
   onMudarCategoria: (categoria: CategoriaDocumento | undefined) => void;
-  // Opções de "Documento" (tipo_documento) derivadas da própria lista já
-  // carregada -- STC-377 não criou um hook pra /tipos-documento/ (fora do
-  // escopo daquela issue), e não faz sentido buscar de novo algo que já
-  // está no cliente: DocumentoUnidadeViewSet não pagina, então a lista
-  // completa já reflete todo tipo de documento em uso.
-  documentos: DocumentoUnidade[];
 }
 
 export function MatrizFiltros({
@@ -65,20 +59,27 @@ export function MatrizFiltros({
   onMudarBusca,
   categoria,
   onMudarCategoria,
-  documentos,
 }: MatrizFiltrosProps) {
   const { unidades } = useUnidades();
   const { usuarios } = useUsuarios();
+  // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
+  // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de
+  // unidades/usuarios acima. NÃO reaproveitar a lista já filtrada pelos
+  // `filtros` ativos (ex. a que alimenta a tabela): opções derivadas dela se
+  // auto-estreitam a cada seleção -- ao escolher um tipo de documento, a
+  // lista retorna só aquele tipo, e o próprio select fica com 1 opção só,
+  // sem como voltar direto pra outro tipo sem antes limpar o filtro.
+  const { documentos: catalogoDocumentos } = useDocumentosLegalizacao();
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();
-    for (const documento of documentos) {
+    for (const documento of catalogoDocumentos) {
       porId.set(documento.tipo_documento.id, documento.tipo_documento.nome);
     }
     return Array.from(porId, ([id, nome]) => ({ id, nome })).sort((a, b) =>
       a.nome.localeCompare(b.nome),
     );
-  }, [documentos]);
+  }, [catalogoDocumentos]);
 
   const contagemFiltrosSelect = [
     filtros.unidade,
@@ -157,7 +158,9 @@ export function MatrizFiltros({
         <Select
           value={categoria ?? "todas"}
           onValueChange={(valor) =>
-            onMudarCategoria(valor === "todas" ? undefined : (valor as CategoriaDocumento))
+            onMudarCategoria(
+              valor === "todas" ? undefined : (valor as CategoriaDocumento),
+            )
           }
         >
           <SelectTrigger
