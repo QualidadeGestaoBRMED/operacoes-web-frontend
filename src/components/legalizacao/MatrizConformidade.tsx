@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
+import { useUnidades } from "@/hooks/useUnidades";
 import {
   documentoBateNaBusca,
   documentoBateNaCategoria,
@@ -55,6 +56,22 @@ export function MatrizConformidade() {
 
   const { documentos, carregandoPrimeiraVez, error, mensagemErro } =
     useDocumentosLegalizacao(filtros);
+
+  // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
+  // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união
+  // fixa, valida na hora), não dá pra validar unidade já no useState
+  // inicial porque a lista real só chega depois, via useUnidades()
+  // (assíncrono). Um id de unidade removida/desativada, vindo de um link
+  // salvo/compartilhado antigo (clique numa célula do Mapa gera esse link),
+  // ficava preso no filtro sem nenhum SelectItem correspondente -- o
+  // <Select> mostrava o placeholder como se nada estivesse selecionado,
+  // enquanto o filtro seguia ativo e esvaziava a tabela.
+  const { unidades, isLoading: carregandoUnidades } = useUnidades();
+  useEffect(() => {
+    if (carregandoUnidades || !filtros.unidade) return;
+    const existe = unidades.some((unidade) => unidade.id === filtros.unidade);
+    if (!existe) setFiltros((atual) => ({ ...atual, unidade: undefined }));
+  }, [carregandoUnidades, unidades, filtros.unidade]);
 
   // Mesmo hook/padrão da tela de Administração (GerenciarUsuarios.tsx):
   // trava a altura da área rolável num múltiplo exato de linhas inteiras
