@@ -69,7 +69,18 @@ export function MatrizFiltros({
   // auto-estreitam a cada seleção -- ao escolher um tipo de documento, a
   // lista retorna só aquele tipo, e o próprio select fica com 1 opção só,
   // sem como voltar direto pra outro tipo sem antes limpar o filtro.
-  const { documentos: catalogoDocumentos } = useDocumentosLegalizacao();
+  //
+  // pausado: true -- achado no code review: essa chamada (sem filtro) tem
+  // uma chave de cache do SWR diferente da do MatrizConformidade.tsx (que
+  // sempre passa um objeto de filtros, nunca undefined), então as duas
+  // NÃO deduplicam -- sem pausar, isso dobra as chamadas ao endpoint a
+  // cada ciclo de poll de 60s. O catálogo de tipos de documento muda raras
+  // vezes (só via Admin, fora desta tela) -- não precisa de dado fresco a
+  // cada minuto, só uma busca inicial já resolve.
+  const { documentos: catalogoDocumentos } = useDocumentosLegalizacao(
+    undefined,
+    { pausado: true },
+  );
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();

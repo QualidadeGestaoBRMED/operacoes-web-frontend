@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
+import { extrairMensagemErro } from "@/lib/erros";
 import {
   documentoBateNaBusca,
   documentoBateNaCategoria,
@@ -54,8 +55,12 @@ export function MatrizConformidade() {
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
 
-  const { documentos, carregandoPrimeiraVez, error, mensagemErro } =
-    useDocumentosLegalizacao(filtros);
+  const {
+    documentos,
+    carregandoPrimeiraVez,
+    error: erroDocumentos,
+    mensagemErro,
+  } = useDocumentosLegalizacao(filtros);
 
   // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
   // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união
@@ -66,12 +71,27 @@ export function MatrizConformidade() {
   // ficava preso no filtro sem nenhum SelectItem correspondente -- o
   // <Select> mostrava o placeholder como se nada estivesse selecionado,
   // enquanto o filtro seguia ativo e esvaziava a tabela.
-  const { unidades, isLoading: carregandoUnidades } = useUnidades();
+  //
+  // erroUnidades checado no if abaixo -- achado no code review: isLoading
+  // do SWR vira false assim que a requisição termina, mesmo em falha, então
+  // uma falha transitória em /unidades/ (não a unidade não existir de
+  // verdade) fazia o efeito rodar com unidades=[] e apagar o filtro por
+  // engano. Sem erro, segue validando normalmente; com erro, não mexe no
+  // filtro (o erro já derruba a tela mais abaixo, via `error` combinado).
+  const {
+    unidades,
+    isLoading: carregandoUnidades,
+    error: erroUnidades,
+  } = useUnidades();
   useEffect(() => {
-    if (carregandoUnidades || !filtros.unidade) return;
+    if (carregandoUnidades || erroUnidades || !filtros.unidade) return;
     const existe = unidades.some((unidade) => unidade.id === filtros.unidade);
     if (!existe) setFiltros((atual) => ({ ...atual, unidade: undefined }));
-  }, [carregandoUnidades, unidades, filtros.unidade]);
+  }, [carregandoUnidades, erroUnidades, unidades, filtros.unidade]);
+
+  const error = erroDocumentos ?? erroUnidades;
+  const mensagemDeErro =
+    mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null);
 
   // Mesmo hook/padrão da tela de Administração (GerenciarUsuarios.tsx):
   // trava a altura da área rolável num múltiplo exato de linhas inteiras
@@ -113,7 +133,7 @@ export function MatrizConformidade() {
 
       {error ? (
         <div className="flex flex-1 items-center justify-center text-sm text-destructive">
-          {mensagemErro}
+          {mensagemDeErro}
         </div>
       ) : (
         <MatrizTable
