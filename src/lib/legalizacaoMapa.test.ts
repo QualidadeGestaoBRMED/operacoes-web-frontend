@@ -4,6 +4,7 @@ import {
   calcularResumoMapa,
   celulaDaGrade,
 } from "./legalizacaoMapa";
+import { ORDEM_CATEGORIA } from "./legalizacaoMatriz";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 import type { Unidade } from "@/types";
 
@@ -194,13 +195,33 @@ describe("calcularResumoMapa", () => {
     expect(resumo.vencidos).toEqual({ documentos: 3, unidades: 2 });
   });
 
-  it("sem pendência conta unidades onde toda célula é regular ou pendente", () => {
-    const docs = [documento({ unidade: NITEROI, status: "regular" })];
+  it("sem pendência conta só unidade com TODAS as categorias regulares de verdade", () => {
+    const docs = ORDEM_CATEGORIA.map((categoria, indice) =>
+      documento({
+        id: indice + 1,
+        unidade: NITEROI,
+        status: "regular",
+        tipo_documento: {
+          ...documento().tipo_documento,
+          id: indice + 1,
+          categoria,
+        },
+      }),
+    );
     // Vitória não tem documento nenhum -- todas as células dela são
-    // "pendente", o que também conta como "sem pendência".
+    // "pendente", NÃO conta como "sem pendência" (só Niterói, que tem as 7
+    // categorias cobertas de verdade).
     const grade = calcularGradeMapa(docs, [NITEROI, VITORIA]);
     const resumo = calcularResumoMapa(docs, grade);
-    expect(resumo.semPendencia).toEqual({ unidades: 2, total: 2 });
+    expect(resumo.semPendencia).toEqual({ unidades: 1, total: 2 });
+  });
+
+  it("categoria sem nenhum documento cadastrado (pendente) não conta como sem pendência", () => {
+    // Só 1 das 7 categorias tem documento -- as outras 6 ficam "pendente".
+    const docs = [documento({ unidade: NITEROI, status: "regular" })];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    const resumo = calcularResumoMapa(docs, grade);
+    expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
   });
 
   it("unidade com pelo menos um vencido não conta como sem pendência", () => {

@@ -202,18 +202,21 @@ function contarUnidades(documentos: DocumentoUnidade[]): number {
 }
 
 // "Sem pendência" (card) != "pendente" (bucket de célula) -- unidade sem
-// pendência é a que não tem NENHUMA célula em vencido/atenção/andamento/
-// nao_iniciado/encerramento, mesmo que tenha células "pendente" (categoria
-// sem documento cadastrado ainda não é, em si, um problema a resolver).
-// encerramento NÃO entra no conjunto permitido -- achado no code review:
-// o próprio comentário de calcularCelula já registra que encerramento "é
-// informativo, não é 'tudo certo' no sentido pleno" (tem cor própria/roxa
-// na grade, não reaproveita o verde de regular) -- contraditório com esse
-// bucket contar como "sem pendência" aqui.
+// pendência é a que tem TODAS as 7 categorias com bucket "regular" de
+// verdade. "pendente" (categoria sem nenhum documento cadastrado) NÃO
+// conta como "sem pendência" -- achado no code review: sem essa exclusão,
+// uma unidade nova, sem nada cadastrado ainda, aparecia como "regularizada"
+// igual a uma unidade 100% em dia de verdade. A ausência total de dado é,
+// no mínimo, tão suspeita quanto "não iniciado" (que já não conta), não
+// menos -- não existe hoje uma forma de distinguir "categoria não se aplica
+// à rede" (sem nenhum TipoDocumentoRegulatorio cadastrado, ex. Resíduos)
+// de "só não foi cadastrado nesta unidade ainda"; os dois casos rendem
+// bucket "pendente" idêntico, então tratar qualquer um deles como "sem
+// pendência" seria mascarar o segundo caso, que é uma pendência real.
 function unidadeSemPendencia(grade: GradeMapa, unidade: Unidade): boolean {
   return ORDEM_CATEGORIA.every((categoria) => {
     const { bucket } = celulaDaGrade(grade, unidade.id, categoria);
-    return bucket === "regular" || bucket === "pendente";
+    return bucket === "regular";
   });
 }
 
