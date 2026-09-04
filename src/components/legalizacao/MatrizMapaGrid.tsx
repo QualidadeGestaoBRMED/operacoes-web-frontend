@@ -1,5 +1,6 @@
 "use client";
 
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
@@ -100,6 +101,18 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
               {Array.from({ length: 8 }, (_, indice) => (
                 <Skeleton key={indice} className={cn("h-16", COLUNAS_GRID)} />
               ))}
+            </div>
+          ) : grade.unidades.length === 0 ? (
+            // Mesmo padrão de MatrizTable.tsx (documentos.length === 0) --
+            // achado no code review: sem isso, useUnidades() devolvendo []
+            // (ambiente novo antes do seed, ou falha silenciosa) renderizava
+            // cabeçalho normal com o corpo inteiro em branco, sem indicação
+            // se era "sem dados" ou um bug de carregamento.
+            <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+              <Building2 className="size-8" />
+              <span className="text-sm font-medium">
+                Nenhuma unidade encontrada
+              </span>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">

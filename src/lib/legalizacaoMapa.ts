@@ -203,14 +203,17 @@ function contarUnidades(documentos: DocumentoUnidade[]): number {
 
 // "Sem pendência" (card) != "pendente" (bucket de célula) -- unidade sem
 // pendência é a que não tem NENHUMA célula em vencido/atenção/andamento/
-// nao_iniciado, mesmo que tenha células "pendente" (categoria sem
-// documento cadastrado ainda não é, em si, um problema a resolver).
+// nao_iniciado/encerramento, mesmo que tenha células "pendente" (categoria
+// sem documento cadastrado ainda não é, em si, um problema a resolver).
+// encerramento NÃO entra no conjunto permitido -- achado no code review:
+// o próprio comentário de calcularCelula já registra que encerramento "é
+// informativo, não é 'tudo certo' no sentido pleno" (tem cor própria/roxa
+// na grade, não reaproveita o verde de regular) -- contraditório com esse
+// bucket contar como "sem pendência" aqui.
 function unidadeSemPendencia(grade: GradeMapa, unidade: Unidade): boolean {
   return ORDEM_CATEGORIA.every((categoria) => {
     const { bucket } = celulaDaGrade(grade, unidade.id, categoria);
-    return (
-      bucket === "regular" || bucket === "pendente" || bucket === "encerramento"
-    );
+    return bucket === "regular" || bucket === "pendente";
   });
 }
 

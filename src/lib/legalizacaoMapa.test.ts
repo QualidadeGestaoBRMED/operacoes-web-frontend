@@ -194,7 +194,7 @@ describe("calcularResumoMapa", () => {
     expect(resumo.vencidos).toEqual({ documentos: 3, unidades: 2 });
   });
 
-  it("sem pendência conta unidades onde toda célula é regular/pendente/encerramento", () => {
+  it("sem pendência conta unidades onde toda célula é regular ou pendente", () => {
     const docs = [documento({ unidade: NITEROI, status: "regular" })];
     // Vitória não tem documento nenhum -- todas as células dela são
     // "pendente", o que também conta como "sem pendência".
@@ -205,6 +205,15 @@ describe("calcularResumoMapa", () => {
 
   it("unidade com pelo menos um vencido não conta como sem pendência", () => {
     const docs = [documento({ unidade: NITEROI, status: "vencido" })];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    const resumo = calcularResumoMapa(docs, grade);
+    expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
+  });
+
+  it("unidade com célula em encerramento não conta como sem pendência", () => {
+    const docs = [
+      documento({ unidade: NITEROI, status: "unidade_encerramento" }),
+    ];
     const grade = calcularGradeMapa(docs, [NITEROI]);
     const resumo = calcularResumoMapa(docs, grade);
     expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
