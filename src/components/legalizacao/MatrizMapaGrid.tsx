@@ -76,9 +76,20 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
     // todo.
     <div className="flex min-h-0 flex-1 flex-col px-7 pb-7">
       <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+        {/* overflow-y-hidden + scrollbar-gutter:stable -- achado no code
+            review: cabeçalho (sem scroll) e corpo (overflow-auto, linha
+            abaixo) são dois elementos DOM separados com a MESMA definição
+            de colunas (COLUNAS_GRID), mas só o corpo reservava espaço pra
+            barra de rolagem vertical quando a lista de unidades excedia a
+            altura visível -- as 7 colunas do corpo ficavam alguns pixels
+            mais estreitas que as do cabeçalho, desalinhando aos poucos da
+            esquerda pra direita. scrollbar-gutter:stable nos dois lados
+            (mesmo sem scroll de verdade no cabeçalho) reserva a MESMA
+            largura de gutter sempre, garantindo que as colunas casem
+            independente de a barra aparecer ou não. */}
         <div
           className={cn(
-            "grid shrink-0 gap-1.5 border-b border-border bg-muted px-4 py-2.5",
+            "grid shrink-0 gap-1.5 overflow-y-hidden border-b border-border bg-muted px-4 py-2.5 [scrollbar-gutter:stable]",
             COLUNAS_GRID,
           )}
         >
@@ -95,7 +106,7 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
           ))}
         </div>
 
-        <div className="scrollbar-discreta flex-1 overflow-auto px-4 py-3">
+        <div className="scrollbar-discreta flex-1 overflow-auto px-4 py-3 [scrollbar-gutter:stable]">
           {carregando || !grade ? (
             <div className="flex flex-col gap-1.5">
               {Array.from({ length: 8 }, (_, indice) => (
