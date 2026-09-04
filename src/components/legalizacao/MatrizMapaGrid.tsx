@@ -148,7 +148,16 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                         }
                         aria-label={`${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}`}
                         className={cn(
-                          "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md text-white transition-transform",
+                          "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md text-white outline-none transition-transform",
+                          // ring-offset (não só o ring puro do design system,
+                          // button.tsx) -- achado no code review: sem
+                          // afastar o anel do próprio preenchimento, o teal
+                          // do ring/50 podia ter pouco contraste sobre o
+                          // fundo colorido da célula (ex. bg-cyan-700, tom
+                          // parecido). O offset garante uma faixa da cor do
+                          // card entre a célula e o anel, sempre visível
+                          // não importa a cor de fundo.
+                          "focus-visible:ring-ring/50 focus-visible:ring-offset-card focus-visible:ring-[3px] focus-visible:ring-offset-2",
                           clicavel &&
                             "cursor-pointer hover:scale-[1.04] hover:shadow-sm",
                           !clicavel &&

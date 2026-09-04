@@ -23,7 +23,7 @@ export function ToggleMapaLista({ ativo, dica }: ToggleMapaListaProps) {
           href="/modulos/legalizacao/mapa"
           aria-current={ativo === "mapa" ? "page" : undefined}
           className={cn(
-            "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors",
+            "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
             ativo === "mapa" &&
               "bg-card font-semibold text-foreground shadow-xs",
           )}
@@ -34,7 +34,7 @@ export function ToggleMapaLista({ ativo, dica }: ToggleMapaListaProps) {
           href="/modulos/legalizacao"
           aria-current={ativo === "lista" ? "page" : undefined}
           className={cn(
-            "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors",
+            "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
             ativo === "lista" &&
               "bg-card font-semibold text-foreground shadow-xs",
           )}
