@@ -21,18 +21,22 @@ export function ToggleMapaLista({ ativo, dica }: ToggleMapaListaProps) {
       <div className="flex rounded-md bg-muted p-0.5">
         <Link
           href="/modulos/legalizacao/mapa"
+          aria-current={ativo === "mapa" ? "page" : undefined}
           className={cn(
             "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors",
-            ativo === "mapa" && "bg-card font-semibold text-foreground shadow-xs",
+            ativo === "mapa" &&
+              "bg-card font-semibold text-foreground shadow-xs",
           )}
         >
           Mapa
         </Link>
         <Link
           href="/modulos/legalizacao"
+          aria-current={ativo === "lista" ? "page" : undefined}
           className={cn(
             "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors",
-            ativo === "lista" && "bg-card font-semibold text-foreground shadow-xs",
+            ativo === "lista" &&
+              "bg-card font-semibold text-foreground shadow-xs",
           )}
         >
           Lista

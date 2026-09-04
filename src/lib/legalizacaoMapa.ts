@@ -8,7 +8,8 @@ import type { Unidade } from "@/types";
 // documento) e resume no pior caso entre eles. "pendente" não existe em
 // StatusDocumento -- é a ausência total de documento cadastrado pra essa
 // combinação, não um status de um documento real.
-export type BucketCelula = "vencido" | "atencao" | "andamento" | "encerramento" | "regular" | "pendente";
+export type BucketCelula =
+  "vencido" | "atencao" | "andamento" | "encerramento" | "regular" | "pendente";
 
 export interface CelulaMapa {
   bucket: BucketCelula;
@@ -78,7 +79,10 @@ function chaveCelula(unidadeId: number, categoria: CategoriaDocumento): string {
 // visual "atenção" do mockup -- os dois representam "precisa de ação em
 // breve", só com origem diferente (data vs. status).
 function estaEmAtencao(documento: DocumentoUnidade): boolean {
-  return documento.status === "protocolado" || prazoDocumento(documento).urgencia === "proximo";
+  return (
+    documento.status === "protocolado" ||
+    prazoDocumento(documento).urgencia === "proximo"
+  );
 }
 
 // Prioridade de gravidade -- acontece na ordem em que os ifs abaixo
@@ -99,19 +103,29 @@ function calcularCelula(documentos: DocumentoUnidade[]): CelulaMapa {
   const emAtencao = documentos.filter(estaEmAtencao).length;
   if (emAtencao > 0) return { bucket: "atencao", contagem: emAtencao };
 
-  const emAndamento = documentos.filter((d) => d.status === "em_andamento").length;
+  const emAndamento = documentos.filter(
+    (d) => d.status === "em_andamento",
+  ).length;
   if (emAndamento > 0) return { bucket: "andamento", contagem: emAndamento };
 
-  const encerramento = documentos.filter((d) => d.status === "unidade_encerramento").length;
-  if (encerramento > 0) return { bucket: "encerramento", contagem: encerramento };
+  const encerramento = documentos.filter(
+    (d) => d.status === "unidade_encerramento",
+  ).length;
+  if (encerramento > 0)
+    return { bucket: "encerramento", contagem: encerramento };
 
   return { bucket: "regular", contagem: documentos.length };
 }
 
-function agruparPorCelula(documentos: DocumentoUnidade[]): Map<string, DocumentoUnidade[]> {
+function agruparPorCelula(
+  documentos: DocumentoUnidade[],
+): Map<string, DocumentoUnidade[]> {
   const grupos = new Map<string, DocumentoUnidade[]>();
   for (const documento of documentos) {
-    const chave = chaveCelula(documento.unidade.id, documento.tipo_documento.categoria);
+    const chave = chaveCelula(
+      documento.unidade.id,
+      documento.tipo_documento.categoria,
+    );
     const grupo = grupos.get(chave);
     if (grupo) grupo.push(documento);
     else grupos.set(chave, [documento]);
@@ -128,7 +142,10 @@ export interface GradeMapa {
   celulas: Map<string, CelulaMapa>;
 }
 
-export function calcularGradeMapa(documentos: DocumentoUnidade[], unidades: Unidade[]): GradeMapa {
+export function calcularGradeMapa(
+  documentos: DocumentoUnidade[],
+  unidades: Unidade[],
+): GradeMapa {
   const grupos = agruparPorCelula(documentos);
   const celulas = new Map<string, CelulaMapa>();
   for (const unidade of unidades) {
@@ -145,7 +162,12 @@ export function celulaDaGrade(
   unidadeId: number,
   categoria: CategoriaDocumento,
 ): CelulaMapa {
-  return grade.celulas.get(chaveCelula(unidadeId, categoria)) ?? { bucket: "pendente", contagem: 0 };
+  return (
+    grade.celulas.get(chaveCelula(unidadeId, categoria)) ?? {
+      bucket: "pendente",
+      contagem: 0,
+    }
+  );
 }
 
 export interface ResumoMapa {
@@ -166,7 +188,9 @@ function contarUnidades(documentos: DocumentoUnidade[]): number {
 function unidadeSemPendencia(grade: GradeMapa, unidade: Unidade): boolean {
   return ORDEM_CATEGORIA.every((categoria) => {
     const { bucket } = celulaDaGrade(grade, unidade.id, categoria);
-    return bucket === "regular" || bucket === "pendente" || bucket === "encerramento";
+    return (
+      bucket === "regular" || bucket === "pendente" || bucket === "encerramento"
+    );
   });
 }
 
@@ -176,13 +200,31 @@ export function calcularResumoMapa(
 ): ResumoMapa {
   const vencidosDocs = documentos.filter((d) => d.status === "vencido");
   const aVencerDocs = documentos.filter(estaEmAtencao);
-  const andamentoDocs = documentos.filter((d) => d.status === "em_andamento");
-  const semPendencia = grade.unidades.filter((unidade) => unidadeSemPendencia(grade, unidade)).length;
+  // !estaEmAtencao: mesma prioridade exclusiva de calcularCelula (vencido >
+  // atenção > andamento) -- sem isso, um documento em_andamento com prazo
+  // também próximo do vencimento contava em dois cards ao mesmo tempo
+  // ("Em andamento" e "A vencer"), embora a célula do heatmap já escolha só
+  // um bucket pra ele (atenção, que tem prioridade maior).
+  const andamentoDocs = documentos.filter(
+    (d) => d.status === "em_andamento" && !estaEmAtencao(d),
+  );
+  const semPendencia = grade.unidades.filter((unidade) =>
+    unidadeSemPendencia(grade, unidade),
+  ).length;
 
   return {
-    vencidos: { documentos: vencidosDocs.length, unidades: contarUnidades(vencidosDocs) },
-    aVencer: { documentos: aVencerDocs.length, unidades: contarUnidades(aVencerDocs) },
-    emAndamento: { documentos: andamentoDocs.length, unidades: contarUnidades(andamentoDocs) },
+    vencidos: {
+      documentos: vencidosDocs.length,
+      unidades: contarUnidades(vencidosDocs),
+    },
+    aVencer: {
+      documentos: aVencerDocs.length,
+      unidades: contarUnidades(aVencerDocs),
+    },
+    emAndamento: {
+      documentos: andamentoDocs.length,
+      unidades: contarUnidades(andamentoDocs),
+    },
     semPendencia: { unidades: semPendencia, total: grade.unidades.length },
   };
 }

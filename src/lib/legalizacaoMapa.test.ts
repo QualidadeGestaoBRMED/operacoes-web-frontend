@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { calcularGradeMapa, calcularResumoMapa, celulaDaGrade } from "./legalizacaoMapa";
+import {
+  calcularGradeMapa,
+  calcularResumoMapa,
+  celulaDaGrade,
+} from "./legalizacaoMapa";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 import type { Unidade } from "@/types";
 
@@ -7,7 +11,9 @@ function unidade(id: number, nome: string): Unidade {
   return { id, nome, codigo: nome.toLowerCase(), cidade: nome, ativa: true };
 }
 
-function documento(overrides: Partial<DocumentoUnidade> = {}): DocumentoUnidade {
+function documento(
+  overrides: Partial<DocumentoUnidade> = {},
+): DocumentoUnidade {
   return {
     id: 1,
     tipo_documento: {
@@ -60,7 +66,9 @@ describe("calcularGradeMapa / celulaDaGrade", () => {
   it("nao_aplicavel conta como regular", () => {
     const docs = [documento({ unidade: NITEROI, status: "nao_aplicavel" })];
     const grade = calcularGradeMapa(docs, [NITEROI]);
-    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe("regular");
+    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe(
+      "regular",
+    );
   });
 
   it("vencido vence sobre qualquer outro status na mesma célula", () => {
@@ -89,9 +97,17 @@ describe("calcularGradeMapa / celulaDaGrade", () => {
     const hoje = new Date("2026-09-03T12:00:00");
     vi.useFakeTimers();
     vi.setSystemTime(hoje);
-    const docs = [documento({ unidade: NITEROI, status: "em_andamento", validade: "2026-09-10" })];
+    const docs = [
+      documento({
+        unidade: NITEROI,
+        status: "em_andamento",
+        validade: "2026-09-10",
+      }),
+    ];
     const grade = calcularGradeMapa(docs, [NITEROI]);
-    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe("atencao");
+    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe(
+      "atencao",
+    );
     vi.useRealTimers();
   });
 
@@ -130,8 +146,12 @@ describe("calcularGradeMapa / celulaDaGrade", () => {
       documento({ id: 2, unidade: VITORIA, status: "regular" }),
     ];
     const grade = calcularGradeMapa(docs, [NITEROI, VITORIA]);
-    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe("vencido");
-    expect(celulaDaGrade(grade, VITORIA.id, "regularizacao").bucket).toBe("regular");
+    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao").bucket).toBe(
+      "vencido",
+    );
+    expect(celulaDaGrade(grade, VITORIA.id, "regularizacao").bucket).toBe(
+      "regular",
+    );
   });
 });
 
@@ -148,7 +168,16 @@ describe("calcularResumoMapa", () => {
   it("conta documentos vencidos e em quantas unidades distintas eles aparecem", () => {
     const docs = [
       documento({ id: 1, unidade: NITEROI, status: "vencido" }),
-      documento({ id: 2, unidade: NITEROI, status: "vencido", tipo_documento: { ...documento().tipo_documento, id: 2, categoria: "equipamentos" } }),
+      documento({
+        id: 2,
+        unidade: NITEROI,
+        status: "vencido",
+        tipo_documento: {
+          ...documento().tipo_documento,
+          id: 2,
+          categoria: "equipamentos",
+        },
+      }),
       documento({ id: 3, unidade: VITORIA, status: "vencido" }),
     ];
     const grade = calcularGradeMapa(docs, [NITEROI, VITORIA]);
@@ -170,5 +199,19 @@ describe("calcularResumoMapa", () => {
     const grade = calcularGradeMapa(docs, [NITEROI]);
     const resumo = calcularResumoMapa(docs, grade);
     expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
+  });
+
+  it("documento em_andamento com prazo próximo conta só em aVencer, não também em emAndamento", () => {
+    const docs = [
+      documento({
+        unidade: NITEROI,
+        status: "em_andamento",
+        validade: "2026-09-10",
+      }),
+    ];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    const resumo = calcularResumoMapa(docs, grade);
+    expect(resumo.aVencer).toEqual({ documentos: 1, unidades: 1 });
+    expect(resumo.emAndamento).toEqual({ documentos: 0, unidades: 0 });
   });
 });
