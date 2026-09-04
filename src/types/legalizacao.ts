@@ -115,7 +115,10 @@ export interface AlertaRegulatorio {
 
 // Espelha DocumentoUnidadeFilterSet (backend/legalizacao/views.py) --
 // "search"/"ordering" não existem aqui (DocumentoUnidadeViewSet não declara
-// esses filter_backends, diferente de DemandaViewSet).
+// esses filter_backends, diferente de DemandaViewSet). "categoria" também
+// não entra aqui de propósito -- não existe no FilterSet real, é aplicado
+// só no client (mesmo tratamento de "busca" no MatrizConformidade.tsx, não
+// faz parte do objeto que vai pro backend).
 export interface DocumentoUnidadeFiltros {
   unidade?: number;
   tipo_documento?: number;

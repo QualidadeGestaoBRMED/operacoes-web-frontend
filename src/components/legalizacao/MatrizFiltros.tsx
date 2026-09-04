@@ -21,9 +21,16 @@ import {
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { LABEL_CRITICIDADE, LABEL_STATUS, ORDEM_STATUS } from "@/lib/legalizacaoMatriz";
+import {
+  LABEL_CATEGORIA,
+  LABEL_CRITICIDADE,
+  LABEL_STATUS,
+  ORDEM_CATEGORIA,
+  ORDEM_STATUS,
+} from "@/lib/legalizacaoMatriz";
 import { nomeExibicao } from "@/lib/utils";
 import type {
+  CategoriaDocumento,
   Criticidade,
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
@@ -37,6 +44,12 @@ interface MatrizFiltrosProps {
   onMudarFiltros: (filtros: DocumentoUnidadeFiltros) => void;
   busca: string;
   onMudarBusca: (busca: string) => void;
+  // categoria não faz parte de DocumentoUnidadeFiltros de propósito (STC-379
+  // -- ver comentário em types/legalizacao.ts): filtro só-client, não existe
+  // no FilterSet real do backend, então fica fora do objeto que é enviado
+  // pra API, com seu próprio par de props em vez de entrar em onMudarFiltros.
+  categoria: CategoriaDocumento | undefined;
+  onMudarCategoria: (categoria: CategoriaDocumento | undefined) => void;
   // Opções de "Documento" (tipo_documento) derivadas da própria lista já
   // carregada -- STC-377 não criou um hook pra /tipos-documento/ (fora do
   // escopo daquela issue), e não faz sentido buscar de novo algo que já
@@ -50,6 +63,8 @@ export function MatrizFiltros({
   onMudarFiltros,
   busca,
   onMudarBusca,
+  categoria,
+  onMudarCategoria,
   documentos,
 }: MatrizFiltrosProps) {
   const { unidades } = useUnidades();
@@ -72,12 +87,14 @@ export function MatrizFiltros({
     filtros.responsavel,
     filtros.criticidade,
     filtros.prazo_ate,
+    categoria,
   ].filter(Boolean).length;
   const temFiltrosAtivos = contagemFiltrosSelect > 0 || Boolean(busca);
 
   function limparFiltros() {
     onMudarBusca("");
     onMudarFiltros({});
+    onMudarCategoria(undefined);
   }
 
   function camposDeFiltro() {
@@ -132,6 +149,29 @@ export function MatrizFiltros({
             {tiposDocumento.map((tipo) => (
               <SelectItem key={tipo.id} value={String(tipo.id)}>
                 {tipo.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={categoria ?? "todas"}
+          onValueChange={(valor) =>
+            onMudarCategoria(valor === "todas" ? undefined : (valor as CategoriaDocumento))
+          }
+        >
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            aria-label="Categoria"
+          >
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="todas">Todas as categorias</SelectItem>
+            {ORDEM_CATEGORIA.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {LABEL_CATEGORIA[cat]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -264,7 +304,13 @@ export function MatrizFiltros({
   const ehMobile = useMediaQuery("(max-width: 639px)");
 
   const busca_ = (
-    <div className="relative w-full max-w-[320px]">
+    // flex-1 + teto (era max-w-[320px] fixo) -- achado no review visual: um
+    // valor fixo ou sobrava espaço vazio à direita da barra (fixo largo
+    // demais) ou cortava o placeholder (fixo estreito demais) dependendo de
+    // quanto os outros 6 filtros ocupavam. Crescendo pra preencher o que
+    // sobrar (com piso/teto pra nunca ficar minúsculo nem enorme) resolve
+    // os dois sem precisar advinhar um número mágico por tentativa.
+    <div className="relative min-w-[160px] flex-1 sm:max-w-sm">
       <Label htmlFor="busca-matriz" className="sr-only">
         Buscar unidade ou documento
       </Label>

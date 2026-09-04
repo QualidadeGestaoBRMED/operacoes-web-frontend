@@ -1,20 +1,45 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import {
   documentoBateNaBusca,
+  documentoBateNaCategoria,
   ordenarDocumentos,
   type CampoOrdenavel,
   type Ordenacao,
 } from "@/lib/legalizacaoMatriz";
-import type { DocumentoUnidadeFiltros } from "@/types/legalizacao";
+import type { CategoriaDocumento, DocumentoUnidadeFiltros } from "@/types/legalizacao";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
+import { ToggleMapaLista } from "./ToggleMapaLista";
+
+// StatusDocumento/CategoriaDocumento não têm caractere especial nenhum
+// (union de strings simples) -- comparação direta é suficiente, sem
+// precisar validar contra a lista de valores possíveis.
+function numeroDaUrl(valor: string | null): number | undefined {
+  if (!valor) return undefined;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : undefined;
+}
 
 export function MatrizConformidade() {
-  const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>({});
+  // Lido só na 1ª renderização (useState com inicializador, não um efeito
+  // sincronizando toda mudança de URL) -- STC-379: clique numa célula do
+  // Mapa chega aqui com ?unidade=X&categoria=Y, e os filtros nascem já
+  // aplicados. Diferente do Kanban (STC-206), que sincroniza filtro <->
+  // URL nos dois sentidos o tempo todo -- aqui só a entrada importa, não
+  // há necessidade (ainda) de compartilhar um link com filtro aplicado a
+  // partir da própria Lista.
+  const searchParams = useSearchParams();
+  const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
+    unidade: numeroDaUrl(searchParams.get("unidade")),
+  }));
+  const [categoria, setCategoria] = useState<CategoriaDocumento | undefined>(
+    () => (searchParams.get("categoria") as CategoriaDocumento | null) ?? undefined,
+  );
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
 
@@ -30,11 +55,11 @@ export function MatrizConformidade() {
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
   const documentosExibidos = useMemo(() => {
-    const filtrados = documentos.filter((documento) =>
-      documentoBateNaBusca(documento, busca),
-    );
+    const filtrados = documentos
+      .filter((documento) => documentoBateNaBusca(documento, busca))
+      .filter((documento) => documentoBateNaCategoria(documento, categoria));
     return ordenarDocumentos(filtrados, ordenacao);
-  }, [documentos, busca, ordenacao]);
+  }, [documentos, busca, categoria, ordenacao]);
 
   // Clique no cabeçalho: 1º clique ordena crescente, 2º inverte pra
   // decrescente, 3º volta pra ordem padrão (sem ordenação). Clicar numa
@@ -49,11 +74,14 @@ export function MatrizConformidade() {
 
   return (
     <div ref={refPai} className="flex h-full min-h-0 flex-col">
+      <ToggleMapaLista ativo="lista" />
       <MatrizFiltros
         filtros={filtros}
         onMudarFiltros={setFiltros}
         busca={busca}
         onMudarBusca={setBusca}
+        categoria={categoria}
+        onMudarCategoria={setCategoria}
         documentos={documentos}
       />
 

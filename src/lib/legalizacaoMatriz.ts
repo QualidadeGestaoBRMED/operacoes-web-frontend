@@ -32,6 +32,19 @@ export const LABEL_CATEGORIA: Record<CategoriaDocumento, string> = {
   residuos: "Resíduos",
 };
 
+// Ordem visual do mockup (colunas do heatmap no Mapa, STC-379) -- mesma
+// usada no filtro de Categoria da Lista, fonte única pra não ter listas
+// divergentes do mesmo conjunto de 7 valores.
+export const ORDEM_CATEGORIA: CategoriaDocumento[] = [
+  "regularizacao",
+  "registros_tecnicos",
+  "capacitacao",
+  "infraestrutura",
+  "equipamentos",
+  "programas",
+  "residuos",
+];
+
 // Mesmo critério de COR_PRIORIDADE (lib/kanban.ts): cores reais de
 // severidade via Tailwind puro, não os tokens de marca -- reservados pro
 // chrome da UI (sidebar/topbar), não pra indicador de status.
@@ -192,4 +205,15 @@ export function documentoBateNaBusca(documento: DocumentoUnidade, busca: string)
     documento.unidade.nome.toLowerCase().includes(alvo) ||
     documento.tipo_documento.nome.toLowerCase().includes(alvo)
   );
+}
+
+// Mesmo motivo de documentoBateNaBusca -- "categoria" não existe no
+// DocumentoUnidadeFilterSet real (STC-379), filtrado no navegador sobre a
+// lista já carregada. undefined = sem filtro, bate com tudo.
+export function documentoBateNaCategoria(
+  documento: DocumentoUnidade,
+  categoria: CategoriaDocumento | undefined,
+): boolean {
+  if (!categoria) return true;
+  return documento.tipo_documento.categoria === categoria;
 }
