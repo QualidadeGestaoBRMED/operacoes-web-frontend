@@ -9,7 +9,13 @@ import type { Unidade } from "@/types";
 // StatusDocumento -- é a ausência total de documento cadastrado pra essa
 // combinação, não um status de um documento real.
 export type BucketCelula =
-  "vencido" | "atencao" | "andamento" | "encerramento" | "regular" | "pendente";
+  | "vencido"
+  | "atencao"
+  | "andamento"
+  | "nao_iniciado"
+  | "encerramento"
+  | "regular"
+  | "pendente";
 
 export interface CelulaMapa {
   bucket: BucketCelula;
@@ -25,6 +31,7 @@ export const COR_BUCKET_CELULA: Record<BucketCelula, string> = {
   vencido: "bg-red-600",
   atencao: "bg-amber-700",
   andamento: "bg-cyan-700",
+  nao_iniciado: "bg-gray-500",
   encerramento: "bg-purple-600",
   regular: "bg-green-600",
   pendente: "bg-muted",
@@ -41,6 +48,7 @@ export const LABEL_BUCKET_CELULA: Record<BucketCelula, string> = {
   vencido: "vencido",
   atencao: "atenção",
   andamento: "em andamento",
+  nao_iniciado: "não iniciado",
   encerramento: "encerramento",
   regular: "em dia",
   pendente: "pendente",
@@ -55,6 +63,7 @@ export const ORDEM_LEGENDA_BUCKET: BucketCelula[] = [
   "regular",
   "atencao",
   "andamento",
+  "nao_iniciado",
   "vencido",
   "encerramento",
   "pendente",
@@ -64,6 +73,7 @@ export const LEGENDA_BUCKET_CELULA: Record<BucketCelula, string> = {
   regular: "Tudo em dia",
   atencao: "A vencer / protocolado",
   andamento: "Em andamento",
+  nao_iniciado: "Não iniciado",
   vencido: "Tem item vencido",
   encerramento: "Unidade em encerramento",
   pendente: "Sem documento cadastrado",
@@ -86,14 +96,19 @@ function estaEmAtencao(documento: DocumentoUnidade): boolean {
 }
 
 // Prioridade de gravidade -- acontece na ordem em que os ifs abaixo
-// checam. unidade_encerramento fica DEPOIS de vencido/atenção/andamento
-// (interpretação minha, não confirmada com o negócio: "está vencido" ou
-// "precisa de ação" pesa mais do que "unidade vai fechar" pro card de
-// conformidade em si) e ANTES de "regular" (é informativo, não é "tudo
-// certo" no sentido pleno -- o mockup dá cor própria/roxa a esse caso, não
-// reaproveita o verde). nao_aplicavel conta como regular -- mesmo
+// checam. unidade_encerramento fica DEPOIS de vencido/atenção/andamento/
+// nao_iniciado (interpretação minha, não confirmada com o negócio: "está
+// vencido" ou "precisa de ação" pesa mais do que "unidade vai fechar" pro
+// card de conformidade em si) e ANTES de "regular" (é informativo, não é
+// "tudo certo" no sentido pleno -- o mockup dá cor própria/roxa a esse
+// caso, não reaproveita o verde). nao_aplicavel conta como regular -- mesmo
 // raciocínio já usado na coluna Criticidade da Lista, "sem problema, não
-// precisa fazer nada".
+// precisa fazer nada". nao_iniciado NÃO conta como regular -- achado no
+// code review: sem um bucket próprio, uma categoria onde nenhum documento
+// foi sequer iniciado renderizava ✓ "em dia" na célula, idêntico a uma
+// categoria de verdade regularizada (a Lista já distingue nao_iniciado com
+// cor própria, COR_STATUS_BADGE em legalizacaoMatriz.ts -- só a agregação
+// do Mapa escondia isso).
 function calcularCelula(documentos: DocumentoUnidade[]): CelulaMapa {
   if (documentos.length === 0) return { bucket: "pendente", contagem: 0 };
 
@@ -107,6 +122,11 @@ function calcularCelula(documentos: DocumentoUnidade[]): CelulaMapa {
     (d) => d.status === "em_andamento",
   ).length;
   if (emAndamento > 0) return { bucket: "andamento", contagem: emAndamento };
+
+  const naoIniciado = documentos.filter(
+    (d) => d.status === "nao_iniciado",
+  ).length;
+  if (naoIniciado > 0) return { bucket: "nao_iniciado", contagem: naoIniciado };
 
   const encerramento = documentos.filter(
     (d) => d.status === "unidade_encerramento",
@@ -182,9 +202,9 @@ function contarUnidades(documentos: DocumentoUnidade[]): number {
 }
 
 // "Sem pendência" (card) != "pendente" (bucket de célula) -- unidade sem
-// pendência é a que não tem NENHUMA célula em vencido/atenção/andamento,
-// mesmo que tenha células "pendente" (categoria sem documento cadastrado
-// ainda não é, em si, um problema a resolver).
+// pendência é a que não tem NENHUMA célula em vencido/atenção/andamento/
+// nao_iniciado, mesmo que tenha células "pendente" (categoria sem
+// documento cadastrado ainda não é, em si, um problema a resolver).
 function unidadeSemPendencia(grade: GradeMapa, unidade: Unidade): boolean {
   return ORDEM_CATEGORIA.every((categoria) => {
     const { bucket } = celulaDaGrade(grade, unidade.id, categoria);
@@ -199,7 +219,17 @@ export function calcularResumoMapa(
   grade: GradeMapa,
 ): ResumoMapa {
   const vencidosDocs = documentos.filter((d) => d.status === "vencido");
-  const aVencerDocs = documentos.filter(estaEmAtencao);
+  // status !== "vencido": mesma prioridade exclusiva de calcularCelula
+  // (vencido > atenção) -- achado no code review: status e validade são
+  // campos independentes (nada no front garante que "vencido" sempre
+  // implica validade no passado -- ex. a movimentação profissional,
+  // planejada na STC-370, muda o status pra Vencido só por causa de saída
+  // de profissional, sem tocar em validade). Sem a exclusão, um documento
+  // vencido com validade ainda dentro dos 15 dias contava em "Vencidos" E
+  // em "A vencer" ao mesmo tempo.
+  const aVencerDocs = documentos.filter(
+    (d) => d.status !== "vencido" && estaEmAtencao(d),
+  );
   // !estaEmAtencao: mesma prioridade exclusiva de calcularCelula (vencido >
   // atenção > andamento) -- sem isso, um documento em_andamento com prazo
   // também próximo do vencimento contava em dois cards ao mesmo tempo

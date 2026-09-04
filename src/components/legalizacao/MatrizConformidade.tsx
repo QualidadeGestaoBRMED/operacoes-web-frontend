@@ -8,6 +8,7 @@ import {
   documentoBateNaBusca,
   documentoBateNaCategoria,
   ordenarDocumentos,
+  ORDEM_CATEGORIA,
   type CampoOrdenavel,
   type Ordenacao,
 } from "@/lib/legalizacaoMatriz";
@@ -19,13 +20,19 @@ import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
 
-// StatusDocumento/CategoriaDocumento não têm caractere especial nenhum
-// (union de strings simples) -- comparação direta é suficiente, sem
-// precisar validar contra a lista de valores possíveis.
 function numeroDaUrl(valor: string | null): number | undefined {
   if (!valor) return undefined;
   const numero = Number(valor);
   return Number.isFinite(numero) ? numero : undefined;
+}
+
+// Achado no code review: o clique numa célula do Mapa sempre manda um valor
+// de ORDEM_CATEGORIA (MatrizMapaGrid.tsx), mas a URL pode ser editada à mão
+// -- sem validar contra a união real, um valor qualquer (?categoria=xyz)
+// virava estado, e o <Select> de Categoria (MatrizFiltros.tsx) recebia um
+// value sem SelectItem correspondente.
+function categoriaDaUrl(valor: string | null): CategoriaDocumento | undefined {
+  return ORDEM_CATEGORIA.find((categoria) => categoria === valor);
 }
 
 export function MatrizConformidade() {
@@ -41,8 +48,7 @@ export function MatrizConformidade() {
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
   const [categoria, setCategoria] = useState<CategoriaDocumento | undefined>(
-    () =>
-      (searchParams.get("categoria") as CategoriaDocumento | null) ?? undefined,
+    () => categoriaDaUrl(searchParams.get("categoria")),
   );
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);

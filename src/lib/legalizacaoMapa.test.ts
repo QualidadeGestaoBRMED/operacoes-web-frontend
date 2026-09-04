@@ -140,6 +140,15 @@ describe("calcularGradeMapa / celulaDaGrade", () => {
     });
   });
 
+  it("nao_iniciado tem bucket próprio, não conta como regular", () => {
+    const docs = [documento({ unidade: NITEROI, status: "nao_iniciado" })];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    expect(celulaDaGrade(grade, NITEROI.id, "regularizacao")).toEqual({
+      bucket: "nao_iniciado",
+      contagem: 1,
+    });
+  });
+
   it("não mistura documentos de unidades diferentes na mesma célula", () => {
     const docs = [
       documento({ id: 1, unidade: NITEROI, status: "vencido" }),
@@ -213,5 +222,26 @@ describe("calcularResumoMapa", () => {
     const resumo = calcularResumoMapa(docs, grade);
     expect(resumo.aVencer).toEqual({ documentos: 1, unidades: 1 });
     expect(resumo.emAndamento).toEqual({ documentos: 0, unidades: 0 });
+  });
+
+  it("documento vencido com validade ainda dentro do prazo conta só em vencidos, não também em aVencer", () => {
+    const docs = [
+      documento({
+        unidade: NITEROI,
+        status: "vencido",
+        validade: "2026-09-10",
+      }),
+    ];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    const resumo = calcularResumoMapa(docs, grade);
+    expect(resumo.vencidos).toEqual({ documentos: 1, unidades: 1 });
+    expect(resumo.aVencer).toEqual({ documentos: 0, unidades: 0 });
+  });
+
+  it("unidade com todos os documentos nao_iniciado não conta como sem pendência", () => {
+    const docs = [documento({ unidade: NITEROI, status: "nao_iniciado" })];
+    const grade = calcularGradeMapa(docs, [NITEROI]);
+    const resumo = calcularResumoMapa(docs, grade);
+    expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
   });
 });
