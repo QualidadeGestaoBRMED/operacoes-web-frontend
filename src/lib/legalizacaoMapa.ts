@@ -44,6 +44,11 @@ export const COR_BUCKET_CELULA: Record<BucketCelula, string> = {
 // bucket, não só a contagem. Simplificação deliberada: a cor já comunica
 // "mesmo nível de urgência", o rótulo genérico não perde informação
 // crítica.
+// pendente: "sem documento" (não "pendente") -- decidido em conversa:
+// "pendente" sugere algo em aberto que vai ser resolvido, mas ausência de
+// documento pode muito bem significar que a unidade nunca vai precisar
+// dele (não é uma promessa de que "vai ter"). Mesmo termo neutro que a
+// legenda já usava embaixo ("Sem documento cadastrado").
 export const LABEL_BUCKET_CELULA: Record<BucketCelula, string> = {
   vencido: "vencido",
   atencao: "atenção",
@@ -51,7 +56,7 @@ export const LABEL_BUCKET_CELULA: Record<BucketCelula, string> = {
   nao_iniciado: "não iniciado",
   encerramento: "encerramento",
   regular: "em dia",
-  pendente: "pendente",
+  pendente: "sem documento",
 };
 
 // Texto completo pra legenda da grade (diferente de LABEL_BUCKET_CELULA,
