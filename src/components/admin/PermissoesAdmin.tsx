@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -55,6 +54,11 @@ const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
 type Aba = "usuarios" | "catalogo-legalizacao";
+
+const ROTULO_ABA: Record<Aba, string> = {
+  usuarios: "Usuários",
+  "catalogo-legalizacao": "Catálogo de Legalização",
+};
 
 // Achado no dogfooding: 50/50 fixo desperdiçava espaço quando uma seção
 // tinha poucas linhas e a outra, mais -- em vez de flex-1 igual pras duas,
@@ -453,10 +457,10 @@ export function PermissoesAdmin() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden p-4 sm:p-7">
-      {/* Abas na mesma linha do título (só no desktop -- sm:), à direita:
-          ganha a linha inteira de altura que a antiga linha própria das
-          abas ocupava, e dá às abas a largura livre do cabeçalho (bem maior
-          que uma linha dedicada só a elas) pra crescer quando uma 3ª aba
+      {/* Select (não abas) na mesma linha do título -- achado no
+          dogfooding: com abas, cada seção nova precisa de mais largura
+          própria; um select cresce em altura (1 opção a mais na lista), não
+          em largura, então não sobrecarrega o cabeçalho quando uma 3ª seção
           aparecer. Sem subtítulo -- "Administração" já é suficiente. */}
       <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
@@ -466,14 +470,18 @@ export function PermissoesAdmin() {
           </h1>
         </div>
 
-        <Tabs value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
-          <TabsList variant="line">
-            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-            <TabsTrigger value="catalogo-legalizacao">
-              Catálogo de Legalização
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <Select value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
+          <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ROTULO_ABA) as Aba[]).map((valor) => (
+              <SelectItem key={valor} value={valor}>
+                {ROTULO_ABA[valor]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {aba === "catalogo-legalizacao" && <CatalogoLegalizacaoAdmin />}

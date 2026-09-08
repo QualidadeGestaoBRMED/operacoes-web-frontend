@@ -636,8 +636,8 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(await screen.findByText("Visualizar")).toBeInTheDocument();
   });
 
-  // STC-415: aba nova, ao lado do conteúdo que já existia.
-  it("mostra o catálogo de Legalização ao trocar de aba, sem desmontar 'Usuários'", async () => {
+  // STC-415: seção nova, selecionável ao lado do conteúdo que já existia.
+  it("mostra o catálogo de Legalização ao trocar de seção, sem desmontar 'Usuários'", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -648,8 +648,9 @@ describe("PermissoesAdmin (STC-266)", () => {
     const secaoUsuarios = await screen.findByTestId("secao-usuarios");
     expect(secaoUsuarios).not.toHaveClass("hidden");
 
+    await user.click(await screen.findByLabelText("Seção"));
     await user.click(
-      await screen.findByRole("tab", { name: /catálogo de legalização/i }),
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
     );
 
     expect(await screen.findByText("Tipos de documento")).toBeInTheDocument();
@@ -660,7 +661,8 @@ describe("PermissoesAdmin (STC-266)", () => {
     // "hidden" (não desmontado) -- mesmo padrão já usado por secaoExpandida.
     expect(secaoUsuarios.parentElement).toHaveAttribute("hidden");
 
-    await user.click(await screen.findByRole("tab", { name: /^usuários$/i }));
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Usuários" }));
     expect(secaoUsuarios.parentElement).not.toHaveAttribute("hidden");
   });
 });
