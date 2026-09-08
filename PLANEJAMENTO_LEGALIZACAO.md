@@ -6,7 +6,7 @@
 **Início proposto:** 25/08/2026 · **Entrega proposta:** 25/09/2026 · **Go-Live:** 28/09/2026
 **Fonte:** `Plano de Ação - Legalização.md` (raiz do repositório da Plataforma) §3/§4/§7/§8, e os 6 mockups refinados em `docs/mockup_*legalizacao*.html` — este documento traduz os protótipos já validados visualmente em plano técnico de implementação.
 
-> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377) e P4.1 (Matriz Lista, STC-378) já têm implementação real (ambas com PR aberto); as seções P3.1/P3.2/P4.1 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.2 em diante).
+> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377), P4.1 (Matriz Lista, STC-378) e P4.2 (Matriz Mapa, STC-379) já têm implementação real (todas com PR aberto); as seções P3.1/P3.2/P4.1/P4.2 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.3 em diante).
 
 ---
 
@@ -27,18 +27,24 @@ frontend/src/
 │       ├── mapa/page.tsx                → Matriz de Conformidade (Mapa) — mockup_matriz_legalizacao_mapa.html
 │       └── biblioteca/page.tsx          → Biblioteca de Documentos — FAST-FOLLOW, fora do lançamento (P4)
 ├── components/legalizacao/
-│   ├── MatrizTable.tsx                  → tabela + filtros da Lista
-│   ├── MatrizMapaGrid.tsx               → heatmap unidade × categoria (CSS Grid, cabeçalho fixo fora do scroll)
+│   ├── MatrizConformidade.tsx           → orquestrador da Lista (STC-378): estado de filtro/busca/ordenação
+│   ├── MatrizFiltros.tsx                → barra de filtros da Lista (unidade/documento/categoria/status/responsável/criticidade/prazo)
+│   ├── MatrizTable.tsx                  → tabela + legenda de status da Lista
+│   ├── MapaConformidade.tsx             → orquestrador do Mapa (STC-379): busca documentos+unidades, agrega grade+resumo
+│   ├── ToggleMapaLista.tsx              → segmented control Mapa/Lista (rotas reais via <Link>, não Tabs client-side) — compartilhado pelas duas telas, com "dica" de instrução opcional só no Mapa
+│   ├── MatrizMapaGrid.tsx               → heatmap unidade × categoria (CSS Grid, cabeçalho fixo fora do scroll) + legenda de buckets
 │   ├── ResumoCards.tsx                  → 4 cards de estatística (Vencidos/A vencer/Em andamento/Sem pendência)
 │   ├── DetalheDocumentoModal.tsx        → mockup_detalhe_documento_legalizacao.html (sem stepper — não é Kanban)
 │   ├── ProcessoRenovacaoModal.tsx       → mockup_processo_renovacao_legalizacao.html
 │   ├── MovimentacaoProfissionalModal.tsx → mockup_movimentacao_profissional_legalizacao.html (toggle Saída/Entrada)
 │   └── BibliotecaDocumentos.tsx         → FAST-FOLLOW (painel de pré-visualização sob demanda)
 ├── hooks/
-│   ├── useDocumentosLegalizacao.ts      → matriz, filtros, detalhe
+│   ├── useDocumentosLegalizacao.ts      → matriz, filtros, detalhe (reaproveitado sem filtro nenhum pelo Mapa — grade/resumo são agregados no cliente)
 │   ├── useProcessoRenovacao.ts
-│   ├── useMovimentacaoProfissional.ts
-│   └── useIndicadoresLegalizacao.ts     → cards de resumo do Mapa
+│   └── useMovimentacaoProfissional.ts
+├── lib/
+│   ├── legalizacaoMatriz.ts             → cores/labels/prazo/ordenação da Lista
+│   └── legalizacaoMapa.ts               → agregação client-side unidade×categoria (bucket por célula, resumo de KPIs) — NOVO (STC-379)
 ├── types/
 │   └── legalizacao.ts                   → NOVO
 ```
@@ -165,17 +171,23 @@ export function useDocumentosLegalizacao(
   opcoes?: { pausado?: boolean; desabilitado?: boolean },
 ) { ... }
 export function useDocumentoLegalizacao(id: number | null) { ... }
-
-// useIndicadoresLegalizacao.ts — arquivo próprio, não junto do de cima
-// (mesma separação de useResumoDemandas.ts vs useDemandas.ts no MP001)
-export function useIndicadoresLegalizacao(opcoes?: { pausado?: boolean }) { ... }   // cards de resumo do Mapa
 ```
+
+**`useIndicadoresLegalizacao.ts` planejado aqui, removido na STC-379** (achado em
+code review, PR #32): a ideia original era um hook próprio alimentando `GET
+.../dashboard/indicadores/` pros cards de resumo do Mapa, mas esse endpoint só
+agrupa por status literal, sem noção de "a vencer" — a STC-379 optou por
+agregação 100% client-side (`legalizacaoMapa.ts`, ver P4.2 abaixo),
+reaproveitando `useDocumentosLegalizacao()` sem filtro, sem endpoint dedicado
+nenhum. O hook chegou a ser escrito na STC-377 mas nunca teve consumidor —
+removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
+(`lib/legalizacao.ts`, `types/legalizacao.ts`).
 
 ---
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** ⏳ Em andamento (P4.1 implementado, P4.2–P4.7 a iniciar)
+**Status:** ⏳ Em andamento (P4.1 e P4.2 implementados, P4.3–P4.7 a iniciar)
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
@@ -191,15 +203,25 @@ relação ao plano original abaixo:
 - **Coluna "Alerta" ficou de fora desta entrega** — mostrar `AlertaRegulatorio.imediato` por linha exigiria buscar todas as páginas do endpoint de alertas (paginado desde STC-398) e cruzar com cada documento, fora do escopo original da STC-378. Fica pra uma issue própria.
 - **Busca por texto adicionada** (não estava no plano original): client-side, sobre a lista já carregada — o endpoint de documentos não pagina nem tem `SearchFilter`.
 - **Ordenação por coluna clicável adicionada** (não estava no plano original): motor genérico em `src/lib/ordenacao.ts`, reaproveitável por qualquer tabela futura do Atlas.
-- Toggle Mapa/Lista do mockup **não implementado ainda** — só faz sentido quando a P4.2 (Mapa) existir também; um toggle com um lado morto seria pior UX do que não ter o toggle.
+- Toggle Mapa/Lista do mockup: implementado junto com a P4.2 (`ToggleMapaLista.tsx`, compartilhado pelas duas telas) — ver abaixo.
 
 ### P4.2 Matriz de Conformidade (Mapa) — `mockup_matriz_legalizacao_mapa.html`
 
+**Status:** ✅ Implementado (STC-379, PR aberto) — componente real em
+`src/components/legalizacao/{MapaConformidade,MatrizMapaGrid,ResumoCards,ToggleMapaLista}.tsx` +
+`src/lib/legalizacaoMapa.ts`. Ajustes em relação ao plano original abaixo:
+
 - Rota `/modulos/legalizacao/mapa`.
-- `ResumoCards` (4 cards fixos) + `MatrizMapaGrid` (heatmap 12 unidades × 7 categorias).
-- **Estrutura de grid confirmada no mockup**: cabeçalho de categorias é um bloco separado, fora da área de scroll — **não usar `<table>` com `position: sticky` no `<th>`**, esse desenho já se mostrou bugado (vazamento de conteúdo através do `border-spacing` ao rolar, corrigido nos mockups substituindo por dois CSS Grids irmãos). Reaproveitar exatamente essa estrutura na versão React, não reintroduzir o bug.
-- Clique numa célula → navega pra Lista com os filtros de unidade+categoria aplicados via querystring.
-- Unidades: as 12 reais da rede (Angra dos Reis, Barra da Tijuca, Cabo Frio, Campos, Duque de Caxias, Macaé, Niterói, Nova Iguaçu, Rio de Janeiro (PV), Santos, São Paulo, Vitória) — vêm da API, não hardcoded (isso é só o exemplo do mockup).
+- `ResumoCards` (4 cards fixos) + `MatrizMapaGrid` (heatmap unidade × categoria).
+- **Estrutura de grid confirmada no mockup**: cabeçalho de categorias é um bloco separado, fora da área de scroll — **não usar `<table>` com `position: sticky` no `<th>`**, esse desenho já se mostrou bugado (vazamento de conteúdo através do `border-spacing` ao rolar, corrigido nos mockups substituindo por dois CSS Grids irmãos). Reaproveitada exatamente essa estrutura na versão React (dois grids irmãos com a mesma `grid-template-columns`), sem reintroduzir o bug.
+- Clique numa célula → navega pra Lista com os filtros de unidade+categoria aplicados via querystring (`?unidade=<id>&categoria=<categoria>`); células "pendente" (sem documento cadastrado) não são clicáveis.
+- **Agregação 100% client-side** (não estava explícito no plano original): `DocumentoUnidadeViewSet` não pagina, então o Mapa reaproveita `useDocumentosLegalizacao()` sem filtro nenhum (lista completa) e calcula a grade (bucket por célula unidade×categoria, prioridade vencido > atenção > andamento > encerramento > regular) e o resumo dos 4 cards no cliente, em `lib/legalizacaoMapa.ts` — mesmo espírito da Lista (STC-378), sem endpoint novo no backend.
+- **Bucket "atenção" funde dois motivos do mockup** (status `protocolado` OU prazo de validade próximo do vencimento) num rótulo só — decisão registrada em comentário no código: decidir qual dos dois exibir por célula exigiria rastrear qual documento específico disparou o bucket, não só a contagem agregada.
+- **Legenda de cores adicionada** (não estava no plano original, achado em review de UX própria) — sem ela, "Atenção" sozinho numa célula não deixava óbvio que é o mesmo conceito do card "A vencer / Protocolado" lá em cima.
+- **Texto de instrução adicionado ao lado do toggle** (não estava no plano original), só na visão Mapa: "Panorama por unidade e categoria regulatória · clique numa célula pra ver a lista filtrada" — texto do próprio mockup, que não tinha sido migrado na primeira versão da tela.
+- **Cores das células seguem a mesma paleta Tailwind pura já usada em `COR_STATUS_BADGE` (Lista)**, não os tokens de marca (`secondary`/`destructive`) — decisão preexistente do módulo (severidade de status fica fora dos tokens de marca, reservados pro chrome da UI). Os 4 cards de resumo usam a mesma cor, com fundo tingido a 10% (mesmo padrão visual do `ResumoCards` de Gestão de Demandas), pra reforçar a leitura entre os cards e a grade abaixo.
+- Unidades: as 12 reais da rede (Angra dos Reis, Barra da Tijuca, Cabo Frio, Campos, Duque de Caxias, Macaé, Niterói, Nova Iguaçu, Presidente Vargas, Santos, São Paulo, Vitória) — vêm da API (`useUnidades()`), não hardcoded. Das 12, só Niterói/Presidente Vargas/Vitória são as unidades piloto reais já em produção (`backend/plataforma/migrations/0003_seed_unidades.py`); as outras 9 foram cadastradas em ambiente local pra ambientar o teste da tela com o mesmo volume do mockup, replicando os nomes reais das clínicas da rede.
+- **Mapa não tem versão mobile — decisão de produto** (não estava no plano original nem no desenho de responsivo previamente cogitado pro Mapa, ver Fast-follow abaixo): em telas `<= 639px`, `MapaConformidade.tsx` redireciona pra `/modulos/legalizacao` (Lista) em vez de renderizar a grade; `ToggleMapaLista.tsx` fica `hidden sm:flex` nas duas telas (o toggle some inteiro, não só o link do Mapa). Cobre tanto quem navega pelo toggle quanto quem chega direto por um link salvo/compartilhado de uma célula do Mapa em mobile.
 
 ### P4.3 Detalhe do Documento — `mockup_detalhe_documento_legalizacao.html`
 
@@ -264,4 +286,4 @@ relação ao plano original abaixo:
 
 - Tela Biblioteca de Documentos (P4.6 acima).
 - Suíte completa de testes automatizados/E2E.
-- **Modo responsivo/mobile** — nenhuma tela do módulo tem breakpoint hoje. Desenho já decidido especificamente pro Mapa (cards de resumo fixos + grade rolável na horizontal com a coluna "Unidade" congelada, mesmo espírito do board Kanban mobile que já está em produção) — ver memória de sessão `projeto_responsivo_mapa_legalizacao.md`, reaproveitar em vez de redesenhar. Pré-requisito ainda sem solução: nenhum módulo do Atlas (nem o MP001) tem hoje um substituto real de navegação pra quando a sidebar desaparece no mobile.
+- **Modo responsivo/mobile** — a Lista já tem tratamento mobile (STC-378): `MatrizFiltros.tsx` colapsa os selects num `Popover` abaixo de 640px, `MatrizTable.tsx` rola na horizontal (`min-w-[820px]`, mesmo padrão de `GerenciarUsuarios.tsx`). O Mapa, por decisão de produto (STC-379), **não** ganhou layout mobile — em vez disso fica indisponível em telas estreitas, redirecionando pra Lista (ver P4.2 acima). O desenho antes cogitado pro Mapa (cards fixos + grade rolável com coluna "Unidade" congelada, mesmo espírito do Kanban mobile) foi descartado — fica só como referência histórica em `projeto_responsivo_mapa_legalizacao.md`, caso a decisão mude no futuro. Segue fast-follow: os modais ainda não implementados (Detalhe, Renovação, Movimentação Profissional, P4.3–P4.5) não têm consideração de mobile nenhuma ainda. Pré-requisito ainda sem solução, relevante se algum dia o Mapa (ou outro módulo do Atlas) ganhar mobile de verdade: nenhum módulo tem hoje um substituto real de navegação pra quando a sidebar desaparece em telas estreitas.

@@ -2,7 +2,6 @@ import api from "./api";
 import type {
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
-  IndicadoresLegalizacao,
 } from "@/types/legalizacao";
 
 const MODULO_URL = "/modulos/legalizacao/";
@@ -33,12 +32,9 @@ export async function listarDocumentosLegalizacao(
   return data;
 }
 
-export async function buscarDocumentoLegalizacao(id: number): Promise<DocumentoUnidade> {
+export async function buscarDocumentoLegalizacao(
+  id: number,
+): Promise<DocumentoUnidade> {
   const { data } = await api.get<DocumentoUnidade>(`${DOCUMENTOS_URL}${id}/`);
-  return data;
-}
-
-export async function buscarIndicadoresLegalizacao(): Promise<IndicadoresLegalizacao> {
-  const { data } = await api.get<IndicadoresLegalizacao>(`${MODULO_URL}dashboard/indicadores/`);
   return data;
 }

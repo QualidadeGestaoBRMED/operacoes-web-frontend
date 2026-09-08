@@ -18,14 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { LABEL_CRITICIDADE, LABEL_STATUS, ORDEM_STATUS } from "@/lib/legalizacaoMatriz";
+import {
+  LABEL_CATEGORIA,
+  LABEL_CRITICIDADE,
+  LABEL_STATUS,
+  ORDEM_CATEGORIA,
+  ORDEM_STATUS,
+} from "@/lib/legalizacaoMatriz";
 import { nomeExibicao } from "@/lib/utils";
 import type {
+  CategoriaDocumento,
   Criticidade,
-  DocumentoUnidade,
   DocumentoUnidadeFiltros,
   StatusDocumento,
 } from "@/types/legalizacao";
@@ -37,12 +44,19 @@ interface MatrizFiltrosProps {
   onMudarFiltros: (filtros: DocumentoUnidadeFiltros) => void;
   busca: string;
   onMudarBusca: (busca: string) => void;
-  // Opções de "Documento" (tipo_documento) derivadas da própria lista já
-  // carregada -- STC-377 não criou um hook pra /tipos-documento/ (fora do
-  // escopo daquela issue), e não faz sentido buscar de novo algo que já
-  // está no cliente: DocumentoUnidadeViewSet não pagina, então a lista
-  // completa já reflete todo tipo de documento em uso.
-  documentos: DocumentoUnidade[];
+  // categoria não faz parte de DocumentoUnidadeFiltros de propósito (STC-379
+  // -- ver comentário em types/legalizacao.ts): filtro só-client, não existe
+  // no FilterSet real do backend, então fica fora do objeto que é enviado
+  // pra API, com seu próprio par de props em vez de entrar em onMudarFiltros.
+  categoria: CategoriaDocumento | undefined;
+  onMudarCategoria: (categoria: CategoriaDocumento | undefined) => void;
+  // Opcional -- achado no code review: "Limpar filtros" só resetava o
+  // estado em memória, nunca a URL (unidade/categoria chegam aqui via
+  // querystring, ver comentário em MatrizConformidade.tsx). O rótulo
+  // promete limpar os filtros; sem isso, um F5 (ou compartilhar o link
+  // logo depois de "limpar") trazia unidade/categoria de volta sozinhos,
+  // porque o useState inicial lê a mesma querystring de novo do zero.
+  onLimparUrl?: () => void;
 }
 
 export function MatrizFiltros({
@@ -50,20 +64,45 @@ export function MatrizFiltros({
   onMudarFiltros,
   busca,
   onMudarBusca,
-  documentos,
+  categoria,
+  onMudarCategoria,
+  onLimparUrl,
 }: MatrizFiltrosProps) {
   const { unidades } = useUnidades();
   const { usuarios } = useUsuarios();
+  // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
+  // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de
+  // unidades/usuarios acima. NÃO reaproveitar a lista já filtrada pelos
+  // `filtros` ativos (ex. a que alimenta a tabela): opções derivadas dela se
+  // auto-estreitam a cada seleção -- ao escolher um tipo de documento, a
+  // lista retorna só aquele tipo, e o próprio select fica com 1 opção só,
+  // sem como voltar direto pra outro tipo sem antes limpar o filtro.
+  //
+  // pausado: true -- achado no code review: essa chamada (sem filtro) tem
+  // uma chave de cache do SWR diferente da do MatrizConformidade.tsx (que
+  // sempre passa um objeto de filtros, nunca undefined), então as duas
+  // NÃO deduplicam -- sem pausar, isso dobra as chamadas ao endpoint a
+  // cada ciclo de poll de 60s. O catálogo de tipos de documento muda raras
+  // vezes (só via Admin, fora desta tela) -- não precisa de dado fresco a
+  // cada minuto, só uma busca inicial já resolve.
+  // error desestruturado e usado abaixo (Select "Documento") -- achado no
+  // code review (PR #32): antes desta busca virar uma chamada própria, uma
+  // falha de rede já aparecia no estado de erro que a tela inteira tratava;
+  // isolada aqui, ela ficava sem nenhuma UI de erro, e o Select mostrava só
+  // "Todos os documentos" -- indistinguível de "não há outros tipos
+  // cadastrados".
+  const { documentos: catalogoDocumentos, error: erroCatalogoDocumentos } =
+    useDocumentosLegalizacao(undefined, { pausado: true });
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();
-    for (const documento of documentos) {
+    for (const documento of catalogoDocumentos) {
       porId.set(documento.tipo_documento.id, documento.tipo_documento.nome);
     }
     return Array.from(porId, ([id, nome]) => ({ id, nome })).sort((a, b) =>
       a.nome.localeCompare(b.nome),
     );
-  }, [documentos]);
+  }, [catalogoDocumentos]);
 
   const contagemFiltrosSelect = [
     filtros.unidade,
@@ -72,12 +111,15 @@ export function MatrizFiltros({
     filtros.responsavel,
     filtros.criticidade,
     filtros.prazo_ate,
+    categoria,
   ].filter(Boolean).length;
   const temFiltrosAtivos = contagemFiltrosSelect > 0 || Boolean(busca);
 
   function limparFiltros() {
     onMudarBusca("");
     onMudarFiltros({});
+    onMudarCategoria(undefined);
+    onLimparUrl?.();
   }
 
   function camposDeFiltro() {
@@ -111,7 +153,21 @@ export function MatrizFiltros({
 
         <Select
           value={
-            filtros.tipo_documento ? String(filtros.tipo_documento) : "todos"
+            // Achado no code review: "todos" SEMPRE casa com o SelectItem
+            // de mesmo valor logo abaixo -- o placeholder do Radix
+            // (SelectValue) só aparece quando o `value` atual NÃO corresponde
+            // a nenhum item registrado, então "Erro ao carregar" nunca era
+            // exibido no caso comum (nenhum filtro ainda selecionado, que é
+            // justamente quando o erro tende a aparecer, na carga inicial).
+            // "__erro__" não bate com nenhum SelectItem de propósito, força
+            // o fallback pro placeholder de verdade. Só afeta o valor
+            // EXIBIDO -- o Select já fica `disabled` nesse caso, então
+            // onValueChange nunca dispara com esse valor.
+            erroCatalogoDocumentos
+              ? "__erro__"
+              : filtros.tipo_documento
+                ? String(filtros.tipo_documento)
+                : "todos"
           }
           onValueChange={(valor) =>
             onMudarFiltros({
@@ -119,19 +175,54 @@ export function MatrizFiltros({
               tipo_documento: valor === "todos" ? undefined : Number(valor),
             })
           }
+          disabled={Boolean(erroCatalogoDocumentos)}
         >
           <SelectTrigger
             size="sm"
             className="h-8 w-full sm:w-auto"
             aria-label="Documento"
+            title={
+              erroCatalogoDocumentos
+                ? "Erro ao carregar os tipos de documento"
+                : undefined
+            }
           >
-            <SelectValue placeholder="Documento" />
+            <SelectValue
+              placeholder={
+                erroCatalogoDocumentos ? "Erro ao carregar" : "Documento"
+              }
+            />
           </SelectTrigger>
           <SelectContent position="popper">
             <SelectItem value="todos">Todos os documentos</SelectItem>
             {tiposDocumento.map((tipo) => (
               <SelectItem key={tipo.id} value={String(tipo.id)}>
                 {tipo.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={categoria ?? "todas"}
+          onValueChange={(valor) =>
+            onMudarCategoria(
+              valor === "todas" ? undefined : (valor as CategoriaDocumento),
+            )
+          }
+        >
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            aria-label="Categoria"
+          >
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="todas">Todas as categorias</SelectItem>
+            {ORDEM_CATEGORIA.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {LABEL_CATEGORIA[cat]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -264,7 +355,13 @@ export function MatrizFiltros({
   const ehMobile = useMediaQuery("(max-width: 639px)");
 
   const busca_ = (
-    <div className="relative w-full max-w-[320px]">
+    // flex-1 + teto (era max-w-[320px] fixo) -- achado no review visual: um
+    // valor fixo ou sobrava espaço vazio à direita da barra (fixo largo
+    // demais) ou cortava o placeholder (fixo estreito demais) dependendo de
+    // quanto os outros 6 filtros ocupavam. Crescendo pra preencher o que
+    // sobrar (com piso/teto pra nunca ficar minúsculo nem enorme) resolve
+    // os dois sem precisar advinhar um número mágico por tentativa.
+    <div className="relative min-w-[160px] flex-1 sm:max-w-sm">
       <Label htmlFor="busca-matriz" className="sr-only">
         Buscar unidade ou documento
       </Label>

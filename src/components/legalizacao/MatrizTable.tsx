@@ -51,8 +51,12 @@ const COLUNAS: { rotulo: string; largura: string; campo: CampoOrdenavel }[] = [
 ];
 
 function LegendaStatus() {
+  // Sem px-7 aqui -- achado: o wrapper de fora (return de MatrizTable, mais
+  // abaixo) já tem px-7, então repetir aqui dobrava o padding esquerdo (56px
+  // em vez de 28px), desalinhando a legenda da tabela/card acima dela.
+  // Mesmo padrão de LegendaMapa em MatrizMapaGrid.tsx, que não repete.
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-3.5 px-7 pt-3 pb-1 text-[11.5px] text-muted-foreground">
+    <div className="flex shrink-0 flex-wrap items-center gap-3.5 pt-3 pb-1 text-[11.5px] text-muted-foreground">
       <strong className="font-semibold text-foreground">
         Legenda de status:
       </strong>
