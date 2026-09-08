@@ -16,6 +16,14 @@ const DOC: OpenApiDocument = {
     schemas: {
       Unidade: {
         type: "object",
+        properties: {
+          id: { type: "integer" },
+          nome: { type: "string" },
+          setor: { $ref: "#/components/schemas/Setor" },
+        },
+      },
+      Setor: {
+        type: "object",
         properties: { id: { type: "integer" }, nome: { type: "string" } },
       },
       DocumentoUnidadeRead: {
@@ -197,7 +205,42 @@ describe("objetosReferenciados", () => {
         },
       },
     ];
-    expect(objetosReferenciados(DOC, operacoes)).toEqual(["Unidade"]);
+    // "Setor" também entra (transitivo, via Unidade.setor) -- Unidade em
+    // si é deduplicado entre op1 (indireto, dentro de DocumentoUnidadeRead)
+    // e op2 (direto, o próprio corpo do request).
+    expect(objetosReferenciados(DOC, operacoes)).toEqual(["Setor", "Unidade"]);
+  });
+
+  it("inclui objeto referenciado só indiretamente, dentro de outro já alcançado (transitivo)", () => {
+    // Achado no review: a operação referencia DocumentoUnidadeRead
+    // diretamente (nível 1), que por sua vez tem unidade: Unidade (também
+    // nível 1, campo do schema direto) -- Unidade.setor: Setor é nível 2
+    // (só alcançável entrando nos campos de Unidade, não da operação em
+    // si). Sem recursão, "Setor" nunca entraria na lista, mas
+    // ObjetoReferencia roda atributosDoSchema de novo sobre Unidade (pra
+    // montar a seção dela) e geraria um link pra #objeto-Setor mesmo
+    // assim -- apontando pra uma seção nunca renderizada.
+    const operacoes: OperacaoDoc[] = [
+      {
+        id: "op1",
+        metodo: "get",
+        path: "/x/",
+        tag: "X",
+        recurso: "x",
+        operation: {
+          responses: {
+            "200": {
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/DocumentoUnidadeRead" },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+    expect(objetosReferenciados(DOC, operacoes)).toEqual(["Setor", "Unidade"]);
   });
 
   it("lista vazia quando nenhuma operação referencia objeto nenhum", () => {

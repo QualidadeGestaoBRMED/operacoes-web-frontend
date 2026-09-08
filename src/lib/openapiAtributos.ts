@@ -105,31 +105,60 @@ export function atributosDoSchema(
   }));
 }
 
-// Todo objeto (com properties de verdade, não enum) que aparece como tipo
-// de algum campo em algum corpo de request/response de alguma operação --
-// achado no review comparando com a Stripe: campos apontavam pra um nome
-// de schema (ex. "unidade: Unidade") sem NENHUM lugar na página explicando
-// o que aquele schema tem dentro. Reaproveita atributosDoSchema (já
-// resolve refs e already ignora enum) em vez de duplicar a lógica.
+// Todo objeto (com properties de verdade, não enum) alcançável a partir de
+// alguma operação -- direto (campo do corpo/resposta) OU indireto (campo de
+// outro objeto já alcançado, transitivo) -- achado no review comparando com
+// a Stripe: campos apontavam pra um nome de schema (ex. "unidade: Unidade")
+// sem NENHUM lugar na página explicando o que aquele schema tem dentro.
+//
+// Precisa ser transitivo, não só 1 nível: achado em review posterior --
+// ObjetoReferencia.tsx roda atributosDoSchema de novo sobre CADA objeto
+// desta lista (pras propriedades do objeto em si), e qualquer campo dessas
+// propriedades que referencie OUTRO schema também vira link
+// (TabelaAtributos.tsx). Um objeto só alcançável por uma cadeia de 2+ refs
+// (nunca o schema direto de nenhuma operação) ficava fora de `objetos`, e
+// esse link apontava pra um id inexistente no DOM -- clique sem efeito,
+// sem erro visível. Fixpoint (fila `pendentes`) resolve pra qualquer
+// profundidade de cadeia, não só a de 2 níveis observada no achado.
 export function objetosReferenciados(
   doc: OpenApiDocument,
   operacoes: OperacaoDoc[],
 ): string[] {
   const nomes = new Set<string>();
+  const pendentes: string[] = [];
+
+  function adicionar(refNome: string | null) {
+    if (refNome && !nomes.has(refNome)) {
+      nomes.add(refNome);
+      pendentes.push(refNome);
+    }
+  }
+
   for (const { operation } of operacoes) {
     const corpo = corpoDaOperacao(operation);
     if (corpo) {
       for (const atributo of atributosDoSchema(doc, corpo.schema)) {
-        if (atributo.refNome) nomes.add(atributo.refNome);
+        adicionar(atributo.refNome);
       }
     }
     const resposta = respostaDeSucesso(operation);
     if (resposta?.response) {
       for (const atributo of atributosDoSchema(doc, resposta.response)) {
-        if (atributo.refNome) nomes.add(atributo.refNome);
+        adicionar(atributo.refNome);
       }
     }
   }
+
+  while (pendentes.length > 0) {
+    const nome = pendentes.pop()!;
+    const atributos = atributosDoSchema(doc, {
+      $ref: `#/components/schemas/${nome}`,
+    });
+    for (const atributo of atributos) {
+      adicionar(atributo.refNome);
+    }
+  }
+
   return Array.from(nomes).sort((a, b) => a.localeCompare(b));
 }
 
