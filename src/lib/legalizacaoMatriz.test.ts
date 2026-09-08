@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { documentoBateNaBusca, ordenarDocumentos, prazoDocumento } from "./legalizacaoMatriz";
-import type { Criticidade, DocumentoUnidade, ResponsavelDocumento } from "@/types/legalizacao";
+import {
+  documentoBateNaBusca,
+  documentoBateNaCategoria,
+  ordenarDocumentos,
+  prazoDocumento,
+} from "./legalizacaoMatriz";
+import type {
+  Criticidade,
+  DocumentoUnidade,
+  ResponsavelDocumento,
+} from "@/types/legalizacao";
 
-function documento(overrides: Partial<DocumentoUnidade> = {}): DocumentoUnidade {
+function documento(
+  overrides: Partial<DocumentoUnidade> = {},
+): DocumentoUnidade {
   return {
     id: 1,
     tipo_documento: {
@@ -18,7 +29,13 @@ function documento(overrides: Partial<DocumentoUnidade> = {}): DocumentoUnidade 
       ativo: true,
       created_at: "2026-01-01T00:00:00Z",
     },
-    unidade: { id: 1, nome: "Niterói", codigo: "niteroi", cidade: "Niterói", ativa: true },
+    unidade: {
+      id: 1,
+      nome: "Niterói",
+      codigo: "niteroi",
+      cidade: "Niterói",
+      ativa: true,
+    },
     status: "regular",
     justificativa_excecao: "",
     validade: null,
@@ -50,7 +67,9 @@ describe("prazoDocumento", () => {
 
   it("devolve — pra status coringa mesmo com validade preenchida", () => {
     expect(
-      prazoDocumento(documento({ status: "nao_aplicavel", validade: "2026-10-01" })),
+      prazoDocumento(
+        documento({ status: "nao_aplicavel", validade: "2026-10-01" }),
+      ),
     ).toEqual({ texto: "—", urgencia: "sem-prazo" });
   });
 
@@ -109,6 +128,40 @@ describe("documentoBateNaBusca", () => {
   });
 });
 
+describe("documentoBateNaCategoria", () => {
+  it("sempre bate quando não há categoria selecionada (undefined)", () => {
+    expect(documentoBateNaCategoria(documento(), undefined)).toBe(true);
+  });
+
+  it("bate quando a categoria do tipo de documento é igual à selecionada", () => {
+    expect(
+      documentoBateNaCategoria(
+        documento({
+          tipo_documento: {
+            ...documento().tipo_documento,
+            categoria: "regularizacao",
+          },
+        }),
+        "regularizacao",
+      ),
+    ).toBe(true);
+  });
+
+  it("não bate quando a categoria do tipo de documento é diferente da selecionada", () => {
+    expect(
+      documentoBateNaCategoria(
+        documento({
+          tipo_documento: {
+            ...documento().tipo_documento,
+            categoria: "regularizacao",
+          },
+        }),
+        "residuos",
+      ),
+    ).toBe(false);
+  });
+});
+
 function responsavelPrincipal(nome: string): ResponsavelDocumento[] {
   const [first_name, ...resto] = nome.split(" ");
   return [
@@ -164,16 +217,28 @@ describe("ordenarDocumentos", () => {
 
   it("devolve a mesma lista, sem reordenar, quando ordenacao é null", () => {
     const lista = [
-      documento({ id: 1, unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true } }),
-      documento({ id: 2, unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true } }),
+      documento({
+        id: 1,
+        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true },
+      }),
+      documento({
+        id: 2,
+        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true },
+      }),
     ];
     expect(ordenarDocumentos(lista, null)).toEqual(lista);
   });
 
   it("não muta o array original (imutabilidade)", () => {
     const lista = [
-      documento({ id: 1, unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true } }),
-      documento({ id: 2, unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true } }),
+      documento({
+        id: 1,
+        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true },
+      }),
+      documento({
+        id: 2,
+        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true },
+      }),
     ];
     const original = [...lista];
     ordenarDocumentos(lista, { campo: "unidade", direcao: "asc" });
@@ -182,15 +247,37 @@ describe("ordenarDocumentos", () => {
 
   it("ordena por unidade, alfabético, asc e desc", () => {
     const lista = [
-      documento({ id: 1, unidade: { id: 1, nome: "Vitória", codigo: "v", cidade: "V", ativa: true } }),
-      documento({ id: 2, unidade: { id: 2, nome: "Niterói", codigo: "n", cidade: "N", ativa: true } }),
+      documento({
+        id: 1,
+        unidade: {
+          id: 1,
+          nome: "Vitória",
+          codigo: "v",
+          cidade: "V",
+          ativa: true,
+        },
+      }),
+      documento({
+        id: 2,
+        unidade: {
+          id: 2,
+          nome: "Niterói",
+          codigo: "n",
+          cidade: "N",
+          ativa: true,
+        },
+      }),
     ];
-    expect(ordenarDocumentos(lista, { campo: "unidade", direcao: "asc" }).map((d) => d.id)).toEqual([
-      2, 1,
-    ]);
-    expect(ordenarDocumentos(lista, { campo: "unidade", direcao: "desc" }).map((d) => d.id)).toEqual([
-      1, 2,
-    ]);
+    expect(
+      ordenarDocumentos(lista, { campo: "unidade", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([2, 1]);
+    expect(
+      ordenarDocumentos(lista, { campo: "unidade", direcao: "desc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([1, 2]);
   });
 
   it("ordena por status seguindo a ordem de fluxo, não alfabética", () => {
@@ -200,9 +287,11 @@ describe("ordenarDocumentos", () => {
       documento({ id: 3, status: "em_andamento" }),
     ];
     // Ordem de fluxo: nao_iniciado < em_andamento < ... < vencido.
-    expect(ordenarDocumentos(lista, { campo: "status", direcao: "asc" }).map((d) => d.id)).toEqual([
-      2, 3, 1,
-    ]);
+    expect(
+      ordenarDocumentos(lista, { campo: "status", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([2, 3, 1]);
   });
 
   it("joga um status fora de ORDEM_STATUS pro final, não pro início", () => {
@@ -214,14 +303,21 @@ describe("ordenarDocumentos", () => {
     // mapeou em ORDEM_STATUS.
     const lista = [
       documento({ id: 1, status: "nao_iniciado" }),
-      documento({ id: 2, status: "status_desconhecido" as DocumentoUnidade["status"] }),
+      documento({
+        id: 2,
+        status: "status_desconhecido" as DocumentoUnidade["status"],
+      }),
     ];
-    expect(ordenarDocumentos(lista, { campo: "status", direcao: "asc" }).map((d) => d.id)).toEqual([
-      1, 2,
-    ]);
-    expect(ordenarDocumentos(lista, { campo: "status", direcao: "desc" }).map((d) => d.id)).toEqual([
-      1, 2,
-    ]);
+    expect(
+      ordenarDocumentos(lista, { campo: "status", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([1, 2]);
+    expect(
+      ordenarDocumentos(lista, { campo: "status", direcao: "desc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([1, 2]);
   });
 
   it("ordena por criticidade (alta > media > baixa) e joga sem-regra pro final nas duas direções", () => {
@@ -231,10 +327,14 @@ describe("ordenarDocumentos", () => {
       documento({ id: 3, ...comCriticidade("alta") }),
     ];
     expect(
-      ordenarDocumentos(lista, { campo: "criticidade", direcao: "asc" }).map((d) => d.id),
+      ordenarDocumentos(lista, { campo: "criticidade", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
     ).toEqual([3, 1, 2]);
     expect(
-      ordenarDocumentos(lista, { campo: "criticidade", direcao: "desc" }).map((d) => d.id),
+      ordenarDocumentos(lista, { campo: "criticidade", direcao: "desc" }).map(
+        (d) => d.id,
+      ),
     ).toEqual([1, 3, 2]);
   });
 
@@ -245,7 +345,9 @@ describe("ordenarDocumentos", () => {
       documento({ id: 3, responsaveis: responsavelPrincipal("Ana") }),
     ];
     expect(
-      ordenarDocumentos(lista, { campo: "responsavel", direcao: "asc" }).map((d) => d.id),
+      ordenarDocumentos(lista, { campo: "responsavel", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
     ).toEqual([3, 1, 2]);
   });
 
@@ -256,8 +358,10 @@ describe("ordenarDocumentos", () => {
       documento({ id: 3, validade: null }), // sem prazo -- deve ir pro final
       documento({ id: 4, validade: "2026-09-05" }), // em 2 dias
     ];
-    expect(ordenarDocumentos(lista, { campo: "prazo", direcao: "asc" }).map((d) => d.id)).toEqual([
-      2, 4, 1, 3,
-    ]);
+    expect(
+      ordenarDocumentos(lista, { campo: "prazo", direcao: "asc" }).map(
+        (d) => d.id,
+      ),
+    ).toEqual([2, 4, 1, 3]);
   });
 });
