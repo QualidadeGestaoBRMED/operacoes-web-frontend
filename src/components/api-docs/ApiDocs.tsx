@@ -12,7 +12,7 @@ import {
   labelRecurso,
   operacoesComCabecalhoDeRecurso,
 } from "@/lib/openapi";
-import { objetosReferenciados } from "@/lib/openapiAtributos";
+import { idObjeto, objetosReferenciados } from "@/lib/openapiAtributos";
 import { extrairTabelaMarkdown } from "@/lib/markdownTabela";
 import { ConteudoOperacao } from "./ConteudoOperacao";
 import { IntroApiDocs } from "./IntroApiDocs";
@@ -20,7 +20,7 @@ import { NavLateralApiDocs } from "./NavLateralApiDocs";
 import { ObjetoReferencia } from "./ObjetoReferencia";
 import { PainelExemplo } from "./PainelExemplo";
 import { PainelObjeto } from "./PainelObjeto";
-import { SecaoLimitesTaxa } from "./SecaoLimitesTaxa";
+import { ID_LIMITES_TAXA, SecaoLimitesTaxa } from "./SecaoLimitesTaxa";
 
 export function ApiDocs() {
   const router = useRouter();
@@ -57,10 +57,19 @@ export function ApiDocs() {
     () => extrairTabelaMarkdown(doc?.info.description) !== null,
     [doc],
   );
-  const ids = useMemo(
-    () => operacoes.map((operacao) => operacao.id),
-    [operacoes],
-  );
+  // Achado no code review: faltavam "Limites de taxa" e os objetos de
+  // referência aqui -- o scroll-spy só observava operações, então rolar
+  // além do último endpoint nunca destacava nada na nav (o último endpoint
+  // ficava "ativo" pra sempre). Ordem importa (useScrollSpy usa a ÚLTIMA
+  // id visível, em ordem de documento, pra decidir o ativo) -- precisa
+  // bater com a ordem real do render abaixo: operações, depois limites de
+  // taxa, depois objetos.
+  const ids = useMemo(() => {
+    const idsOperacoes = operacoes.map((operacao) => operacao.id);
+    const idLimitesTaxa = temLimitesTaxa ? [ID_LIMITES_TAXA] : [];
+    const idsObjetos = objetos.map(idObjeto);
+    return [...idsOperacoes, ...idLimitesTaxa, ...idsObjetos];
+  }, [operacoes, temLimitesTaxa, objetos]);
   const refConteudo = useRef<HTMLDivElement>(null);
   // Só pra destacar o item ativo na navegação lateral -- o painel de
   // exemplo NÃO depende mais disso (ver comentário abaixo, cada seção tem

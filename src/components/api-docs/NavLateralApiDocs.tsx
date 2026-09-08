@@ -227,7 +227,11 @@ export function NavLateralApiDocs({
                   {temLimitesTaxa && (
                     <a
                       href={`#${ID_LIMITES_TAXA}`}
-                      className="rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className={cn(
+                        "rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                        ativo === ID_LIMITES_TAXA &&
+                          "bg-muted font-medium text-foreground",
+                      )}
                     >
                       Limites de taxa
                     </a>
@@ -236,7 +240,11 @@ export function NavLateralApiDocs({
                     <a
                       key={nome}
                       href={`#${idObjeto(nome)}`}
-                      className="truncate rounded-md px-2 py-1.5 font-mono text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className={cn(
+                        "truncate rounded-md px-2 py-1.5 font-mono text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                        ativo === idObjeto(nome) &&
+                          "bg-muted font-medium text-foreground",
+                      )}
                     >
                       {nome}
                     </a>

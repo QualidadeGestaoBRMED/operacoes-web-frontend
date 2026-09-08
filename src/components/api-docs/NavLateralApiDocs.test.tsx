@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { NavLateralApiDocs } from "./NavLateralApiDocs";
+import { ID_LIMITES_TAXA } from "./SecaoLimitesTaxa";
+import { idObjeto } from "@/lib/openapiAtributos";
 import type { OperacaoDoc } from "@/lib/openapi";
 
 // >10 operações numa mesma tag, 2 recursos (recurso-a: 6, recurso-b: 5) --
@@ -31,6 +33,17 @@ function renderNav() {
       ativo={null}
       objetos={[]}
       temLimitesTaxa={false}
+    />,
+  );
+}
+
+function renderNavComReferencia(ativo: string | null) {
+  render(
+    <NavLateralApiDocs
+      grupos={GRUPOS}
+      ativo={ativo}
+      objetos={["Demanda"]}
+      temLimitesTaxa
     />,
   );
 }
@@ -89,5 +102,35 @@ describe("NavLateralApiDocs -- grupo colapsável (acessibilidade)", () => {
     const botao = screen.getByRole("button", { name: "Grande" });
     await userEvent.click(botao);
     expect(botao).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+describe("NavLateralApiDocs -- destaque de Limites de taxa/Objetos", () => {
+  // Achado no review: scroll-spy nunca observava essas 2 seções (ids
+  // faltando em ApiDocs.tsx), e mesmo corrigindo isso, os links aqui não
+  // tinham NENHUMA classe condicional de "ativo" -- os dois precisam estar
+  // certos pro destaque aparecer de verdade.
+  it("ativo === ID_LIMITES_TAXA destaca o link de Limites de taxa", () => {
+    renderNavComReferencia(ID_LIMITES_TAXA);
+    expect(screen.getByRole("link", { name: "Limites de taxa" })).toHaveClass(
+      "bg-muted",
+    );
+  });
+
+  it("ativo === idObjeto(nome) destaca o link do objeto correspondente", () => {
+    renderNavComReferencia(idObjeto("Demanda"));
+    expect(screen.getByRole("link", { name: "Demanda" })).toHaveClass(
+      "bg-muted",
+    );
+  });
+
+  it("nenhum dos dois fica destacado quando ativo é um endpoint", () => {
+    renderNavComReferencia("op0");
+    expect(
+      screen.getByRole("link", { name: "Limites de taxa" }),
+    ).not.toHaveClass("bg-muted");
+    expect(screen.getByRole("link", { name: "Demanda" })).not.toHaveClass(
+      "bg-muted",
+    );
   });
 });
