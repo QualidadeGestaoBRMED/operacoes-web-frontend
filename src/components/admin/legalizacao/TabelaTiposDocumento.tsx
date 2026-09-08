@@ -190,7 +190,7 @@ export function TabelaTiposDocumento() {
                         clicava esperava que continuasse ativo, não o
                         oposto. Mesmo padrão de Badge (estado) + botão de ação
                         (Revogar/Reativar) já usado em PermissoesAdmin.tsx. */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex w-full items-center justify-between gap-2">
                       <Badge variant={tipo.ativo ? "success" : "muted"}>
                         {tipo.ativo ? "Ativo" : "Inativo"}
                       </Badge>
