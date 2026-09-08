@@ -40,12 +40,11 @@ beforeEach(() => {
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
-  it("lista os tipos com nome, código, categoria e exigências", async () => {
+  it("lista os tipos com nome, categoria e exigências", async () => {
     vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
     renderTela();
 
     expect(await screen.findByText("Licença Sanitária")).toBeInTheDocument();
-    expect(screen.getByText("licenca-sanitaria")).toBeInTheDocument();
     expect(
       screen.getByText("Regularização e licenciamento"),
     ).toBeInTheDocument();

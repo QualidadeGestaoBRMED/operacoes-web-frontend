@@ -163,9 +163,6 @@ export function TabelaTiposDocumento() {
                 >
                   <td className="px-4 py-2.5 font-medium text-foreground">
                     {tipo.nome}
-                    <div className="text-xs font-normal text-muted-foreground">
-                      {tipo.codigo}
-                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">
                     {LABEL_CATEGORIA[tipo.categoria]}
