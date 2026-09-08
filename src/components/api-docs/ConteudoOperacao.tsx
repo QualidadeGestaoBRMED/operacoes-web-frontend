@@ -5,7 +5,7 @@ import {
   atributosDeParametros,
   atributosDoSchema,
 } from "@/lib/openapiAtributos";
-import { corpoDaOperacao } from "@/lib/openapi";
+import { corpoDaOperacao, respostaDeSucesso } from "@/lib/openapi";
 import type { OperacaoDoc } from "@/lib/openapi";
 import type { OpenApiDocument } from "@/types/openapi";
 
@@ -38,6 +38,18 @@ export function ConteudoOperacao({
   );
   const corpo = corpoDaOperacao(operation);
   const respostas = Object.entries(operation.responses ?? {});
+  // Achado no review: só um objeto nomeado (ex. DocumentoUnidadeRead) já
+  // ganha seção própria em "Objetos" -- mas resposta paginada (envelope
+  // count/next/previous/results, schema PRÓPRIO gerado pelo
+  // drf-spectacular) nunca aparecia documentada em lugar nenhum, só no
+  // JSON de exemplo à direita. atributosDoSchema já retorna [] quando o
+  // schema resolvido não tem `properties` (ex. resposta é um array solto,
+  // sem envelope) -- guard abaixo só evita um título "Corpo da resposta"
+  // sem nenhuma linha embaixo nesses casos.
+  const sucesso = respostaDeSucesso(operation);
+  const atributosResposta = sucesso
+    ? atributosDoSchema(doc, sucesso.response ?? undefined)
+    : [];
 
   return (
     <section id={id} className="min-w-0 scroll-mt-24">
@@ -102,6 +114,15 @@ export function ConteudoOperacao({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {atributosResposta.length > 0 && (
+        <div className="mt-8">
+          <h3 className="mb-3 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+            Corpo da resposta
+          </h3>
+          <TabelaAtributos atributos={atributosResposta} />
         </div>
       )}
     </section>
