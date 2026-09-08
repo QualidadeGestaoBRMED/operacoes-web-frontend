@@ -108,9 +108,24 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
 
         <div className="scrollbar-discreta flex-1 overflow-auto px-4 py-3 [scrollbar-gutter:stable]">
           {carregando || !grade ? (
+            // Achado no code review: Skeleton (bg-muted, sem display:grid
+            // próprio) não vira 8 blocos alinhados só por ganhar a classe
+            // COLUNAS_GRID -- sem filhos, um grid-template-columns num
+            // elemento vazio não tem o que distribuir, então cada linha
+            // virava uma barra cheia. Cada linha agora É o container grid
+            // (mesma estrutura da linha real logo abaixo), com um
+            // Skeleton por coluna dentro dela.
             <div className="flex flex-col gap-1.5">
-              {Array.from({ length: 8 }, (_, indice) => (
-                <Skeleton key={indice} className={cn("h-16", COLUNAS_GRID)} />
+              {Array.from({ length: 6 }, (_, linha) => (
+                <div
+                  key={linha}
+                  className={cn("grid items-center gap-1.5", COLUNAS_GRID)}
+                >
+                  <Skeleton className="h-5 w-24" />
+                  {ORDEM_CATEGORIA.map((categoria) => (
+                    <Skeleton key={categoria} className="h-16" />
+                  ))}
+                </div>
               ))}
             </div>
           ) : grade.unidades.length === 0 ? (
