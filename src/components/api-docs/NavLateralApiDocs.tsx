@@ -35,16 +35,20 @@ const CHAVE_REFERENCIA = "__referencia__";
 function CabecalhoGrupo({
   titulo,
   colapsado,
+  idConteudo,
   onToggle,
 }: {
   titulo: string;
   colapsado: boolean;
+  idConteudo: string;
   onToggle: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
+      aria-expanded={!colapsado}
+      aria-controls={idConteudo}
       className="flex w-full items-center gap-1 rounded-md px-1 py-0.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       {colapsado ? (
@@ -64,6 +68,12 @@ export function NavLateralApiDocs({
   temLimitesTaxa,
 }: NavLateralApiDocsProps) {
   const idBusca = useId();
+  // Base única (useId) + nome da tag "limpo" -- id de verdade não pode ter
+  // espaço (tags reais como "Gestão de Demandas" têm), e aria-controls
+  // precisa bater exatamente com o id do bloco de conteúdo.
+  const idBaseGrupo = useId();
+  const idGrupo = (chave: string) =>
+    `${idBaseGrupo}-${chave.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const [busca, setBusca] = useState("");
   // Vazio = tudo expandido (comportamento de antes) -- só entra na lista
   // quem o usuário recolheu manualmente.
@@ -158,10 +168,11 @@ export function NavLateralApiDocs({
             <CabecalhoGrupo
               titulo={tag}
               colapsado={colapsado}
+              idConteudo={idGrupo(tag)}
               onToggle={() => alternar(tag)}
             />
             {!colapsado && (
-              <div className="mt-1.5 flex flex-col">
+              <div id={idGrupo(tag)} className="mt-1.5 flex flex-col">
                 {operacoes.map((operacao) => (
                   <Fragment key={operacao.id}>
                     {cabecalhosRecurso.has(operacao.id) && (
@@ -205,10 +216,14 @@ export function NavLateralApiDocs({
               <CabecalhoGrupo
                 titulo="Referência"
                 colapsado={colapsado}
+                idConteudo={idGrupo(CHAVE_REFERENCIA)}
                 onToggle={() => alternar(CHAVE_REFERENCIA)}
               />
               {!colapsado && (
-                <div className="mt-1.5 flex flex-col">
+                <div
+                  id={idGrupo(CHAVE_REFERENCIA)}
+                  className="mt-1.5 flex flex-col"
+                >
                   {temLimitesTaxa && (
                     <a
                       href={`#${ID_LIMITES_TAXA}`}

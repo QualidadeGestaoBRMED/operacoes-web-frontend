@@ -73,3 +73,21 @@ describe("NavLateralApiDocs -- busca", () => {
     expect(screen.getByText("Nenhum endpoint encontrado.")).toBeInTheDocument();
   });
 });
+
+describe("NavLateralApiDocs -- grupo colapsável (acessibilidade)", () => {
+  it("botão de grupo expõe aria-expanded e aria-controls apontando pro bloco visível", () => {
+    renderNav();
+    const botao = screen.getByRole("button", { name: "Grande" });
+    expect(botao).toHaveAttribute("aria-expanded", "true");
+    const idConteudo = botao.getAttribute("aria-controls");
+    expect(idConteudo).toBeTruthy();
+    expect(document.getElementById(idConteudo!)).not.toBeNull();
+  });
+
+  it("recolher o grupo vira aria-expanded=false", async () => {
+    renderNav();
+    const botao = screen.getByRole("button", { name: "Grande" });
+    await userEvent.click(botao);
+    expect(botao).toHaveAttribute("aria-expanded", "false");
+  });
+});
