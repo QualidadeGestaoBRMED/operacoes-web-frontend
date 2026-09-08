@@ -61,13 +61,6 @@ export function MatrizConformidade() {
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
 
-  const {
-    documentos,
-    carregandoPrimeiraVez,
-    error: erroDocumentos,
-    mensagemErro,
-  } = useDocumentosLegalizacao(filtros);
-
   // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
   // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união
   // fixa, valida na hora), não dá pra validar unidade já no useState
@@ -94,6 +87,25 @@ export function MatrizConformidade() {
     const existe = unidades.some((unidade) => unidade.id === filtros.unidade);
     if (!existe) setFiltros((atual) => ({ ...atual, unidade: undefined }));
   }, [carregandoUnidades, erroUnidades, unidades, filtros.unidade]);
+
+  // Achado no code review: sem pausar, a 1ª busca de /documentos/ já saía
+  // com o `unidade` ainda não validado (useEffect acima só roda DEPOIS do
+  // 1º render, e só corrige depois que unidades carrega) -- se a resposta
+  // de /documentos/ chegasse antes da de /unidades/, a tabela mostrava
+  // "Nenhum documento encontrado" de verdade por um instante, com o filtro
+  // ruim ainda ativo, até o efeito corrigir e disparar a busca certa. Pausa
+  // só enquanto HÁ um filtro de unidade E ele ainda não foi validado --
+  // sem `unidade` nenhum, não tem o que esperar.
+  const aguardandoValidacaoDeUnidade =
+    Boolean(filtros.unidade) && carregandoUnidades;
+  const {
+    documentos,
+    carregandoPrimeiraVez,
+    error: erroDocumentos,
+    mensagemErro,
+  } = useDocumentosLegalizacao(filtros, {
+    desabilitado: aguardandoValidacaoDeUnidade,
+  });
 
   const error = erroDocumentos ?? erroUnidades;
   const mensagemDeErro =
