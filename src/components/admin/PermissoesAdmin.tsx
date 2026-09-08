@@ -453,30 +453,28 @@ export function PermissoesAdmin() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden p-4 sm:p-7">
-      <div className="flex items-center gap-2.5 pb-5">
-        <ShieldCheck className="size-5 shrink-0 text-secondary" />
-        <div>
+      {/* Abas na mesma linha do título (só no desktop -- sm:), à direita:
+          ganha a linha inteira de altura que a antiga linha própria das
+          abas ocupava, e dá às abas a largura livre do cabeçalho (bem maior
+          que uma linha dedicada só a elas) pra crescer quando uma 3ª aba
+          aparecer. Sem subtítulo -- "Administração" já é suficiente. */}
+      <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="size-5 shrink-0 text-secondary" />
           <h1 className="text-lg font-semibold text-foreground">
             Administração
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Pessoas, acessos e catálogo do módulo de Legalização.
-          </p>
         </div>
-      </div>
 
-      <Tabs
-        value={aba}
-        onValueChange={(valor) => setAba(valor as Aba)}
-        className="pb-5"
-      >
-        <TabsList variant="line">
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="catalogo-legalizacao">
-            Catálogo de Legalização
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <Tabs value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
+          <TabsList variant="line">
+            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+            <TabsTrigger value="catalogo-legalizacao">
+              Catálogo de Legalização
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {aba === "catalogo-legalizacao" && <CatalogoLegalizacaoAdmin />}
 
