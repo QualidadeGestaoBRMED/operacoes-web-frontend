@@ -153,7 +153,21 @@ export function MatrizFiltros({
 
         <Select
           value={
-            filtros.tipo_documento ? String(filtros.tipo_documento) : "todos"
+            // Achado no code review: "todos" SEMPRE casa com o SelectItem
+            // de mesmo valor logo abaixo -- o placeholder do Radix
+            // (SelectValue) só aparece quando o `value` atual NÃO corresponde
+            // a nenhum item registrado, então "Erro ao carregar" nunca era
+            // exibido no caso comum (nenhum filtro ainda selecionado, que é
+            // justamente quando o erro tende a aparecer, na carga inicial).
+            // "__erro__" não bate com nenhum SelectItem de propósito, força
+            // o fallback pro placeholder de verdade. Só afeta o valor
+            // EXIBIDO -- o Select já fica `disabled` nesse caso, então
+            // onValueChange nunca dispara com esse valor.
+            erroCatalogoDocumentos
+              ? "__erro__"
+              : filtros.tipo_documento
+                ? String(filtros.tipo_documento)
+                : "todos"
           }
           onValueChange={(valor) =>
             onMudarFiltros({
