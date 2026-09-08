@@ -13,9 +13,13 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/lib/plataforma");
+vi.mock("@/lib/legalizacao");
+vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { useAuth } from "@/hooks/useAuth";
+import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
+import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import {
   criarPermissao,
   listarModulos,
@@ -72,7 +76,9 @@ const ADMIN_CONCEDENTE: Usuario = {
   foto_url: "",
 };
 
-function permissaoBase(overrides: Partial<PermissaoUsuario> = {}): PermissaoUsuario {
+function permissaoBase(
+  overrides: Partial<PermissaoUsuario> = {},
+): PermissaoUsuario {
   return {
     id: 1,
     usuario: USUARIO.id,
@@ -107,6 +113,8 @@ beforeEach(() => {
   vi.mocked(listarPermissoes).mockResolvedValue([]);
   vi.mocked(listarModulos).mockResolvedValue([MODULO_GESTAO_DEMANDAS]);
   vi.mocked(listarPerfis).mockResolvedValue([]);
+  vi.mocked(listarTiposDocumento).mockResolvedValue([]);
+  vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
 });
 
 describe("PermissoesAdmin (STC-266)", () => {
@@ -145,7 +153,9 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     // Escopado à tabela de permissões: "Fernanda Lima" também aparece na
     // tabela de Perfil/Unidade/Setor (GerenciarUsuarios, mesma página).
-    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
     expect(tabela.getByText("Fernanda Lima")).toBeInTheDocument();
     // "Niterói" não é o texto inteiro do elemento (vem depois de "-- " no
     // mesmo <span>) -- regex casa por conter, não por igualdade exata.
@@ -166,12 +176,16 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     // Escopado à tabela de permissões: "Nathalya Admin" (concedente) também
     // aparece na tabela de Perfil/Unidade/Setor, mesma página.
-    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
     expect(tabela.getByText("Nathalya Admin")).toBeInTheDocument();
     // formatarDataHora() reaproveitado em vez de calcular a string à mão --
     // o timestamp fixo (created_at) é UTC, e o fuso de quem roda o teste
     // muda a hora local exibida.
-    expect(tabela.getByText(formatarDataHora(permissaoBase().created_at))).toBeInTheDocument();
+    expect(
+      tabela.getByText(formatarDataHora(permissaoBase().created_at)),
+    ).toBeInTheDocument();
   });
 
   it("mostra 'Revogada' pra permissão com ativo=false", async () => {
@@ -179,7 +193,9 @@ describe("PermissoesAdmin (STC-266)", () => {
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
-    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ ativo: false })]);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ ativo: false }),
+    ]);
 
     renderTela();
 
@@ -195,10 +211,14 @@ describe("PermissoesAdmin (STC-266)", () => {
     const user = userEvent.setup();
 
     renderTela();
-    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
 
     await user.click(screen.getByLabelText(/pessoa/i));
-    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Fernanda Lima" }),
+    );
 
     await user.click(screen.getByLabelText(/recurso/i));
     await user.click(await screen.findByRole("option", { name: /kanban/i }));
@@ -210,7 +230,9 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.clear(campoInicio);
     await user.type(campoInicio, "2026-03-01");
 
-    await user.click(screen.getByRole("button", { name: /conceder permissão/i }));
+    await user.click(
+      screen.getByRole("button", { name: /conceder permissão/i }),
+    );
 
     await waitFor(() => {
       expect(criarPermissao).toHaveBeenCalledWith(
@@ -238,10 +260,14 @@ describe("PermissoesAdmin (STC-266)", () => {
     const user = userEvent.setup();
 
     renderTela();
-    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
 
     await user.click(screen.getByLabelText(/pessoa/i));
-    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Fernanda Lima" }),
+    );
 
     await user.click(screen.getByLabelText(/recurso/i));
     await user.click(await screen.findByRole("option", { name: /kanban/i }));
@@ -256,12 +282,16 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.clear(campoInicio);
     await user.type(campoInicio, "2026-03-01");
 
-    await user.click(screen.getByRole("button", { name: /conceder permissão/i }));
+    await user.click(
+      screen.getByRole("button", { name: /conceder permissão/i }),
+    );
 
     await waitFor(() => {
       expect(criarPermissao).toHaveBeenCalledTimes(1);
     });
-    expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ acao: "editar" }));
+    expect(criarPermissao).toHaveBeenCalledWith(
+      expect.objectContaining({ acao: "editar" }),
+    );
   });
 
   it("oferece somente uma escolha entre Visualizar e Editar", async () => {
@@ -272,14 +302,24 @@ describe("PermissoesAdmin (STC-266)", () => {
     const user = userEvent.setup();
 
     renderTela();
-    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
     await user.click(screen.getByLabelText(/^ação/i));
 
-    expect(await screen.findByRole("option", { name: "Visualizar" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Visualizar" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Editar" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Excluir" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Restaurar" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Configurar" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Excluir" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Restaurar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Configurar" }),
+    ).not.toBeInTheDocument();
   });
 
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
@@ -294,7 +334,9 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
     expect(tabela.getAllByText("Fernanda Lima")).toHaveLength(2);
     expect(tabela.getByText("Visualizar")).toBeInTheDocument();
     expect(tabela.getByText("Editar")).toBeInTheDocument();
@@ -307,14 +349,28 @@ describe("PermissoesAdmin (STC-266)", () => {
       isLoading: false,
     } as ReturnType<typeof useAuth>);
     vi.mocked(listarPermissoes).mockResolvedValue([
-      permissaoBase({ id: 1, acao: "visualizar", created_at: "2026-01-10T10:00:00Z" }),
-      permissaoBase({ id: 2, acao: "editar", created_at: "2026-01-20T10:00:00Z" }),
-      permissaoBase({ id: 3, acao: "aprovar", created_at: "2026-01-15T10:00:00Z" }),
+      permissaoBase({
+        id: 1,
+        acao: "visualizar",
+        created_at: "2026-01-10T10:00:00Z",
+      }),
+      permissaoBase({
+        id: 2,
+        acao: "editar",
+        created_at: "2026-01-20T10:00:00Z",
+      }),
+      permissaoBase({
+        id: 3,
+        acao: "aprovar",
+        created_at: "2026-01-15T10:00:00Z",
+      }),
     ]);
 
     renderTela();
 
-    const tabela = await screen.findByRole("table", { name: /permissões individuais/i });
+    const tabela = await screen.findByRole("table", {
+      name: /permissões individuais/i,
+    });
     const linhas = within(tabela).getAllByRole("row").slice(1); // pula o cabeçalho
     expect(linhas.map((linha) => linha.textContent)).toEqual([
       expect.stringContaining("Editar"), // created_at mais recente (20/01)
@@ -332,14 +388,20 @@ describe("PermissoesAdmin (STC-266)", () => {
       permissaoBase({ id: 1, acao: "visualizar" }),
       permissaoBase({ id: 2, acao: "editar" }),
     ]);
-    vi.mocked(revogarPermissao).mockResolvedValue(permissaoBase({ ativo: false }));
+    vi.mocked(revogarPermissao).mockResolvedValue(
+      permissaoBase({ ativo: false }),
+    );
     const user = userEvent.setup();
 
     renderTela();
-    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
     const linhaVisualizar = tabela.getByText("Visualizar").closest("tr");
     expect(linhaVisualizar).not.toBeNull();
-    await user.click(within(linhaVisualizar!).getByRole("button", { name: "Revogar" }));
+    await user.click(
+      within(linhaVisualizar!).getByRole("button", { name: "Revogar" }),
+    );
 
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Revogar" }));
@@ -357,7 +419,9 @@ describe("PermissoesAdmin (STC-266)", () => {
       isLoading: false,
     } as ReturnType<typeof useAuth>);
     vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
-    vi.mocked(revogarPermissao).mockResolvedValue(permissaoBase({ ativo: false }));
+    vi.mocked(revogarPermissao).mockResolvedValue(
+      permissaoBase({ ativo: false }),
+    );
     const user = userEvent.setup();
 
     renderTela();
@@ -389,12 +453,16 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(secaoUsuarios).not.toHaveClass("hidden");
     expect(secaoPermissoes).not.toHaveClass("hidden");
 
-    await user.click(screen.getByRole("button", { name: /expandir permissões individuais/i }));
+    await user.click(
+      screen.getByRole("button", { name: /expandir permissões individuais/i }),
+    );
 
     expect(secaoUsuarios).toHaveClass("hidden");
     expect(secaoPermissoes).not.toHaveClass("hidden");
 
-    await user.click(screen.getByRole("button", { name: /recolher permissões individuais/i }));
+    await user.click(
+      screen.getByRole("button", { name: /recolher permissões individuais/i }),
+    );
 
     expect(secaoUsuarios).not.toHaveClass("hidden");
     expect(secaoPermissoes).not.toHaveClass("hidden");
@@ -460,7 +528,9 @@ describe("PermissoesAdmin (STC-266)", () => {
     // também aparece na coluna "Concedido" da tabela, então getByText
     // bateria em mais de um elemento).
     await user.click(screen.getByLabelText("Pessoa"));
-    await user.click(await screen.findByRole("checkbox", { name: "Nathalya Admin" }));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Nathalya Admin" }),
+    );
 
     expect(screen.queryByText("Visualizar")).not.toBeInTheDocument();
     expect(screen.getByText("Editar")).toBeInTheDocument();
@@ -481,7 +551,9 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(await screen.findByText("Visualizar")).toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Pessoa"));
-    await user.click(await screen.findByRole("checkbox", { name: "Fernanda Lima" }));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Fernanda Lima" }),
+    );
     await user.click(screen.getByRole("checkbox", { name: "Nathalya Admin" }));
 
     // as duas continuam visíveis -- filtro é "Fernanda OU Nathalya", não
@@ -496,14 +568,20 @@ describe("PermissoesAdmin (STC-266)", () => {
       isLoading: false,
     } as ReturnType<typeof useAuth>);
     vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
-    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ usuario: USUARIO.id })]);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ usuario: USUARIO.id }),
+    ]);
     const user = userEvent.setup();
 
     renderTela();
     await user.click(await screen.findByLabelText("Pessoa"));
 
-    expect(await screen.findByRole("checkbox", { name: "Fernanda Lima" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Nathalya Admin" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("checkbox", { name: "Fernanda Lima" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Nathalya Admin" }),
+    ).not.toBeInTheDocument();
   });
 
   it("filtra 'Permissões individuais' por ação", async () => {
@@ -526,7 +604,9 @@ describe("PermissoesAdmin (STC-266)", () => {
     // Escopado à tabela: depois de escolher "Editar" no filtro, o próprio
     // select passa a exibir "Editar" como valor selecionado -- sem
     // escopar, "Editar" bate duas vezes (select + célula da tabela).
-    const tabela = within(screen.getByRole("table", { name: /permissões individuais/i }));
+    const tabela = within(
+      screen.getByRole("table", { name: /permissões individuais/i }),
+    );
     expect(tabela.queryByText("Visualizar")).not.toBeInTheDocument();
     expect(tabela.getByText("Editar")).toBeInTheDocument();
   });
@@ -536,7 +616,9 @@ describe("PermissoesAdmin (STC-266)", () => {
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
-    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase({ acao: "visualizar" })]);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ acao: "visualizar" }),
+    ]);
     const user = userEvent.setup();
 
     renderTela();
@@ -544,11 +626,41 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(await screen.findByRole("option", { name: "Editar" }));
 
     expect(
-      await screen.findByText("Nenhuma permissão encontrada com esses filtros."),
+      await screen.findByText(
+        "Nenhuma permissão encontrada com esses filtros.",
+      ),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
 
     expect(await screen.findByText("Visualizar")).toBeInTheDocument();
+  });
+
+  // STC-415: aba nova, ao lado do conteúdo que já existia.
+  it("mostra o catálogo de Legalização ao trocar de aba, sem desmontar 'Usuários'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    const secaoUsuarios = await screen.findByTestId("secao-usuarios");
+    expect(secaoUsuarios).not.toHaveClass("hidden");
+
+    await user.click(
+      await screen.findByRole("tab", { name: /catálogo de legalização/i }),
+    );
+
+    expect(await screen.findByText("Tipos de documento")).toBeInTheDocument();
+    expect(
+      screen.getByText("Cadastrar documento na unidade"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Corrigir regra existente")).toBeInTheDocument();
+    // "hidden" (não desmontado) -- mesmo padrão já usado por secaoExpandida.
+    expect(secaoUsuarios.parentElement).toHaveAttribute("hidden");
+
+    await user.click(await screen.findByRole("tab", { name: /^usuários$/i }));
+    expect(secaoUsuarios.parentElement).not.toHaveAttribute("hidden");
   });
 });
