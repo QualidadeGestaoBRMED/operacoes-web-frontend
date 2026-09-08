@@ -50,6 +50,13 @@ interface MatrizFiltrosProps {
   // pra API, com seu próprio par de props em vez de entrar em onMudarFiltros.
   categoria: CategoriaDocumento | undefined;
   onMudarCategoria: (categoria: CategoriaDocumento | undefined) => void;
+  // Opcional -- achado no code review: "Limpar filtros" só resetava o
+  // estado em memória, nunca a URL (unidade/categoria chegam aqui via
+  // querystring, ver comentário em MatrizConformidade.tsx). O rótulo
+  // promete limpar os filtros; sem isso, um F5 (ou compartilhar o link
+  // logo depois de "limpar") trazia unidade/categoria de volta sozinhos,
+  // porque o useState inicial lê a mesma querystring de novo do zero.
+  onLimparUrl?: () => void;
 }
 
 export function MatrizFiltros({
@@ -59,6 +66,7 @@ export function MatrizFiltros({
   onMudarBusca,
   categoria,
   onMudarCategoria,
+  onLimparUrl,
 }: MatrizFiltrosProps) {
   const { unidades } = useUnidades();
   const { usuarios } = useUsuarios();
@@ -111,6 +119,7 @@ export function MatrizFiltros({
     onMudarBusca("");
     onMudarFiltros({});
     onMudarCategoria(undefined);
+    onLimparUrl?.();
   }
 
   function camposDeFiltro() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -44,8 +44,14 @@ export function MatrizConformidade() {
   // aplicados. Diferente do Kanban (STC-206), que sincroniza filtro <->
   // URL nos dois sentidos o tempo todo -- aqui só a entrada importa, não
   // há necessidade (ainda) de compartilhar um link com filtro aplicado a
-  // partir da própria Lista.
+  // partir da própria Lista. Única exceção: "Limpar filtros" (ver
+  // onLimparUrl abaixo) -- achado no code review, o próprio rótulo do
+  // botão promete limpar TUDO, incluindo a querystring que originou o
+  // filtro; sem isso, um F5 (ou compartilhar o link) logo depois de
+  // "limpar" trazia unidade/categoria de volta sozinhos.
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
@@ -129,6 +135,7 @@ export function MatrizConformidade() {
         onMudarBusca={setBusca}
         categoria={categoria}
         onMudarCategoria={setCategoria}
+        onLimparUrl={() => router.replace(pathname, { scroll: false })}
       />
 
       {error ? (
