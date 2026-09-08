@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { idObjeto } from "@/lib/openapiAtributos";
 import type { AtributoLinha } from "@/lib/openapiAtributos";
+import { TextoComMarkdownLeve } from "./TextoComMarkdownLeve";
 
 export function TabelaAtributos({ atributos }: { atributos: AtributoLinha[] }) {
   if (atributos.length === 0) return null;
@@ -51,7 +52,7 @@ export function TabelaAtributos({ atributos }: { atributos: AtributoLinha[] }) {
                 </div>
               </td>
               <td className="px-4 py-3.5 leading-relaxed text-muted-foreground">
-                {atributo.descricao}
+                <TextoComMarkdownLeve texto={atributo.descricao} />
                 {atributo.valoresEnum && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {atributo.valoresEnum.map((valor) => (

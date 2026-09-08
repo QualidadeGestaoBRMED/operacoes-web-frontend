@@ -1,5 +1,6 @@
 import { BadgeMetodo } from "./BadgeMetodo";
 import { TabelaAtributos } from "./TabelaAtributos";
+import { TextoComMarkdownLeve } from "./TextoComMarkdownLeve";
 import {
   atributosDeParametros,
   atributosDoSchema,
@@ -48,9 +49,11 @@ export function ConteudoOperacao({
         {operation.summary ?? id}
       </h2>
       {operation.description && (
-        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed whitespace-pre-line text-muted-foreground">
-          {operation.description}
-        </p>
+        // div, não <p> -- TextoComMarkdownLeve pode renderizar uma lista
+        // (<ul>), que não é válida dentro de <p>.
+        <div className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+          <TextoComMarkdownLeve texto={operation.description} />
+        </div>
       )}
 
       {parametrosQuery && parametrosQuery.length > 0 && (
