@@ -171,39 +171,49 @@ export function NavLateralApiDocs({
               idConteudo={idGrupo(tag)}
               onToggle={() => alternar(tag)}
             />
-            {!colapsado && (
-              <div id={idGrupo(tag)} className="mt-1.5 flex flex-col">
-                {operacoes.map((operacao) => (
-                  <Fragment key={operacao.id}>
-                    {cabecalhosRecurso.has(operacao.id) && (
-                      <div className="mt-2 px-2 text-[10.5px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0.5">
-                        {labelRecurso(operacao.recurso)}
-                      </div>
+            {/* Sempre montado (hidden, não {!colapsado && ...}) -- achado no
+                code review: aria-controls (CabecalhoGrupo acima) precisa
+                apontar pra um elemento que EXISTE no DOM mesmo recolhido,
+                senão a referência fica pra nada. hidden (não display:none
+                via classe) tira do layout E da árvore de acessibilidade de
+                graça -- preflight do Tailwind v4 já força
+                `[hidden]{display:none!important}`, então nem a classe
+                `flex` deste mesmo elemento sobrepõe. */}
+            <div
+              id={idGrupo(tag)}
+              hidden={colapsado}
+              className="mt-1.5 flex flex-col"
+            >
+              {operacoes.map((operacao) => (
+                <Fragment key={operacao.id}>
+                  {cabecalhosRecurso.has(operacao.id) && (
+                    <div className="mt-2 px-2 text-[10.5px] font-semibold tracking-wide text-muted-foreground/70 uppercase first:mt-0.5">
+                      {labelRecurso(operacao.recurso)}
+                    </div>
+                  )}
+                  <a
+                    href={`#${operacao.id}`}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                      ativo === operacao.id &&
+                        "bg-muted font-medium text-foreground",
                     )}
-                    <a
-                      href={`#${operacao.id}`}
+                  >
+                    <span
                       className={cn(
-                        "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                        ativo === operacao.id &&
-                          "bg-muted font-medium text-foreground",
+                        "w-9 shrink-0 font-mono text-[10px] font-bold uppercase",
+                        COR_TEXTO_METODO[operacao.metodo],
                       )}
                     >
-                      <span
-                        className={cn(
-                          "w-9 shrink-0 font-mono text-[10px] font-bold uppercase",
-                          COR_TEXTO_METODO[operacao.metodo],
-                        )}
-                      >
-                        {operacao.metodo}
-                      </span>
-                      <span className="truncate">
-                        {operacao.operation.summary ?? operacao.path}
-                      </span>
-                    </a>
-                  </Fragment>
-                ))}
-              </div>
-            )}
+                      {operacao.metodo}
+                    </span>
+                    <span className="truncate">
+                      {operacao.operation.summary ?? operacao.path}
+                    </span>
+                  </a>
+                </Fragment>
+              ))}
+            </div>
           </div>
         );
       })}
@@ -219,38 +229,40 @@ export function NavLateralApiDocs({
                 idConteudo={idGrupo(CHAVE_REFERENCIA)}
                 onToggle={() => alternar(CHAVE_REFERENCIA)}
               />
-              {!colapsado && (
-                <div
-                  id={idGrupo(CHAVE_REFERENCIA)}
-                  className="mt-1.5 flex flex-col"
-                >
-                  {temLimitesTaxa && (
-                    <a
-                      href={`#${ID_LIMITES_TAXA}`}
-                      className={cn(
-                        "rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                        ativo === ID_LIMITES_TAXA &&
-                          "bg-muted font-medium text-foreground",
-                      )}
-                    >
-                      Limites de taxa
-                    </a>
-                  )}
-                  {objetos.map((nome) => (
-                    <a
-                      key={nome}
-                      href={`#${idObjeto(nome)}`}
-                      className={cn(
-                        "truncate rounded-md px-2 py-1.5 font-mono text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                        ativo === idObjeto(nome) &&
-                          "bg-muted font-medium text-foreground",
-                      )}
-                    >
-                      {nome}
-                    </a>
-                  ))}
-                </div>
-              )}
+              {/* Mesmo motivo do bloco de operações acima -- sempre montado
+                  (hidden), pra aria-controls não apontar pra um id
+                  inexistente quando recolhido. */}
+              <div
+                id={idGrupo(CHAVE_REFERENCIA)}
+                hidden={colapsado}
+                className="mt-1.5 flex flex-col"
+              >
+                {temLimitesTaxa && (
+                  <a
+                    href={`#${ID_LIMITES_TAXA}`}
+                    className={cn(
+                      "rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                      ativo === ID_LIMITES_TAXA &&
+                        "bg-muted font-medium text-foreground",
+                    )}
+                  >
+                    Limites de taxa
+                  </a>
+                )}
+                {objetos.map((nome) => (
+                  <a
+                    key={nome}
+                    href={`#${idObjeto(nome)}`}
+                    className={cn(
+                      "truncate rounded-md px-2 py-1.5 font-mono text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                      ativo === idObjeto(nome) &&
+                        "bg-muted font-medium text-foreground",
+                    )}
+                  >
+                    {nome}
+                  </a>
+                ))}
+              </div>
             </div>
           );
         })()}

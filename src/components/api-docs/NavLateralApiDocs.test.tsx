@@ -97,11 +97,19 @@ describe("NavLateralApiDocs -- grupo colapsável (acessibilidade)", () => {
     expect(document.getElementById(idConteudo!)).not.toBeNull();
   });
 
-  it("recolher o grupo vira aria-expanded=false", async () => {
+  it("recolher o grupo vira aria-expanded=false, e aria-controls continua apontando pra um elemento que existe (hidden, não desmontado)", async () => {
+    // Achado no review: o bloco de conteúdo era montado/desmontado via
+    // {!colapsado && (...)} -- ao recolher, o id que aria-controls referencia
+    // sumia do DOM de vez. O teste anterior só cobria o estado expandido,
+    // exatamente o que não pegava esse caso.
     renderNav();
     const botao = screen.getByRole("button", { name: "Grande" });
+    const idConteudo = botao.getAttribute("aria-controls")!;
     await userEvent.click(botao);
     expect(botao).toHaveAttribute("aria-expanded", "false");
+    const elemento = document.getElementById(idConteudo);
+    expect(elemento).not.toBeNull();
+    expect(elemento).toHaveAttribute("hidden");
   });
 });
 
