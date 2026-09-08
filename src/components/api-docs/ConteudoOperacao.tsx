@@ -33,8 +33,15 @@ export function ConteudoOperacao({
   operacao: OperacaoDoc;
 }) {
   const { operation, path, metodo, id } = operacao;
+  // === "query" (não !== "path") -- achado no review: o schema aceita
+  // parametro.in "header"/"cookie" também, e esses não são "busca" (a
+  // seção abaixo é rotulada "Parâmetros de busca") -- reescrevia a
+  // semântica do schema pra "qualquer parâmetro que não seja de path".
+  // Nenhum header/cookie existe no schema real hoje (auth Bearer vem do
+  // security scheme, não de um parameter), mas o filtro não deveria
+  // depender dessa coincidência.
   const parametrosQuery = operation.parameters?.filter(
-    (parametro) => parametro.in !== "path",
+    (parametro) => parametro.in === "query",
   );
   const corpo = corpoDaOperacao(operation);
   const respostas = Object.entries(operation.responses ?? {});
