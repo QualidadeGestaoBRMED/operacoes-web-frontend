@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import {
   useAtualizarTipoDocumento,
   useTiposDocumento,
@@ -43,6 +44,16 @@ const ROTULO_FILTRO_ATIVO: Record<FiltroAtivo, string> = {
 export function TabelaTiposDocumento() {
   const { tiposDocumento, isLoading } = useTiposDocumento();
   const { atualizar } = useAtualizarTipoDocumento();
+  // Mesmo hook de GerenciarUsuarios.tsx -- trava a altura da tabela num
+  // múltiplo exato de linhas inteiras, usando o espaço real que sobra na
+  // tela (refPai é o wrapper com flex-1/min-h que CatalogoLegalizacaoAdmin
+  // dá a este componente), em vez de um max-h fixo sem relação com a altura
+  // disponível de verdade -- achado no dogfooding: um max-h fixo aninhado
+  // dentro do próprio scroll da aba criava 2 scrolls brigando entre si
+  // (barra "flutuando" e, no mobile, o gesto de rolar ficava preso dentro
+  // da tabela em vez de continuar pra "Cadastrar documento"/"Corrigir
+  // regra" logo abaixo).
+  const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   const [formAberto, setFormAberto] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>("todos");
@@ -69,7 +80,7 @@ export function TabelaTiposDocumento() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div ref={refPai} className="flex h-full min-h-0 min-w-0 flex-col">
       <div className="pb-2">
         <h2 className="text-base font-semibold text-foreground">
           Tipos de documento
@@ -141,7 +152,11 @@ export function TabelaTiposDocumento() {
           Nenhum tipo de documento encontrado com esses filtros.
         </p>
       ) : (
-        <div className="scrollbar-discreta scroll-fade-x min-h-0 max-h-96 min-w-0 overflow-auto rounded-lg border border-border">
+        <div
+          ref={refTabela}
+          style={{ maxHeight }}
+          className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 overflow-auto rounded-lg border border-border"
+        >
           <table
             aria-label="Tipos de documento"
             className="w-full min-w-[720px] text-left text-sm"

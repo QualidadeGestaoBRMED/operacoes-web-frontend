@@ -12,12 +12,21 @@ export function CatalogoLegalizacaoAdmin() {
   const [formCadastroAberto, setFormCadastroAberto] = useState(false);
 
   return (
-    <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto">
-      <TabelaTiposDocumento />
+    // Sem overflow-y-auto aqui de propósito -- mesmo padrão de
+    // PermissoesAdmin.tsx (seção "Usuários"): só a tabela de Tipos de
+    // documento rola de verdade (flex-1 min-h, altura medida por
+    // useAlturaSemLinhaCortada dentro dela), os outros 2 blocos ficam com
+    // shrink-0 (altura natural, nunca comprimida). Um scroll de página por
+    // cima da tabela já rolando sozinha criava 2 scrolls disputando o mesmo
+    // gesto -- achado no dogfooding visual/mobile.
+    <div className="flex min-h-0 flex-1 flex-col gap-7">
+      <div className="min-h-[20rem] min-w-0 flex-1">
+        <TabelaTiposDocumento />
+      </div>
 
-      <Separator />
+      <Separator className="shrink-0" />
 
-      <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-foreground">
             Cadastrar documento na unidade
@@ -36,9 +45,11 @@ export function CatalogoLegalizacaoAdmin() {
         </Button>
       </div>
 
-      <Separator />
+      <Separator className="shrink-0" />
 
-      <FormNovaVersaoRegra />
+      <div className="shrink-0">
+        <FormNovaVersaoRegra />
+      </div>
 
       <FormCadastrarDocumento
         open={formCadastroAberto}
