@@ -26,7 +26,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useCriarDocumentoLegalizacao } from "@/hooks/useDocumentosLegalizacao";
+import {
+  useCriarDocumentoLegalizacao,
+  useDocumentosLegalizacao,
+} from "@/hooks/useDocumentosLegalizacao";
 import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -147,6 +150,7 @@ export function FormCadastrarDocumento({
     control,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -162,6 +166,24 @@ export function FormCadastrarDocumento({
 
   const naoAplicavel = watch("nao_aplicavel");
   const status = watch("status");
+  const unidadeSelecionada = watch("unidade") as number | undefined;
+
+  // Achado no dogfooding: só avisar depois de preencher o formulário
+  // inteiro (no submit) que a combinação já existe era tarde demais -- nem
+  // deixa escolher um tipo já cadastrado nesta unidade, em vez de barrar só
+  // no fim. Continua tendo o mesmo cheque no submit (ver aoSubmeter) como
+  // rede de segurança contra o cadastro ter mudado entre abrir o form e
+  // enviar.
+  const { documentos: documentosDaUnidade } = useDocumentosLegalizacao(
+    { unidade: unidadeSelecionada },
+    { desabilitado: !unidadeSelecionada },
+  );
+  const idsTiposJaCadastrados = new Set(
+    documentosDaUnidade.map((documento) => documento.tipo_documento.id),
+  );
+  const tiposDisponiveis = tiposAtivos.filter(
+    (tipo) => !idsTiposJaCadastrados.has(tipo.id),
+  );
 
   async function aoSubmeter(valores: FormValuesSaida) {
     setSalvando(true);
@@ -251,7 +273,16 @@ export function FormCadastrarDocumento({
                 render={({ field }) => (
                   <Select
                     value={field.value ? String(field.value) : undefined}
-                    onValueChange={(valor) => field.onChange(Number(valor))}
+                    onValueChange={(valor) => {
+                      field.onChange(Number(valor));
+                      // Tipo escolhido antes pode não valer mais pra unidade
+                      // nova (já cadastrado nela, ou nem essa era a lista
+                      // filtrada que ele viu) -- força reescolha.
+                      setValue(
+                        "tipo_documento",
+                        undefined as unknown as number,
+                      );
+                    }}
                   >
                     <SelectTrigger id="cd-unidade" className="w-full">
                       <SelectValue placeholder="Selecionar..." />
@@ -284,12 +315,23 @@ export function FormCadastrarDocumento({
                   <Select
                     value={field.value ? String(field.value) : undefined}
                     onValueChange={(valor) => field.onChange(Number(valor))}
+                    disabled={!unidadeSelecionada}
                   >
                     <SelectTrigger id="cd-tipo" className="w-full">
-                      <SelectValue placeholder="Selecionar..." />
+                      <SelectValue
+                        placeholder={
+                          unidadeSelecionada
+                            ? "Selecionar..."
+                            : "Escolha a unidade primeiro"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {tiposAtivos.map((tipo) => (
+                      {/* Só os tipos que esta unidade ainda não tem
+                          cadastrados -- não deixa nem escolher uma
+                          combinação que já existe, em vez de barrar só no
+                          submit. */}
+                      {tiposDisponiveis.map((tipo) => (
                         <SelectItem key={tipo.id} value={String(tipo.id)}>
                           {tipo.nome}
                         </SelectItem>
@@ -301,6 +343,12 @@ export function FormCadastrarDocumento({
               {errors.tipo_documento && (
                 <p className="text-xs text-destructive">
                   {errors.tipo_documento.message}
+                </p>
+              )}
+              {unidadeSelecionada && tiposDisponiveis.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Todos os tipos de documento ativos já foram cadastrados para
+                  esta unidade.
                 </p>
               )}
             </div>

@@ -91,10 +91,41 @@ beforeEach(() => {
 });
 
 describe("FormCadastrarDocumento (STC-415)", () => {
-  it("bloqueia antes de criar qualquer coisa quando já existe documento pra essa combinação", async () => {
+  it("não lista um tipo que a unidade escolhida já tem cadastrado", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
       documentoCriado(),
     ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({
+        unidade: UNIDADE.id,
+      });
+    });
+    await user.click(screen.getByLabelText(/tipo de documento/i));
+
+    expect(
+      screen.queryByRole("option", { name: "Licença Sanitária" }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Todos os tipos de documento ativos já foram cadastrados para esta unidade.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("rede de segurança: bloqueia no submit se o cadastro mudou entre abrir o formulário e enviar", async () => {
+    // 1ª chamada (filtro do select, ao escolher a unidade): nada cadastrado
+    // ainda, "Licença Sanitária" aparece normal. 2ª chamada (cheque explícito
+    // dentro de aoSubmeter): já existe -- simula alguém cadastrar o mesmo
+    // tipo+unidade nesse meio-tempo.
+    vi.mocked(listarDocumentosLegalizacao)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([documentoCriado()]);
     const user = userEvent.setup();
     renderForm();
 
