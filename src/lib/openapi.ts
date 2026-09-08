@@ -140,22 +140,42 @@ export function apenasOperacoesDeLeitura(
 // truncados na lateral). "Autenticação" (4) não precisa.
 export const LIMIAR_SUBGRUPO_RECURSO = 10;
 
+// IDs que devem ganhar um cabeçalho de recurso ANTES delas dentro de UMA
+// lista já em ordem -- só a 1ª operação de cada recurso novo. `elegivel`
+// separado da lista em si (em vez de checar `operacoes.length`): a
+// navegação lateral (NavLateralApiDocs.tsx) precisa aplicar isso sobre a
+// lista FILTRADA por busca, que pode ter poucos itens mesmo numa tag que É
+// grande o bastante pra ter subdivisão -- checar o limiar contra o tamanho
+// filtrado faria a busca "esconder" subtítulos que deviam continuar
+// aparecendo (achado no code review da STC-397).
+export function cabecalhosRecursoParaLista(
+  operacoes: OperacaoDoc[],
+  elegivel: boolean,
+): Set<string> {
+  const comCabecalho = new Set<string>();
+  if (!elegivel) return comCabecalho;
+  let recursoAnterior: string | null = null;
+  for (const operacao of operacoes) {
+    if (operacao.recurso !== recursoAnterior) {
+      comCabecalho.add(operacao.id);
+      recursoAnterior = operacao.recurso;
+    }
+  }
+  return comCabecalho;
+}
+
 // IDs de operação que devem ganhar um cabeçalho de recurso ANTES delas --
-// só a 1ª operação de cada recurso novo dentro de uma tag grande. Mesma
-// função alimenta a navegação lateral e a coluna de conteúdo, garantindo
-// que os dois concordem em onde os subtítulos aparecem.
+// só a 1ª operação de cada recurso novo dentro de uma tag grande. Usada
+// pela coluna de conteúdo (ApiDocs.tsx), que sempre mostra a lista
+// completa (busca só afeta a navegação lateral, ver NavLateralApiDocs.tsx).
 export function operacoesComCabecalhoDeRecurso(
   grupos: Map<string, OperacaoDoc[]>,
 ): Set<string> {
   const comCabecalho = new Set<string>();
   for (const operacoes of grupos.values()) {
-    if (operacoes.length <= LIMIAR_SUBGRUPO_RECURSO) continue;
-    let recursoAnterior: string | null = null;
-    for (const operacao of operacoes) {
-      if (operacao.recurso !== recursoAnterior) {
-        comCabecalho.add(operacao.id);
-        recursoAnterior = operacao.recurso;
-      }
+    const elegivel = operacoes.length > LIMIAR_SUBGRUPO_RECURSO;
+    for (const id of cabecalhosRecursoParaLista(operacoes, elegivel)) {
+      comCabecalho.add(id);
     }
   }
   return comCabecalho;

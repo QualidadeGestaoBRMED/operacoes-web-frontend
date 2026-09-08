@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agruparOperacoesPorTag,
   apenasOperacoesDeLeitura,
+  cabecalhosRecursoParaLista,
   corpoDaOperacao,
   labelRecurso,
   nomeDoRef,
@@ -260,6 +261,29 @@ describe("operacoesComCabecalhoDeRecurso", () => {
     const grupos = new Map([["Grande", operacoes]]);
     expect(operacoesComCabecalhoDeRecurso(grupos)).toEqual(
       new Set(["op0", "op6"]),
+    );
+  });
+});
+
+describe("cabecalhosRecursoParaLista", () => {
+  function operacao(id: string, recurso: string): OperacaoDoc {
+    return { id, metodo: "get", path: "/x/", tag: "X", recurso, operation: {} };
+  }
+
+  it("elegivel=false não ganha cabeçalho nenhum, mesmo com múltiplos recursos", () => {
+    const operacoes = [operacao("a", "x"), operacao("b", "y")];
+    expect(cabecalhosRecursoParaLista(operacoes, false)).toEqual(new Set());
+  });
+
+  it("elegivel=true marca a 1ª operação de cada recurso novo, mesmo numa lista curta", () => {
+    // Achado no code review da STC-397: a navegação lateral precisa disso
+    // sobre uma lista JÁ FILTRADA por busca (poucos itens), de uma tag que
+    // é grande o bastante (>LIMIAR_SUBGRUPO_RECURSO) na lista COMPLETA --
+    // "elegível" precisa vir de fora, não do tamanho da lista recebida
+    // aqui, senão a busca faria os cabeçalhos sumirem.
+    const operacoes = [operacao("op3", "recursoA")];
+    expect(cabecalhosRecursoParaLista(operacoes, true)).toEqual(
+      new Set(["op3"]),
     );
   });
 });

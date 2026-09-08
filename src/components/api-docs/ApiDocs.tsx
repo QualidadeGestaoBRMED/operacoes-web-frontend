@@ -95,7 +95,6 @@ export function ApiDocs() {
       <NavLateralApiDocs
         grupos={grupos}
         ativo={ativoEfetivo}
-        cabecalhosRecurso={cabecalhosRecurso}
         objetos={objetos}
         temLimitesTaxa={temLimitesTaxa}
       />

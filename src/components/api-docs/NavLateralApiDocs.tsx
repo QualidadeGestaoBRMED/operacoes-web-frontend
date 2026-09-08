@@ -1,21 +1,21 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { idObjeto } from "@/lib/openapiAtributos";
 import { cn } from "@/lib/utils";
-import { labelRecurso } from "@/lib/openapi";
+import {
+  LIMIAR_SUBGRUPO_RECURSO,
+  cabecalhosRecursoParaLista,
+  labelRecurso,
+} from "@/lib/openapi";
 import { ID_LIMITES_TAXA } from "./SecaoLimitesTaxa";
 import type { OperacaoDoc } from "@/lib/openapi";
 
 interface NavLateralApiDocsProps {
   grupos: Map<string, OperacaoDoc[]>;
   ativo: string | null;
-  // Mesmo Set calculado em ApiDocs.tsx (operacoesComCabecalhoDeRecurso) --
-  // precisa ser o MESMO, não recalculado aqui, senão nav e conteúdo podem
-  // discordar sobre onde os subtítulos de recurso aparecem.
-  cabecalhosRecurso: Set<string>;
   objetos: string[];
   temLimitesTaxa: boolean;
 }
@@ -60,10 +60,10 @@ function CabecalhoGrupo({
 export function NavLateralApiDocs({
   grupos,
   ativo,
-  cabecalhosRecurso,
   objetos,
   temLimitesTaxa,
 }: NavLateralApiDocsProps) {
+  const idBusca = useId();
   const [busca, setBusca] = useState("");
   // Vazio = tudo expandido (comportamento de antes) -- só entra na lista
   // quem o usuário recolheu manualmente.
@@ -97,18 +97,58 @@ export function NavLateralApiDocs({
   // Busca ativa força tudo expandido -- senão um resultado que bate ficaria
   // escondido atrás de uma seção que o usuário tinha recolhido antes.
   const buscando = busca.trim() !== "";
+  const semResultados = buscando && gruposFiltrados.size === 0;
+
+  // Recalculado sobre a lista JÁ FILTRADA (não reaproveita um Set vindo de
+  // fora) -- achado no review: um Set calculado sobre a lista completa
+  // marca só a 1ª operação de cada recurso ANTES do filtro. Se a busca bate
+  // com a 2ª operação de um recurso mas não com a 1ª, o id que carregava o
+  // subtítulo fica de fora do resultado filtrado, e o item aparece "solto"
+  // sem indicar o recurso.
+  //
+  // "elegível" (2º argumento de cabecalhosRecursoParaLista) vem do tamanho
+  // da tag ANTES do filtro (`grupos`, não `gruposFiltrados`) -- decidir se
+  // uma tag tem subdivisão por recurso é uma propriedade estrutural da tag
+  // inteira, não do tanto de resultado que uma busca específica deixou
+  // visível; do contrário, uma busca que reduz uma tag grande a poucos
+  // itens faria os subtítulos sumirem por estarem abaixo do limiar, mesmo
+  // a tag sendo genuinamente grande.
+  const cabecalhosRecurso = useMemo(() => {
+    const comCabecalho = new Set<string>();
+    for (const [tag, operacoesFiltradas] of gruposFiltrados) {
+      const tamanhoOriginal = grupos.get(tag)?.length ?? 0;
+      const elegivel = tamanhoOriginal > LIMIAR_SUBGRUPO_RECURSO;
+      for (const id of cabecalhosRecursoParaLista(
+        operacoesFiltradas,
+        elegivel,
+      )) {
+        comCabecalho.add(id);
+      }
+    }
+    return comCabecalho;
+  }, [gruposFiltrados, grupos]);
 
   return (
     <nav className="scrollbar-discreta flex h-full w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-border px-4 py-5">
       <div className="relative shrink-0">
+        <label htmlFor={idBusca} className="sr-only">
+          Buscar endpoint por nome ou path
+        </label>
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
+          id={idBusca}
           value={busca}
           onChange={(evento) => setBusca(evento.target.value)}
           placeholder="Buscar endpoint..."
           className="h-8 pl-8 text-[13px]"
         />
       </div>
+
+      {semResultados && (
+        <p className="px-1 text-[13px] text-muted-foreground">
+          Nenhum endpoint encontrado.
+        </p>
+      )}
 
       {Array.from(gruposFiltrados, ([tag, operacoes]) => {
         if (operacoes.length === 0) return null;
