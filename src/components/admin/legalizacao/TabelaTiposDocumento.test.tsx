@@ -54,7 +54,7 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     expect(screen.queryByText("Protocolo")).not.toBeInTheDocument();
   });
 
-  it("desativa um tipo de documento ao clicar em 'Ativo'", async () => {
+  it("desativa um tipo de documento ao clicar em 'Desativar'", async () => {
     vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
     vi.mocked(atualizarTipoDocumento).mockResolvedValue({
       ...TIPO,
@@ -63,7 +63,10 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     const user = userEvent.setup();
     renderTela();
 
-    await user.click(await screen.findByRole("button", { name: "Ativo" }));
+    expect(await screen.findByText("Ativo")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /desativar licença sanitária/i }),
+    );
 
     await waitFor(() => {
       expect(atualizarTipoDocumento).toHaveBeenCalledWith(TIPO.id, {

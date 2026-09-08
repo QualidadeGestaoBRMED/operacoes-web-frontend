@@ -339,7 +339,14 @@ export function FormNovaVersaoRegra() {
         </Select>
       </div>
 
-      {unidadeId && tipoDocumentoId && (
+      {!unidadeId || !tipoDocumentoId ? (
+        // Achado no dogfooding visual: sem nenhuma pista, escolher os 2
+        // campos parecia não fazer nada -- nenhuma seta, nenhum texto
+        // avisando que o resultado aparece embaixo.
+        <p className="pt-2 text-xs text-muted-foreground">
+          Selecione a unidade e o tipo de documento para ver a regra atual.
+        </p>
+      ) : (
         <div className="mt-3 rounded-lg border border-border p-3 text-sm">
           {isLoading && carregandoPrimeiraVez ? (
             <p className="text-muted-foreground">Carregando...</p>

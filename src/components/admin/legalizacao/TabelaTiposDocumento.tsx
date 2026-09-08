@@ -152,7 +152,7 @@ export function TabelaTiposDocumento() {
                 <th className="px-4 py-2.5">Categoria</th>
                 <th className="px-4 py-2.5">Área responsável</th>
                 <th className="px-4 py-2.5">Exigências</th>
-                <th className="px-4 py-2.5">Ativo</th>
+                <th className="px-4 py-2.5">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -187,13 +187,25 @@ export function TabelaTiposDocumento() {
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Button
-                      size="sm"
-                      variant={tipo.ativo ? "outline" : "secondary"}
-                      onClick={() => void alternarAtivo(tipo)}
-                    >
-                      {tipo.ativo ? "Ativo" : "Inativo"}
-                    </Button>
+                    {/* Badge mostra o estado, botão descreve a ação -- achado
+                        no dogfooding: um botão rotulado com o próprio estado
+                        atual ("Ativo") lia como rótulo, não como ação; quem
+                        clicava esperava que continuasse ativo, não o
+                        oposto. Mesmo padrão de Badge (estado) + botão de ação
+                        (Revogar/Reativar) já usado em PermissoesAdmin.tsx. */}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={tipo.ativo ? "success" : "muted"}>
+                        {tipo.ativo ? "Ativo" : "Inativo"}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        aria-label={`${tipo.ativo ? "Desativar" : "Ativar"} ${tipo.nome}`}
+                        onClick={() => void alternarAtivo(tipo)}
+                      >
+                        {tipo.ativo ? "Desativar" : "Ativar"}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
