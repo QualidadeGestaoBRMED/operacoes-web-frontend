@@ -6,10 +6,12 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type { DocumentoUnidade, DocumentoUnidadeFiltros } from "@/types/legalizacao";
 
-// Mesmo valor de useDemandas.ts (MP001) -- sem uma tela consumindo ainda
-// (STC-377 é só tipos/hooks), não há motivo pra divergir do padrão já
-// validado lá.
-const INTERVALO_POLL_MS = 10_000;
+// Diferente de useDemandas.ts (10s, MP001) de propósito -- achado na STC-378:
+// documento regulatório muda de status raras vezes (não é um board vivo com
+// gente arrastando card o tempo todo), então não se justifica o mesmo custo
+// de polling agressivo. 60s reduz as chamadas em 6x sem perder nada de
+// prático -- ninguém precisa saber que um alvará venceu com 10s de atraso.
+const INTERVALO_POLL_MS = 60_000;
 
 export function useDocumentosLegalizacao(
   filtros?: DocumentoUnidadeFiltros,
