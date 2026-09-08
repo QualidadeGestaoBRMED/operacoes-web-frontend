@@ -77,10 +77,14 @@ export function MatrizFiltros({
   // cada ciclo de poll de 60s. O catálogo de tipos de documento muda raras
   // vezes (só via Admin, fora desta tela) -- não precisa de dado fresco a
   // cada minuto, só uma busca inicial já resolve.
-  const { documentos: catalogoDocumentos } = useDocumentosLegalizacao(
-    undefined,
-    { pausado: true },
-  );
+  // error desestruturado e usado abaixo (Select "Documento") -- achado no
+  // code review (PR #32): antes desta busca virar uma chamada própria, uma
+  // falha de rede já aparecia no estado de erro que a tela inteira tratava;
+  // isolada aqui, ela ficava sem nenhuma UI de erro, e o Select mostrava só
+  // "Todos os documentos" -- indistinguível de "não há outros tipos
+  // cadastrados".
+  const { documentos: catalogoDocumentos, error: erroCatalogoDocumentos } =
+    useDocumentosLegalizacao(undefined, { pausado: true });
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();
@@ -148,13 +152,23 @@ export function MatrizFiltros({
               tipo_documento: valor === "todos" ? undefined : Number(valor),
             })
           }
+          disabled={Boolean(erroCatalogoDocumentos)}
         >
           <SelectTrigger
             size="sm"
             className="h-8 w-full sm:w-auto"
             aria-label="Documento"
+            title={
+              erroCatalogoDocumentos
+                ? "Erro ao carregar os tipos de documento"
+                : undefined
+            }
           >
-            <SelectValue placeholder="Documento" />
+            <SelectValue
+              placeholder={
+                erroCatalogoDocumentos ? "Erro ao carregar" : "Documento"
+              }
+            />
           </SelectTrigger>
           <SelectContent position="popper">
             <SelectItem value="todos">Todos os documentos</SelectItem>
