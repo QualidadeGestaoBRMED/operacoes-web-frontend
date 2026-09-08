@@ -13,12 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   useAtualizarTipoDocumento,
   useTiposDocumento,
 } from "@/hooks/useTiposDocumento";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import { cn } from "@/lib/utils";
 import type {
   AreaResponsavelDocumento,
   TipoDocumentoRegulatorio,
@@ -54,6 +56,12 @@ export function TabelaTiposDocumento() {
   // da tabela em vez de continuar pra "Cadastrar documento"/"Corrigir
   // regra" logo abaixo).
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
+  // Achado no dogfooding mobile: encaixar a tabela numa altura medida junto
+  // com "Cadastrar documento"/"Corrigir regra" não sobra espaço numa tela
+  // curta -- no mobile a tabela mostra tudo (sem altura travada) e quem rola
+  // é a aba inteira (ver CatalogoLegalizacaoAdmin.tsx); só no desktop a
+  // tabela tem sua própria caixa com altura medida.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
   const [formAberto, setFormAberto] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>("todos");
@@ -154,8 +162,11 @@ export function TabelaTiposDocumento() {
       ) : (
         <div
           ref={refTabela}
-          style={{ maxHeight }}
-          className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 overflow-auto rounded-lg border border-border"
+          style={ehMobile ? undefined : { maxHeight }}
+          className={cn(
+            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+            !ehMobile && "overflow-y-auto",
+          )}
         >
           <table
             aria-label="Tipos de documento"

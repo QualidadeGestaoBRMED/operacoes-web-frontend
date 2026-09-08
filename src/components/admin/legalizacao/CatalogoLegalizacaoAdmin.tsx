@@ -12,14 +12,18 @@ export function CatalogoLegalizacaoAdmin() {
   const [formCadastroAberto, setFormCadastroAberto] = useState(false);
 
   return (
-    // Sem overflow-y-auto aqui de propósito -- mesmo padrão de
+    // Desktop: sem overflow-y-auto aqui de propósito -- mesmo padrão de
     // PermissoesAdmin.tsx (seção "Usuários"): só a tabela de Tipos de
     // documento rola de verdade (flex-1 min-h, altura medida por
     // useAlturaSemLinhaCortada dentro dela), os outros 2 blocos ficam com
     // shrink-0 (altura natural, nunca comprimida). Um scroll de página por
     // cima da tabela já rolando sozinha criava 2 scrolls disputando o mesmo
     // gesto -- achado no dogfooding visual/mobile.
-    <div className="flex min-h-0 flex-1 flex-col gap-7">
+    //
+    // Mobile: não sobra altura pra encaixar tabela + os outros 2 blocos
+    // numa tela curta -- a tabela mostra tudo (sem altura travada, ver
+    // TabelaTiposDocumento.tsx) e quem rola é a aba inteira.
+    <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible">
       <div className="min-h-[20rem] min-w-0 flex-1">
         <TabelaTiposDocumento />
       </div>
