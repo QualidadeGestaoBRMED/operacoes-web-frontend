@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
 import {
@@ -57,15 +57,18 @@ interface MatrizMapaGridProps {
 }
 
 export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
-  const router = useRouter();
-
-  function abrirListaFiltrada(
+  // Achado no code review: era <button onClick={() => router.push(...)}>,
+  // navegação de página de verdade (mesma rota da Lista, só com querystring
+  // diferente) tratada como ação local -- sem href real, não dava pra abrir
+  // em nova aba (Ctrl/Cmd+clique), nem aparecia "Abrir link em nova guia" no
+  // menu de contexto. O próprio ToggleMapaLista.tsx já segue o princípio
+  // certo ("navegação entre página é papel de link"), só não tinha sido
+  // aplicado aqui.
+  function hrefListaFiltrada(
     unidadeId: number,
     categoria: CategoriaDocumento,
-  ) {
-    router.push(
-      `/modulos/legalizacao?unidade=${unidadeId}&categoria=${categoria}`,
-    );
+  ): string {
+    return `/modulos/legalizacao?unidade=${unidadeId}&categoria=${categoria}`;
   }
 
   return (
@@ -153,33 +156,9 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                   {ORDEM_CATEGORIA.map((categoria) => {
                     const celula = celulaDaGrade(grade, unidade.id, categoria);
                     const clicavel = celula.bucket !== "pendente";
-                    return (
-                      <button
-                        key={categoria}
-                        type="button"
-                        disabled={!clicavel}
-                        onClick={() =>
-                          abrirListaFiltrada(unidade.id, categoria)
-                        }
-                        aria-label={`${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}`}
-                        className={cn(
-                          "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md text-white outline-none transition-transform",
-                          // ring-offset (não só o ring puro do design system,
-                          // button.tsx) -- achado no code review: sem
-                          // afastar o anel do próprio preenchimento, o teal
-                          // do ring/50 podia ter pouco contraste sobre o
-                          // fundo colorido da célula (ex. bg-cyan-700, tom
-                          // parecido). O offset garante uma faixa da cor do
-                          // card entre a célula e o anel, sempre visível
-                          // não importa a cor de fundo.
-                          "focus-visible:ring-ring/50 focus-visible:ring-offset-card focus-visible:ring-[3px] focus-visible:ring-offset-2",
-                          clicavel &&
-                            "cursor-pointer hover:scale-[1.04] hover:shadow-sm",
-                          !clicavel &&
-                            "cursor-default border border-border bg-[repeating-linear-gradient(45deg,var(--muted),var(--muted)_6px,var(--card)_6px,var(--card)_12px)] text-muted-foreground",
-                          clicavel && COR_BUCKET_CELULA[celula.bucket],
-                        )}
-                      >
+                    const aria = `${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}`;
+                    const conteudo = (
+                      <>
                         <span className="text-base font-extrabold leading-none">
                           {celula.bucket === "pendente"
                             ? ""
@@ -190,7 +169,50 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                         <span className="text-[9.5px] font-bold tracking-wide uppercase opacity-90">
                           {LABEL_BUCKET_CELULA[celula.bucket]}
                         </span>
-                      </button>
+                      </>
+                    );
+
+                    if (!clicavel) {
+                      // Célula "pendente" não tem link de verdade -- não
+                      // existe nenhum documento aplicável nessa combinação
+                      // unidade×categoria, então não é só "desabilitado
+                      // temporariamente", é uma ausência real. Uma <a>
+                      // "desabilitada" via aria-disabled continua focável e
+                      // clicável por padrão -- <div> não-interativa evita
+                      // esse anti-padrão de acessibilidade de vez.
+                      return (
+                        <div
+                          key={categoria}
+                          aria-label={aria}
+                          className="flex h-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-[repeating-linear-gradient(45deg,var(--muted),var(--muted)_6px,var(--card)_6px,var(--card)_12px)] text-muted-foreground"
+                        >
+                          {conteudo}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={categoria}
+                        href={hrefListaFiltrada(unidade.id, categoria)}
+                        aria-label={aria}
+                        className={cn(
+                          "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md text-white outline-none transition-transform",
+                          "cursor-pointer hover:scale-[1.04] hover:shadow-sm",
+                          // ring-offset (não só o ring puro do design system,
+                          // button.tsx) -- achado no code review: sem
+                          // afastar o anel do próprio preenchimento, o teal
+                          // do ring/50 podia ter pouco contraste sobre o
+                          // fundo colorido da célula (ex. bg-cyan-700, tom
+                          // parecido). O offset garante uma faixa da cor do
+                          // card entre a célula e o anel, sempre visível
+                          // não importa a cor de fundo.
+                          "focus-visible:ring-ring/50 focus-visible:ring-offset-card focus-visible:ring-[3px] focus-visible:ring-offset-2",
+                          COR_BUCKET_CELULA[celula.bucket],
+                        )}
+                      >
+                        {conteudo}
+                      </Link>
                     );
                   })}
                 </div>
