@@ -31,7 +31,10 @@ import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
-import { enviarEvidenciaLegalizacao } from "@/lib/legalizacao";
+import {
+  enviarEvidenciaLegalizacao,
+  listarDocumentosLegalizacao,
+} from "@/lib/legalizacao";
 import { LABEL_CRITICIDADE, LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import type { Criticidade, StatusDocumento } from "@/types/legalizacao";
 
@@ -163,6 +166,23 @@ export function FormCadastrarDocumento({
   async function aoSubmeter(valores: FormValuesSaida) {
     setSalvando(true);
     try {
+      // Achado no dogfooding: sem checar antes, uma tentativa repetida pro
+      // mesmo tipo+unidade criava uma regra nova (etapa 1) que colidia com a
+      // regra órfã da tentativa anterior (mesma vigente_a_partir) -- o
+      // usuário via um erro técnico de unicidade da Regra em vez de um
+      // aviso claro de "documento já existe". Checa aqui, antes de criar
+      // qualquer coisa.
+      const existentes = await listarDocumentosLegalizacao({
+        unidade: valores.unidade,
+        tipo_documento: valores.tipo_documento,
+      });
+      if (existentes.length > 0) {
+        toast.error(
+          'Já existe um documento cadastrado para esta unidade e tipo -- use "Corrigir regra existente" para atualizar.',
+        );
+        return;
+      }
+
       if (valores.nao_aplicavel) {
         await criarDocumento({
           tipo_documento: valores.tipo_documento,

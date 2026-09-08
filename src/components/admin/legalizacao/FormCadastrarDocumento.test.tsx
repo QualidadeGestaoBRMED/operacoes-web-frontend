@@ -17,6 +17,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import {
   enviarEvidenciaLegalizacao,
   criarDocumentoLegalizacao,
+  listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
 import { criarRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
@@ -86,9 +87,41 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+  vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
 });
 
 describe("FormCadastrarDocumento (STC-415)", () => {
+  it("bloqueia antes de criar qualquer coisa quando já existe documento pra essa combinação", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documentoCriado(),
+    ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Em andamento" }),
+    );
+    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.click(screen.getByLabelText(/criticidade/i));
+    await user.click(await screen.findByRole("option", { name: "Alta" }));
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({
+        unidade: UNIDADE.id,
+        tipo_documento: TIPO.id,
+      });
+    });
+    expect(criarRegraDocumento).not.toHaveBeenCalled();
+    expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
   it("caminho 'Não aplicável': exige justificativa e não cria regra nenhuma", async () => {
     vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
       documentoCriado({
