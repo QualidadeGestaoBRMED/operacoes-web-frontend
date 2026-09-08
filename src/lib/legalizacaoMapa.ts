@@ -102,18 +102,19 @@ function estaEmAtencao(documento: DocumentoUnidade): boolean {
 
 // Prioridade de gravidade -- acontece na ordem em que os ifs abaixo
 // checam. unidade_encerramento fica DEPOIS de vencido/atenção/andamento/
-// nao_iniciado (interpretação minha, não confirmada com o negócio: "está
-// vencido" ou "precisa de ação" pesa mais do que "unidade vai fechar" pro
-// card de conformidade em si) e ANTES de "regular" (é informativo, não é
-// "tudo certo" no sentido pleno -- o mockup dá cor própria/roxa a esse
-// caso, não reaproveita o verde). nao_aplicavel conta como regular -- mesmo
-// raciocínio já usado na coluna Criticidade da Lista, "sem problema, não
-// precisa fazer nada". nao_iniciado NÃO conta como regular -- achado no
-// code review: sem um bucket próprio, uma categoria onde nenhum documento
-// foi sequer iniciado renderizava ✓ "em dia" na célula, idêntico a uma
-// categoria de verdade regularizada (a Lista já distingue nao_iniciado com
-// cor própria, COR_STATUS_BADGE em legalizacaoMatriz.ts -- só a agregação
-// do Mapa escondia isso).
+// nao_iniciado e ANTES de "regular" -- confirmado com o responsável do
+// projeto (achado em code review, STC-379/PR#32, 08/09/2026): mesmo
+// espírito de "Não aplicável" (nunca compete com um problema ativo, só
+// "vence" quando não sobra nenhum), mas continua com bucket/cor PRÓPRIA
+// (roxo, não reaproveita o verde de "regular") -- diferente de
+// nao_aplicavel, que conta como regular (mesmo raciocínio já usado na
+// coluna Criticidade da Lista, "sem problema, não precisa fazer nada").
+// nao_iniciado NÃO conta como regular -- achado no code review: sem um
+// bucket próprio, uma categoria onde nenhum documento foi sequer iniciado
+// renderizava ✓ "em dia" na célula, idêntico a uma categoria de verdade
+// regularizada (a Lista já distingue nao_iniciado com cor própria,
+// COR_STATUS_BADGE em legalizacaoMatriz.ts -- só a agregação do Mapa
+// escondia isso).
 function calcularCelula(documentos: DocumentoUnidade[]): CelulaMapa {
   if (documentos.length === 0) return { bucket: "pendente", contagem: 0 };
 
