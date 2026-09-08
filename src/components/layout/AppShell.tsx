@@ -81,7 +81,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-hidden="true"
             className={cn(
               "fixed inset-0 z-40 bg-black/50 transition-opacity duration-300",
-              sidebarAberta ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
+              sidebarAberta
+                ? "pointer-events-auto opacity-100"
+                : "pointer-events-none opacity-0",
             )}
           />
           {/* position: fixed (não "push"): a página por trás nunca perde
@@ -133,7 +135,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             revelada mesmo aberta. */}
         <main
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto bg-background transition-[border-radius] duration-300",
+            // overflow-x-hidden: rede de segurança -- achado no code review
+            // (usuário testando em mobile, Chrome DevTools iPhone 16 Pro
+            // Max): a barra de rolagem horizontal do PRÓPRIO viewport
+            // aparecia em telas estreitas. Não reproduzi programaticamente
+            // (Playwright + a mesma emulação não escapou nenhum elemento em
+            // nenhum cenário testado), mas custa zero garantir aqui -- se
+            // algum conteúdo filho algum dia crescer além da largura
+            // disponível (min-w-0 faltando em algum lugar da árvore, ex.),
+            // isso contém sem afetar o scroll vertical normal.
+            "min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-background transition-[border-radius] duration-300",
             !ehMobile && sidebarAberta && "rounded-tl-3xl rounded-bl-3xl",
           )}
         >

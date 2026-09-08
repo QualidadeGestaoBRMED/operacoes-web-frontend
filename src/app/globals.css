@@ -54,23 +54,23 @@
  */
 :root {
   --radius: 0.625rem;
-  --background: #F3F3F3;
-  --foreground: #193B4F;
-  --card: #F3F3F3;
-  --card-foreground: #193B4F;
-  --popover: #F3F3F3;
-  --popover-foreground: #193B4F;
-  --primary: #193B4F;
-  --primary-foreground: #FFFFFF;
+  --background: #f3f3f3;
+  --foreground: #193b4f;
+  --card: #f3f3f3;
+  --card-foreground: #193b4f;
+  --popover: #f3f3f3;
+  --popover-foreground: #193b4f;
+  --primary: #193b4f;
+  --primary-foreground: #ffffff;
   --secondary: #007891;
-  --secondary-foreground: #FFFFFF;
-  --muted: #DFE0E2;
-  --muted-foreground: #767A7B;
+  --secondary-foreground: #ffffff;
+  --muted: #dfe0e2;
+  --muted-foreground: #767a7b;
   --accent: #007891;
-  --accent-foreground: #FFFFFF;
-  --destructive: #CC851E;
-  --destructive-foreground: #FFFFFF;
-  --border: #BFC3C6;
+  --accent-foreground: #ffffff;
+  --destructive: #cc851e;
+  --destructive-foreground: #ffffff;
+  --border: #bfc3c6;
   /* Achado no review: --input igual a --background/--card (#F3F3F3) tornava
    * a borda de Input/Select/Textarea/Checkbox invisível no tema claro -- só
    * dava pra perceber o campo pelo shadow-xs, quase imperceptível num
@@ -78,62 +78,73 @@
    * gerais"), que tem contraste real contra o fundo. qeg_design.json também
    * tem F3F3F3 aqui -- valor original da fonte, não erro de cópia, mas
    * insuficiente na prática nesta combinação de cores. */
-  --input: #BFC3C6;
+  --input: #bfc3c6;
   --ring: #007891;
-  --chart-1: #7EBFCC;
-  --chart-2: #9BD5E1;
-  --chart-3: #2CAD6E;
-  --chart-4: #CC851E;
-  --chart-5: #D9BE53;
-  --sidebar: #193B4F;
-  --sidebar-foreground: #F3F3F3;
+  --chart-1: #7ebfcc;
+  --chart-2: #9bd5e1;
+  --chart-3: #2cad6e;
+  --chart-4: #cc851e;
+  --chart-5: #d9be53;
+  --sidebar: #193b4f;
+  --sidebar-foreground: #f3f3f3;
   --sidebar-primary: #007891;
-  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #007891;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #767A7B;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #767a7b;
   --sidebar-ring: #007891;
 }
 
 .dark {
-  --background: #193B4F;
-  --foreground: #F3F3F3;
-  --card: #193B4F;
-  --card-foreground: #F3F3F3;
-  --popover: #193B4F;
-  --popover-foreground: #F3F3F3;
-  --primary: #FFFFFF;
-  --primary-foreground: #193B4F;
-  --secondary: #7EBFCC;
-  --secondary-foreground: #193B4F;
-  --muted: #767A7B;
-  --muted-foreground: #F3F3F3;
+  --background: #193b4f;
+  --foreground: #f3f3f3;
+  --card: #193b4f;
+  --card-foreground: #f3f3f3;
+  --popover: #193b4f;
+  --popover-foreground: #f3f3f3;
+  --primary: #ffffff;
+  --primary-foreground: #193b4f;
+  --secondary: #7ebfcc;
+  --secondary-foreground: #193b4f;
+  --muted: #767a7b;
+  --muted-foreground: #f3f3f3;
   --accent: #007891;
-  --accent-foreground: #FFFFFF;
-  --destructive: #A05E1E;
-  --destructive-foreground: #FFFFFF;
-  --border: #BFC3C6;
-  --input: #767A7B;
+  --accent-foreground: #ffffff;
+  --destructive: #a05e1e;
+  --destructive-foreground: #ffffff;
+  --border: #bfc3c6;
+  --input: #767a7b;
   --ring: #007891;
-  --chart-1: #7EBFCC;
-  --chart-2: #9BD5E1;
-  --chart-3: #2CAD6E;
-  --chart-4: #CC851E;
-  --chart-5: #D9BE53;
+  --chart-1: #7ebfcc;
+  --chart-2: #9bd5e1;
+  --chart-3: #2cad6e;
+  --chart-4: #cc851e;
+  --chart-5: #d9be53;
   /* Sidebar permanece dark mesmo no tema claro (ver qeg_design.json > components.sidebar) */
-  --sidebar: #193B4F;
-  --sidebar-foreground: #F3F3F3;
+  --sidebar: #193b4f;
+  --sidebar-foreground: #f3f3f3;
   --sidebar-primary: #007891;
-  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #007891;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #767A7B;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #767a7b;
   --sidebar-ring: #007891;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  /* overflow-x hidden -- rede de segurança global, achado no code review
+     (usuário testando em mobile): a barra de rolagem horizontal do próprio
+     viewport aparecia em telas estreitas numa tela específica. AppShell.tsx
+     já ocupa a viewport inteira (h-screen) e cada página rola por dentro
+     (main/overflow-y-auto ou um container próprio) -- o body em si nunca
+     deveria precisar rolar, então isso não tira nenhum scroll legítimo,
+     só contém um filho que eventualmente cresça além da largura da tela. */
+  html,
+  body {
+    @apply overflow-x-hidden;
   }
   body {
     @apply bg-background text-foreground;
