@@ -32,8 +32,8 @@ export function CatalogoLegalizacaoAdmin() {
             Cadastrar documento na unidade
           </h2>
           <p className="text-sm text-muted-foreground">
-            Monta o esqueleto de um tipo de documento para uma unidade -- regra,
-            status inicial e evidência num único fluxo.
+            Cadastra um tipo de documento para uma unidade, com prazo, status
+            inicial e evidência, tudo em uma única etapa.
           </p>
         </div>
         <Button

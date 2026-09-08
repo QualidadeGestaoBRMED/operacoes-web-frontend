@@ -200,7 +200,7 @@ export function FormCadastrarDocumento({
       });
       if (existentes.length > 0) {
         toast.error(
-          'Já existe um documento cadastrado para esta unidade e tipo -- use "Corrigir regra existente" para atualizar.',
+          'Já existe um documento cadastrado para esta unidade e tipo. Use "Corrigir regra existente" para atualizar.',
         );
         return;
       }
@@ -445,8 +445,9 @@ export function FormCadastrarDocumento({
                     Regra desta unidade
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Sem herança -- os valores abaixo valem só para esta
-                    combinação de tipo de documento e unidade.
+                    Os valores abaixo valem só para esta unidade e este tipo de
+                    documento. Cada unidade tem seu próprio prazo, mesmo sendo o
+                    mesmo tipo de documento.
                   </p>
                 </div>
 
@@ -490,7 +491,7 @@ export function FormCadastrarDocumento({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="cd-janela-inicio">
-                      Janela -- dia início
+                      Início da janela (dia)
                     </Label>
                     <Input
                       id="cd-janela-inicio"
@@ -501,7 +502,7 @@ export function FormCadastrarDocumento({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="cd-janela-fim">Janela -- dia fim</Label>
+                    <Label htmlFor="cd-janela-fim">Fim da janela (dia)</Label>
                     <Input
                       id="cd-janela-fim"
                       type="number"

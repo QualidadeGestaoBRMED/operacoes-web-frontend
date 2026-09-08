@@ -155,8 +155,8 @@ function DialogNovaVersao({
         >
           <div className="scrollbar-discreta flex-1 space-y-5 overflow-y-auto px-6 py-5">
             <p className="text-sm text-muted-foreground">
-              {documento.tipo_documento.nome} -- {documento.unidade.nome}. Regra
-              existente não é editada -- isto cria uma versão nova, que passa a
+              {documento.tipo_documento.nome} · {documento.unidade.nome}. A
+              regra atual não é alterada: isto cria uma regra nova, que passa a
               valer a partir da data escolhida.
             </p>
 
@@ -195,7 +195,7 @@ function DialogNovaVersao({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="nv-janela-inicio">Janela -- dia início</Label>
+                <Label htmlFor="nv-janela-inicio">Início da janela (dia)</Label>
                 <Input
                   id="nv-janela-inicio"
                   type="number"
@@ -205,7 +205,7 @@ function DialogNovaVersao({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="nv-janela-fim">Janela -- dia fim</Label>
+                <Label htmlFor="nv-janela-fim">Fim da janela (dia)</Label>
                 <Input
                   id="nv-janela-fim"
                   type="number"
@@ -300,8 +300,9 @@ export function FormNovaVersaoRegra() {
           Corrigir regra existente
         </h2>
         <p className="text-sm text-muted-foreground">
-          Regra é append-only -- corrigir um prazo/criticidade já cadastrado
-          cria uma nova versão, não edita a antiga.
+          Não é possível editar uma regra já cadastrada. Corrigir o prazo ou a
+          criticidade cria uma regra nova; a antiga fica guardada como
+          histórico.
         </p>
       </div>
 
@@ -352,21 +353,21 @@ export function FormNovaVersaoRegra() {
             <p className="text-muted-foreground">Carregando...</p>
           ) : !documento ? (
             <p className="text-muted-foreground">
-              Nenhum documento cadastrado para esta combinação -- use
+              Nenhum documento cadastrado para esta combinação. Use
               &quot;Cadastrar documento&quot; acima.
             </p>
           ) : !documento.regra_aplicada ? (
             <p className="text-muted-foreground">
-              Este documento não tem regra de prazo aplicada hoje -- não há o
-              que corrigir.
+              Este documento ainda não tem nenhuma regra de prazo cadastrada,
+              então não há o que corrigir.
             </p>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-muted-foreground">
                 Vigente desde{" "}
-                {formatarData(documento.regra_aplicada.vigente_a_partir)} --{" "}
+                {formatarData(documento.regra_aplicada.vigente_a_partir)}, com{" "}
                 {documento.regra_aplicada.antecedencia_dias} dias de
-                antecedência,{" "}
+                antecedência e criticidade{" "}
                 {LABEL_CRITICIDADE[documento.regra_aplicada.criticidade]}.
               </div>
               <Button size="sm" onClick={() => setDialogAberto(true)}>

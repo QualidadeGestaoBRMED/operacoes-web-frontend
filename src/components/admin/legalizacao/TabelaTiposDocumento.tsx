@@ -86,8 +86,8 @@ export function TabelaTiposDocumento() {
           Tipos de documento
         </h2>
         <p className="text-sm text-muted-foreground">
-          Catálogo global, reutilizável entre unidades -- categoria e exigências
-          não mudam unidade a unidade.
+          Catálogo único, usado por todas as unidades. A categoria e as
+          exigências são as mesmas em qualquer unidade.
         </p>
       </div>
 

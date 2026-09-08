@@ -159,8 +159,8 @@ export function FormNovoTipoDocumento({
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Identificador único, usado internamente -- não aparece pra quem
-                preenche o catálogo depois.
+                Um código interno do sistema, só pra identificar esse tipo de
+                documento. Não aparece pra quem for usar o catálogo depois.
               </p>
             </div>
 
