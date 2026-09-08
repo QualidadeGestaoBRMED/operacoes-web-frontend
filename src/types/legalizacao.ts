@@ -127,11 +127,3 @@ export interface DocumentoUnidadeFiltros {
   criticidade?: Criticidade;
   prazo_ate?: string;
 }
-
-// GET /modulos/legalizacao/dashboard/indicadores/ (DashboardIndicadoresView)
-// -- contagem por status/criticidade, chaves dinâmicas (nem todo valor
-// aparece necessariamente, buckets zerados ficam ausentes, não zerados).
-export interface IndicadoresLegalizacao {
-  por_status: Record<string, number>;
-  por_criticidade: Record<string, number>;
-}

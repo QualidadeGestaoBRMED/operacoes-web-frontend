@@ -41,8 +41,7 @@ frontend/src/
 ├── hooks/
 │   ├── useDocumentosLegalizacao.ts      → matriz, filtros, detalhe (reaproveitado sem filtro nenhum pelo Mapa — grade/resumo são agregados no cliente)
 │   ├── useProcessoRenovacao.ts
-│   ├── useMovimentacaoProfissional.ts
-│   └── useIndicadoresLegalizacao.ts     → cards de resumo do Mapa
+│   └── useMovimentacaoProfissional.ts
 ├── lib/
 │   ├── legalizacaoMatriz.ts             → cores/labels/prazo/ordenação da Lista
 │   └── legalizacaoMapa.ts               → agregação client-side unidade×categoria (bucket por célula, resumo de KPIs) — NOVO (STC-379)
@@ -172,11 +171,17 @@ export function useDocumentosLegalizacao(
   opcoes?: { pausado?: boolean; desabilitado?: boolean },
 ) { ... }
 export function useDocumentoLegalizacao(id: number | null) { ... }
-
-// useIndicadoresLegalizacao.ts — arquivo próprio, não junto do de cima
-// (mesma separação de useResumoDemandas.ts vs useDemandas.ts no MP001)
-export function useIndicadoresLegalizacao(opcoes?: { pausado?: boolean }) { ... }   // cards de resumo do Mapa
 ```
+
+**`useIndicadoresLegalizacao.ts` planejado aqui, removido na STC-379** (achado em
+code review, PR #32): a ideia original era um hook próprio alimentando `GET
+.../dashboard/indicadores/` pros cards de resumo do Mapa, mas esse endpoint só
+agrupa por status literal, sem noção de "a vencer" — a STC-379 optou por
+agregação 100% client-side (`legalizacaoMapa.ts`, ver P4.2 abaixo),
+reaproveitando `useDocumentosLegalizacao()` sem filtro, sem endpoint dedicado
+nenhum. O hook chegou a ser escrito na STC-377 mas nunca teve consumidor —
+removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
+(`lib/legalizacao.ts`, `types/legalizacao.ts`).
 
 ---
 
