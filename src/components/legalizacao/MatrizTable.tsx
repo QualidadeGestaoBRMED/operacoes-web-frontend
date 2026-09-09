@@ -218,8 +218,16 @@ export function MatrizTable({
                   return (
                     <tr
                       key={documento.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onClickLinha?.(documento)}
-                      className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-secondary/5"
+                      onKeyDown={(evento) => {
+                        if (evento.key === "Enter" || evento.key === " ") {
+                          evento.preventDefault();
+                          onClickLinha?.(documento);
+                        }
+                      }}
+                      className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-secondary/5 focus-visible:bg-secondary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:-outline-offset-2"
                     >
                       <td className="truncate px-4 py-3 text-sm font-semibold">
                         {documento.unidade.nome}

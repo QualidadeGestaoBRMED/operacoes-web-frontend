@@ -260,12 +260,16 @@ export function DetalheDocumentoModal({
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
-  const { evidencias, mensagemErro: erroEvidencias } = useEvidenciasLegalizacao(
-    aberto ? documentoId : null,
-  );
-  const { historico, mensagemErro: erroHistorico } = useHistoricoLegalizacao(
-    aberto ? documentoId : null,
-  );
+  const {
+    evidencias,
+    isLoading: carregandoEvidencias,
+    mensagemErro: erroEvidencias,
+  } = useEvidenciasLegalizacao(aberto ? documentoId : null);
+  const {
+    historico,
+    isLoading: carregandoHistorico,
+    mensagemErro: erroHistorico,
+  } = useHistoricoLegalizacao(aberto ? documentoId : null);
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
   const { criar: criarProcesso, isLoading: registrandoRenovacao } =
@@ -334,7 +338,7 @@ export function DetalheDocumentoModal({
     <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
       <DialogContent
         showCloseButton
-        className="flex h-[85vh] max-h-[720px] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+        className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
         {isLoading ? (
           <div className="flex flex-1 flex-col gap-4 p-6">
@@ -580,7 +584,12 @@ export function DetalheDocumentoModal({
                   value="evidencias"
                   className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
                 >
-                  {erroEvidencias ? (
+                  {carregandoEvidencias ? (
+                    <div className="flex flex-col gap-2.5">
+                      <Skeleton className="h-14 w-full" />
+                      <Skeleton className="h-14 w-full" />
+                    </div>
+                  ) : erroEvidencias ? (
                     <p className="text-sm text-destructive">
                       Não foi possível carregar as evidências: {erroEvidencias}
                     </p>
@@ -616,7 +625,12 @@ export function DetalheDocumentoModal({
                   value="historico"
                   className="scrollbar-discreta flex-1 overflow-y-auto p-5"
                 >
-                  {erroHistorico ? (
+                  {carregandoHistorico ? (
+                    <div className="flex flex-col gap-2.5">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : erroHistorico ? (
                     <p className="text-sm text-destructive">
                       Não foi possível carregar o histórico: {erroHistorico}
                     </p>

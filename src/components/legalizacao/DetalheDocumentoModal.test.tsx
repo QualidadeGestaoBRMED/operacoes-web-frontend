@@ -247,6 +247,32 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(link.href).toBe("https://example.com/atual.pdf");
   });
 
+  it("mostra esqueleto de carregamento nas abas, não 'nenhum registro', enquanto evidências/histórico ainda não resolveram", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    let resolverEvidencias!: (valor: EvidenciaRegulatoria[]) => void;
+    vi.mocked(listarEvidenciasLegalizacao).mockReturnValue(
+      new Promise((resolve) => {
+        resolverEvidencias = resolve;
+      }),
+    );
+    renderComponente(55);
+
+    // Documento já carregou (o cabeçalho aparece), mas evidências ainda não
+    // resolveram -- não pode mostrar "Nenhuma evidência enviada ainda.", que
+    // é uma afirmação factual errada enquanto a resposta está em voo.
+    expect(
+      await screen.findByText("Alvará de Funcionamento"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma evidência enviada ainda."),
+    ).not.toBeInTheDocument();
+
+    resolverEvidencias([]);
+    expect(
+      await screen.findByText("Nenhuma evidência enviada ainda."),
+    ).toBeInTheDocument();
+  });
+
   it("'Ver histórico de evidências' expande as anteriores; 'Ver só a vigente' recolhe de novo", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
