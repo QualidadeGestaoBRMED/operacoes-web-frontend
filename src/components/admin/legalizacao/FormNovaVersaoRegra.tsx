@@ -31,6 +31,7 @@ import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
+import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import { LABEL_CRITICIDADE } from "@/lib/legalizacaoMatriz";
 import type { Criticidade, DocumentoUnidade } from "@/types/legalizacao";
 
@@ -123,16 +124,33 @@ function DialogNovaVersao({
         tipo_documento: documento.tipo_documento.id,
         unidade: documento.unidade.id,
         antecedencia_dias: valores.antecedencia_dias,
+        // Sem campo próprio no formulário (fora do escopo desta issue,
+        // ninguém usa hoje) -- carrega o valor da regra anterior adiante em
+        // vez de descartar silenciosamente, caso já estivesse preenchido.
+        periodicidade_meses: regraAtual?.periodicidade_meses ?? null,
         janela_dia_inicio: valores.janela_dia_inicio ?? null,
         janela_dia_fim: valores.janela_dia_fim ?? null,
         criticidade: valores.criticidade,
         vigente_a_partir: valores.vigente_a_partir,
         gera_card_demanda: valores.gera_card_demanda,
       });
-      await atualizarDocumento({
-        id: documento.id,
-        payload: { regra_aplicada: novaRegra.id },
-      });
+      try {
+        await atualizarDocumento({
+          id: documento.id,
+          payload: { regra_aplicada: novaRegra.id },
+        });
+      } catch (erroAplicar) {
+        // A regra nova já foi criada com sucesso -- se aplicá-la ao
+        // documento falhar, desfaz em vez de deixar uma versão órfã (que
+        // nunca chegou a valer) parada no catálogo. Best effort: se a
+        // própria exclusão falhar, ignora e mostra o erro original.
+        try {
+          await excluirRegraDocumento(novaRegra.id);
+        } catch {
+          // Ignora.
+        }
+        throw erroAplicar;
+      }
       toast.success("Nova versão da regra criada.");
       onOpenChange(false);
     } catch (erro) {
@@ -289,7 +307,14 @@ export function FormNovaVersaoRegra() {
   const { documentos, isLoading, carregandoPrimeiraVez } =
     useDocumentosLegalizacao(
       { unidade: unidadeId, tipo_documento: tipoDocumentoId },
-      { desabilitado: !unidadeId || !tipoDocumentoId },
+      {
+        desabilitado: !unidadeId || !tipoDocumentoId,
+        // Achado no dogfooding: com o diálogo "Nova versão" aberto, o poll de
+        // 60s (achado ao girar isso, backend às vezes muda regra_aplicada
+        // enquanto a pessoa ainda está digitando) resetava o formulário no
+        // meio do preenchimento -- pausa enquanto o diálogo estiver aberto.
+        pausado: dialogAberto,
+      },
     );
   const documento = documentos[0];
 
