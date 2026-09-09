@@ -113,6 +113,46 @@ export interface AlertaRegulatorio {
   data_geracao: string;
 }
 
+// Payload de criação de TipoDocumentoRegulatorioViewSet.create() -- omite
+// id/created_at (read_only_fields no serializer real).
+export interface TipoDocumentoRegulatorioPayload {
+  codigo: string;
+  nome: string;
+  categoria: CategoriaDocumento;
+  area_responsavel: AreaResponsavelDocumento;
+  setor_apoio?: string;
+  exige_validade: boolean;
+  exige_protocolo: boolean;
+  exige_evidencia: boolean;
+  ativo?: boolean;
+}
+
+// Payload de criação de RegraDocumentoViewSet.create() -- omite id/created_at.
+export interface RegraDocumentoPayload {
+  tipo_documento: number;
+  unidade: number;
+  antecedencia_dias: number;
+  periodicidade_meses?: number | null;
+  janela_dia_inicio?: number | null;
+  janela_dia_fim?: number | null;
+  criticidade: Criticidade;
+  vigente_a_partir: string;
+  ativa?: boolean;
+  gera_card_demanda?: boolean;
+}
+
+// Payload de criação/edição de DocumentoUnidadeViewSet
+// (DocumentoUnidadeWriteSerializer) -- tipo_documento/unidade e regra_aplicada
+// vêm como ID cru (PrimaryKeyRelatedField), diferente do shape de leitura.
+export interface DocumentoUnidadePayload {
+  tipo_documento: number;
+  unidade: number;
+  status: StatusDocumento;
+  justificativa_excecao?: string;
+  validade?: string | null;
+  regra_aplicada?: number | null;
+}
+
 // Espelha DocumentoUnidadeFilterSet (backend/legalizacao/views.py) --
 // "search"/"ordering" não existem aqui (DocumentoUnidadeViewSet não declara
 // esses filter_backends, diferente de DemandaViewSet). "categoria" também

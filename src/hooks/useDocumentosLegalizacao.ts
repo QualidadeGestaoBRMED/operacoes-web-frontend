@@ -1,10 +1,31 @@
 "use client";
 
-import useSWR from "swr";
-import { buscarDocumentoLegalizacao, listarDocumentosLegalizacao } from "@/lib/legalizacao";
+import useSWR, { useSWRConfig } from "swr";
+import useSWRMutation from "swr/mutation";
+import {
+  atualizarDocumentoLegalizacao,
+  buscarDocumentoLegalizacao,
+  criarDocumentoLegalizacao,
+  enviarEvidenciaLegalizacao,
+  listarDocumentosLegalizacao,
+} from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
-import type { DocumentoUnidade, DocumentoUnidadeFiltros } from "@/types/legalizacao";
+import type {
+  DocumentoUnidade,
+  DocumentoUnidadeFiltros,
+  DocumentoUnidadePayload,
+} from "@/types/legalizacao";
+
+// Chave raiz usada por toda variação de filtro de useDocumentosLegalizacao
+// (["documentos-legalizacao", filtros]) -- mutate() com este prefixo
+// (predicate abaixo) invalida TODAS as combinações de filtro já em cache de
+// uma vez, sem precisar saber qual filtro cada tela está usando agora.
+const PREFIXO_CHAVE_LISTA = "documentos-legalizacao";
+
+function ehChaveDeListaDeDocumentos(chave: unknown) {
+  return Array.isArray(chave) && chave[0] === PREFIXO_CHAVE_LISTA;
+}
 
 // Diferente de useDemandas.ts (10s, MP001) de propósito -- achado na STC-378:
 // documento regulatório muda de status raras vezes (não é um board vivo com
@@ -21,10 +42,15 @@ export function useDocumentosLegalizacao(
   // a lista colapsar pra "carregando" a cada troca de filtro, e evita
   // mostrar um resultado sem filtro nenhum antes da 1ª consulta de verdade
   // resolver, quando desabilitado por alguma dependência ainda não pronta.
-  const { data, error, isLoading, isValidating, mutate } = useSWR<DocumentoUnidade[]>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<
+    DocumentoUnidade[]
+  >(
     opcoes?.desabilitado ? null : ["documentos-legalizacao", filtros],
     () => listarDocumentosLegalizacao(filtros),
-    { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
+    {
+      keepPreviousData: true,
+      refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS,
+    },
   );
   const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
 
@@ -53,5 +79,62 @@ export function useDocumentoLegalizacao(id: number | null) {
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
     mutate,
+  };
+}
+
+export function useCriarDocumentoLegalizacao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "criar-documento-legalizacao",
+    (_chave, { arg }: { arg: DocumentoUnidadePayload }) =>
+      criarDocumentoLegalizacao(arg),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    criar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// Usado hoje só pra recolocar `regra_aplicada` depois de uma nova versão de
+// regra (ver FormNovaVersaoRegra.tsx) -- PATCH parcial.
+export function useAtualizarDocumentoLegalizacao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "atualizar-documento-legalizacao",
+    (
+      _chave,
+      {
+        arg,
+      }: { arg: { id: number; payload: Partial<DocumentoUnidadePayload> } },
+    ) => atualizarDocumentoLegalizacao(arg.id, arg.payload),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    atualizar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useEnviarEvidenciaLegalizacao(documentoId: number) {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    ["documento-legalizacao", documentoId, "evidencias"],
+    (_chave, { arg }: { arg: File }) =>
+      enviarEvidenciaLegalizacao(documentoId, arg),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    enviar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
   };
 }

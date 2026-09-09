@@ -1,0 +1,707 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Paperclip, Plus, X } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  useCriarDocumentoLegalizacao,
+  useDocumentosLegalizacao,
+} from "@/hooks/useDocumentosLegalizacao";
+import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
+import { useTiposDocumento } from "@/hooks/useTiposDocumento";
+import { useUnidades } from "@/hooks/useUnidades";
+import { extrairMensagemErro } from "@/lib/erros";
+import {
+  enviarEvidenciaLegalizacao,
+  listarDocumentosLegalizacao,
+} from "@/lib/legalizacao";
+import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
+import { LABEL_CRITICIDADE, LABEL_STATUS } from "@/lib/legalizacaoMatriz";
+import type { Criticidade, StatusDocumento } from "@/types/legalizacao";
+
+// Exclui Não aplicável (é o toggle abaixo, não uma opção deste select) e
+// Unidade em encerramento (fora do escopo desta issue -- ação de nível
+// unidade, não de cadastro documento a documento). Inclui Vencido de
+// propósito, além dos 4 status do critério de aceite original: ao montar o
+// esqueleto de uma unidade já existente, é comum que um documento já esteja
+// vencido no dia do cadastro (decisão do planejamento desta issue).
+const STATUS_INICIAIS: StatusDocumento[] = [
+  "nao_iniciado",
+  "em_andamento",
+  "protocolado",
+  "regular",
+  "vencido",
+];
+
+const CRITICIDADES: Criticidade[] = ["baixa", "media", "alta"];
+
+// z.coerce.number() sozinho transforma "" (campo em branco) em 0, não
+// undefined -- .optional() nunca entra em ação, e o campo "opcional" falhava
+// a validação de min(1) mesmo vazio. preprocess intercepta "" antes da
+// coerção, pra .optional() de fato funcionar.
+const numeroDiaOpcional = z.preprocess(
+  (valor) => (valor === "" ? undefined : valor),
+  z.coerce.number().int().min(1).max(31).optional(),
+);
+
+const schema = z
+  .object({
+    unidade: z.coerce
+      .number({ error: "Selecione a unidade." })
+      .int()
+      .positive(),
+    tipo_documento: z.coerce
+      .number({ error: "Selecione o tipo de documento." })
+      .int()
+      .positive(),
+    nao_aplicavel: z.boolean(),
+    justificativa_excecao: z.string().optional(),
+    status: z
+      .enum(STATUS_INICIAIS as [StatusDocumento, ...StatusDocumento[]])
+      .optional(),
+    validade: z.string().optional(),
+    vigente_a_partir: z.string().optional(),
+    antecedencia_dias: z.coerce.number().int().min(0).optional(),
+    janela_dia_inicio: numeroDiaOpcional,
+    janela_dia_fim: numeroDiaOpcional,
+    criticidade: z
+      .enum(CRITICIDADES as [Criticidade, ...Criticidade[]])
+      .optional(),
+    gera_card_demanda: z.boolean(),
+  })
+  // Espelha DocumentoUnidadeWriteSerializer.validate() (backend) -- ver
+  // legalizacao/serializers.py: os 4 campos abaixo só são exigidos quando
+  // NÃO é o caminho "Não aplicável".
+  .refine((v) => !v.nao_aplicavel || !!v.justificativa_excecao, {
+    message: "Obrigatória para marcar Não aplicável.",
+    path: ["justificativa_excecao"],
+  })
+  .refine((v) => v.nao_aplicavel || !!v.status, {
+    message: "Selecione o status inicial.",
+    path: ["status"],
+  })
+  .refine((v) => v.nao_aplicavel || !!v.vigente_a_partir, {
+    message: "Obrigatório.",
+    path: ["vigente_a_partir"],
+  })
+  .refine((v) => v.nao_aplicavel || v.antecedencia_dias !== undefined, {
+    message: "Obrigatória.",
+    path: ["antecedencia_dias"],
+  })
+  .refine((v) => v.nao_aplicavel || !!v.criticidade, {
+    message: "Selecione a criticidade.",
+    path: ["criticidade"],
+  })
+  // Mesma regra de validate() (backend): "Vencido" sempre exige validade,
+  // criação inclusa.
+  .refine((v) => v.nao_aplicavel || v.status !== "vencido" || !!v.validade, {
+    message: "Obrigatória para status 'Vencido'.",
+    path: ["validade"],
+  });
+
+type FormValuesEntrada = z.input<typeof schema>;
+type FormValuesSaida = z.output<typeof schema>;
+
+const valoresPadrao: Partial<FormValuesEntrada> = {
+  nao_aplicavel: false,
+  gera_card_demanda: true,
+};
+
+export function FormCadastrarDocumento({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { unidades } = useUnidades();
+  const { tiposDocumento } = useTiposDocumento();
+  const { criar: criarRegra } = useCriarRegraDocumento();
+  const { criar: criarDocumento } = useCriarDocumentoLegalizacao();
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  // Achado no dogfooding: regra e documento já tinham sido criados com
+  // sucesso quando só o envio da evidência falhava (arquivo grande, rede) --
+  // o form mostrava um erro genérico e reabrir do zero esbarrava no cheque
+  // de duplicidade, sem nenhum jeito de só reenviar a evidência que faltou.
+  // Guardando o documento já criado, um novo clique em "Cadastrar documento"
+  // reenvia só a evidência, em vez de tentar recriar tudo.
+  const [documentoCriado, setDocumentoCriado] = useState<{ id: number } | null>(
+    null,
+  );
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+  const tiposAtivos = tiposDocumento.filter((tipo) => tipo.ativo);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
+    resolver: zodResolver(schema),
+    defaultValues: valoresPadrao,
+  });
+
+  useEffect(() => {
+    if (!open) {
+      reset(valoresPadrao);
+      setArquivo(null);
+      setDocumentoCriado(null);
+    }
+  }, [open, reset]);
+
+  const naoAplicavel = watch("nao_aplicavel");
+  const status = watch("status");
+  const unidadeSelecionada = watch("unidade") as number | undefined;
+
+  // Achado no dogfooding: só avisar depois de preencher o formulário
+  // inteiro (no submit) que a combinação já existe era tarde demais -- nem
+  // deixa escolher um tipo já cadastrado nesta unidade, em vez de barrar só
+  // no fim. Continua tendo o mesmo cheque no submit (ver aoSubmeter) como
+  // rede de segurança contra o cadastro ter mudado entre abrir o form e
+  // enviar.
+  const { documentos: documentosDaUnidade } = useDocumentosLegalizacao(
+    { unidade: unidadeSelecionada },
+    { desabilitado: !unidadeSelecionada },
+  );
+  const idsTiposJaCadastrados = new Set(
+    documentosDaUnidade.map((documento) => documento.tipo_documento.id),
+  );
+  const tiposDisponiveis = tiposAtivos.filter(
+    (tipo) => !idsTiposJaCadastrados.has(tipo.id),
+  );
+
+  // Extraído do fluxo principal -- também usado quando o usuário clica
+  // "Cadastrar documento" de novo depois de um envio de evidência que já
+  // falhou uma vez (documentoCriado setado): regra e documento já existem,
+  // só falta reenviar o arquivo.
+  async function enviarEvidenciaDoDocumento(documentoId: number) {
+    setEnviandoArquivo(true);
+    try {
+      await enviarEvidenciaLegalizacao(documentoId, arquivo as File);
+      toast.success("Documento cadastrado.");
+      onOpenChange(false);
+    } catch (erro) {
+      // Não relança -- documento e regra já existem de verdade, isto não é
+      // uma falha do cadastro em si. Fica com documentoCriado setado pra um
+      // novo clique só reenviar a evidência, em vez de tentar recriar tudo
+      // (o que esbarraria no cheque de duplicidade).
+      toast.error(
+        `Documento cadastrado, mas o envio da evidência falhou: ${extrairMensagemErro(erro)}. Clique em "Cadastrar documento" de novo para tentar reenviar.`,
+      );
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  }
+
+  async function aoSubmeter(valores: FormValuesSaida) {
+    setSalvando(true);
+    try {
+      if (documentoCriado) {
+        // Achado em code review: evidência é opcional -- se o usuário
+        // removeu o arquivo depois de um envio que falhou, não há mais o
+        // que reenviar. Sem este cheque, "arquivo as File" mandava null
+        // pra enviarEvidenciaLegalizacao, virando uma chamada inválida ao
+        // backend.
+        if (!arquivo) {
+          toast.success("Documento cadastrado.");
+          onOpenChange(false);
+          return;
+        }
+        await enviarEvidenciaDoDocumento(documentoCriado.id);
+        return;
+      }
+
+      // Achado no dogfooding: sem checar antes, uma tentativa repetida pro
+      // mesmo tipo+unidade criava uma regra nova (etapa 1) que colidia com a
+      // regra órfã da tentativa anterior (mesma vigente_a_partir) -- o
+      // usuário via um erro técnico de unicidade da Regra em vez de um
+      // aviso claro de "documento já existe". Checa aqui, antes de criar
+      // qualquer coisa.
+      const existentes = await listarDocumentosLegalizacao({
+        unidade: valores.unidade,
+        tipo_documento: valores.tipo_documento,
+      });
+      if (existentes.length > 0) {
+        toast.error(
+          'Já existe um documento cadastrado para esta unidade e tipo. Use "Corrigir regra existente" para atualizar.',
+        );
+        return;
+      }
+
+      if (valores.nao_aplicavel) {
+        await criarDocumento({
+          tipo_documento: valores.tipo_documento,
+          unidade: valores.unidade,
+          status: "nao_aplicavel",
+          justificativa_excecao: valores.justificativa_excecao,
+        });
+      } else {
+        // 1) Regra própria da unidade -- 2) documento, já com a regra recém
+        // criada aplicada -- 3) evidência, se anexada. Único fluxo, 3
+        // chamadas em sequência (não existe endpoint combinado no backend).
+        const regra = await criarRegra({
+          tipo_documento: valores.tipo_documento,
+          unidade: valores.unidade,
+          antecedencia_dias: valores.antecedencia_dias as number,
+          janela_dia_inicio: valores.janela_dia_inicio ?? null,
+          janela_dia_fim: valores.janela_dia_fim ?? null,
+          criticidade: valores.criticidade as Criticidade,
+          vigente_a_partir: valores.vigente_a_partir as string,
+          gera_card_demanda: valores.gera_card_demanda,
+        });
+        let documento;
+        try {
+          documento = await criarDocumento({
+            tipo_documento: valores.tipo_documento,
+            unidade: valores.unidade,
+            status: valores.status as StatusDocumento,
+            validade: valores.validade || null,
+            regra_aplicada: regra.id,
+          });
+        } catch (erroDocumento) {
+          // A regra já foi criada com sucesso -- se o documento falhar
+          // (ex.: alguém cadastrou a mesma combinação nesse meio-tempo),
+          // desfaz a regra órfã em vez de deixar lixo no catálogo. Best
+          // effort: se a própria exclusão falhar, ignora e mostra o erro
+          // original (que é o que importa pro usuário).
+          try {
+            await excluirRegraDocumento(regra.id);
+          } catch {
+            // Ignora.
+          }
+          throw erroDocumento;
+        }
+        if (arquivo) {
+          setDocumentoCriado({ id: documento.id });
+          await enviarEvidenciaDoDocumento(documento.id);
+          return;
+        }
+      }
+      toast.success("Documento cadastrado.");
+      onOpenChange(false);
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] max-w-[min(34rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-6 py-4">
+          <DialogTitle>Cadastrar documento</DialogTitle>
+        </DialogHeader>
+
+        <form
+          onSubmit={(evento) => void handleSubmit(aoSubmeter)(evento)}
+          className="flex flex-1 flex-col overflow-hidden"
+        >
+          <div className="scrollbar-discreta flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            {documentoCriado && (
+              <p className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                {arquivo
+                  ? "O documento já foi cadastrado. Falta só reenviar a evidência; os outros campos abaixo não têm mais efeito."
+                  : "O documento já foi cadastrado, sem evidência. Anexe um arquivo se quiser, ou clique em Concluir; os outros campos abaixo não têm mais efeito."}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="cd-unidade">
+                Unidade <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="unidade"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ? String(field.value) : undefined}
+                    onValueChange={(valor) => {
+                      field.onChange(Number(valor));
+                      // Tipo escolhido antes pode não valer mais pra unidade
+                      // nova (já cadastrado nela, ou nem essa era a lista
+                      // filtrada que ele viu) -- força reescolha.
+                      setValue(
+                        "tipo_documento",
+                        undefined as unknown as number,
+                      );
+                    }}
+                  >
+                    <SelectTrigger id="cd-unidade" className="w-full">
+                      <SelectValue placeholder="Selecionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unidades.map((unidade) => (
+                        <SelectItem key={unidade.id} value={String(unidade.id)}>
+                          {unidade.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.unidade && (
+                <p className="text-xs text-destructive">
+                  {errors.unidade.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cd-tipo">
+                Tipo de documento <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="tipo_documento"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ? String(field.value) : undefined}
+                    onValueChange={(valor) => field.onChange(Number(valor))}
+                    disabled={!unidadeSelecionada}
+                  >
+                    <SelectTrigger id="cd-tipo" className="w-full">
+                      <SelectValue
+                        placeholder={
+                          unidadeSelecionada
+                            ? "Selecionar..."
+                            : "Escolha a unidade primeiro"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Só os tipos que esta unidade ainda não tem
+                          cadastrados -- não deixa nem escolher uma
+                          combinação que já existe, em vez de barrar só no
+                          submit. */}
+                      {tiposDisponiveis.map((tipo) => (
+                        <SelectItem key={tipo.id} value={String(tipo.id)}>
+                          {tipo.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.tipo_documento && (
+                <p className="text-xs text-destructive">
+                  {errors.tipo_documento.message}
+                </p>
+              )}
+              {unidadeSelecionada && tiposDisponiveis.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Todos os tipos de documento ativos já foram cadastrados para
+                  esta unidade.
+                </p>
+              )}
+            </div>
+
+            <Separator />
+
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Controller
+                control={control}
+                name="nao_aplicavel"
+                render={({ field }) => (
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+              Não aplicável a esta unidade
+            </label>
+
+            {naoAplicavel ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="cd-justificativa">
+                  Justificativa <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="cd-justificativa"
+                  {...register("justificativa_excecao")}
+                  placeholder="Por que este tipo de documento não se aplica a esta unidade?"
+                />
+                {errors.justificativa_excecao && (
+                  <p className="text-xs text-destructive">
+                    {errors.justificativa_excecao.message}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-status">
+                      Status inicial <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      control={control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger id="cd-status" className="w-full">
+                            <SelectValue placeholder="Selecionar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_INICIAIS.map((valor) => (
+                              <SelectItem key={valor} value={valor}>
+                                {LABEL_STATUS[valor]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.status && (
+                      <p className="text-xs text-destructive">
+                        {errors.status.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-validade">
+                      Validade{" "}
+                      {status === "vencido" && (
+                        <span className="text-destructive">*</span>
+                      )}
+                    </Label>
+                    <Input
+                      id="cd-validade"
+                      type="date"
+                      {...register("validade")}
+                    />
+                    {errors.validade && (
+                      <p className="text-xs text-destructive">
+                        {errors.validade.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Regra desta unidade
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Os valores abaixo valem só para esta unidade e este tipo de
+                    documento. Cada unidade tem seu próprio prazo, mesmo sendo o
+                    mesmo tipo de documento.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-vigente">
+                      Vigente a partir{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="cd-vigente"
+                      type="date"
+                      {...register("vigente_a_partir")}
+                    />
+                    {errors.vigente_a_partir && (
+                      <p className="text-xs text-destructive">
+                        {errors.vigente_a_partir.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-antecedencia">
+                      Antecedência (dias){" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="cd-antecedencia"
+                      type="number"
+                      min={0}
+                      {...register("antecedencia_dias")}
+                    />
+                    {errors.antecedencia_dias && (
+                      <p className="text-xs text-destructive">
+                        {errors.antecedencia_dias.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-janela-inicio">
+                      Início da janela (dia)
+                    </Label>
+                    <Input
+                      id="cd-janela-inicio"
+                      type="number"
+                      min={1}
+                      max={31}
+                      {...register("janela_dia_inicio")}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cd-janela-fim">Fim da janela (dia)</Label>
+                    <Input
+                      id="cd-janela-fim"
+                      type="number"
+                      min={1}
+                      max={31}
+                      {...register("janela_dia_fim")}
+                    />
+                  </div>
+                </div>
+                <p className="-mt-2 text-xs text-muted-foreground">
+                  Preencha só quando o tipo de documento tiver uma janela fixa
+                  de atualização no mês (ex.: CNES).
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cd-criticidade">
+                    Criticidade <span className="text-destructive">*</span>
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="criticidade"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger id="cd-criticidade" className="w-full">
+                          <SelectValue placeholder="Selecionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CRITICIDADES.map((valor) => (
+                            <SelectItem key={valor} value={valor}>
+                              {LABEL_CRITICIDADE[valor]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.criticidade && (
+                    <p className="text-xs text-destructive">
+                      {errors.criticidade.message}
+                    </p>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <Controller
+                    control={control}
+                    name="gera_card_demanda"
+                    render={({ field }) => (
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  Gerar card em Gestão de Demandas quando o processo de
+                  renovação começar
+                </label>
+
+                <div className="space-y-1.5">
+                  <Label>Evidência</Label>
+                  <input
+                    ref={inputArquivoRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(evento) =>
+                      setArquivo(evento.target.files?.[0] ?? null)
+                    }
+                  />
+                  {arquivo ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                      <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {arquivo.name}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remover ${arquivo.name}`}
+                        onClick={() => {
+                          setArquivo(null);
+                          if (inputArquivoRef.current)
+                            inputArquivoRef.current.value = "";
+                        }}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => inputArquivoRef.current?.click()}
+                      className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border-1.5 border-dashed border-border text-[13px] font-medium text-muted-foreground transition-colors hover:border-secondary hover:text-secondary"
+                    >
+                      <Plus className="size-3.5" />
+                      Anexar evidência (opcional)
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="border-t border-border px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={salvando}>
+              {salvando
+                ? enviandoArquivo
+                  ? "Enviando evidência..."
+                  : "Cadastrando..."
+                : documentoCriado
+                  ? arquivo
+                    ? "Reenviar evidência"
+                    : "Concluir"
+                  : "Cadastrar documento"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

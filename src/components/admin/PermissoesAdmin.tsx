@@ -2,13 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon, ListFilter, Maximize2, Minimize2, Plus, ShieldCheck, X } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ListFilter,
+  Maximize2,
+  Minimize2,
+  Plus,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -19,7 +31,11 @@ import {
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { usePermissoes, useReativarPermissao, useRevogarPermissao } from "@/hooks/usePermissoes";
+import {
+  usePermissoes,
+  useReativarPermissao,
+  useRevogarPermissao,
+} from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -27,12 +43,22 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { hojeNoFusoDoServidor } from "@/lib/kanban";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
-import { FormNovaPermissao, type ValoresIniciaisPermissao } from "./FormNovaPermissao";
+import {
+  FormNovaPermissao,
+  type ValoresIniciaisPermissao,
+} from "./FormNovaPermissao";
 import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
+import { CatalogoLegalizacaoAdmin } from "./legalizacao/CatalogoLegalizacaoAdmin";
 
 const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
+type Aba = "usuarios" | "catalogo-legalizacao";
+
+const ROTULO_ABA: Record<Aba, string> = {
+  usuarios: "Usuários",
+  "catalogo-legalizacao": "Catálogo de Legalização",
+};
 
 // Achado no dogfooding: 50/50 fixo desperdiçava espaço quando uma seção
 // tinha poucas linhas e a outra, mais -- em vez de flex-1 igual pras duas,
@@ -88,7 +114,8 @@ function statusPermissao(permissao: {
 } {
   if (!permissao.ativo) return { rotulo: "Revogada", variante: "destructive" };
   const dataAtual = hojeNoFusoDoServidor();
-  if (permissao.data_inicio > dataAtual) return { rotulo: "Agendada", variante: "warning" };
+  if (permissao.data_inicio > dataAtual)
+    return { rotulo: "Agendada", variante: "warning" };
   if (permissao.data_fim && permissao.data_fim < dataAtual) {
     return { rotulo: "Expirada", variante: "muted" };
   }
@@ -104,7 +131,9 @@ function prioridadeStatus(permissao: {
   data_inicio: string;
   data_fim: string | null;
 }) {
-  return (STATUS_PERMISSAO as readonly string[]).indexOf(statusPermissao(permissao).rotulo);
+  return (STATUS_PERMISSAO as readonly string[]).indexOf(
+    statusPermissao(permissao).rotulo,
+  );
 }
 
 export function PermissoesAdmin() {
@@ -142,7 +171,9 @@ export function PermissoesAdmin() {
   // um período novo -- abre o formulário de nova permissão pré-preenchido
   // em vez disso (renovando), mantendo o registro velho como histórico de
   // que ele existiu e chegou a expirar/ser revogado.
-  const [paraReativar, setParaReativar] = useState<PermissaoUsuario | null>(null);
+  const [paraReativar, setParaReativar] = useState<PermissaoUsuario | null>(
+    null,
+  );
   const [renovando, setRenovando] = useState<PermissaoUsuario | null>(null);
   // Achado no dogfooding: com muitos usuários, "Perfil, unidade e setor"
   // (tabela sem paginação) empurrava "Permissões individuais" pra fora da
@@ -152,6 +183,10 @@ export function PermissoesAdmin() {
   // fica oculta (mas continua montada -- volta do jeito que estava ao
   // desfazer).
   const [secaoExpandida, setSecaoExpandida] = useState<Secao | null>(null);
+  // STC-415: aba nova ("Catálogo de Legalização") ao lado do conteúdo que já
+  // existia -- mesmo padrão de troca de conteúdo por state (não TabsContent)
+  // já usado em TipoGestaoTabs.tsx.
+  const [aba, setAba] = useState<Aba>("usuarios");
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
@@ -176,7 +211,9 @@ export function PermissoesAdmin() {
   // podem ocorrer no mesmo minuto.
   const permissoesOrdenadas = [...permissoes].sort((a, b) => {
     const diferencaStatus = prioridadeStatus(a) - prioridadeStatus(b);
-    return diferencaStatus !== 0 ? diferencaStatus : b.created_at.localeCompare(a.created_at);
+    return diferencaStatus !== 0
+      ? diferencaStatus
+      : b.created_at.localeCompare(a.created_at);
   });
   // Peso das seções (ver pesoSecao) segue o total real, não o filtrado --
   // senão a proporção "pula" a cada troca de filtro, mesmo com a mesma
@@ -192,8 +229,13 @@ export function PermissoesAdmin() {
     new Set(permissoesOrdenadas.map((permissao) => permissao.usuario)),
   ).sort((a, b) => nomeUsuario(a).localeCompare(nomeUsuario(b)));
   const permissoesFiltradas = permissoesOrdenadas.filter((permissao) => {
-    if (filtroStatus !== "todos" && statusPermissao(permissao).rotulo !== filtroStatus) return false;
-    if (filtroPessoas.length > 0 && !filtroPessoas.includes(permissao.usuario)) return false;
+    if (
+      filtroStatus !== "todos" &&
+      statusPermissao(permissao).rotulo !== filtroStatus
+    )
+      return false;
+    if (filtroPessoas.length > 0 && !filtroPessoas.includes(permissao.usuario))
+      return false;
     if (filtroAcao !== "todas" && permissao.acao !== filtroAcao) {
       return false;
     }
@@ -250,10 +292,15 @@ export function PermissoesAdmin() {
     setor: number | null;
   }) {
     if (permissao.escopo_tipo === "unidade") {
-      return unidades.find((unidade) => unidade.id === permissao.unidade)?.nome ?? "--";
+      return (
+        unidades.find((unidade) => unidade.id === permissao.unidade)?.nome ??
+        "--"
+      );
     }
     if (permissao.escopo_tipo === "setor") {
-      return setores.find((setor) => setor.id === permissao.setor)?.nome ?? "--";
+      return (
+        setores.find((setor) => setor.id === permissao.setor)?.nome ?? "--"
+      );
     }
     return ROTULO_ESCOPO[permissao.escopo_tipo];
   }
@@ -286,13 +333,16 @@ export function PermissoesAdmin() {
   // FormNovaPermissao.tsx) -- um registro antigo com outra ação (de antes
   // dessa restrição existir) cai em "visualizar" por padrão, não trava a
   // renovação.
-  function valoresParaRenovar(permissao: PermissaoUsuario): ValoresIniciaisPermissao {
+  function valoresParaRenovar(
+    permissao: PermissaoUsuario,
+  ): ValoresIniciaisPermissao {
     return {
       usuario: permissao.usuario,
       recurso: permissao.recurso,
-      acao: permissao.acao === "visualizar" || permissao.acao === "editar"
-        ? permissao.acao
-        : "visualizar",
+      acao:
+        permissao.acao === "visualizar" || permissao.acao === "editar"
+          ? permissao.acao
+          : "visualizar",
       escopo_tipo: permissao.escopo_tipo,
       unidade: permissao.unidade ?? undefined,
       setor: permissao.setor ?? undefined,
@@ -307,7 +357,11 @@ export function PermissoesAdmin() {
     return (
       <>
         <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Status">
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            aria-label="Status"
+          >
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -349,7 +403,10 @@ export function PermissoesAdmin() {
               BR MED") quebrarem linha dentro do popover e "descolarem" do
               checkbox. shrink-0 no Checkbox + truncate no texto garantem
               uma linha só mesmo assim. */}
-          <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-48 p-1">
+          <PopoverContent
+            align="start"
+            className="w-[var(--radix-popover-trigger-width)] min-w-48 p-1"
+          >
             {idsComPermissao.map((id) => (
               <label
                 key={id}
@@ -367,7 +424,11 @@ export function PermissoesAdmin() {
         </Popover>
 
         <Select value={filtroAcao} onValueChange={setFiltroAcao}>
-          <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Ação">
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full sm:w-auto"
+            aria-label="Ação"
+          >
             <SelectValue placeholder="Ação" />
           </SelectTrigger>
           <SelectContent>
@@ -396,15 +457,34 @@ export function PermissoesAdmin() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden p-4 sm:p-7">
-      <div className="flex items-center gap-2.5 pb-7">
-        <ShieldCheck className="size-5 shrink-0 text-secondary" />
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Administração de usuários</h1>
-          <p className="text-sm text-muted-foreground">
-            Cargo, lotação e acessos de cada pessoa.
-          </p>
+      {/* Select (não abas) na mesma linha do título -- achado no
+          dogfooding: com abas, cada seção nova precisa de mais largura
+          própria; um select cresce em altura (1 opção a mais na lista), não
+          em largura, então não sobrecarrega o cabeçalho quando uma 3ª seção
+          aparecer. Sem subtítulo -- "Administração" já é suficiente. */}
+      <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <ShieldCheck className="size-5 shrink-0 text-secondary" />
+          <h1 className="text-lg font-semibold text-foreground">
+            Administração
+          </h1>
         </div>
+
+        <Select value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
+          <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ROTULO_ABA) as Aba[]).map((valor) => (
+              <SelectItem key={valor} value={valor}>
+                {ROTULO_ABA[valor]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      <CatalogoLegalizacaoAdmin hidden={aba !== "catalogo-legalizacao"} />
 
       {/* Cada seção reparte a altura disponível proporcional a quantas
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
@@ -430,7 +510,10 @@ export function PermissoesAdmin() {
           min-h-0 acima, só que no eixo horizontal) e empurra a coluna
           inteira mais larga que a viewport -- o cabeçalho quebra
           palavra-por-palavra e a página ganha scroll horizontal fantasma. */}
-      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7">
+      <div
+        hidden={aba !== "usuarios"}
+        className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7"
+      >
         <div
           data-testid="secao-usuarios"
           className={cn(
@@ -463,10 +546,12 @@ export function PermissoesAdmin() {
           style={{ flexGrow: pesoPermissoes }}
         >
           <div className="pb-2">
-            <h2 className="text-base font-semibold text-foreground">Permissões individuais</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              Permissões individuais
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Acesso extra a um recurso específico -- temporário ou não -- ex.: cobertura de
-              férias entre unidades.
+              Acesso extra a um recurso específico -- temporário ou não -- ex.:
+              cobertura de férias entre unidades.
             </p>
           </div>
 
@@ -481,7 +566,11 @@ export function PermissoesAdmin() {
               (ehMobile ? (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="icon" className="relative shrink-0">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="relative shrink-0"
+                    >
                       <ListFilter className="size-4" />
                       <span className="sr-only">Filtros</span>
                       {contagemFiltrosPermissoes > 0 && (
@@ -528,7 +617,9 @@ export function PermissoesAdmin() {
           {carregandoPermissoes ? (
             <p className="text-sm text-muted-foreground">Carregando...</p>
           ) : permissoesOrdenadas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma permissão concedida ainda.</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhuma permissão concedida ainda.
+            </p>
           ) : permissoesFiltradas.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Nenhuma permissão encontrada com esses filtros.
@@ -576,9 +667,13 @@ export function PermissoesAdmin() {
                             ela?"). */}
                         <td className="px-4 py-2.5 text-muted-foreground">
                           <div>{nomeUsuario(permissao.concedido_por)}</div>
-                          <div className="text-xs">{formatarDataHora(permissao.created_at)}</div>
+                          <div className="text-xs">
+                            {formatarDataHora(permissao.created_at)}
+                          </div>
                         </td>
-                        <td className="px-4 py-2.5">{ROTULO_ACAO[permissao.acao]}</td>
+                        <td className="px-4 py-2.5">
+                          {ROTULO_ACAO[permissao.acao]}
+                        </td>
                         <td className="px-4 py-2.5">
                           {ROTULO_ESCOPO[permissao.escopo_tipo]}
                           {permissao.escopo_tipo !== "global" &&
@@ -595,7 +690,9 @@ export function PermissoesAdmin() {
                             : `A partir de ${formatarData(permissao.data_inicio)}`}
                         </td>
                         <td className="px-4 py-2.5">
-                          <Badge variant={status.variante}>{status.rotulo}</Badge>
+                          <Badge variant={status.variante}>
+                            {status.rotulo}
+                          </Badge>
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex justify-end gap-1.5">
@@ -605,7 +702,8 @@ export function PermissoesAdmin() {
                                 sentido nenhum ali, já não vale de qualquer
                                 jeito. Só aparece pro que ainda está de pé
                                 (Ativa/Agendada). */}
-                            {(status.rotulo === "Ativa" || status.rotulo === "Agendada") && (
+                            {(status.rotulo === "Ativa" ||
+                              status.rotulo === "Agendada") && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -614,7 +712,8 @@ export function PermissoesAdmin() {
                                 Revogar
                               </Button>
                             )}
-                            {(status.rotulo === "Revogada" || status.rotulo === "Expirada") && (
+                            {(status.rotulo === "Revogada" ||
+                              status.rotulo === "Expirada") && (
                               <Button
                                 size="sm"
                                 variant="outline"
