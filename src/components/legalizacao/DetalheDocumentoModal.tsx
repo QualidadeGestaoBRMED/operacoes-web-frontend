@@ -271,6 +271,7 @@ export function DetalheDocumentoModal({
     historico,
     isLoading: carregandoHistorico,
     mensagemErro: erroHistorico,
+    mutate: mutateHistorico,
   } = useHistoricoLegalizacao(aberto ? documentoId : null);
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
@@ -305,6 +306,11 @@ export function DetalheDocumentoModal({
     setMostrandoJustificativa(false);
     setJustificativa("");
     void mutate().catch(() => {});
+    // A mudança de status também grava HistoricoRegulatorio (achado em code
+    // review: a aba Histórico não tinha nenhuma invalidação própria, só o
+    // documento em si) -- sem isto, o registro dessa ação só aparecia depois
+    // de fechar e reabrir o modal.
+    void mutateHistorico().catch(() => {});
   }
 
   const prazo = documento ? prazoDocumento(documento) : null;
@@ -682,7 +688,13 @@ export function DetalheDocumentoModal({
         documento={documento ?? null}
         aberto={mostrandoProcessoRenovacao}
         onOpenChange={setMostrandoProcessoRenovacao}
-        onRegistrado={() => void mutate()}
+        onRegistrado={() => {
+          void mutate();
+          // Criar o processo também grava HistoricoRegulatorio no documento
+          // (acao "processo_status") -- mesmo motivo do mutateHistorico()
+          // em confirmarNaoAplicavel.
+          void mutateHistorico().catch(() => {});
+        }}
       />
     </>
   );

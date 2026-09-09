@@ -427,6 +427,41 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(screen.getByLabelText(/justificativa/i)).toBeInTheDocument();
   });
 
+  it("'Marcar como Não aplicável' revalida o histórico (a própria ação grava um registro)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_aplicavel" }),
+    );
+    vi.mocked(listarHistoricoLegalizacao)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        historico({
+          acao: "status",
+          valor_anterior: "regular",
+          valor_novo: "nao_aplicavel",
+        }),
+      ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Marcar como Não aplicável" }),
+    );
+    await user.type(
+      screen.getByLabelText(/justificativa/i),
+      "Unidade não tem esse serviço.",
+    );
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+    expect(await screen.findByText('"nao_aplicavel"')).toBeInTheDocument();
+  });
+
   it("esconde 'Registrar renovação' e 'Marcar como Não aplicável' quando já é Não aplicável", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ status: "nao_aplicavel", justificativa_excecao: "x" }),
@@ -574,6 +609,47 @@ describe("DetalheDocumentoModal (STC-380)", () => {
 
     await waitFor(() => {
       expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("Confirmar no modal de Processo de Renovação revalida o histórico do documento", async () => {
+    // Criar o processo grava HistoricoRegulatorio no documento (acao
+    // "processo_status", legalizacao/views.py) -- sem revalidar o histórico
+    // aqui, o registro dessa própria ação só aparecia depois de fechar e
+    // reabrir o modal (achado em code review).
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "vencido" }),
+    );
+    vi.mocked(criarProcessoRenovacao).mockResolvedValue({
+      id: 1,
+      documento_unidade: documento({ status: "em_andamento" }),
+      status: "em_andamento",
+      data_solicitacao: null,
+      protocolo_numero: "",
+      protocolo_orgao: "",
+      protocolo_data: null,
+      observacoes: "",
+      data_conclusao: null,
+      usuario_responsavel: null,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => {
+      expect(listarHistoricoLegalizacao).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+    await screen.findByRole("heading", { name: "Processo de Renovação" });
+    await user.click(
+      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+    );
+
+    await waitFor(() => {
+      expect(listarHistoricoLegalizacao).toHaveBeenCalledTimes(2);
     });
   });
 
