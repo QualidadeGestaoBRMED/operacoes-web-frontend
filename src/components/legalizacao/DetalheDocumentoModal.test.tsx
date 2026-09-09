@@ -358,7 +358,47 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("'Registrar renovação' cria o processo e atualiza o documento", async () => {
+  it("'Registrar renovação' abre o modal de Processo de Renovação, sem criar nada até confirmar", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "vencido" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Processo de Renovação" }),
+    ).toBeInTheDocument();
+    expect(criarProcessoRenovacao).not.toHaveBeenCalled();
+  });
+
+  it("'Cancelar' no modal de Processo de Renovação fecha sem criar nada", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "vencido" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await user.click(
+      screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+    await screen.findByRole("heading", { name: "Processo de Renovação" });
+
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: "Processo de Renovação" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(criarProcessoRenovacao).not.toHaveBeenCalled();
+  });
+
+  it("Confirmar no modal de Processo de Renovação cria o processo e atualiza o documento", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ status: "vencido" }),
     );
@@ -378,9 +418,13 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     const user = userEvent.setup();
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
-
     await user.click(
       screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+    await screen.findByRole("heading", { name: "Processo de Renovação" });
+
+    await user.click(
+      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
     );
 
     await waitFor(() => {
@@ -388,9 +432,10 @@ describe("DetalheDocumentoModal (STC-380)", () => {
         documento_unidade: 55,
       });
     });
+    expect(await screen.findByText(/solicitação · concluída/i)).toBeInTheDocument();
   });
 
-  it("'Registrar renovação' invalida a lista de documentos por trás do modal", async () => {
+  it("Confirmar no modal de Processo de Renovação invalida a lista de documentos por trás do modal", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ status: "vencido" }),
@@ -417,6 +462,10 @@ describe("DetalheDocumentoModal (STC-380)", () => {
 
     await user.click(
       screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+    await screen.findByRole("heading", { name: "Processo de Renovação" });
+    await user.click(
+      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
     );
 
     await waitFor(() => {

@@ -19,13 +19,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 import {
   useAtualizarDocumentoLegalizacao,
   useDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
-import { useCriarProcessoRenovacao } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
 import {
@@ -257,6 +257,8 @@ export function DetalheDocumentoModal({
   // documento, pra não vazar "expandido" de um documento pro próximo.
   const [mostrandoHistoricoEvidencias, setMostrandoHistoricoEvidencias] =
     useState(false);
+  const [mostrandoProcessoRenovacao, setMostrandoProcessoRenovacao] =
+    useState(false);
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -272,13 +274,12 @@ export function DetalheDocumentoModal({
   } = useHistoricoLegalizacao(aberto ? documentoId : null);
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
-  const { criar: criarProcesso, isLoading: registrandoRenovacao } =
-    useCriarProcessoRenovacao();
 
   function fechar() {
     setMostrandoJustificativa(false);
     setJustificativa("");
     setMostrandoHistoricoEvidencias(false);
+    setMostrandoProcessoRenovacao(false);
     onOpenChange(false);
   }
 
@@ -296,21 +297,6 @@ export function DetalheDocumentoModal({
       toast.success("Documento marcado como Não aplicável.");
       setMostrandoJustificativa(false);
       setJustificativa("");
-    } catch (erro) {
-      toast.error(extrairMensagemErro(erro));
-    }
-  }
-
-  // Cria o ProcessoRenovacao (POST já é o "iniciar", RF-009) -- a tela de
-  // acompanhamento (Protocolo/Conclusão) é a STC-381, ainda não existe;
-  // esta chamada só move o documento pra Em andamento e deixa o processo
-  // pronto pra a próxima etapa gerenciar.
-  async function registrarRenovacao() {
-    if (!documento) return;
-    try {
-      await criarProcesso({ documento_unidade: documento.id });
-      await mutate();
-      toast.success("Processo de renovação iniciado.");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
     }
@@ -335,320 +321,339 @@ export function DetalheDocumentoModal({
     documento && documento.status !== "nao_aplicavel";
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
-      <DialogContent
-        showCloseButton
-        className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
-      >
-        {isLoading ? (
-          <div className="flex flex-1 flex-col gap-4 p-6">
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="mt-4 h-full w-full" />
-          </div>
-        ) : mensagemErro || !documento || !prazo ? (
-          <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
-            {mensagemErro
-              ? `Não foi possível carregar o documento: ${mensagemErro}`
-              : "Não foi possível carregar este documento."}
-          </div>
-        ) : (
-          <>
-            {/* Mesma estrutura de DetalheCard.tsx (Gestão de Demandas):
+    <>
+      <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
+        <DialogContent
+          showCloseButton
+          className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+        >
+          {isLoading ? (
+            <div className="flex flex-1 flex-col gap-4 p-6">
+              <Skeleton className="h-6 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="mt-4 h-full w-full" />
+            </div>
+          ) : mensagemErro || !documento || !prazo ? (
+            <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
+              {mensagemErro
+                ? `Não foi possível carregar o documento: ${mensagemErro}`
+                : "Não foi possível carregar este documento."}
+            </div>
+          ) : (
+            <>
+              {/* Mesma estrutura de DetalheCard.tsx (Gestão de Demandas):
                 título sozinho na 1ª linha -- o botão de fechar do
                 DialogContent (absolute top-4 right-4) fica sem disputa de
                 espaço com nenhum badge. Status entra numa linha própria
                 abaixo, junto do resto do cabeçalho, não ao lado do título. */}
-            <DialogHeader className="gap-2.5 border-b border-border px-6 py-4">
-              <DialogTitle className="text-[17px] leading-snug font-semibold text-foreground">
-                {documento.tipo_documento.nome}
-              </DialogTitle>
-              <p className="text-[12.5px] text-muted-foreground">
-                {documento.unidade.nome} ·{" "}
-                {LABEL_CATEGORIA[documento.tipo_documento.categoria]}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase",
-                    COR_STATUS_BADGE[documento.status],
-                  )}
-                >
-                  {LABEL_STATUS[documento.status]}
-                </span>
-              </div>
-            </DialogHeader>
+              <DialogHeader className="gap-2.5 border-b border-border px-6 py-4">
+                <DialogTitle className="text-[17px] leading-snug font-semibold text-foreground">
+                  {documento.tipo_documento.nome}
+                </DialogTitle>
+                <p className="text-[12.5px] text-muted-foreground">
+                  {documento.unidade.nome} ·{" "}
+                  {LABEL_CATEGORIA[documento.tipo_documento.categoria]}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase",
+                      COR_STATUS_BADGE[documento.status],
+                    )}
+                  >
+                    {LABEL_STATUS[documento.status]}
+                  </span>
+                </div>
+              </DialogHeader>
 
-            {/* Mesmo padrão responsivo de DetalheCard.tsx (Gestão de
+              {/* Mesmo padrão responsivo de DetalheCard.tsx (Gestão de
                 Demandas, STC-186): abaixo de sm, metadados empilham em
                 cima (scroll próprio limitado a 35vh) e as abas ocupam o
                 resto -- de sm pra cima, volta a ser o grid 270px+1fr. */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
-              <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
-                {(prazo.urgencia === "vencido" ||
-                  prazo.urgencia === "proximo") && (
-                  <div
-                    className={cn(
-                      "flex items-start gap-2.5 rounded-md border p-3 text-[12.5px]",
-                      prazo.urgencia === "vencido"
-                        ? "border-red-600/25 bg-red-600/5 text-foreground"
-                        : "border-amber-600/25 bg-amber-600/5 text-foreground",
-                    )}
-                  >
-                    <AlertTriangle
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
+                <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
+                  {(prazo.urgencia === "vencido" ||
+                    prazo.urgencia === "proximo") && (
+                    <div
                       className={cn(
-                        "mt-0.5 size-3.5 shrink-0",
+                        "flex items-start gap-2.5 rounded-md border p-3 text-[12.5px]",
                         prazo.urgencia === "vencido"
-                          ? "text-red-600"
-                          : "text-amber-700",
-                      )}
-                    />
-                    <span>
-                      {prazo.texto.charAt(0).toUpperCase() +
-                        prazo.texto.slice(1)}
-                      {documento.validade &&
-                        ` (validade ${formatarData(documento.validade)}).`}
-                    </span>
-                  </div>
-                )}
-
-                <CampoMeta rotulo="Unidade">{documento.unidade.nome}</CampoMeta>
-                <CampoMeta rotulo="Área responsável">
-                  <Pill>
-                    {
-                      ROTULO_AREA_RESPONSAVEL[
-                        documento.tipo_documento.area_responsavel
-                      ]
-                    }
-                  </Pill>
-                </CampoMeta>
-                <CampoMeta rotulo="Responsável operacional">
-                  {responsavel ? (
-                    <>
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                        {iniciaisDe(nomeExibicao(responsavel.usuario))}
-                      </span>
-                      {nomeExibicao(responsavel.usuario)}
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      Sem responsável
-                    </span>
-                  )}
-                </CampoMeta>
-
-                <div className="h-px bg-border" />
-
-                <CampoMeta rotulo="Validade">
-                  <span
-                    className={cn(
-                      prazo.urgencia === "vencido" && "font-bold text-red-600",
-                    )}
-                  >
-                    {documento.validade
-                      ? formatarData(documento.validade)
-                      : "—"}
-                  </span>
-                </CampoMeta>
-                <CampoMeta rotulo="Antecedência do alerta">
-                  {documento.regra_aplicada
-                    ? `${documento.regra_aplicada.antecedencia_dias} dias`
-                    : "—"}
-                </CampoMeta>
-                <CampoMeta rotulo="Criticidade">
-                  {documento.regra_aplicada ? (
-                    <span
-                      className={cn(
-                        "rounded-sm border px-2 py-0.5 text-[12.5px] font-semibold",
-                        documento.regra_aplicada.criticidade === "alta"
-                          ? COR_CRITICIDADE_ALTA
-                          : "border-border bg-muted text-foreground",
+                          ? "border-red-600/25 bg-red-600/5 text-foreground"
+                          : "border-amber-600/25 bg-amber-600/5 text-foreground",
                       )}
                     >
-                      {LABEL_CRITICIDADE[documento.regra_aplicada.criticidade]}
-                    </span>
-                  ) : (
-                    "—"
+                      <AlertTriangle
+                        className={cn(
+                          "mt-0.5 size-3.5 shrink-0",
+                          prazo.urgencia === "vencido"
+                            ? "text-red-600"
+                            : "text-amber-700",
+                        )}
+                      />
+                      <span>
+                        {prazo.texto.charAt(0).toUpperCase() +
+                          prazo.texto.slice(1)}
+                        {documento.validade &&
+                          ` (validade ${formatarData(documento.validade)}).`}
+                      </span>
+                    </div>
                   )}
-                </CampoMeta>
 
-                <div className="h-px bg-border" />
-
-                {mostrandoJustificativa ? (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="det-justificativa" className="text-xs">
-                      Justificativa <span className="text-destructive">*</span>
-                    </Label>
-                    <Textarea
-                      id="det-justificativa"
-                      rows={3}
-                      value={justificativa}
-                      onChange={(evento) =>
-                        setJustificativa(evento.target.value)
+                  <CampoMeta rotulo="Unidade">
+                    {documento.unidade.nome}
+                  </CampoMeta>
+                  <CampoMeta rotulo="Área responsável">
+                    <Pill>
+                      {
+                        ROTULO_AREA_RESPONSAVEL[
+                          documento.tipo_documento.area_responsavel
+                        ]
                       }
-                      placeholder="Por que este documento não se aplica a esta unidade?"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => {
-                          setMostrandoJustificativa(false);
-                          setJustificativa("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        disabled={!justificativa.trim() || salvandoNaoAplicavel}
-                        onClick={() => void confirmarNaoAplicavel()}
-                      >
-                        {salvandoNaoAplicavel ? "Salvando..." : "Confirmar"}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {podeRegistrarRenovacao && (
-                      <Button
-                        disabled={registrandoRenovacao}
-                        onClick={() => void registrarRenovacao()}
-                      >
-                        {registrandoRenovacao
-                          ? "Registrando..."
-                          : "Registrar renovação"}
-                      </Button>
+                    </Pill>
+                  </CampoMeta>
+                  <CampoMeta rotulo="Responsável operacional">
+                    {responsavel ? (
+                      <>
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
+                          {iniciaisDe(nomeExibicao(responsavel.usuario))}
+                        </span>
+                        {nomeExibicao(responsavel.usuario)}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Sem responsável
+                      </span>
                     )}
-                    {podeMarcarNaoAplicavel && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setMostrandoJustificativa(true)}
-                      >
-                        Marcar como Não aplicável
-                      </Button>
-                    )}
-                    {mostraMovimentacaoProfissional && (
-                      // onClick chega na STC-382 -- por enquanto só a
-                      // visibilidade condicional (critério de aceite desta
-                      // issue) está implementada.
-                      <Button
-                        variant="outline"
-                        className="border-red-600/40 text-red-700 hover:bg-red-600/5 hover:text-red-700"
-                      >
-                        Reportar Movimentação Profissional
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  </CampoMeta>
 
-                <div className="mt-auto border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
-                  <strong className="font-semibold text-foreground">
-                    Setor de apoio:
-                  </strong>{" "}
-                  {documento.tipo_documento.setor_apoio ||
-                    "nenhum informado para este tipo de documento."}
-                </div>
-              </div>
+                  <div className="h-px bg-border" />
 
-              <Tabs defaultValue="evidencias" className="min-h-0 flex-1 gap-0">
-                <TabsList
-                  variant="line"
-                  className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"
-                >
-                  <TabsTrigger
-                    value="evidencias"
-                    className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                  >
-                    <FileText className="size-3.5" />
-                    Evidências
-                    <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                      {evidencias.length}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="historico"
-                    className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                  >
-                    <HistoryIcon className="size-3.5" />
-                    Histórico
-                    <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                      {historico.length}
-                    </span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent
-                  value="evidencias"
-                  className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
-                >
-                  {carregandoEvidencias ? (
-                    <div className="flex flex-col gap-2.5">
-                      <Skeleton className="h-14 w-full" />
-                      <Skeleton className="h-14 w-full" />
-                    </div>
-                  ) : erroEvidencias ? (
-                    <p className="text-sm text-destructive">
-                      Não foi possível carregar as evidências: {erroEvidencias}
-                    </p>
-                  ) : evidencias.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhuma evidência enviada ainda.
-                    </p>
-                  ) : (
-                    <>
-                      {evidenciasExibidas.map((evidencia) => (
-                        <ItemEvidencia
-                          key={evidencia.id}
-                          evidencia={evidencia}
-                        />
-                      ))}
-                      {evidencias.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMostrandoHistoricoEvidencias((atual) => !atual)
-                          }
-                          className="text-[12.5px] font-medium text-secondary hover:underline"
-                        >
-                          {mostrandoHistoricoEvidencias
-                            ? "Ver só a vigente"
-                            : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
-                        </button>
+                  <CampoMeta rotulo="Validade">
+                    <span
+                      className={cn(
+                        prazo.urgencia === "vencido" &&
+                          "font-bold text-red-600",
                       )}
-                    </>
-                  )}
-                </TabsContent>
-                <TabsContent
-                  value="historico"
-                  className="scrollbar-discreta flex-1 overflow-y-auto p-5"
-                >
-                  {carregandoHistorico ? (
-                    <div className="flex flex-col gap-2.5">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-full" />
+                    >
+                      {documento.validade
+                        ? formatarData(documento.validade)
+                        : "—"}
+                    </span>
+                  </CampoMeta>
+                  <CampoMeta rotulo="Antecedência do alerta">
+                    {documento.regra_aplicada
+                      ? `${documento.regra_aplicada.antecedencia_dias} dias`
+                      : "—"}
+                  </CampoMeta>
+                  <CampoMeta rotulo="Criticidade">
+                    {documento.regra_aplicada ? (
+                      <span
+                        className={cn(
+                          "rounded-sm border px-2 py-0.5 text-[12.5px] font-semibold",
+                          documento.regra_aplicada.criticidade === "alta"
+                            ? COR_CRITICIDADE_ALTA
+                            : "border-border bg-muted text-foreground",
+                        )}
+                      >
+                        {
+                          LABEL_CRITICIDADE[
+                            documento.regra_aplicada.criticidade
+                          ]
+                        }
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </CampoMeta>
+
+                  <div className="h-px bg-border" />
+
+                  {mostrandoJustificativa ? (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="det-justificativa" className="text-xs">
+                        Justificativa{" "}
+                        <span className="text-destructive">*</span>
+                      </Label>
+                      <Textarea
+                        id="det-justificativa"
+                        rows={3}
+                        value={justificativa}
+                        onChange={(evento) =>
+                          setJustificativa(evento.target.value)
+                        }
+                        placeholder="Por que este documento não se aplica a esta unidade?"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setMostrandoJustificativa(false);
+                            setJustificativa("");
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          disabled={
+                            !justificativa.trim() || salvandoNaoAplicavel
+                          }
+                          onClick={() => void confirmarNaoAplicavel()}
+                        >
+                          {salvandoNaoAplicavel ? "Salvando..." : "Confirmar"}
+                        </Button>
+                      </div>
                     </div>
-                  ) : erroHistorico ? (
-                    <p className="text-sm text-destructive">
-                      Não foi possível carregar o histórico: {erroHistorico}
-                    </p>
-                  ) : historico.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum registro de histórico ainda.
-                    </p>
                   ) : (
-                    historico.map((item) => (
-                      <ItemHistorico key={item.id} item={item} />
-                    ))
+                    <div className="flex flex-col gap-2">
+                      {podeRegistrarRenovacao && (
+                        <Button
+                          onClick={() => setMostrandoProcessoRenovacao(true)}
+                        >
+                          Registrar renovação
+                        </Button>
+                      )}
+                      {podeMarcarNaoAplicavel && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setMostrandoJustificativa(true)}
+                        >
+                          Marcar como Não aplicável
+                        </Button>
+                      )}
+                      {mostraMovimentacaoProfissional && (
+                        // onClick chega na STC-382 -- por enquanto só a
+                        // visibilidade condicional (critério de aceite desta
+                        // issue) está implementada.
+                        <Button
+                          variant="outline"
+                          className="border-red-600/40 text-red-700 hover:bg-red-600/5 hover:text-red-700"
+                        >
+                          Reportar Movimentação Profissional
+                        </Button>
+                      )}
+                    </div>
                   )}
-                </TabsContent>
-              </Tabs>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+
+                  <div className="mt-auto border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
+                    <strong className="font-semibold text-foreground">
+                      Setor de apoio:
+                    </strong>{" "}
+                    {documento.tipo_documento.setor_apoio ||
+                      "nenhum informado para este tipo de documento."}
+                  </div>
+                </div>
+
+                <Tabs
+                  defaultValue="evidencias"
+                  className="min-h-0 flex-1 gap-0"
+                >
+                  <TabsList
+                    variant="line"
+                    className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"
+                  >
+                    <TabsTrigger
+                      value="evidencias"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    >
+                      <FileText className="size-3.5" />
+                      Evidências
+                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                        {evidencias.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="historico"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    >
+                      <HistoryIcon className="size-3.5" />
+                      Histórico
+                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                        {historico.length}
+                      </span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent
+                    value="evidencias"
+                    className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
+                  >
+                    {carregandoEvidencias ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-14 w-full" />
+                        <Skeleton className="h-14 w-full" />
+                      </div>
+                    ) : erroEvidencias ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar as evidências:{" "}
+                        {erroEvidencias}
+                      </p>
+                    ) : evidencias.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma evidência enviada ainda.
+                      </p>
+                    ) : (
+                      <>
+                        {evidenciasExibidas.map((evidencia) => (
+                          <ItemEvidencia
+                            key={evidencia.id}
+                            evidencia={evidencia}
+                          />
+                        ))}
+                        {evidencias.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMostrandoHistoricoEvidencias((atual) => !atual)
+                            }
+                            className="text-[12.5px] font-medium text-secondary hover:underline"
+                          >
+                            {mostrandoHistoricoEvidencias
+                              ? "Ver só a vigente"
+                              : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
+                  <TabsContent
+                    value="historico"
+                    className="scrollbar-discreta flex-1 overflow-y-auto p-5"
+                  >
+                    {carregandoHistorico ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ) : erroHistorico ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar o histórico: {erroHistorico}
+                      </p>
+                    ) : historico.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum registro de histórico ainda.
+                      </p>
+                    ) : (
+                      historico.map((item) => (
+                        <ItemHistorico key={item.id} item={item} />
+                      ))
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      <ProcessoRenovacaoModal
+        documento={documento ?? null}
+        aberto={mostrandoProcessoRenovacao}
+        onOpenChange={setMostrandoProcessoRenovacao}
+        onRegistrado={() => void mutate()}
+      />
+    </>
   );
 }
