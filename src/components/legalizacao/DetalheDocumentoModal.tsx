@@ -9,8 +9,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useAtualizarDocumentoLegalizacao,
@@ -57,8 +64,7 @@ const CODIGOS_MOVIMENTACAO_PROFISSIONAL = new Set([
 ]);
 
 // Duplicado de TabelaTiposDocumento.tsx (Administração) de propósito --
-// mesmo padrão já aceito no módulo pra rótulos pequenos e fixos (ex.
-// formatarData, repetido em cada form de Admin em vez de um util central).
+// mesmo padrão já aceito no módulo pra rótulos pequenos e fixos.
 const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
   legalizacao: "Legalização",
   coordenacao: "Coordenação da Unidade",
@@ -91,8 +97,8 @@ const COR_POR_EXTENSAO: Record<string, string> = {
 // Rótulo amigável por `acao` de HistoricoRegulatorio -- lista fechada,
 // espelhando todo registrar_historico(...) real do backend (legalizacao/
 // views.py, tasks.py). `acao` é string livre no model (sem choices, de
-// propósito -- ver comentário em HistoricoRegulatorio, backend); uma ação
-// nova cai no fallback abaixo (o próprio valor cru), não quebra a tela.
+// propósito); uma ação nova cai no fallback abaixo (o próprio valor cru),
+// não quebra a tela.
 const LABEL_ACAO_HISTORICO: Record<string, string> = {
   status: "Status",
   validade: "Validade",
@@ -110,7 +116,34 @@ const LABEL_ACAO_HISTORICO: Record<string, string> = {
   processo_responsavel: "Responsável pelo processo",
 };
 
-type Aba = "evidencias" | "historico";
+// Mesmo padrão de CampoMeta (DetalheCard.tsx, Gestão de Demandas) -- rótulo
+// pequeno em caixa alta acima do valor.
+function CampoMeta({
+  rotulo,
+  children,
+}: {
+  rotulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+        {rotulo}
+      </span>
+      <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-[13px] font-medium text-foreground">
+      {children}
+    </span>
+  );
+}
 
 function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
   const extensao = extensaoDe(evidencia.nome_original);
@@ -162,7 +195,7 @@ function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
   const rotuloAcao = LABEL_ACAO_HISTORICO[item.acao] ?? item.acao;
   // usuario null aqui não é "removido" (nomeOuRemovido, usado em outros
   // módulos) -- é ação automática do sistema (ex.: varredura diária
-  // transicionando pra Vencido), não dá pra distinguir dos dois casos só
+  // transicionando pra Vencido), não dá pra distinguir os dois casos só
   // pelos dados (ver comentário em HistoricoRegulatorio, types/legalizacao.ts).
   const autor = item.usuario ? nomeExibicao(item.usuario) : "Sistema";
   const Icone = item.acao === "evidencia" ? FileText : HistoryIcon;
@@ -217,31 +250,31 @@ export function DetalheDocumentoModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const aberto = documentoId !== null;
-  const [aba, setAba] = useState<Aba>("evidencias");
   const [mostrandoJustificativa, setMostrandoJustificativa] = useState(false);
   const [justificativa, setJustificativa] = useState("");
+  // Só a vigente aparece por padrão, com ação explícita pra ver o histórico
+  // de evidências (critério do texto da issue) -- reseta ao trocar de
+  // documento, pra não vazar "expandido" de um documento pro próximo.
+  const [mostrandoHistoricoEvidencias, setMostrandoHistoricoEvidencias] =
+    useState(false);
 
-  const { documento, isLoading, error, mensagemErro, mutate } =
+  const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
-  const {
-    evidencias,
-    isLoading: carregandoEvidencias,
-    mensagemErro: erroEvidencias,
-  } = useEvidenciasLegalizacao(aberto ? documentoId : null);
-  const {
-    historico,
-    isLoading: carregandoHistorico,
-    mensagemErro: erroHistorico,
-  } = useHistoricoLegalizacao(aberto ? documentoId : null);
+  const { evidencias, mensagemErro: erroEvidencias } = useEvidenciasLegalizacao(
+    aberto ? documentoId : null,
+  );
+  const { historico, mensagemErro: erroHistorico } = useHistoricoLegalizacao(
+    aberto ? documentoId : null,
+  );
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
   const { criar: criarProcesso, isLoading: registrandoRenovacao } =
     useCriarProcessoRenovacao();
 
   function fechar() {
-    setAba("evidencias");
     setMostrandoJustificativa(false);
     setJustificativa("");
+    setMostrandoHistoricoEvidencias(false);
     onOpenChange(false);
   }
 
@@ -281,6 +314,12 @@ export function DetalheDocumentoModal({
 
   const prazo = documento ? prazoDocumento(documento) : null;
   const responsavel = documento ? responsavelPrincipal(documento) : undefined;
+  const evidenciaVigente = evidencias.find((evidencia) => evidencia.vigente);
+  const evidenciasExibidas = mostrandoHistoricoEvidencias
+    ? evidencias
+    : evidenciaVigente
+      ? [evidenciaVigente]
+      : [];
   const mostraMovimentacaoProfissional = documento
     ? CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(documento.tipo_documento.codigo)
     : false;
@@ -293,41 +332,55 @@ export function DetalheDocumentoModal({
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
-      <DialogContent className="flex max-h-[88vh] max-w-[min(980px,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
-        {isLoading && !documento ? (
-          <div className="flex h-[420px] items-center justify-center text-sm text-muted-foreground">
-            Carregando...
+      <DialogContent
+        showCloseButton
+        className="flex h-[85vh] max-h-[720px] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+      >
+        {isLoading ? (
+          <div className="flex flex-1 flex-col gap-4 p-6">
+            <Skeleton className="h-6 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="mt-4 h-full w-full" />
           </div>
-        ) : error ? (
-          <div className="flex h-[420px] items-center justify-center text-sm text-destructive">
-            Não foi possível carregar o documento: {mensagemErro}
+        ) : mensagemErro || !documento || !prazo ? (
+          <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
+            {mensagemErro
+              ? `Não foi possível carregar o documento: ${mensagemErro}`
+              : "Não foi possível carregar este documento."}
           </div>
-        ) : documento && prazo ? (
+        ) : (
           <>
-            <div className="border-b border-border px-6 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-[17px] font-semibold text-foreground">
-                    {documento.tipo_documento.nome}
-                  </h2>
-                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                    {documento.unidade.nome} ·{" "}
-                    {LABEL_CATEGORIA[documento.tipo_documento.categoria]}
-                  </p>
-                </div>
+            {/* Mesma estrutura de DetalheCard.tsx (Gestão de Demandas):
+                título sozinho na 1ª linha -- o botão de fechar do
+                DialogContent (absolute top-4 right-4) fica sem disputa de
+                espaço com nenhum badge. Status entra numa linha própria
+                abaixo, junto do resto do cabeçalho, não ao lado do título. */}
+            <DialogHeader className="gap-2.5 border-b border-border px-6 py-4">
+              <DialogTitle className="text-[17px] leading-snug font-semibold text-foreground">
+                {documento.tipo_documento.nome}
+              </DialogTitle>
+              <p className="text-[12.5px] text-muted-foreground">
+                {documento.unidade.nome} ·{" "}
+                {LABEL_CATEGORIA[documento.tipo_documento.categoria]}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={cn(
-                    "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase",
+                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase",
                     COR_STATUS_BADGE[documento.status],
                   )}
                 >
                   {LABEL_STATUS[documento.status]}
                 </span>
               </div>
-            </div>
+            </DialogHeader>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden sm:grid-cols-[280px_1fr]">
-              <div className="scrollbar-discreta flex flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:border-r sm:border-b-0">
+            {/* Mesmo padrão responsivo de DetalheCard.tsx (Gestão de
+                Demandas, STC-186): abaixo de sm, metadados empilham em
+                cima (scroll próprio limitado a 35vh) e as abas ocupam o
+                resto -- de sm pra cima, volta a ser o grid 270px+1fr. */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
+              <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
                 {(prazo.urgencia === "vencido" ||
                   prazo.urgencia === "proximo") && (
                   <div
@@ -347,60 +400,44 @@ export function DetalheDocumentoModal({
                       )}
                     />
                     <span>
-                      {documento.validade
-                        ? `${prazo.texto.charAt(0).toUpperCase() + prazo.texto.slice(1)} (validade ${formatarData(documento.validade)}).`
-                        : `${prazo.texto.charAt(0).toUpperCase() + prazo.texto.slice(1)}.`}
+                      {prazo.texto.charAt(0).toUpperCase() +
+                        prazo.texto.slice(1)}
+                      {documento.validade &&
+                        ` (validade ${formatarData(documento.validade)}).`}
                     </span>
                   </div>
                 )}
 
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Unidade
-                  </span>
-                  <span className="text-sm font-medium">
-                    {documento.unidade.nome}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Área responsável
-                  </span>
-                  <span className="w-fit rounded-sm bg-muted px-2 py-0.5 text-[12.5px]">
+                <CampoMeta rotulo="Unidade">{documento.unidade.nome}</CampoMeta>
+                <CampoMeta rotulo="Área responsável">
+                  <Pill>
                     {
                       ROTULO_AREA_RESPONSAVEL[
                         documento.tipo_documento.area_responsavel
                       ]
                     }
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Responsável operacional
-                  </span>
+                  </Pill>
+                </CampoMeta>
+                <CampoMeta rotulo="Responsável operacional">
                   {responsavel ? (
-                    <span className="flex items-center gap-1.5 text-sm font-medium">
-                      <span className="flex size-5 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
+                    <>
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
                         {iniciaisDe(nomeExibicao(responsavel.usuario))}
                       </span>
                       {nomeExibicao(responsavel.usuario)}
-                    </span>
+                    </>
                   ) : (
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-muted-foreground">
                       Sem responsável
                     </span>
                   )}
-                </div>
+                </CampoMeta>
 
                 <div className="h-px bg-border" />
 
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Validade
-                  </span>
+                <CampoMeta rotulo="Validade">
                   <span
                     className={cn(
-                      "text-sm font-medium",
                       prazo.urgencia === "vencido" && "font-bold text-red-600",
                     )}
                   >
@@ -408,25 +445,17 @@ export function DetalheDocumentoModal({
                       ? formatarData(documento.validade)
                       : "—"}
                   </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Antecedência do alerta
-                  </span>
-                  <span className="text-sm font-medium">
-                    {documento.regra_aplicada
-                      ? `${documento.regra_aplicada.antecedencia_dias} dias`
-                      : "—"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                    Criticidade
-                  </span>
+                </CampoMeta>
+                <CampoMeta rotulo="Antecedência do alerta">
+                  {documento.regra_aplicada
+                    ? `${documento.regra_aplicada.antecedencia_dias} dias`
+                    : "—"}
+                </CampoMeta>
+                <CampoMeta rotulo="Criticidade">
                   {documento.regra_aplicada ? (
                     <span
                       className={cn(
-                        "w-fit rounded-sm border px-2 py-0.5 text-[12.5px] font-semibold",
+                        "rounded-sm border px-2 py-0.5 text-[12.5px] font-semibold",
                         documento.regra_aplicada.criticidade === "alta"
                           ? COR_CRITICIDADE_ALTA
                           : "border-border bg-muted text-foreground",
@@ -435,9 +464,9 @@ export function DetalheDocumentoModal({
                       {LABEL_CRITICIDADE[documento.regra_aplicada.criticidade]}
                     </span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
+                    "—"
                   )}
-                </div>
+                </CampoMeta>
 
                 <div className="h-px bg-border" />
 
@@ -478,7 +507,7 @@ export function DetalheDocumentoModal({
                     </div>
                   </div>
                 ) : (
-                  <>
+                  <div className="flex flex-col gap-2">
                     {podeRegistrarRenovacao && (
                       <Button
                         disabled={registrandoRenovacao}
@@ -508,10 +537,10 @@ export function DetalheDocumentoModal({
                         Reportar Movimentação Profissional
                       </Button>
                     )}
-                  </>
+                  </div>
                 )}
 
-                <div className="mt-auto border-t border-border pt-3 text-[11px] text-muted-foreground">
+                <div className="mt-auto border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
                   <strong className="font-semibold text-foreground">
                     Setor de apoio:
                   </strong>{" "}
@@ -520,66 +549,74 @@ export function DetalheDocumentoModal({
                 </div>
               </div>
 
-              <div className="flex min-h-0 flex-col overflow-hidden">
-                <div className="flex shrink-0 gap-5 border-b border-border px-5">
-                  <button
-                    type="button"
-                    onClick={() => setAba("evidencias")}
-                    className={cn(
-                      "flex items-center gap-1.5 border-b-2 border-transparent py-3 text-[13px] font-medium text-muted-foreground",
-                      aba === "evidencias" &&
-                        "border-secondary font-semibold text-secondary",
-                    )}
+              <Tabs defaultValue="evidencias" className="min-h-0 flex-1 gap-0">
+                <TabsList
+                  variant="line"
+                  className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"
+                >
+                  <TabsTrigger
+                    value="evidencias"
+                    className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                   >
+                    <FileText className="size-3.5" />
                     Evidências
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10.5px] font-bold text-muted-foreground">
+                    <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                       {evidencias.length}
                     </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAba("historico")}
-                    className={cn(
-                      "flex items-center gap-1.5 border-b-2 border-transparent py-3 text-[13px] font-medium text-muted-foreground",
-                      aba === "historico" &&
-                        "border-secondary font-semibold text-secondary",
-                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="historico"
+                    className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                   >
+                    <HistoryIcon className="size-3.5" />
                     Histórico
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10.5px] font-bold text-muted-foreground">
+                    <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                       {historico.length}
                     </span>
-                  </button>
-                </div>
+                  </TabsTrigger>
+                </TabsList>
 
-                <div className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5">
-                  {aba === "evidencias" ? (
-                    carregandoEvidencias ? (
-                      <p className="text-sm text-muted-foreground">
-                        Carregando...
-                      </p>
-                    ) : erroEvidencias ? (
-                      <p className="text-sm text-destructive">
-                        Não foi possível carregar as evidências:{" "}
-                        {erroEvidencias}
-                      </p>
-                    ) : evidencias.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhuma evidência enviada ainda.
-                      </p>
-                    ) : (
-                      evidencias.map((evidencia) => (
+                <TabsContent
+                  value="evidencias"
+                  className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
+                >
+                  {erroEvidencias ? (
+                    <p className="text-sm text-destructive">
+                      Não foi possível carregar as evidências: {erroEvidencias}
+                    </p>
+                  ) : evidencias.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma evidência enviada ainda.
+                    </p>
+                  ) : (
+                    <>
+                      {evidenciasExibidas.map((evidencia) => (
                         <ItemEvidencia
                           key={evidencia.id}
                           evidencia={evidencia}
                         />
-                      ))
-                    )
-                  ) : carregandoHistorico ? (
-                    <p className="text-sm text-muted-foreground">
-                      Carregando...
-                    </p>
-                  ) : erroHistorico ? (
+                      ))}
+                      {evidencias.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMostrandoHistoricoEvidencias((atual) => !atual)
+                          }
+                          className="text-[12.5px] font-medium text-secondary hover:underline"
+                        >
+                          {mostrandoHistoricoEvidencias
+                            ? "Ver só a vigente"
+                            : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
+                <TabsContent
+                  value="historico"
+                  className="scrollbar-discreta flex-1 overflow-y-auto p-5"
+                >
+                  {erroHistorico ? (
                     <p className="text-sm text-destructive">
                       Não foi possível carregar o histórico: {erroHistorico}
                     </p>
@@ -592,11 +629,11 @@ export function DetalheDocumentoModal({
                       <ItemHistorico key={item.id} item={item} />
                     ))
                   )}
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </>
-        ) : null}
+        )}
       </DialogContent>
     </Dialog>
   );

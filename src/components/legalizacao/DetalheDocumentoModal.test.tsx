@@ -206,7 +206,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(await screen.findByText(/vencido há 12 dias/i)).toBeInTheDocument();
   });
 
-  it("lista evidências, marca a vigente e oferece link de download", async () => {
+  it("mostra só a evidência vigente por padrão, com link de download", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
       evidencia({ id: 1, nome_original: "antiga.pdf", vigente: false }),
@@ -219,13 +219,30 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ]);
     renderComponente(55);
 
-    expect(await screen.findByText("antiga.pdf")).toBeInTheDocument();
-    expect(screen.getByText("atual.pdf")).toBeInTheDocument();
+    expect(await screen.findByText("atual.pdf")).toBeInTheDocument();
     expect(screen.getByText("Vigente")).toBeInTheDocument();
-    const links = screen.getAllByTitle("Baixar") as HTMLAnchorElement[];
-    expect(links.map((link) => link.href)).toContain(
-      "https://example.com/atual.pdf",
+    expect(screen.queryByText("antiga.pdf")).not.toBeInTheDocument();
+    const link = screen.getByTitle("Baixar") as HTMLAnchorElement;
+    expect(link.href).toBe("https://example.com/atual.pdf");
+  });
+
+  it("'Ver histórico de evidências' expande as anteriores; 'Ver só a vigente' recolhe de novo", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
+      evidencia({ id: 1, nome_original: "antiga.pdf", vigente: false }),
+      evidencia({ id: 2, nome_original: "atual.pdf", vigente: true }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("atual.pdf");
+
+    await user.click(
+      screen.getByRole("button", { name: /ver histórico de evidências/i }),
     );
+    expect(screen.getByText("antiga.pdf")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ver só a vigente" }));
+    expect(screen.queryByText("antiga.pdf")).not.toBeInTheDocument();
   });
 
   it("mostra o histórico, com 'Sistema' quando não há usuário (ação automática)", async () => {
@@ -242,7 +259,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
 
-    await user.click(screen.getByRole("button", { name: /histórico/i }));
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
 
     expect(screen.getByText("Sistema")).toBeInTheDocument();
     expect(screen.getByText('"em_andamento"')).toBeInTheDocument();
