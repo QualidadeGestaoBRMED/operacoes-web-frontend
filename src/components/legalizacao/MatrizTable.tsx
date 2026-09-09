@@ -218,19 +218,27 @@ export function MatrizTable({
                   return (
                     <tr
                       key={documento.id}
-                      role="button"
-                      tabIndex={0}
                       onClick={() => onClickLinha?.(documento)}
-                      onKeyDown={(evento) => {
-                        if (evento.key === "Enter" || evento.key === " ") {
-                          evento.preventDefault();
-                          onClickLinha?.(documento);
-                        }
-                      }}
-                      className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-secondary/5 focus-visible:bg-secondary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:-outline-offset-2"
+                      className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-secondary/5"
                     >
+                      {/* Achado em code review: role="button"/tabIndex na
+                          <tr> sobrescrevia o role="row" implícito, quebrando
+                          a navegação por tabela de leitor de tela (perde a
+                          associação célula↔cabeçalho). O onClick acima
+                          cobre o clique de mouse em qualquer ponto da linha;
+                          o botão real abaixo é o único caminho de teclado --
+                          <tr>/<td> mantêm seus papéis implícitos intactos. */}
                       <td className="truncate px-4 py-3 text-sm font-semibold">
-                        {documento.unidade.nome}
+                        <button
+                          type="button"
+                          onClick={(evento) => {
+                            evento.stopPropagation();
+                            onClickLinha?.(documento);
+                          }}
+                          className="w-full truncate rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:-outline-offset-2"
+                        >
+                          {documento.unidade.nome}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="truncate">
