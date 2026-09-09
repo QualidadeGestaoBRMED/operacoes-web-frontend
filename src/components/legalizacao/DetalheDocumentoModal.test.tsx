@@ -9,6 +9,7 @@ import type {
   HistoricoRegulatorio,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
+import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 
 vi.mock("@/lib/legalizacao");
@@ -18,6 +19,7 @@ import {
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarProcessoRenovacao,
+  listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
   listarHistoricoLegalizacao,
   urlAbsolutaDaEvidencia,
@@ -154,6 +156,25 @@ function renderComponente(
         documentoId={documentoId}
         onOpenChange={onOpenChange}
       />
+    </SWRConfig>,
+  );
+}
+
+// Harness pra provar que criar o processo invalida a MESMA chave de lista
+// que a Matriz por trás do modal usa -- sem isso, a tabela ficava com o
+// status antigo até o próximo poll (achado numa análise de falhas críticas,
+// STC-380). ChamaListarDocumentos só existe pra fazer o hook de lista
+// existir na mesma árvore/cache do SWRConfig do teste.
+function ListaPorTras() {
+  useDocumentosLegalizacao();
+  return null;
+}
+
+function renderComComListaPorTras(documentoId: number | null) {
+  return render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <ListaPorTras />
+      <DetalheDocumentoModal documentoId={documentoId} onOpenChange={vi.fn()} />
     </SWRConfig>,
   );
 }
@@ -340,6 +361,40 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       expect(criarProcessoRenovacao).toHaveBeenCalledWith({
         documento_unidade: 55,
       });
+    });
+  });
+
+  it("'Registrar renovação' invalida a lista de documentos por trás do modal", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "vencido" }),
+    );
+    vi.mocked(criarProcessoRenovacao).mockResolvedValue({
+      id: 1,
+      documento_unidade: documento({ status: "em_andamento" }),
+      status: "em_andamento",
+      data_solicitacao: null,
+      protocolo_numero: "",
+      protocolo_orgao: "",
+      protocolo_data: null,
+      observacoes: "",
+      data_conclusao: null,
+      usuario_responsavel: null,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderComComListaPorTras(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1);
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Registrar renovação" }),
+    );
+
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2);
     });
   });
 
