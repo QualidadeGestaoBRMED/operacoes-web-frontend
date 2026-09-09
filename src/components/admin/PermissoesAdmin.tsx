@@ -484,7 +484,7 @@ export function PermissoesAdmin() {
         </Select>
       </div>
 
-      {aba === "catalogo-legalizacao" && <CatalogoLegalizacaoAdmin />}
+      <CatalogoLegalizacaoAdmin hidden={aba !== "catalogo-legalizacao"} />
 
       {/* Cada seção reparte a altura disponível proporcional a quantas
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta

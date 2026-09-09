@@ -214,24 +214,29 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(
       await screen.findByRole("button", { name: /nova permissão/i }),
     );
+    // Escopado ao diálogo: STC-415 mantém "Catálogo de Legalização" sempre
+    // montado (só escondido via `hidden`), e seus formulários (Unidade,
+    // Tipo de documento etc.) agora ficam sempre presentes no DOM também --
+    // getByLabelText não filtra por `hidden` como getByRole já faz.
+    const dialog = await screen.findByRole("dialog");
 
-    await user.click(screen.getByLabelText(/pessoa/i));
+    await user.click(within(dialog).getByLabelText(/pessoa/i));
     await user.click(
       await screen.findByRole("option", { name: "Fernanda Lima" }),
     );
 
-    await user.click(screen.getByLabelText(/recurso/i));
+    await user.click(within(dialog).getByLabelText(/recurso/i));
     await user.click(await screen.findByRole("option", { name: /kanban/i }));
 
-    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(within(dialog).getByLabelText(/^unidade/i));
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
 
-    const campoInicio = screen.getByLabelText(/início/i);
+    const campoInicio = within(dialog).getByLabelText(/início/i);
     await user.clear(campoInicio);
     await user.type(campoInicio, "2026-03-01");
 
     await user.click(
-      screen.getByRole("button", { name: /conceder permissão/i }),
+      within(dialog).getByRole("button", { name: /conceder permissão/i }),
     );
 
     await waitFor(() => {
@@ -263,27 +268,29 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(
       await screen.findByRole("button", { name: /nova permissão/i }),
     );
+    // Escopado ao diálogo -- ver comentário equivalente no teste anterior.
+    const dialog = await screen.findByRole("dialog");
 
-    await user.click(screen.getByLabelText(/pessoa/i));
+    await user.click(within(dialog).getByLabelText(/pessoa/i));
     await user.click(
       await screen.findByRole("option", { name: "Fernanda Lima" }),
     );
 
-    await user.click(screen.getByLabelText(/recurso/i));
+    await user.click(within(dialog).getByLabelText(/recurso/i));
     await user.click(await screen.findByRole("option", { name: /kanban/i }));
 
-    await user.click(screen.getByLabelText(/^ação/i));
+    await user.click(within(dialog).getByLabelText(/^ação/i));
     await user.click(await screen.findByRole("option", { name: "Editar" }));
 
-    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(within(dialog).getByLabelText(/^unidade/i));
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
 
-    const campoInicio = screen.getByLabelText(/início/i);
+    const campoInicio = within(dialog).getByLabelText(/início/i);
     await user.clear(campoInicio);
     await user.type(campoInicio, "2026-03-01");
 
     await user.click(
-      screen.getByRole("button", { name: /conceder permissão/i }),
+      within(dialog).getByRole("button", { name: /conceder permissão/i }),
     );
 
     await waitFor(() => {
@@ -664,5 +671,36 @@ describe("PermissoesAdmin (STC-266)", () => {
     await user.click(screen.getByLabelText("Seção"));
     await user.click(await screen.findByRole("option", { name: "Usuários" }));
     expect(secaoUsuarios.parentElement).not.toHaveAttribute("hidden");
+  });
+
+  // Achado na revisão de código: essa aba desmontava ao trocar de seção
+  // (render condicional) diferente da aba "Usuários" (só escondida) --
+  // qualquer seleção/filtro em andamento ali era descartado sem aviso ao
+  // voltar.
+  it("não perde a seleção de unidade em 'Corrigir regra' ao trocar de seção e voltar", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText("Seção"));
+    await user.click(
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
+    );
+
+    await user.click(await screen.findByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Niterói");
+
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Usuários" }));
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
+    );
+
+    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Niterói");
   });
 });

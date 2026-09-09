@@ -8,10 +8,17 @@ import { FormCadastrarDocumento } from "./FormCadastrarDocumento";
 import { FormNovaVersaoRegra } from "./FormNovaVersaoRegra";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 
-export function CatalogoLegalizacaoAdmin() {
+export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
   const [formCadastroAberto, setFormCadastroAberto] = useState(false);
 
   return (
+    // hidden (não desmontar): achado na revisão de código -- essa aba era
+    // renderizada condicionalmente ({aba === "..." && <CatalogoLegalizacaoAdmin />}
+    // em PermissoesAdmin.tsx), diferente da aba "Usuários" (só escondida via
+    // `hidden`). Trocar de aba e voltar desmontava e descartava qualquer
+    // formulário/filtro em andamento aqui, sem aviso -- agora segue o mesmo
+    // padrão da aba irmã.
+    //
     // Desktop: sem overflow-y-auto aqui de propósito -- mesmo padrão de
     // PermissoesAdmin.tsx (seção "Usuários"): só a tabela de Tipos de
     // documento rola de verdade (flex-1 min-h, altura medida por
@@ -23,7 +30,10 @@ export function CatalogoLegalizacaoAdmin() {
     // Mobile: não sobra altura pra encaixar tabela + os outros 2 blocos
     // numa tela curta -- a tabela mostra tudo (sem altura travada, ver
     // TabelaTiposDocumento.tsx) e quem rola é a aba inteira.
-    <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible">
+    <div
+      hidden={hidden}
+      className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
+    >
       <div className="min-h-[20rem] min-w-0 flex-1">
         <TabelaTiposDocumento />
       </div>
