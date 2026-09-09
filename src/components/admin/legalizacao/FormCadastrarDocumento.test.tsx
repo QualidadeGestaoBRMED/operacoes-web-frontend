@@ -223,6 +223,48 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
   });
 
+  it("status 'Vencido' com validade preenchida cadastra normalmente", async () => {
+    vi.mocked(criarRegraDocumento).mockResolvedValue({
+      id: 55,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 30,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "alta",
+      vigente_a_partir: "2026-01-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Vencido" }));
+    await user.type(screen.getByLabelText(/validade/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/antecedência/i), "30");
+    await user.click(screen.getByLabelText(/criticidade/i));
+    await user.click(await screen.findByRole("option", { name: "Alta" }));
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "vencido",
+          validade: "2026-01-01",
+        }),
+      );
+    });
+  });
+
   it("caminho normal: cria a regra, depois o documento com regra_aplicada apontando pra ela", async () => {
     vi.mocked(criarRegraDocumento).mockResolvedValue({
       id: 55,
@@ -353,6 +395,27 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await waitFor(() => {
       expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(99, arquivo);
     });
+  });
+
+  it("botão de remover evidência anexada tem nome acessível e some o arquivo", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+    const arquivo = new File(["conteudo"], "alvara.pdf", {
+      type: "application/pdf",
+    });
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(inputArquivo, arquivo);
+
+    expect(screen.getByText("alvara.pdf")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Remover alvara.pdf" }),
+    );
+
+    expect(screen.queryByText("alvara.pdf")).not.toBeInTheDocument();
   });
 
   it("desfaz a regra recém-criada se criar o documento falhar em seguida", async () => {

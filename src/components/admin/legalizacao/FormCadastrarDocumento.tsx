@@ -44,7 +44,10 @@ import type { Criticidade, StatusDocumento } from "@/types/legalizacao";
 
 // Exclui Não aplicável (é o toggle abaixo, não uma opção deste select) e
 // Unidade em encerramento (fora do escopo desta issue -- ação de nível
-// unidade, não de cadastro documento a documento).
+// unidade, não de cadastro documento a documento). Inclui Vencido de
+// propósito, além dos 4 status do critério de aceite original: ao montar o
+// esqueleto de uma unidade já existente, é comum que um documento já esteja
+// vencido no dia do cadastro (decisão do planejamento desta issue).
 const STATUS_INICIAIS: StatusDocumento[] = [
   "nao_iniciado",
   "em_andamento",
@@ -640,6 +643,7 @@ export function FormCadastrarDocumento({
                       </span>
                       <button
                         type="button"
+                        aria-label={`Remover ${arquivo.name}`}
                         onClick={() => {
                           setArquivo(null);
                           if (inputArquivoRef.current)

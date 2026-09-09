@@ -94,4 +94,16 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     expect(screen.getByText("Licença Sanitária")).toBeInTheDocument();
     expect(screen.queryByText("CNES")).not.toBeInTheDocument();
   });
+
+  it("mostra uma mensagem de erro, não de lista vazia, quando o carregamento falha", async () => {
+    vi.mocked(listarTiposDocumento).mockRejectedValue(new Error("Falha."));
+    renderTela();
+
+    expect(
+      await screen.findByText(/não foi possível carregar os tipos/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhum tipo de documento cadastrado ainda."),
+    ).not.toBeInTheDocument();
+  });
 });

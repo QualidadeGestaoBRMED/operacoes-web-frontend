@@ -44,7 +44,8 @@ const ROTULO_FILTRO_ATIVO: Record<FiltroAtivo, string> = {
 };
 
 export function TabelaTiposDocumento() {
-  const { tiposDocumento, isLoading } = useTiposDocumento();
+  const { tiposDocumento, isLoading, error, mensagemErro } =
+    useTiposDocumento();
   const { atualizar } = useAtualizarTipoDocumento();
   // Mesmo hook de GerenciarUsuarios.tsx -- trava a altura da tabela num
   // múltiplo exato de linhas inteiras, usando o espaço real que sobra na
@@ -151,6 +152,10 @@ export function TabelaTiposDocumento() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : error ? (
+        <p className="text-sm text-destructive">
+          Não foi possível carregar os tipos de documento: {mensagemErro}
+        </p>
       ) : tiposDocumento.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nenhum tipo de documento cadastrado ainda.
