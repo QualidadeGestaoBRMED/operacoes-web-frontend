@@ -358,6 +358,24 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each(["em_andamento", "protocolado"] as const)(
+    "esconde 'Registrar renovação' quando já existe um processo em curso (status %s)",
+    async (status) => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ status }),
+      );
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      expect(
+        screen.queryByRole("button", { name: "Registrar renovação" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Processo de renovação em andamento."),
+      ).toBeInTheDocument();
+    },
+  );
+
   it("'Registrar renovação' abre o modal de Processo de Renovação, sem criar nada até confirmar", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ status: "vencido" }),
@@ -432,7 +450,9 @@ describe("DetalheDocumentoModal (STC-380)", () => {
         documento_unidade: 55,
       });
     });
-    expect(await screen.findByText(/solicitação · concluída/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/solicitação · concluída/i),
+    ).toBeInTheDocument();
   });
 
   it("Confirmar no modal de Processo de Renovação invalida a lista de documentos por trás do modal", async () => {

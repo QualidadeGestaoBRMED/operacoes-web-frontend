@@ -313,8 +313,16 @@ export function DetalheDocumentoModal({
   const mostraMovimentacaoProfissional = documento
     ? CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(documento.tipo_documento.codigo)
     : false;
+  // Em andamento/Protocolado já são um processo de renovação em curso
+  // (Plano de Ação §7: "Em andamento (solicitação iniciada) → Protocolado
+  // → Renovação concluída → volta pra Regular") -- "Registrar renovação"
+  // começa um processo NOVO, não faz sentido nesses dois estados. O
+  // acompanhamento do processo já existente é a STC-381 (ainda não existe).
+  const processoJaEmCurso =
+    documento?.status === "em_andamento" || documento?.status === "protocolado";
   const podeRegistrarRenovacao =
     documento &&
+    !processoJaEmCurso &&
     documento.status !== "nao_aplicavel" &&
     documento.status !== "unidade_encerramento";
   const podeMarcarNaoAplicavel =
@@ -509,6 +517,15 @@ export function DetalheDocumentoModal({
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
+                      {processoJaEmCurso && (
+                        // Acompanhamento do processo (Protocolo/Conclusão) é
+                        // a STC-381, ainda não existe -- por enquanto só
+                        // evita reabrir "Registrar renovação" sobre um
+                        // processo já em curso.
+                        <p className="text-[12.5px] text-muted-foreground">
+                          Processo de renovação em andamento.
+                        </p>
+                      )}
                       {podeRegistrarRenovacao && (
                         <Button
                           onClick={() => setMostrandoProcessoRenovacao(true)}
