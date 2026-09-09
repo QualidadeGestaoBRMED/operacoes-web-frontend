@@ -304,7 +304,7 @@ export function FormNovaVersaoRegra() {
   const [tipoDocumentoId, setTipoDocumentoId] = useState<number | undefined>();
   const [dialogAberto, setDialogAberto] = useState(false);
 
-  const { documentos, isLoading, carregandoPrimeiraVez } =
+  const { documentos, isLoading, carregandoPrimeiraVez, error, mensagemErro } =
     useDocumentosLegalizacao(
       { unidade: unidadeId, tipo_documento: tipoDocumentoId },
       {
@@ -376,6 +376,10 @@ export function FormNovaVersaoRegra() {
         <div className="mt-3 rounded-lg border border-border p-3 text-sm">
           {isLoading && carregandoPrimeiraVez ? (
             <p className="text-muted-foreground">Carregando...</p>
+          ) : error ? (
+            <p className="text-destructive">
+              Não foi possível carregar o documento: {mensagemErro}
+            </p>
           ) : !documento ? (
             <p className="text-muted-foreground">
               Nenhum documento cadastrado para esta combinação. Use

@@ -137,6 +137,23 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     ).toBeInTheDocument();
   });
 
+  it("mostra erro de carregamento, não 'nenhum documento', quando a busca falha", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockRejectedValue(
+      new Error("Falha de rede."),
+    );
+    const user = userEvent.setup();
+    renderComponente();
+
+    await selecionarUnidadeETipo(user);
+
+    expect(
+      await screen.findByText(/não foi possível carregar o documento/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/nenhum documento cadastrado para esta combinação/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("bloqueia vigente_a_partir igual ou anterior à vigência atual", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
     const user = userEvent.setup();

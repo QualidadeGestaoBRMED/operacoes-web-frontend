@@ -552,4 +552,69 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(criarDocumentoLegalizacao).toHaveBeenCalledTimes(1);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("upload falha e o arquivo é removido: 'Concluir' fecha sem tentar reenviar nada", async () => {
+    vi.mocked(criarRegraDocumento).mockResolvedValue({
+      id: 55,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 60,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "alta",
+      vigente_a_partir: "2026-01-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+      documentoCriado({ id: 99 }),
+    );
+    vi.mocked(enviarEvidenciaLegalizacao).mockRejectedValueOnce(
+      new Error("Falha de rede."),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Em andamento" }),
+    );
+    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.click(screen.getByLabelText(/criticidade/i));
+    await user.click(await screen.findByRole("option", { name: "Alta" }));
+
+    const arquivo = new File(["conteudo"], "alvara.pdf", {
+      type: "application/pdf",
+    });
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(inputArquivo, arquivo);
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+    await screen.findByRole("button", { name: /reenviar evidência/i });
+
+    // Evidência é opcional -- remove o arquivo em vez de tentar de novo.
+    await user.click(
+      screen.getByRole("button", { name: "Remover alvara.pdf" }),
+    );
+    const botaoConcluir = await screen.findByRole("button", {
+      name: "Concluir",
+    });
+    await user.click(botaoConcluir);
+
+    // Sem arquivo, não há o que reenviar -- não chama enviarEvidenciaLegalizacao
+    // de novo (só a 1ª tentativa, que falhou) nem tenta recriar regra/documento.
+    expect(enviarEvidenciaLegalizacao).toHaveBeenCalledTimes(1);
+    expect(criarRegraDocumento).toHaveBeenCalledTimes(1);
+    expect(criarDocumentoLegalizacao).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });

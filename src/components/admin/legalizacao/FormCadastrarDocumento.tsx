@@ -226,6 +226,16 @@ export function FormCadastrarDocumento({
     setSalvando(true);
     try {
       if (documentoCriado) {
+        // Achado em code review: evidência é opcional -- se o usuário
+        // removeu o arquivo depois de um envio que falhou, não há mais o
+        // que reenviar. Sem este cheque, "arquivo as File" mandava null
+        // pra enviarEvidenciaLegalizacao, virando uma chamada inválida ao
+        // backend.
+        if (!arquivo) {
+          toast.success("Documento cadastrado.");
+          onOpenChange(false);
+          return;
+        }
         await enviarEvidenciaDoDocumento(documentoCriado.id);
         return;
       }
@@ -319,8 +329,9 @@ export function FormCadastrarDocumento({
           <div className="scrollbar-discreta flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {documentoCriado && (
               <p className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
-                O documento já foi cadastrado. Falta só reenviar a evidência; os
-                outros campos abaixo não têm mais efeito.
+                {arquivo
+                  ? "O documento já foi cadastrado. Falta só reenviar a evidência; os outros campos abaixo não têm mais efeito."
+                  : "O documento já foi cadastrado, sem evidência. Anexe um arquivo se quiser, ou clique em Concluir; os outros campos abaixo não têm mais efeito."}
               </p>
             )}
             <div className="space-y-1.5">
@@ -683,7 +694,9 @@ export function FormCadastrarDocumento({
                   ? "Enviando evidência..."
                   : "Cadastrando..."
                 : documentoCriado
-                  ? "Reenviar evidência"
+                  ? arquivo
+                    ? "Reenviar evidência"
+                    : "Concluir"
                   : "Cadastrar documento"}
             </Button>
           </DialogFooter>
