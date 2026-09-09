@@ -27,9 +27,7 @@ interface MatrizTableProps {
   // também contém a barra de filtros, fora deste componente.
   refTabela: ReturnType<typeof useAlturaSemLinhaCortada>["refTabela"];
   maxHeight: number | undefined;
-  // Linha clicável é só afordância visual por enquanto -- o Detalhe do
-  // Documento (STC-380) ainda não existe. onClickLinha fica opcional, sem
-  // navegação real até essa tela nascer.
+  // Abre o Detalhe do Documento (STC-380, DetalheDocumentoModal.tsx).
   onClickLinha?: (documento: DocumentoUnidade) => void;
 }
 
@@ -61,7 +59,10 @@ function LegendaStatus() {
         Legenda de status:
       </strong>
       {ORDEM_STATUS.map((status) => (
-        <span key={status} className="flex items-center gap-1.5 whitespace-nowrap">
+        <span
+          key={status}
+          className="flex items-center gap-1.5 whitespace-nowrap"
+        >
           <span
             className={cn(
               "size-2 rounded-full",
