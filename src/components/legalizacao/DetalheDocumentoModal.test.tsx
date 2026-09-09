@@ -24,6 +24,7 @@ import {
   listarHistoricoLegalizacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
+import { toast } from "sonner";
 
 const UNIDADE: Unidade = {
   id: 1,
@@ -228,7 +229,9 @@ describe("DetalheDocumentoModal (STC-380)", () => {
   });
 
   it("mostra só a evidência vigente por padrão, com link de download", async () => {
-    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ evidencia_vigente: 2 }),
+    );
     vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
       evidencia({ id: 1, nome_original: "antiga.pdf", vigente: false }),
       evidencia({
@@ -245,6 +248,29 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(screen.queryByText("antiga.pdf")).not.toBeInTheDocument();
     const link = screen.getByTitle("Baixar") as HTMLAnchorElement;
     expect(link.href).toBe("https://example.com/atual.pdf");
+  });
+
+  it("usa documento.evidencia_vigente (não o flag por-evidência) como fonte de verdade", async () => {
+    // Simula uma divergência entre as duas fontes (achado em code review):
+    // o item com o flag vigente:true não é o mesmo que documento.
+    // evidencia_vigente aponta -- o FK do documento precisa vencer.
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ evidencia_vigente: 1 }),
+    );
+    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
+      evidencia({ id: 1, nome_original: "real-vigente.pdf", vigente: false }),
+      evidencia({
+        id: 2,
+        nome_original: "flag-desatualizado.pdf",
+        vigente: true,
+      }),
+    ]);
+    renderComponente(55);
+
+    expect(await screen.findByText("real-vigente.pdf")).toBeInTheDocument();
+    expect(
+      screen.queryByText("flag-desatualizado.pdf"),
+    ).not.toBeInTheDocument();
   });
 
   it("mostra esqueleto de carregamento nas abas, não 'nenhum registro', enquanto evidências/histórico ainda não resolveram", async () => {
@@ -274,7 +300,9 @@ describe("DetalheDocumentoModal (STC-380)", () => {
   });
 
   it("'Ver histórico de evidências' expande as anteriores; 'Ver só a vigente' recolhe de novo", async () => {
-    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ evidencia_vigente: 2 }),
+    );
     vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([
       evidencia({ id: 1, nome_original: "antiga.pdf", vigente: false }),
       evidencia({ id: 2, nome_original: "atual.pdf", vigente: true }),
@@ -341,6 +369,62 @@ describe("DetalheDocumentoModal (STC-380)", () => {
         justificativa_excecao: "Unidade não tem esse serviço.",
       });
     });
+  });
+
+  it("'Marcar como Não aplicável' mostra sucesso e fecha o formulário assim que o PATCH resolve, sem esperar a revalidação", async () => {
+    // A revalidação pós-PATCH (mutate()) nunca deve ser capaz de reclassificar
+    // uma ação já persistida como erro -- separar as duas chamadas (achado em
+    // code review) significa que sucesso/fechar o formulário não fica preso
+    // esperando ninguém além do próprio PATCH.
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_aplicavel" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Marcar como Não aplicável" }),
+    );
+    await user.type(
+      screen.getByLabelText(/justificativa/i),
+      "Unidade não tem esse serviço.",
+    );
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        "Documento marcado como Não aplicável.",
+      );
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/justificativa/i)).not.toBeInTheDocument();
+  });
+
+  it("'Marcar como Não aplicável' mostra erro e mantém o formulário quando o PATCH falha de verdade", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
+      new Error("Falha de rede."),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Marcar como Não aplicável" }),
+    );
+    await user.type(
+      screen.getByLabelText(/justificativa/i),
+      "Unidade não tem esse serviço.",
+    );
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/justificativa/i)).toBeInTheDocument();
   });
 
   it("esconde 'Registrar renovação' e 'Marcar como Não aplicável' quando já é Não aplicável", async () => {

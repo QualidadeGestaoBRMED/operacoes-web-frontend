@@ -293,18 +293,31 @@ export function DetalheDocumentoModal({
           justificativa_excecao: justificativa.trim(),
         },
       });
-      await mutate();
-      toast.success("Documento marcado como Não aplicável.");
-      setMostrandoJustificativa(false);
-      setJustificativa("");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+      return;
     }
+    // PATCH já teve sucesso a partir daqui -- uma falha na revalidação
+    // abaixo não é erro da ação em si (achado em code review: reportar
+    // como erro aqui confundia o usuário sobre algo que já foi salvo). O
+    // próximo poll (60s) ou reabrir o modal corrige a UI de qualquer jeito.
+    toast.success("Documento marcado como Não aplicável.");
+    setMostrandoJustificativa(false);
+    setJustificativa("");
+    void mutate().catch(() => {});
   }
 
   const prazo = documento ? prazoDocumento(documento) : null;
   const responsavel = documento ? responsavelPrincipal(documento) : undefined;
-  const evidenciaVigente = evidencias.find((evidencia) => evidencia.vigente);
+  // documento.evidencia_vigente (não evidencia.vigente) é a fonte de
+  // verdade -- é o mesmo FK denormalizado que a Matriz de Conformidade usa
+  // pra listar a evidência atual sem N+1 (legalizacao/models.py, backend),
+  // sincronizado atomicamente com o flag por-evidência no único caminho de
+  // escrita que existe (upload). Usar o FK evita depender de mais uma
+  // fonte (a flag em cada item) pra achar o mesmo dado.
+  const evidenciaVigente = evidencias.find(
+    (evidencia) => evidencia.id === documento?.evidencia_vigente,
+  );
   const evidenciasExibidas = mostrandoHistoricoEvidencias
     ? evidencias
     : evidenciaVigente
