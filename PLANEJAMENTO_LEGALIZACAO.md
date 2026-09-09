@@ -6,7 +6,7 @@
 **Início proposto:** 25/08/2026 · **Entrega proposta:** 25/09/2026 · **Go-Live:** 28/09/2026
 **Fonte:** `Plano de Ação - Legalização.md` (raiz do repositório da Plataforma) §3/§4/§7/§8, e os 6 mockups refinados em `docs/mockup_*legalizacao*.html` — este documento traduz os protótipos já validados visualmente em plano técnico de implementação.
 
-> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377), P4.1 (Matriz Lista, STC-378), P4.2 (Matriz Mapa, STC-379) e P4.7 (Administração do Catálogo, STC-415) já têm implementação real (STC-377/378/379 mergeadas; STC-415 com PR #34 aberta em revisão); as seções P3.1/P3.2/P4.1/P4.2/P4.7 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.3–P4.6).
+> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377), P4.1 (Matriz Lista, STC-378), P4.2 (Matriz Mapa, STC-379), P4.3 (Detalhe do Documento, STC-380) e P4.7 (Administração do Catálogo, STC-415) já têm implementação real (STC-377/378/379 mergeadas; STC-380 com PR #35 e STC-415 com PR #34 abertas em revisão); as seções P3.1/P3.2/P4.1/P4.2/P4.3/P4.7 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.4–P4.6).
 
 ---
 
@@ -187,7 +187,7 @@ removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** 🔄 Em andamento (P4.1, P4.2 e P4.7 implementados — P4.7 com PR #34 aberta em revisão; P4.3–P4.6 a iniciar)
+**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3 e P4.7 implementados — P4.3 com PR #35 aberta em revisão (7 rodadas de code review automático, todas corrigidas), P4.7 com PR #34 aberta em revisão; P4.4–P4.6 a iniciar)
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
@@ -225,14 +225,24 @@ relação ao plano original abaixo:
 
 ### P4.3 Detalhe do Documento — `mockup_detalhe_documento_legalizacao.html`
 
-- Modal, `max-height: 88vh` (não `height` fixo — bug de espaço vazio já corrigido no mockup, não reintroduzir).
-- **Sem stepper de progresso** — decisão explícita, não é um Kanban, mostrar só o status atual (badge).
-- Abas Evidências (arquivos anexados, só a vigente por padrão + ação explícita "ver histórico") / Histórico (log cronológico).
-- Botão "Reportar Movimentação Profissional" visível condicionalmente quando `tipoDocumento` for CRM/RT, CNES ou dosimetria.
-- **Sem aba de comentários** — decisão explícita (não faz sentido comentário em registro de documento).
-- **Precisa abrir via deep link** (rota/query param, ex.: `?documento=123`) — é o alvo do clique no card espelho do Kanban de Gestão de Demandas (`Plano de Ação §4`, ver `backend/docs/PLANEJAMENTO_LEGALIZACAO.md` P3.5). Card não navega pra Lista/Matriz, abre este modal direto.
+**Status:** ✅ Implementado (STC-380, PR #35 aberta em revisão — 7 rodadas de code review automático, todas corrigidas antes do próximo push). Componente real em `src/components/legalizacao/{DetalheDocumentoModal,ProcessoRenovacaoModal}.tsx`. Ajustes em relação ao plano original abaixo:
+
+- Modal, `max-h-[88vh]` sem altura fixa — como planejado, mas a primeira versão implementada copiava `h-[85vh] max-h-[720px]` de `DetalheCard.tsx` (Gestão de Demandas) sem ajustar ao critério desta issue (achado em code review, corrigido).
+- **Sem stepper de progresso** — só o badge de status, como planejado.
+- Abas Evidências (só a vigente por padrão + ação explícita "Ver histórico de evidências") / Histórico (log cronológico) — como planejado. **Evidência vigente lida de `documento.evidencia_vigente`** (o FK denormalizado que o backend mantém sincronizado atomicamente pra esse fim, `legalizacao/models.py`), não de `EvidenciaRegulatoria.vigente` (flag por-item, de uma chamada separada) — achado em code review: as duas fontes podem divergir, o FK é a fonte de verdade. Esqueleto de carregamento dedicado nas duas abas (achado em code review: sem isso, "nenhum registro" aparecia por um instante enquanto a requisição ainda estava em voo, mesmo quando havia dados).
+- "Reportar Movimentação Profissional" visível quando `tipo_documento.codigo` for CNES/dosimetria/CRM-RT (RN11) **e o status não for `nao_aplicavel`/`unidade_encerramento`** — o segundo critério não estava no plano original (achado em code review: os outros dois botões do grupo já escondiam nesses status, e o backend rejeita movimentação profissional neles via `STATUS_CORINGA_COM_JUSTIFICATIVA`). Só a visibilidade condicional está implementada aqui — o `onClick` é a STC-382.
+- **Sem aba de comentários** — como planejado.
+- Abre via deep link `?documento=<id>` — como planejado (lido uma vez no `useState` inicial de `MatrizConformidade.tsx`, sem depender do carregamento da Lista/Matriz por trás). É o alvo do clique no card espelho do Kanban de Gestão de Demandas (`Plano de Ação §4`, ver `backend/docs/PLANEJAMENTO_LEGALIZACAO.md` P3.5).
+- **Dois botões de ação novos, não previstos nesta seção do plano original** — adicionados numa revisão de texto da issue (contra o mockup e o RF-009 da SRS) antes de começar a implementação:
+  - "Marcar como Não aplicável" — reaproveita o `PATCH /documentos/{id}/` já existente, justificativa obrigatória.
+  - "Registrar renovação" — **não chama o POST direto no clique.** A issue exige que o botão abra o modal de Processo de Renovação, por ser "o ponto de entrada" da STC-381 (achado em code review contra o texto literal da issue, corrigindo uma primeira versão que criava o processo direto). Abre `ProcessoRenovacaoModal.tsx` (novo componente): passo de confirmação, só cria o `ProcessoRenovacao` ao confirmar (POST já é o "iniciar", RF-009) e então mostra a seção "1. Solicitação" do mockup de Processo de Renovação — Protocolo/Conclusão ficam pra STC-381, que estende este mesmo componente. Escondido quando já existe um processo em curso (`em_andamento`/`protocolado` — achado em code review, o botão continuava visível e deixava criar um segundo processo pro mesmo documento).
+- **Linha da Matriz (P4.1) ativada de verdade nesta issue** (antes só afordância visual). Acessível por teclado sem sobrescrever a semântica de tabela: `<tr>`/`<td>` mantêm seus papéis implícitos (`row`/`cell`) intactos, um `<button>` real dentro da célula Unidade é o único caminho de teclado — achado em code review: uma primeira versão usava `role="button"`/`tabIndex` na própria `<tr>`, o que sobrescrevia `role="row"` e quebrava a navegação por tabela de leitores de tela (a linha inteira virava um botão genérico, perdendo a associação célula↔cabeçalho).
+- Aba Histórico revalida junto com o documento depois de "Marcar como Não aplicável"/"Registrar renovação" (achado em code review: as duas ações gravam `HistoricoRegulatorio` de verdade, mas só invalidavam a chave do documento — o registro da própria ação só aparecia depois de fechar e reabrir o modal).
+- **Sem verificação em navegador real com login** (`chromium-cli` indisponível no ambiente, sem bypass de login OAuth) — verificado via `tsc`/lint/testes/build, e visualmente via RTL renderizado + `google-chrome --headless` (técnica usada pra achar o bug de largura do modal). O responsável do projeto testou ao vivo e pediu 2 rodadas de ajuste visual (largura do modal, cabeçalho, abas reais) antes de aprovar.
 
 ### P4.4 Processo de Renovação — `mockup_processo_renovacao_legalizacao.html`
+
+**Já existe um começo desta tela**: `ProcessoRenovacaoModal.tsx` (STC-380, P4.3) nasceu como o ponto de entrada — cria o `ProcessoRenovacao` e mostra só a seção "1. Solicitação" (a única que já existe de verdade nesse momento). Esta issue estende o MESMO componente, não cria um novo: adiciona as seções 2 (Protocolo) e 3 (Conclusão) a partir de um processo já criado, e passa a ser reaberto (não só criado) a partir do documento enquanto o processo estiver `em_andamento`/`protocolado`.
 
 - Modal, 3 seções: Solicitação (leitura) / Protocolo (**opcional**, texto explícito "preencha só se houver órgão envolvido") / Conclusão.
 - **Conclusão não é bloqueada por Protocolo** — bug de lock corrigido no mockup (a tabela de transição permite `Em andamento/Protocolado → Regular`, os dois são origem válida). Não reintroduzir o lock.

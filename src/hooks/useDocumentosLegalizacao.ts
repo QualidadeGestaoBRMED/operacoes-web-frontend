@@ -23,7 +23,11 @@ import type {
 // uma vez, sem precisar saber qual filtro cada tela está usando agora.
 const PREFIXO_CHAVE_LISTA = "documentos-legalizacao";
 
-function ehChaveDeListaDeDocumentos(chave: unknown) {
+// Exportado -- outras mutações que também mudam o status de um documento
+// (ex.: useCriarProcessoRenovacao, useProcessoRenovacao.ts) precisam
+// invalidar a mesma lista, e reimplementar o predicate correndo o risco de
+// desalinhar do PREFIXO_CHAVE_LISTA real se um dos dois mudar sozinho.
+export function ehChaveDeListaDeDocumentos(chave: unknown) {
   return Array.isArray(chave) && chave[0] === PREFIXO_CHAVE_LISTA;
 }
 

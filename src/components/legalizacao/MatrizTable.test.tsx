@@ -1,0 +1,137 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type { Unidade, Usuario } from "@/types";
+import type {
+  DocumentoUnidade,
+  TipoDocumentoRegulatorio,
+} from "@/types/legalizacao";
+import { MatrizTable } from "./MatrizTable";
+
+const UNIDADE: Unidade = {
+  id: 1,
+  nome: "Niterói",
+  codigo: "NIT",
+  cidade: "Niterói",
+  ativa: true,
+};
+
+const USUARIO: Usuario = {
+  id: 10,
+  username: "leg",
+  email: "leg@grupobrmed.com.br",
+  first_name: "Time",
+  last_name: "Legalização",
+  perfil: null,
+  unidade_id: null,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+  foto_url: "",
+};
+
+function tipo(
+  overrides: Partial<TipoDocumentoRegulatorio> = {},
+): TipoDocumentoRegulatorio {
+  return {
+    id: 3,
+    codigo: "alvara-funcionamento",
+    nome: "Alvará de Funcionamento",
+    categoria: "regularizacao",
+    area_responsavel: "legalizacao",
+    setor_apoio: "",
+    exige_validade: true,
+    exige_protocolo: false,
+    exige_evidencia: true,
+    ativo: true,
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function documento(
+  overrides: Partial<DocumentoUnidade> = {},
+): DocumentoUnidade {
+  return {
+    id: 55,
+    tipo_documento: tipo(),
+    unidade: UNIDADE,
+    status: "regular",
+    justificativa_excecao: "",
+    validade: "2026-12-01",
+    evidencia_vigente: null,
+    regra_aplicada: null,
+    responsaveis: [
+      {
+        id: 1,
+        usuario: USUARIO,
+        principal: true,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ],
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function renderTabela(onClickLinha: (documento: DocumentoUnidade) => void) {
+  return render(
+    <table>
+      <MatrizTable
+        documentos={[documento()]}
+        carregandoPrimeiraVez={false}
+        ordenacao={null}
+        onOrdenar={vi.fn()}
+        refTabela={{ current: null }}
+        maxHeight={undefined}
+        onClickLinha={onClickLinha}
+      />
+    </table>,
+  );
+}
+
+describe("MatrizTable (STC-380, acessibilidade da linha clicável)", () => {
+  it("<tr> não sobrescreve o role implícito de linha (achado em code review)", () => {
+    renderTabela(vi.fn());
+
+    const linhas = screen.getAllByRole("row");
+    // Cabeçalho + 1 linha de documento -- se a <tr> da linha tivesse
+    // role="button", ela sumiria da lista de "row" (papel sobrescrito).
+    expect(linhas).toHaveLength(2);
+  });
+
+  it("clicar no botão da célula Unidade abre o documento uma única vez", async () => {
+    const onClickLinha = vi.fn();
+    const user = userEvent.setup();
+    renderTabela(onClickLinha);
+
+    await user.click(screen.getByRole("button", { name: "Niterói" }));
+
+    expect(onClickLinha).toHaveBeenCalledTimes(1);
+    expect(onClickLinha).toHaveBeenCalledWith(documento());
+  });
+
+  it("clicar em qualquer outra célula da linha também abre o documento (clique de mouse na linha inteira)", async () => {
+    const onClickLinha = vi.fn();
+    const user = userEvent.setup();
+    renderTabela(onClickLinha);
+
+    await user.click(screen.getByText("Alvará de Funcionamento"));
+
+    expect(onClickLinha).toHaveBeenCalledTimes(1);
+  });
+
+  it("o botão da célula Unidade é ativável por teclado (Enter)", async () => {
+    const onClickLinha = vi.fn();
+    const user = userEvent.setup();
+    renderTabela(onClickLinha);
+
+    const botao = screen.getByRole("button", { name: "Niterói" });
+    botao.focus();
+    expect(botao).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(onClickLinha).toHaveBeenCalledTimes(1);
+  });
+});

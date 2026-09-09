@@ -16,8 +16,10 @@ import {
 } from "@/lib/legalizacaoMatriz";
 import type {
   CategoriaDocumento,
+  DocumentoUnidade,
   DocumentoUnidadeFiltros,
 } from "@/types/legalizacao";
+import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
@@ -60,6 +62,13 @@ export function MatrizConformidade() {
   );
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
+  // Deep link (STC-380): mesmo princípio de leitura só-na-entrada de
+  // unidade/categoria acima -- é o alvo do clique no card espelho do Kanban
+  // de Gestão de Demandas (Plano de Ação §4), não precisa sincronizar nos
+  // dois sentidos depois da abertura inicial.
+  const [documentoAbertoId, setDocumentoAbertoId] = useState<number | null>(
+    () => numeroDaUrl(searchParams.get("documento")) ?? null,
+  );
 
   // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
   // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união
@@ -137,6 +146,26 @@ export function MatrizConformidade() {
     });
   }
 
+  // Atualiza a URL junto (shareable/refresh-safe) -- mesmo espírito do
+  // deep link que originou a abertura, sem depender de estado React só na
+  // memória.
+  function abrirDetalhe(documento: DocumentoUnidade) {
+    setDocumentoAbertoId(documento.id);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("documento", String(documento.id));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function fecharDetalhe() {
+    setDocumentoAbertoId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("documento");
+    router.replace(
+      params.toString() ? `${pathname}?${params.toString()}` : pathname,
+      { scroll: false },
+    );
+  }
+
   return (
     <div ref={refPai} className="flex h-full min-h-0 flex-col">
       <ToggleMapaLista ativo="lista" />
@@ -162,8 +191,14 @@ export function MatrizConformidade() {
           onOrdenar={alternarOrdenacao}
           refTabela={refTabela}
           maxHeight={maxHeight}
+          onClickLinha={abrirDetalhe}
         />
       )}
+
+      <DetalheDocumentoModal
+        documentoId={documentoAbertoId}
+        onOpenChange={(open) => !open && fecharDetalhe()}
+      />
     </div>
   );
 }

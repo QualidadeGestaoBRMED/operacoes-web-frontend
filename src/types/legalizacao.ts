@@ -85,6 +85,20 @@ export interface DocumentoUnidade {
   updated_at: string;
 }
 
+// Espelha HistoricoRegulatorioSerializer -- usuario vem null quando a ação
+// foi automática do sistema (ex.: transição pra Vencido na varredura
+// diária) ou quando a conta de quem agiu foi removida depois (SET_NULL);
+// não dá pra distinguir os dois casos só pelos dados, então o frontend
+// trata ambos como "Sistema" (ver DetalheDocumentoModal.tsx).
+export interface HistoricoRegulatorio {
+  id: number;
+  usuario: Usuario | null;
+  acao: string;
+  valor_anterior: string;
+  valor_novo: string;
+  created_at: string;
+}
+
 export interface EvidenciaRegulatoria {
   id: number;
   usuario: Usuario;
@@ -151,6 +165,33 @@ export interface DocumentoUnidadePayload {
   justificativa_excecao?: string;
   validade?: string | null;
   regra_aplicada?: number | null;
+}
+
+export type StatusProcessoRenovacao =
+  "nao_iniciado" | "em_andamento" | "protocolado" | "concluido";
+
+// Espelha ProcessoRenovacaoReadSerializer -- documento_unidade/usuario_
+// responsavel vêm aninhados (não IDs crus, diferente de RegraDocumento).
+export interface ProcessoRenovacao {
+  id: number;
+  documento_unidade: DocumentoUnidade;
+  status: StatusProcessoRenovacao;
+  data_solicitacao: string | null;
+  protocolo_numero: string;
+  protocolo_orgao: string;
+  protocolo_data: string | null;
+  observacoes: string;
+  data_conclusao: string | null;
+  usuario_responsavel: Usuario | null;
+  created_at: string;
+}
+
+// Payload de POST /processos-renovacao/ -- nasce direto em `em_andamento`
+// (o POST em si já é o "iniciar", RF-009); nenhum outro campo é aceito na
+// criação.
+export interface ProcessoRenovacaoPayload {
+  documento_unidade: number;
+  usuario_responsavel?: number | null;
 }
 
 // Espelha DocumentoUnidadeFilterSet (backend/legalizacao/views.py) --

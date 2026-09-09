@@ -27,9 +27,7 @@ interface MatrizTableProps {
   // também contém a barra de filtros, fora deste componente.
   refTabela: ReturnType<typeof useAlturaSemLinhaCortada>["refTabela"];
   maxHeight: number | undefined;
-  // Linha clicável é só afordância visual por enquanto -- o Detalhe do
-  // Documento (STC-380) ainda não existe. onClickLinha fica opcional, sem
-  // navegação real até essa tela nascer.
+  // Abre o Detalhe do Documento (STC-380, DetalheDocumentoModal.tsx).
   onClickLinha?: (documento: DocumentoUnidade) => void;
 }
 
@@ -61,7 +59,10 @@ function LegendaStatus() {
         Legenda de status:
       </strong>
       {ORDEM_STATUS.map((status) => (
-        <span key={status} className="flex items-center gap-1.5 whitespace-nowrap">
+        <span
+          key={status}
+          className="flex items-center gap-1.5 whitespace-nowrap"
+        >
           <span
             className={cn(
               "size-2 rounded-full",
@@ -220,8 +221,24 @@ export function MatrizTable({
                       onClick={() => onClickLinha?.(documento)}
                       className="cursor-pointer border-b border-border transition-colors last:border-b-0 hover:bg-secondary/5"
                     >
+                      {/* Achado em code review: role="button"/tabIndex na
+                          <tr> sobrescrevia o role="row" implícito, quebrando
+                          a navegação por tabela de leitor de tela (perde a
+                          associação célula↔cabeçalho). O onClick acima
+                          cobre o clique de mouse em qualquer ponto da linha;
+                          o botão real abaixo é o único caminho de teclado --
+                          <tr>/<td> mantêm seus papéis implícitos intactos. */}
                       <td className="truncate px-4 py-3 text-sm font-semibold">
-                        {documento.unidade.nome}
+                        <button
+                          type="button"
+                          onClick={(evento) => {
+                            evento.stopPropagation();
+                            onClickLinha?.(documento);
+                          }}
+                          className="w-full truncate rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:-outline-offset-2"
+                        >
+                          {documento.unidade.nome}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="truncate">
