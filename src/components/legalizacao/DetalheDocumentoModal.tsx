@@ -329,9 +329,16 @@ export function DetalheDocumentoModal({
     : evidenciaVigente
       ? [evidenciaVigente]
       : [];
-  const mostraMovimentacaoProfissional = documento
-    ? CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(documento.tipo_documento.codigo)
-    : false;
+  // Mesmo gating dos outros dois botões do grupo (podeRegistrarRenovacao/
+  // podeMarcarNaoAplicavel) -- o backend rejeita movimentação profissional
+  // nesses dois status (STATUS_CORINGA_COM_JUSTIFICATIVA, legalizacao/
+  // views.py): documento já declarado como não aplicável a esta unidade.
+  const mostraMovimentacaoProfissional =
+    documento &&
+    documento.status !== "nao_aplicavel" &&
+    documento.status !== "unidade_encerramento"
+      ? CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(documento.tipo_documento.codigo)
+      : false;
   // Em andamento/Protocolado já são um processo de renovação em curso
   // (Plano de Ação §7: "Em andamento (solicitação iniciada) → Protocolado
   // → Renovação concluída → volta pra Regular") -- "Registrar renovação"

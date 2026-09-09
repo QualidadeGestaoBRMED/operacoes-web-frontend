@@ -666,6 +666,27 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).toBeInTheDocument();
   });
 
+  it.each(["nao_aplicavel", "unidade_encerramento"] as const)(
+    "não mostra 'Reportar Movimentação Profissional' pra CNES com status %s (backend rejeita, STATUS_CORINGA_COM_JUSTIFICATIVA)",
+    async (status) => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({
+          tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }),
+          status,
+          justificativa_excecao: "x",
+        }),
+      );
+      renderComponente(55);
+      await screen.findByText("CNES");
+
+      expect(
+        screen.queryByRole("button", {
+          name: /reportar movimentação profissional/i,
+        }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("não mostra 'Reportar Movimentação Profissional' pra Alvará", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     renderComponente(55);
