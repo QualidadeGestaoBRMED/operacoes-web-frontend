@@ -38,6 +38,7 @@ import {
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
+import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import { LABEL_CRITICIDADE, LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import type { Criticidade, StatusDocumento } from "@/types/legalizacao";
 
@@ -140,6 +141,15 @@ export function FormCadastrarDocumento({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  // Achado no dogfooding: regra e documento já tinham sido criados com
+  // sucesso quando só o envio da evidência falhava (arquivo grande, rede) --
+  // o form mostrava um erro genérico e reabrir do zero esbarrava no cheque
+  // de duplicidade, sem nenhum jeito de só reenviar a evidência que faltou.
+  // Guardando o documento já criado, um novo clique em "Cadastrar documento"
+  // reenvia só a evidência, em vez de tentar recriar tudo.
+  const [documentoCriado, setDocumentoCriado] = useState<{ id: number } | null>(
+    null,
+  );
   const inputArquivoRef = useRef<HTMLInputElement>(null);
 
   const tiposAtivos = tiposDocumento.filter((tipo) => tipo.ativo);
@@ -161,6 +171,7 @@ export function FormCadastrarDocumento({
     if (!open) {
       reset(valoresPadrao);
       setArquivo(null);
+      setDocumentoCriado(null);
     }
   }, [open, reset]);
 
@@ -185,9 +196,37 @@ export function FormCadastrarDocumento({
     (tipo) => !idsTiposJaCadastrados.has(tipo.id),
   );
 
+  // Extraído do fluxo principal -- também usado quando o usuário clica
+  // "Cadastrar documento" de novo depois de um envio de evidência que já
+  // falhou uma vez (documentoCriado setado): regra e documento já existem,
+  // só falta reenviar o arquivo.
+  async function enviarEvidenciaDoDocumento(documentoId: number) {
+    setEnviandoArquivo(true);
+    try {
+      await enviarEvidenciaLegalizacao(documentoId, arquivo as File);
+      toast.success("Documento cadastrado.");
+      onOpenChange(false);
+    } catch (erro) {
+      // Não relança -- documento e regra já existem de verdade, isto não é
+      // uma falha do cadastro em si. Fica com documentoCriado setado pra um
+      // novo clique só reenviar a evidência, em vez de tentar recriar tudo
+      // (o que esbarraria no cheque de duplicidade).
+      toast.error(
+        `Documento cadastrado, mas o envio da evidência falhou: ${extrairMensagemErro(erro)}. Clique em "Cadastrar documento" de novo para tentar reenviar.`,
+      );
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  }
+
   async function aoSubmeter(valores: FormValuesSaida) {
     setSalvando(true);
     try {
+      if (documentoCriado) {
+        await enviarEvidenciaDoDocumento(documentoCriado.id);
+        return;
+      }
+
       // Achado no dogfooding: sem checar antes, uma tentativa repetida pro
       // mesmo tipo+unidade criava uma regra nova (etapa 1) que colidia com a
       // regra órfã da tentativa anterior (mesma vigente_a_partir) -- o
@@ -226,20 +265,32 @@ export function FormCadastrarDocumento({
           vigente_a_partir: valores.vigente_a_partir as string,
           gera_card_demanda: valores.gera_card_demanda,
         });
-        const documento = await criarDocumento({
-          tipo_documento: valores.tipo_documento,
-          unidade: valores.unidade,
-          status: valores.status as StatusDocumento,
-          validade: valores.validade || null,
-          regra_aplicada: regra.id,
-        });
-        if (arquivo) {
-          setEnviandoArquivo(true);
+        let documento;
+        try {
+          documento = await criarDocumento({
+            tipo_documento: valores.tipo_documento,
+            unidade: valores.unidade,
+            status: valores.status as StatusDocumento,
+            validade: valores.validade || null,
+            regra_aplicada: regra.id,
+          });
+        } catch (erroDocumento) {
+          // A regra já foi criada com sucesso -- se o documento falhar
+          // (ex.: alguém cadastrou a mesma combinação nesse meio-tempo),
+          // desfaz a regra órfã em vez de deixar lixo no catálogo. Best
+          // effort: se a própria exclusão falhar, ignora e mostra o erro
+          // original (que é o que importa pro usuário).
           try {
-            await enviarEvidenciaLegalizacao(documento.id, arquivo);
-          } finally {
-            setEnviandoArquivo(false);
+            await excluirRegraDocumento(regra.id);
+          } catch {
+            // Ignora.
           }
+          throw erroDocumento;
+        }
+        if (arquivo) {
+          setDocumentoCriado({ id: documento.id });
+          await enviarEvidenciaDoDocumento(documento.id);
+          return;
         }
       }
       toast.success("Documento cadastrado.");
@@ -263,6 +314,12 @@ export function FormCadastrarDocumento({
           className="flex flex-1 flex-col overflow-hidden"
         >
           <div className="scrollbar-discreta flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            {documentoCriado && (
+              <p className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                O documento já foi cadastrado. Falta só reenviar a evidência; os
+                outros campos abaixo não têm mais efeito.
+              </p>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="cd-unidade">
                 Unidade <span className="text-destructive">*</span>
@@ -621,7 +678,9 @@ export function FormCadastrarDocumento({
                 ? enviandoArquivo
                   ? "Enviando evidência..."
                   : "Cadastrando..."
-                : "Cadastrar documento"}
+                : documentoCriado
+                  ? "Reenviar evidência"
+                  : "Cadastrar documento"}
             </Button>
           </DialogFooter>
         </form>

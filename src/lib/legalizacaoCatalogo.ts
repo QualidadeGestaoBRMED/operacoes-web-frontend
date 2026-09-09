@@ -52,3 +52,13 @@ export async function criarRegraDocumento(
   const { data } = await api.post<RegraDocumento>(REGRAS_URL, payload);
   return data;
 }
+
+// Usado só como rollback best-effort: quando a regra é criada com sucesso
+// mas o passo seguinte (criar/atualizar o documento com ela) falha, evita
+// deixar uma versão órfã no catálogo -- ver FormCadastrarDocumento.tsx e
+// FormNovaVersaoRegra.tsx. Só funciona enquanto a regra ainda não foi
+// vinculada a nenhum documento nem usada por nenhum alerta (exatamente o
+// caso de quem acabou de criá-la e falhou no passo seguinte).
+export async function excluirRegraDocumento(id: number): Promise<void> {
+  await api.delete(`${REGRAS_URL}${id}/`);
+}

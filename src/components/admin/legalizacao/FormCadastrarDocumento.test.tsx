@@ -19,8 +19,11 @@ import {
   criarDocumentoLegalizacao,
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
-import { criarRegraDocumento } from "@/lib/legalizacaoCatalogo";
-import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
+import {
+  criarRegraDocumento,
+  excluirRegraDocumento,
+  listarTiposDocumento,
+} from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
 
 const UNIDADE: Unidade = {
@@ -350,5 +353,140 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await waitFor(() => {
       expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(99, arquivo);
     });
+  });
+
+  it("desfaz a regra recém-criada se criar o documento falhar em seguida", async () => {
+    vi.mocked(criarRegraDocumento).mockResolvedValue({
+      id: 55,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 60,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "alta",
+      vigente_a_partir: "2026-01-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    vi.mocked(criarDocumentoLegalizacao).mockRejectedValue(
+      new Error("Já existe um documento para este tipo e unidade."),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Em andamento" }),
+    );
+    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.click(screen.getByLabelText(/criticidade/i));
+    await user.click(await screen.findByRole("option", { name: "Alta" }));
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(excluirRegraDocumento).toHaveBeenCalledWith(55);
+    });
+  });
+
+  it("upload de evidência falha: documento fica cadastrado e um novo clique só reenvia o arquivo", async () => {
+    vi.mocked(criarRegraDocumento).mockResolvedValue({
+      id: 55,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 60,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "alta",
+      vigente_a_partir: "2026-01-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+      documentoCriado({ id: 99 }),
+    );
+    vi.mocked(enviarEvidenciaLegalizacao).mockRejectedValueOnce(
+      new Error("Falha de rede."),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Em andamento" }),
+    );
+    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.click(screen.getByLabelText(/criticidade/i));
+    await user.click(await screen.findByRole("option", { name: "Alta" }));
+
+    const arquivo = new File(["conteudo"], "alvara.pdf", {
+      type: "application/pdf",
+    });
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(inputArquivo, arquivo);
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+
+    // Documento e regra já foram criados de verdade -- o diálogo não fecha
+    // (evidência ainda não chegou), e o botão vira "Reenviar evidência".
+    expect(
+      await screen.findByRole("button", { name: /reenviar evidência/i }),
+    ).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(criarRegraDocumento).toHaveBeenCalledTimes(1);
+    expect(criarDocumentoLegalizacao).toHaveBeenCalledTimes(1);
+
+    vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValueOnce({
+      id: 1,
+      usuario: {
+        id: 1,
+        username: "fernanda",
+        email: "fernanda@grupobrmed.com.br",
+        first_name: "Fernanda",
+        last_name: "Lima",
+        perfil: null,
+        unidade_id: null,
+        setor_id: null,
+        ativo: true,
+        ultimo_acesso: null,
+        foto_url: "",
+      },
+      arquivo: "https://example.com/arquivo.pdf",
+      nome_original: "alvara.pdf",
+      tamanho_bytes: 1024,
+      vigente: true,
+      emitido_em: null,
+      validade_comprovada: null,
+      processo_renovacao: null,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: /reenviar evidência/i }),
+    );
+
+    await waitFor(() => {
+      expect(enviarEvidenciaLegalizacao).toHaveBeenCalledTimes(2);
+    });
+    expect(enviarEvidenciaLegalizacao).toHaveBeenLastCalledWith(99, arquivo);
+    // Não tentou recriar regra/documento no reenvio.
+    expect(criarRegraDocumento).toHaveBeenCalledTimes(1);
+    expect(criarDocumentoLegalizacao).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
