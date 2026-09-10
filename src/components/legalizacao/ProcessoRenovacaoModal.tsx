@@ -266,7 +266,7 @@ function FormularioProcessoAtivo({
             variant="outline"
             size="sm"
             className="self-start"
-            disabled={!protocoloNumero.trim() || salvando}
+            disabled={!protocoloNumero.trim() || salvando || enviandoEvidencia}
             onClick={() => void salvarProtocolo()}
           >
             {salvando ? "Salvando..." : "Salvar protocolo"}
@@ -381,6 +381,7 @@ export function ProcessoRenovacaoModal({
   const {
     processoAtivo,
     isLoading: carregandoProcesso,
+    mensagemErro: erroProcessos,
     mutate: mutateProcessos,
   } = useProcessosRenovacao(aberto ? (documento?.id ?? null) : null);
   const { criar, isLoading: criando } = useCriarProcessoRenovacao();
@@ -425,6 +426,18 @@ export function ProcessoRenovacaoModal({
 
         {carregandoProcesso ? (
           <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : erroProcessos ? (
+          <>
+            <p className="text-sm text-destructive">{erroProcessos}</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={fechar}>
+                Fechar
+              </Button>
+              <Button onClick={() => void mutateProcessos()}>
+                Tentar novamente
+              </Button>
+            </DialogFooter>
+          </>
         ) : processoAtivo && documento ? (
           <FormularioProcessoAtivo
             key={processoAtivo.id}

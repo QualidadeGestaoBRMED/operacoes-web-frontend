@@ -5,6 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
 import type {
   DocumentoUnidade,
+  EvidenciaRegulatoria,
   ProcessoRenovacao,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
@@ -142,6 +143,50 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
   it("não renderiza quando fechado", () => {
     renderComponente(false);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  describe("falha ao listar processos", () => {
+    it("mostra estado de erro em vez de cair no passo de criação de um novo processo", async () => {
+      // Achado no code review automático (PR #36): sem tratar o `error` do
+      // hook, um GET que falha deixava processoAtivo=null por falta de
+      // dado, e a UI mostrava "Iniciar processo de renovação" como se o
+      // documento não tivesse processo nenhum -- mesmo quando o modal só é
+      // aberto (via "Acompanhar Renovação") justamente esperando um
+      // processo já existente.
+      vi.mocked(listarProcessosRenovacao).mockRejectedValue(
+        new Error("Falha de rede."),
+      );
+      renderComponente(true);
+
+      expect(
+        await screen.findByText(
+          "Não foi possível completar a operação. Tente novamente.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Iniciar processo de renovação" }),
+      ).not.toBeInTheDocument();
+      expect(criarProcessoRenovacao).not.toHaveBeenCalled();
+    });
+
+    it("'Tentar novamente' refaz a listagem", async () => {
+      vi.mocked(listarProcessosRenovacao)
+        .mockRejectedValueOnce(new Error("Falha de rede."))
+        .mockResolvedValueOnce([processo()]);
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByText(
+        "Não foi possível completar a operação. Tente novamente.",
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Tentar novamente" }),
+      );
+
+      expect(
+        await screen.findByLabelText("Número do protocolo"),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("sem processo ativo", () => {
@@ -432,6 +477,66 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
           protocolo_data: null,
           observacoes: "Concluído sem protocolo formal.",
         });
+      });
+    });
+
+    it("'Salvar protocolo' fica desabilitado enquanto a evidência de 'Concluir renovação' está subindo", async () => {
+      // Achado no code review automático (PR #36): as duas ações
+      // compartilham a mesma instância de useAtualizarProcessoRenovacao().
+      // Sem considerar enviandoEvidencia, "Salvar protocolo" continuava
+      // clicável durante o upload de "Concluir renovação" -- um clique
+      // nessa janela disparava um PATCH status=protocolado concorrente ao
+      // PATCH status=concluido que viria em seguida, e o resultado final
+      // no servidor passaria a depender de qual chegasse por último.
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      let resolverEnvio: (valor: EvidenciaRegulatoria) => void = () => {};
+      vi.mocked(enviarEvidenciaLegalizacao).mockReturnValue(
+        new Promise<EvidenciaRegulatoria>((resolve) => {
+          resolverEnvio = resolve;
+        }),
+      );
+      vi.mocked(atualizarProcessoRenovacao).mockResolvedValue(
+        processo({ status: "concluido" }),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      await user.type(screen.getByLabelText("Número do protocolo"), "2026/1");
+      await user.type(screen.getByLabelText(/nova validade/i), "2027-06-02");
+      const arquivo = new File(["conteudo"], "renovado.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+
+      await user.click(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Salvar protocolo" }),
+        ).toBeDisabled();
+      });
+      expect(atualizarProcessoRenovacao).not.toHaveBeenCalled();
+
+      resolverEnvio({
+        id: 1,
+        usuario: USUARIO,
+        arquivo: "renovado.pdf",
+        nome_original: "renovado.pdf",
+        tamanho_bytes: 100,
+        vigente: true,
+        emitido_em: null,
+        validade_comprovada: null,
+        processo_renovacao: 9,
+        created_at: "2026-09-10T00:00:00Z",
+      });
+      await waitFor(() => {
+        expect(atualizarProcessoRenovacao).toHaveBeenCalled();
       });
     });
 
