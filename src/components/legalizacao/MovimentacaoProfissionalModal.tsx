@@ -180,6 +180,15 @@ export function MovimentacaoProfissionalModal({
       else novo.add(id);
       return novo;
     });
+    // Desmarcar um documento que falhou é a forma de desistir do retry
+    // dele -- sem isto, o erro ficava exibido pra sempre, mesmo depois de
+    // o usuário tirar aquele documento da lista de envio.
+    setErrosPorDocumento((atual) => {
+      if (!(id in atual)) return atual;
+      const resto = { ...atual };
+      delete resto[id];
+      return resto;
+    });
   }
 
   function trocarFuncao(novaFuncao: FuncaoMovimentacao) {
@@ -207,6 +216,14 @@ export function MovimentacaoProfissionalModal({
   const janelaCnes = documentoCnesMarcado?.regra_aplicada;
 
   const haErroPendente = Object.keys(errosPorDocumento).length > 0;
+  // Uma vez que a 1ª tentativa aconteceu (algum documento já confirmado, ou
+  // com erro esperando retry), os campos do topo travam -- achado em
+  // análise de falhas críticas: sem isto, dava pra trocar Saída/Entrada (ou
+  // o profissional, ou a data) entre a tentativa original e um "Tentar
+  // novamente", fazendo dois documentos que deveriam representar o MESMO
+  // evento (mesma pessoa, mesma data) ficarem com semânticas diferentes no
+  // histórico -- um "saída", o outro "entrada", por exemplo.
+  const jaTentouEnviar = confirmados.size > 0 || haErroPendente;
   const podeConfirmar =
     !!profissional.trim() &&
     !!data &&
@@ -300,9 +317,10 @@ export function MovimentacaoProfissionalModal({
                       key={valor}
                       type="button"
                       aria-pressed={tipo === valor}
+                      disabled={enviando || jaTentouEnviar}
                       onClick={() => setTipo(valor)}
                       className={cn(
-                        "flex-1 rounded-[5px] px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
+                        "flex-1 rounded-[5px] px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         tipo === valor &&
                           "bg-card shadow-xs " +
                             (valor === "saida"
@@ -323,6 +341,7 @@ export function MovimentacaoProfissionalModal({
                 <Input
                   id="mp-profissional"
                   value={profissional}
+                  disabled={enviando || jaTentouEnviar}
                   onChange={(evento) => setProfissional(evento.target.value)}
                   placeholder="Nome do profissional"
                 />
@@ -334,6 +353,7 @@ export function MovimentacaoProfissionalModal({
                 </Label>
                 <Select
                   value={funcao}
+                  disabled={enviando || jaTentouEnviar}
                   onValueChange={(valor) =>
                     trocarFuncao(valor as FuncaoMovimentacao)
                   }
@@ -361,6 +381,7 @@ export function MovimentacaoProfissionalModal({
                   id="mp-data"
                   type="date"
                   value={data}
+                  disabled={enviando || jaTentouEnviar}
                   onChange={(evento) => setData(evento.target.value)}
                   className="max-w-[200px]"
                 />

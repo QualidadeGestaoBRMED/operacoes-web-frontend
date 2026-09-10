@@ -386,6 +386,59 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     ).toBeInTheDocument();
   });
 
+  it("depois de uma tentativa parcial, trava Tipo/Profissional/Função/Data -- retry não pode virar um evento diferente do original", async () => {
+    // Achado em análise de falhas críticas: sem travar esses campos, dava
+    // pra trocar Saída/Entrada (ou o profissional, ou a data) entre a
+    // tentativa original e um "Tentar novamente", fazendo dois documentos
+    // que deveriam representar o MESMO evento ficarem com históricos
+    // contraditórios entre si.
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => {
+        if (id === 11) throw new Error("Falha de rede.");
+        return { ...CNES, id };
+      },
+    );
+    const user = userEvent.setup();
+    renderComponente(true, CNES);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("button", { name: "Saída" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Entrada" })).toBeDisabled();
+    expect(screen.getByLabelText("Profissional")).toBeDisabled();
+    expect(screen.getByLabelText("Função")).toBeDisabled();
+    expect(screen.getByLabelText(/data da movimentação/i)).toBeDisabled();
+  });
+
+  it("desmarcar um documento que falhou remove o erro exibido pra ele", async () => {
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => {
+        if (id === 11) throw new Error("Falha de rede.");
+        return { ...CNES, id };
+      },
+    );
+    const user = userEvent.setup();
+    renderComponente(true, CNES);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(screen.getByText(/não foi possível/i)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Registro CREMERJ/ }),
+    );
+
+    expect(screen.queryByText(/não foi possível/i)).not.toBeInTheDocument();
+  });
+
   it("um novo clique em 'Tentar novamente' reenvia só o documento que falhou, não o já confirmado", async () => {
     vi.mocked(reportarMovimentacaoProfissional)
       .mockImplementationOnce(async (id) => ({ ...CNES, id })) // CNES (10), 1ª tentativa
