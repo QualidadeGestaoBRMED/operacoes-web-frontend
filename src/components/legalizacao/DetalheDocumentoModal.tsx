@@ -19,7 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
+import {
+  LABEL_STATUS_PROCESSO,
+  ProcessoRenovacaoModal,
+} from "./ProcessoRenovacaoModal";
 import {
   useAtualizarDocumentoLegalizacao,
   useDocumentoLegalizacao,
@@ -48,6 +51,8 @@ import type {
   AreaResponsavelDocumento,
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
+  StatusDocumento,
+  StatusProcessoRenovacao,
 } from "@/types/legalizacao";
 
 // Mesmo raciocínio de CODIGO_TIPO_DOCUMENTO_DOSIMETRIA (backend, RN12) --
@@ -163,8 +168,14 @@ function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
         {extensao || "?"}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 truncate text-[13.5px] font-medium text-foreground">
-          <span className="truncate">{evidencia.nome_original}</span>
+        <div className="flex items-center gap-2 text-[13.5px] font-medium text-foreground">
+          {/* min-w-0: achado testando com nome de arquivo longo -- sem
+              isso, um <span> filho de flex não encolhe abaixo do próprio
+              conteúdo (min-width: auto é o default), então o truncate
+              nunca entrava em ação e o nome estourava a área do item. */}
+          <span className="min-w-0 flex-1 truncate">
+            {evidencia.nome_original}
+          </span>
           {evidencia.vigente && (
             <span className="shrink-0 rounded-full bg-green-600/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-green-700 uppercase">
               Vigente
@@ -189,6 +200,19 @@ function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
       </a>
     </div>
   );
+}
+
+// HistoricoRegulatorio.valor_anterior/valor_novo guardam o valor cru do
+// campo que mudou -- pra "status" e "processo_status" isso é o código do
+// enum (ex.: "em_andamento"), técnico demais pra aparecer direto na tela
+// (achado testando com o time). Os outros `acao` já são texto livre
+// (observações, número de protocolo, nome de arquivo etc.), não precisam
+// de tradução nenhuma.
+function valorHistoricoTraduzido(acao: string, valor: string): string {
+  if (acao === "status") return LABEL_STATUS[valor as StatusDocumento] ?? valor;
+  if (acao === "processo_status")
+    return LABEL_STATUS_PROCESSO[valor as StatusProcessoRenovacao] ?? valor;
+  return valor;
 }
 
 function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
@@ -223,13 +247,21 @@ function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
           {item.valor_anterior && (
             <>
               {" "}
-              de <strong>&quot;{item.valor_anterior}&quot;</strong>
+              de{" "}
+              <strong>
+                &quot;{valorHistoricoTraduzido(item.acao, item.valor_anterior)}
+                &quot;
+              </strong>
             </>
           )}
           {item.valor_novo && (
             <>
               {" "}
-              para <strong>&quot;{item.valor_novo}&quot;</strong>
+              para{" "}
+              <strong>
+                &quot;{valorHistoricoTraduzido(item.acao, item.valor_novo)}
+                &quot;
+              </strong>
             </>
           )}
           .
@@ -266,6 +298,7 @@ export function DetalheDocumentoModal({
     evidencias,
     isLoading: carregandoEvidencias,
     mensagemErro: erroEvidencias,
+    mutate: mutateEvidencias,
   } = useEvidenciasLegalizacao(aberto ? documentoId : null);
   const {
     historico,
@@ -544,13 +577,12 @@ export function DetalheDocumentoModal({
                   ) : (
                     <div className="flex flex-col gap-2">
                       {processoJaEmCurso && (
-                        // Acompanhamento do processo (Protocolo/Conclusão) é
-                        // a STC-381, ainda não existe -- por enquanto só
-                        // evita reabrir "Registrar renovação" sobre um
-                        // processo já em curso.
-                        <p className="text-[12.5px] text-muted-foreground">
-                          Processo de renovação em andamento.
-                        </p>
+                        <Button
+                          variant="outline"
+                          onClick={() => setMostrandoProcessoRenovacao(true)}
+                        >
+                          Acompanhar Renovação
+                        </Button>
                       )}
                       {podeRegistrarRenovacao && (
                         <Button
@@ -592,7 +624,12 @@ export function DetalheDocumentoModal({
 
                 <Tabs
                   defaultValue="evidencias"
-                  className="min-h-0 flex-1 gap-0"
+                  // min-w-0: achado testando com nome de evidência longo --
+                  // item de grid (coluna 1fr do grid pai) tem min-width:
+                  // auto por padrão, que considera o conteúdo intrínseco de
+                  // descendentes (o nome do arquivo sem quebra) e estourava
+                  // a coluna inteira, ignorando qualquer truncate interno.
+                  className="min-h-0 min-w-0 flex-1 gap-0"
                 >
                   <TabsList
                     variant="line"
@@ -695,12 +732,15 @@ export function DetalheDocumentoModal({
         documento={documento ?? null}
         aberto={mostrandoProcessoRenovacao}
         onOpenChange={setMostrandoProcessoRenovacao}
-        onRegistrado={() => {
+        onAtualizado={() => {
           void mutate();
-          // Criar o processo também grava HistoricoRegulatorio no documento
-          // (acao "processo_status") -- mesmo motivo do mutateHistorico()
-          // em confirmarNaoAplicavel.
+          // Criar/atualizar o processo também grava HistoricoRegulatorio no
+          // documento (_sincronizar_documento, legalizacao/views.py) e, ao
+          // concluir, envia uma evidência nova -- mesmo motivo de
+          // mutate()/mutateHistorico() acima, estendido pra evidências
+          // (STC-381).
           void mutateHistorico().catch(() => {});
+          void mutateEvidencias().catch(() => {});
         }}
       />
     </>
