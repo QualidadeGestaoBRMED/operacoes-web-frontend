@@ -25,10 +25,15 @@ export function useReportarMovimentacaoProfissional() {
       payload,
     );
     // Invalida o próprio documento (status novo), o histórico dele (a ação
-    // grava historico_regulatorio, legalizacao/views.py) e a lista geral --
-    // mesmo padrão de useCriarProcessoRenovacao/useAtualizarProcessoRenovacao.
+    // grava historico_regulatorio, legalizacao/views.py), a lista geral e a
+    // lista de processos de renovação -- "entrada" pode criar um
+    // ProcessoRenovacao por trás (achado testando ao vivo: sem isso,
+    // "Acompanhar Renovação" ficava mostrando dado velho em cache até o
+    // próximo poll, mesmo com o processo real já existindo no backend).
+    // Mesmo padrão de useCriarProcessoRenovacao/useAtualizarProcessoRenovacao.
     void mutate(["documento-legalizacao", documentoId]);
     void mutate(["documento-legalizacao", documentoId, "historico"]);
+    void mutate(["processos-renovacao", documentoId]);
     void mutate(ehChaveDeListaDeDocumentos);
     return documento;
   }
