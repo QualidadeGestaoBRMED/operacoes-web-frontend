@@ -750,6 +750,7 @@ export function DetalheDocumentoModal({
           void mutate();
           void mutateHistorico().catch(() => {});
         }}
+        onEntradaConcluida={() => setMostrandoProcessoRenovacao(true)}
       />
     </>
   );

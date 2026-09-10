@@ -114,11 +114,17 @@ export function MovimentacaoProfissionalModal({
   aberto,
   onOpenChange,
   onAtualizado,
+  onEntradaConcluida,
 }: {
   documento: DocumentoUnidade | null;
   aberto: boolean;
   onOpenChange: (open: boolean) => void;
   onAtualizado: () => void;
+  // Chamado só quando "Entrada" termina com sucesso total E o próprio
+  // documento que abriu este modal foi um dos marcados/confirmados --
+  // encadeia a abertura do Acompanhar Renovação (STC-382/STC-431), em vez
+  // de deixar o usuário fechar e caçar aquele botão separadamente.
+  onEntradaConcluida: () => void;
 }) {
   const [tipo, setTipo] = useState<TipoMovimentacaoProfissional>("saida");
   const [profissional, setProfissional] = useState("");
@@ -137,11 +143,14 @@ export function MovimentacaoProfissionalModal({
   // em fechar(), então uma reabertura pra outro documento reinicializa certo.
   const jaInicializouRef = useRef(false);
 
-  const { documentos: documentosDaUnidade, isLoading: carregandoAfetados } =
-    useDocumentosLegalizacao(
-      documento ? { unidade: documento.unidade.id } : undefined,
-      { desabilitado: !aberto || !documento },
-    );
+  const {
+    documentos: documentosDaUnidade,
+    isLoading: carregandoAfetados,
+    mensagemErro: erroAfetados,
+  } = useDocumentosLegalizacao(
+    documento ? { unidade: documento.unidade.id } : undefined,
+    { desabilitado: !aberto || !documento },
+  );
   const documentosAfetados = documentosDaUnidade.filter(
     (doc) =>
       doc.status !== "nao_aplicavel" &&
@@ -232,7 +241,7 @@ export function MovimentacaoProfissionalModal({
     !enviando;
 
   async function confirmar() {
-    if (!podeConfirmar) return;
+    if (!podeConfirmar || !documento) return;
     const idsParaEnviar = Array.from(marcados).filter(
       (id) => !confirmados.has(id),
     );
@@ -275,6 +284,17 @@ export function MovimentacaoProfissionalModal({
       toast.success(
         tipo === "saida" ? "Saída reportada." : "Entrada reportada.",
       );
+      // Encadeamento (STC-382/STC-431): "Entrada" com sucesso total já
+      // criou um ProcessoRenovacao de verdade por trás (fix de backend) --
+      // abre automaticamente o Acompanhar Renovação do documento que
+      // originou o clique em "Reportar Movimentação", em vez de fechar e
+      // deixar o usuário caçar aquele botão separadamente. Só quando esse
+      // documento específico também foi marcado/confirmado agora -- se o
+      // usuário desmarcou o documento de origem, não existe processo novo
+      // pra ele acompanhar.
+      if (tipo === "entrada" && novosConfirmados.has(documento.id)) {
+        onEntradaConcluida();
+      }
       fechar();
     } else if (houveSucesso) {
       toast.error(
@@ -400,6 +420,11 @@ export function MovimentacaoProfissionalModal({
                 </Label>
                 {carregandoAfetados ? (
                   <p className="text-sm text-muted-foreground">Carregando...</p>
+                ) : erroAfetados ? (
+                  <p className="text-sm text-destructive">
+                    Não foi possível carregar os documentos desta unidade:{" "}
+                    {erroAfetados}
+                  </p>
                 ) : documentosAfetados.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Nenhum documento regulado por movimentação de profissional

@@ -115,6 +115,7 @@ function renderComponente(
   documentoAtual: DocumentoUnidade | null = CNES,
   onOpenChange: (open: boolean) => void = vi.fn(),
   onAtualizado: () => void = vi.fn(),
+  onEntradaConcluida: () => void = vi.fn(),
 ) {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
@@ -123,6 +124,7 @@ function renderComponente(
         aberto={aberto}
         onOpenChange={onOpenChange}
         onAtualizado={onAtualizado}
+        onEntradaConcluida={onEntradaConcluida}
       />
     </SWRConfig>,
   );
@@ -352,6 +354,85 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     expect(onAtualizado).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(toast.success).toHaveBeenCalledWith("Saída reportada.");
+  });
+
+  describe("encadeamento com o Acompanhar Renovação (STC-382/STC-431)", () => {
+    it("Entrada com sucesso total, com o documento de origem marcado, chama onEntradaConcluida", async () => {
+      vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+        async (id) => ({ ...CNES, id }),
+      );
+      const onEntradaConcluida = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, CNES, vi.fn(), vi.fn(), onEntradaConcluida);
+      await screen.findByText("CNES");
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: "Entrada" }));
+
+      await user.click(
+        screen.getByRole("button", { name: "Confirmar entrada" }),
+      );
+
+      await waitFor(() => {
+        expect(onEntradaConcluida).toHaveBeenCalled();
+      });
+    });
+
+    it("Saída com sucesso total NÃO chama onEntradaConcluida", async () => {
+      vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+        async (id) => ({ ...CNES, id }),
+      );
+      const onEntradaConcluida = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, CNES, vi.fn(), vi.fn(), onEntradaConcluida);
+      await screen.findByText("CNES");
+      await preencherObrigatorios(user);
+
+      await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+
+      await waitFor(() => {
+        expect(reportarMovimentacaoProfissional).toHaveBeenCalled();
+      });
+      expect(onEntradaConcluida).not.toHaveBeenCalled();
+    });
+
+    it("Entrada com sucesso total, mas com o documento de origem desmarcado, NÃO chama onEntradaConcluida", async () => {
+      vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+        async (id) => ({ ...CNES, id }),
+      );
+      const onEntradaConcluida = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, CNES, vi.fn(), vi.fn(), onEntradaConcluida);
+      await screen.findByText("CNES");
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: "Entrada" }));
+      // Desmarca o CNES (documento de origem, prop `documento`), mantém só o CREMERJ.
+      await user.click(screen.getByRole("checkbox", { name: /CNES/ }));
+
+      await user.click(
+        screen.getByRole("button", { name: "Confirmar entrada" }),
+      );
+
+      await waitFor(() => {
+        expect(reportarMovimentacaoProfissional).toHaveBeenCalled();
+      });
+      expect(onEntradaConcluida).not.toHaveBeenCalled();
+    });
+  });
+
+  it("mostra erro (não lista vazia) quando a busca de documentos afetados falha", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockRejectedValue(
+      new Error("Falha de rede."),
+    );
+    renderComponente();
+
+    expect(
+      await screen.findByText(
+        /não foi possível carregar os documentos desta unidade/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/nenhum documento regulado/i),
+    ).not.toBeInTheDocument();
   });
 
   it("sucesso parcial: erro aparece só no documento que falhou, o outro fica confirmado, modal não fecha", async () => {
