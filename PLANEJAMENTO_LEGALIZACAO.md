@@ -6,7 +6,7 @@
 **Início proposto:** 25/08/2026 · **Entrega proposta:** 25/09/2026 · **Go-Live:** 28/09/2026
 **Fonte:** `Plano de Ação - Legalização.md` (raiz do repositório da Plataforma) §3/§4/§7/§8, e os 6 mockups refinados em `docs/mockup_*legalizacao*.html` — este documento traduz os protótipos já validados visualmente em plano técnico de implementação.
 
-> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377), P4.1 (Matriz Lista, STC-378), P4.2 (Matriz Mapa, STC-379), P4.3 (Detalhe do Documento, STC-380), P4.4 (Processo de Renovação, STC-381) e P4.7 (Administração do Catálogo, STC-415) já têm implementação real (STC-377/378/379 mergeadas; STC-380 com PR #35, STC-381 com PR #36 e STC-415 com PR #34 abertas em revisão); as seções P3.1/P3.2/P4.1/P4.2/P4.3/P4.4/P4.7 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.5–P4.6).
+> **Nasceu como plano prospectivo, sem nenhuma linha de código do módulo — não é mais o caso.** P3 (tipos/hooks, STC-377), P4.1 (Matriz Lista, STC-378), P4.2 (Matriz Mapa, STC-379), P4.3 (Detalhe do Documento, STC-380), P4.4 (Processo de Renovação, STC-381) e P4.7 (Administração do Catálogo, STC-415) já têm implementação real, todas mergeadas em `main`; as seções P3.1/P3.2/P4.1/P4.2/P4.3/P4.4/P4.7 abaixo já foram atualizadas pra refletir o contrato real, não mais a especulação original. Os 6 mockups HTML estáticos continuam valendo como referência visual pro que falta (P4.5–P4.6).
 
 ---
 
@@ -187,7 +187,7 @@ removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3, P4.4 e P4.7 implementados — P4.3 com PR #35 aberta em revisão (7 rodadas de code review automático, todas corrigidas), P4.4 com PR #36 aberta em revisão (1 rodada de code review automático, 2 achados corrigidos), P4.7 com PR #34 aberta em revisão; P4.5–P4.6 a iniciar)
+**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3, P4.4 e P4.7 implementados e mergeados em `main` — P4.3/STC-380 (PR #35, 7 rodadas de code review automático, todas corrigidas), P4.4/STC-381 (PR #36, 1 rodada de code review automático, 2 achados corrigidos), P4.7/STC-415 (PR #34, 2 rodadas de code review automático); P4.5–P4.6 a iniciar)
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
@@ -225,7 +225,7 @@ relação ao plano original abaixo:
 
 ### P4.3 Detalhe do Documento — `mockup_detalhe_documento_legalizacao.html`
 
-**Status:** ✅ Implementado (STC-380, PR #35 aberta em revisão — 7 rodadas de code review automático, todas corrigidas antes do próximo push). Componente real em `src/components/legalizacao/{DetalheDocumentoModal,ProcessoRenovacaoModal}.tsx`. Ajustes em relação ao plano original abaixo:
+**Status:** ✅ Implementado e mergeado em `main` (STC-380, PR #35 — 7 rodadas de code review automático, todas corrigidas antes do próximo push). Componente real em `src/components/legalizacao/{DetalheDocumentoModal,ProcessoRenovacaoModal}.tsx`. Ajustes em relação ao plano original abaixo:
 
 - Modal, `max-h-[88vh]` sem altura fixa — como planejado, mas a primeira versão implementada copiava `h-[85vh] max-h-[720px]` de `DetalheCard.tsx` (Gestão de Demandas) sem ajustar ao critério desta issue (achado em code review, corrigido).
 - **Sem stepper de progresso** — só o badge de status, como planejado.
@@ -242,7 +242,7 @@ relação ao plano original abaixo:
 
 ### P4.4 Processo de Renovação — `mockup_processo_renovacao_legalizacao.html`
 
-**Status:** ✅ Implementado (STC-381, PR #36 — 1 rodada de code review automático, 2 achados corrigidos). `ProcessoRenovacaoModal.tsx` (STC-380, P4.3) nasceu como o ponto de entrada — cria o `ProcessoRenovacao` e mostrava só a seção "1. Solicitação". Esta issue estendeu o MESMO componente, sem criar um novo: acrescentou as seções 2 (Protocolo) e 3 (Conclusão) a partir de um processo já criado, e o modal passa a ser reaberto (não só criado) a partir do documento enquanto o processo estiver `em_andamento`/`protocolado` — `DetalheDocumentoModal.tsx` troca o rótulo do botão pra **"Acompanhar Renovação"** nesse caso (renomeado a pedido do responsável do projeto; nome original, "Acompanhar processo de renovação", ficava longo demais pro botão).
+**Status:** ✅ Implementado e mergeado em `main` (STC-381, PR #36 — 1 rodada de code review automático, 2 achados corrigidos). `ProcessoRenovacaoModal.tsx` (STC-380, P4.3) nasceu como o ponto de entrada — cria o `ProcessoRenovacao` e mostrava só a seção "1. Solicitação". Esta issue estendeu o MESMO componente, sem criar um novo: acrescentou as seções 2 (Protocolo) e 3 (Conclusão) a partir de um processo já criado, e o modal passa a ser reaberto (não só criado) a partir do documento enquanto o processo estiver `em_andamento`/`protocolado` — `DetalheDocumentoModal.tsx` troca o rótulo do botão pra **"Acompanhar Renovação"** nesse caso (renomeado a pedido do responsável do projeto; nome original, "Acompanhar processo de renovação", ficava longo demais pro botão).
 
 - Modal, 3 seções: Solicitação (leitura) / Protocolo (**opcional**, texto explícito "preencha só se houver órgão envolvido") / Conclusão. Como planejado.
 - **Conclusão não é bloqueada por Protocolo** — como planejado (a tabela de transição do backend permite `Em andamento/Protocolado → Concluído`, os dois são origem válida).
@@ -277,7 +277,7 @@ relação ao plano original abaixo:
 
 ### P4.7 Administração do Catálogo — `mockup` inexistente, fora da estimativa original de 24 dias
 
-**Status:** ✅ Implementado (STC-415, PR #34 aberta em revisão — 2 rodadas de code review automático, a 2ª com 3 achados já corrigidos, ver `Plano de Ação §11`). Decidido numa sessão dedicada de planejamento (27/08/2026, `Plano de Ação §4`) — não fazia parte do escopo dos 6 mockups nem da estimativa de prazo já negociada (`Plano de Ação §8`). Motivado pela reunião de 26/08: Nathalya Almeida e Iara Martins montando o esqueleto de cada unidade manualmente (começando por Niterói, ~2h por unidade). Ajustes em relação ao plano original abaixo:
+**Status:** ✅ Implementado e mergeado em `main` (STC-415, PR #34 — 2 rodadas de code review automático, a 2ª com 3 achados já corrigidos, ver `Plano de Ação §11`). Decidido numa sessão dedicada de planejamento (27/08/2026, `Plano de Ação §4`) — não fazia parte do escopo dos 6 mockups nem da estimativa de prazo já negociada (`Plano de Ação §8`). Motivado pela reunião de 26/08: Nathalya Almeida e Iara Martins montando o esqueleto de cada unidade manualmente (começando por Niterói, ~2h por unidade). Ajustes em relação ao plano original abaixo:
 
 - **Não é uma rota nova, é uma aba dentro da tela "Administração" já existente** (`/admin/permissoes`, `components/admin/PermissoesAdmin.tsx`) — "Usuários" (já existia) e "Catálogo de Legalização" (novo, componente `components/admin/legalizacao/CatalogoLegalizacaoAdmin.tsx`), trocadas por um `Select` (não `Tabs`, como o resto da tela usa — trocado durante a implementação, achado de dogfooding: `Tabs` ficava apertado ao lado do título em telas médias). A aba fica sempre montada (`hidden` via CSS, não desmontagem condicional) pra não perder filtro/formulário em andamento ao trocar de aba e voltar — achado de code review próprio.
 - **3 blocos, como planejado, com nomes reais**: `TabelaTiposDocumento.tsx` + `FormNovoTipoDocumento.tsx` (Bloco 1 — Tipos de Documento, categoria continua fixa nos 7 valores de `CategoriaDocumento`, sem tela de cadastro própria); `FormCadastrarDocumento.tsx` (Bloco 2 — Cadastrar documento na unidade); `FormNovaVersaoRegra.tsx` (Bloco 3 — "Corrigir regra existente": `RegraDocumento` é append-only, então não existe "editar regra", só criar versão nova e reaplicar no documento).
