@@ -1,4 +1,8 @@
-import { ordenarPor, type ExtratoresDeChave, type Ordenacao as OrdenacaoGenerica } from "./ordenacao";
+import {
+  ordenarPor,
+  type ExtratoresDeChave,
+  type Ordenacao as OrdenacaoGenerica,
+} from "./ordenacao";
 import { nomeExibicao } from "./utils";
 import type {
   CategoriaDocumento,
@@ -8,6 +12,24 @@ import type {
   StatusDocumento,
 } from "@/types/legalizacao";
 
+// Mesmo raciocínio de CODIGO_TIPO_DOCUMENTO_DOSIMETRIA (backend, RN12) --
+// sem flag estrutural pra "este tipo aceita movimentação profissional",
+// código fixo do catálogo seed (RN11). CRM/RT tem 2 códigos hoje (CREMERJ/
+// COREN, ver seed_catalogo_legalizacao.py); se novos conselhos profissionais
+// forem cadastrados no catálogo (ex. biomedicina, citado no Plano de Ação),
+// este conjunto precisa crescer junto -- não é um campo estrutural real.
+// Vive aqui (não em DetalheDocumentoModal.tsx nem em
+// MovimentacaoProfissionalModal.tsx) porque os dois componentes precisam
+// do mesmo conjunto -- um pra decidir quando o botão aparece, o outro pra
+// popular o checklist "Documentos afetados nesta unidade" (STC-382) --
+// e um import cruzado entre os dois criaria uma dependência circular.
+export const CODIGOS_MOVIMENTACAO_PROFISSIONAL = new Set([
+  "cnes",
+  "dosimetria",
+  "registro-cremerj",
+  "registro-coren",
+]);
+
 // Único lugar que decide "quem é o responsável exibido/usado pra ordenar"
 // -- achado no code review: MatrizTable.tsx reimplementava essa mesma regra
 // (principal, com fallback pro primeiro) separada da chave de ordenação
@@ -16,7 +38,9 @@ import type {
 export function responsavelPrincipal(
   documento: DocumentoUnidade,
 ): ResponsavelDocumento | undefined {
-  return documento.responsaveis.find((r) => r.principal) ?? documento.responsaveis[0];
+  return (
+    documento.responsaveis.find((r) => r.principal) ?? documento.responsaveis[0]
+  );
 }
 
 // Espelha TipoDocumentoRegulatorio.Categoria.labels (backend/legalizacao/
@@ -109,7 +133,8 @@ const LIMIAR_PROXIMO_DIAS = 15;
 // prazoDocumento() porque a ordenação por coluna "Prazo" precisa do valor
 // numérico bruto, não do texto formatado.
 export function diasParaPrazo(documento: DocumentoUnidade): number | null {
-  if (STATUS_SEM_PRAZO.has(documento.status) || !documento.validade) return null;
+  if (STATUS_SEM_PRAZO.has(documento.status) || !documento.validade)
+    return null;
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -147,19 +172,18 @@ export function prazoDocumento(documento: DocumentoUnidade): {
 }
 
 export type CampoOrdenavel =
-  | "unidade"
-  | "documento"
-  | "status"
-  | "responsavel"
-  | "criticidade"
-  | "prazo";
+  "unidade" | "documento" | "status" | "responsavel" | "criticidade" | "prazo";
 
 // Reexportado com o nome que os componentes já usavam (MatrizTable.tsx,
 // MatrizConformidade.tsx) -- a extração pro motor genérico (lib/ordenacao.ts)
 // não muda a API pública deste módulo.
 export type Ordenacao = OrdenacaoGenerica<CampoOrdenavel>;
 
-const ORDEM_CRITICIDADE: Record<Criticidade, number> = { alta: 0, media: 1, baixa: 2 };
+const ORDEM_CRITICIDADE: Record<Criticidade, number> = {
+  alta: 0,
+  media: 1,
+  baixa: 2,
+};
 
 // Cada campo extrai uma chave comparável (string/number) ou null quando o
 // documento não tem valor pra esse campo (sem responsável, sem criticidade,
@@ -198,7 +222,10 @@ export function ordenarDocumentos(
 // API) -- DocumentoUnidadeViewSet não tem SearchFilter, e a lista não é
 // paginada (catálogo de tamanho fixo, documento × unidade), então filtrar
 // no client é suficiente e não fica obsoleto com o crescimento dos dados.
-export function documentoBateNaBusca(documento: DocumentoUnidade, busca: string): boolean {
+export function documentoBateNaBusca(
+  documento: DocumentoUnidade,
+  busca: string,
+): boolean {
   const alvo = busca.trim().toLowerCase();
   if (!alvo) return true;
   return (

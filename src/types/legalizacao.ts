@@ -209,6 +209,20 @@ export interface ProcessoRenovacaoAtualizacaoPayload {
   nova_validade?: string;
 }
 
+export type TipoMovimentacaoProfissional = "saida" | "entrada";
+
+// Payload de POST /documentos/{id}/movimentacao-profissional/ (STC-382) --
+// MovimentacaoProfissionalSerializer (backend), os 3 campos são os únicos
+// aceitos e todos obrigatórios. `profissional`/`funcao` (esta última só
+// client-side, nunca enviada) existem só pra registrar/guiar a UI -- o
+// backend não persiste nome de profissional em lugar nenhum além do
+// histórico (valor_novo formatado com o nome, ver registrar_historico).
+export interface MovimentacaoProfissionalPayload {
+  tipo: TipoMovimentacaoProfissional;
+  profissional: string;
+  data: string;
+}
+
 // Espelha DocumentoUnidadeFilterSet (backend/legalizacao/views.py) --
 // "search"/"ordering" não existem aqui (DocumentoUnidadeViewSet não declara
 // esses filter_backends, diferente de DemandaViewSet). "categoria" também
