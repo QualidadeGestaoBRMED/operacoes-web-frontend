@@ -707,21 +707,19 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     });
   });
 
-  it("mostra 'Reportar Movimentação Profissional' pra CNES", async () => {
+  it("mostra 'Reportar Movimentação' pra CNES", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }) }),
     );
     renderComponente(55);
 
     expect(
-      await screen.findByRole("button", {
-        name: /reportar movimentação profissional/i,
-      }),
+      await screen.findByRole("button", { name: "Reportar Movimentação" }),
     ).toBeInTheDocument();
   });
 
   it.each(["nao_aplicavel", "unidade_encerramento"] as const)(
-    "não mostra 'Reportar Movimentação Profissional' pra CNES com status %s (backend rejeita, STATUS_CORINGA_COM_JUSTIFICATIVA)",
+    "não mostra 'Reportar Movimentação' pra CNES com status %s (backend rejeita, STATUS_CORINGA_COM_JUSTIFICATIVA)",
     async (status) => {
       vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
         documento({
@@ -734,26 +732,22 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       await screen.findByText("CNES");
 
       expect(
-        screen.queryByRole("button", {
-          name: /reportar movimentação profissional/i,
-        }),
+        screen.queryByRole("button", { name: "Reportar Movimentação" }),
       ).not.toBeInTheDocument();
     },
   );
 
-  it("não mostra 'Reportar Movimentação Profissional' pra Alvará", async () => {
+  it("não mostra 'Reportar Movimentação' pra Alvará", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
 
     expect(
-      screen.queryByRole("button", {
-        name: /reportar movimentação profissional/i,
-      }),
+      screen.queryByRole("button", { name: "Reportar Movimentação" }),
     ).not.toBeInTheDocument();
   });
 
-  it("clicar em 'Reportar Movimentação Profissional' abre o MovimentacaoProfissionalModal (STC-382)", async () => {
+  it("clicar em 'Reportar Movimentação' abre o MovimentacaoProfissionalModal (STC-382)", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }) }),
     );
@@ -762,9 +756,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     renderComponente(55);
 
     await user.click(
-      await screen.findByRole("button", {
-        name: /reportar movimentação profissional/i,
-      }),
+      await screen.findByRole("button", { name: "Reportar Movimentação" }),
     );
 
     expect(

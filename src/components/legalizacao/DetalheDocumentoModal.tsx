@@ -601,7 +601,7 @@ export function DetalheDocumentoModal({
                             setMostrandoMovimentacaoProfissional(true)
                           }
                         >
-                          Reportar Movimentação Profissional
+                          Reportar Movimentação
                         </Button>
                       )}
                     </div>
