@@ -51,6 +51,11 @@ const ACOES: AcaoKanban[] = [
 // módulo novo só precisa de uma entrada aqui com o código dele como prefixo.
 const RECURSOS: { valor: string; rotulo: string }[] = [
   { valor: "gestao-demandas.kanban", rotulo: "Gestão de Demandas -- Kanban" },
+  // Único recurso que PermissaoUsuario afeta de verdade no módulo (o
+  // catálogo -- tipos-documento/regras -- não passa por permissão
+  // individual, só por nível/setor: PodeEscreverCatalogoLegalizacao,
+  // legalizacao/permissions.py).
+  { valor: "legalizacao.documentos", rotulo: "Legalização -- Documentos" },
 ];
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
