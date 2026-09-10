@@ -428,12 +428,12 @@ export function MovimentacaoProfissionalModal({
                           {janelaCnes.janela_dia_inicio} e{" "}
                           {janelaCnes.janela_dia_fim}
                         </strong>{" "}
-                        do mês (RN13) — fora dessa janela, o registro fica
-                        pronto aqui, mas a Legalização só consegue executar no
-                        CNES quando ela abrir de novo.
+                        do mês (RN13). Fora dessa janela, o registro fica pronto
+                        aqui, mas a Legalização só consegue executar no CNES
+                        quando ela abrir de novo.
                       </>
                     ) : (
-                      "O CNES tem uma janela operacional restrita pra aceitar essa atualização (RN13) — confirme o período em vigor com a Legalização antes de considerar isso concluído lá."
+                      "O CNES tem uma janela operacional restrita pra aceitar essa atualização (RN13). Confirme o período em vigor com a Legalização antes de considerar isso concluído lá."
                     )}
                   </span>
                 </div>
