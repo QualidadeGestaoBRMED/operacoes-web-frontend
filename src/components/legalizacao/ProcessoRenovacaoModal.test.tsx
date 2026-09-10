@@ -1,18 +1,33 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Unidade } from "@/types";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Unidade, Usuario } from "@/types";
 import type {
   DocumentoUnidade,
+  ProcessoRenovacao,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
 import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 
 vi.mock("@/lib/legalizacao");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: { usuarioId: 7 },
+    perfil: null,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: false,
+  }),
+}));
 
-import { criarProcessoRenovacao } from "@/lib/legalizacao";
+import {
+  atualizarProcessoRenovacao,
+  criarProcessoRenovacao,
+  enviarEvidenciaLegalizacao,
+  listarProcessosRenovacao,
+} from "@/lib/legalizacao";
 import { toast } from "sonner";
 
 const UNIDADE: Unidade = {
@@ -21,6 +36,20 @@ const UNIDADE: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+};
+
+const USUARIO: Usuario = {
+  id: 7,
+  username: "leg",
+  email: "leg@grupobrmed.com.br",
+  first_name: "Time",
+  last_name: "Legalização",
+  perfil: null,
+  unidade_id: null,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+  foto_url: "",
 };
 
 function tipo(
@@ -61,10 +90,29 @@ function documento(
   };
 }
 
+function processo(
+  overrides: Partial<ProcessoRenovacao> = {},
+): ProcessoRenovacao {
+  return {
+    id: 9,
+    documento_unidade: documento(),
+    status: "em_andamento",
+    data_solicitacao: null,
+    protocolo_numero: "",
+    protocolo_orgao: "",
+    protocolo_data: null,
+    observacoes: "",
+    data_conclusao: null,
+    usuario_responsavel: USUARIO,
+    created_at: "2026-06-02T10:00:00Z",
+    ...overrides,
+  };
+}
+
 function renderComponente(
   aberto: boolean,
   onOpenChange: (open: boolean) => void = vi.fn(),
-  onRegistrado: () => void = vi.fn(),
+  onAtualizado: () => void = vi.fn(),
 ) {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
@@ -72,102 +120,365 @@ function renderComponente(
         documento={documento()}
         aberto={aberto}
         onOpenChange={onOpenChange}
-        onRegistrado={onRegistrado}
+        onAtualizado={onAtualizado}
       />
     </SWRConfig>,
   );
 }
 
-beforeEach(() => {
-  vi.resetAllMocks();
+beforeAll(() => {
+  // Fixa o fuso do processo de teste -- "Data da solicitação" precisa
+  // converter o datetime UTC pro fuso local antes de extrair o dia, não
+  // fatiar a string crua (achado em análise de falhas críticas).
+  process.env.TZ = "America/Sao_Paulo";
 });
 
-describe("ProcessoRenovacaoModal (STC-380)", () => {
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(listarProcessosRenovacao).mockResolvedValue([]);
+});
+
+describe("ProcessoRenovacaoModal (STC-381)", () => {
   it("não renderiza quando fechado", () => {
     renderComponente(false);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("mostra o passo de confirmação com o contexto do documento", () => {
-    renderComponente(true);
+  describe("sem processo ativo", () => {
+    it("mostra o passo de confirmação", async () => {
+      renderComponente(true);
 
-    expect(
-      screen.getByRole("heading", { name: "Processo de Renovação" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Alvará de Funcionamento · Niterói"),
-    ).toBeInTheDocument();
-    expect(criarProcessoRenovacao).not.toHaveBeenCalled();
-  });
-
-  it("Cancelar chama onOpenChange(false) sem criar nada", async () => {
-    const onOpenChange = vi.fn();
-    const user = userEvent.setup();
-    renderComponente(true, onOpenChange);
-
-    await user.click(screen.getByRole("button", { name: "Cancelar" }));
-
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(criarProcessoRenovacao).not.toHaveBeenCalled();
-  });
-
-  it("Confirmar cria o processo, chama onRegistrado e mostra a Solicitação concluída", async () => {
-    vi.mocked(criarProcessoRenovacao).mockResolvedValue({
-      id: 1,
-      documento_unidade: documento({ status: "em_andamento" }),
-      status: "em_andamento",
-      data_solicitacao: null,
-      protocolo_numero: "",
-      protocolo_orgao: "",
-      protocolo_data: null,
-      observacoes: "",
-      data_conclusao: null,
-      usuario_responsavel: null,
-      created_at: "2026-06-02T10:00:00Z",
+      expect(
+        await screen.findByRole("heading", { name: "Processo de Renovação" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", {
+          name: "Iniciar processo de renovação",
+        }),
+      ).toBeInTheDocument();
+      expect(criarProcessoRenovacao).not.toHaveBeenCalled();
     });
-    const onRegistrado = vi.fn();
-    const user = userEvent.setup();
-    renderComponente(true, vi.fn(), onRegistrado);
 
-    await user.click(
-      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
-    );
+    it("Cancelar chama onOpenChange(false) sem criar nada", async () => {
+      const onOpenChange = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, onOpenChange);
+      await screen.findByRole("button", {
+        name: "Iniciar processo de renovação",
+      });
 
-    await waitFor(() => {
-      expect(criarProcessoRenovacao).toHaveBeenCalledWith({
-        documento_unidade: 55,
+      await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(criarProcessoRenovacao).not.toHaveBeenCalled();
+    });
+
+    it("Confirmar cria o processo com usuario_responsavel do usuário logado e mostra as 3 seções", async () => {
+      vi.mocked(criarProcessoRenovacao).mockResolvedValue(processo());
+      const onAtualizado = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, vi.fn(), onAtualizado);
+      await screen.findByRole("button", {
+        name: "Iniciar processo de renovação",
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(criarProcessoRenovacao).toHaveBeenCalledWith({
+          documento_unidade: 55,
+          usuario_responsavel: 7,
+        });
+      });
+      expect(onAtualizado).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith(
+        "Processo de renovação iniciado.",
+      );
+      expect(
+        await screen.findByRole("button", { name: "Salvar protocolo" }),
+      ).toBeInTheDocument();
+    });
+
+    it("mostra toast de erro e mantém o passo de confirmação quando a criação falha", async () => {
+      vi.mocked(criarProcessoRenovacao).mockRejectedValue(
+        new Error("Falha de rede."),
+      );
+      const onAtualizado = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, vi.fn(), onAtualizado);
+      await screen.findByRole("button", {
+        name: "Iniciar processo de renovação",
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalled();
+      });
+      expect(onAtualizado).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("com processo ativo", () => {
+    it("mostra Solicitação (data + aberto por) e os campos de Protocolo vazios", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+
+      expect(await screen.findByText("02/06/2026")).toBeInTheDocument();
+      expect(screen.getByText("Time Legalização")).toBeInTheDocument();
+      expect(screen.getByLabelText("Número do protocolo")).toHaveValue("");
+    });
+
+    it("'Data da solicitação' converte pro fuso local, não fatia o datetime UTC cru", async () => {
+      // 01:00 UTC de 03/06 é 22:00 de 02/06 em America/Sao_Paulo (UTC-3) --
+      // fatiar a string crua ("2026-06-03...") mostraria o dia errado.
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({ created_at: "2026-06-03T01:00:00Z" }),
+      ]);
+      renderComponente(true);
+
+      expect(await screen.findByText("02/06/2026")).toBeInTheDocument();
+      expect(screen.queryByText("03/06/2026")).not.toBeInTheDocument();
+    });
+
+    it("pré-preenche o Protocolo com os valores já salvos de um processo protocolado", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({
+          status: "protocolado",
+          protocolo_numero: "2026/00184-LIC",
+          protocolo_orgao: "Prefeitura de Niterói",
+        }),
+      ]);
+      renderComponente(true);
+
+      expect(await screen.findByLabelText("Número do protocolo")).toHaveValue(
+        "2026/00184-LIC",
+      );
+      expect(screen.getByLabelText("Órgão")).toHaveValue(
+        "Prefeitura de Niterói",
+      );
+    });
+
+    it("'Salvar protocolo' fica desabilitado sem número, e envia PATCH status=protocolado ao preencher", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(atualizarProcessoRenovacao).mockResolvedValue(
+        processo({ status: "protocolado", protocolo_numero: "2026/123" }),
+      );
+      const onAtualizado = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, vi.fn(), onAtualizado);
+      await screen.findByLabelText("Número do protocolo");
+
+      expect(
+        screen.getByRole("button", { name: "Salvar protocolo" }),
+      ).toBeDisabled();
+
+      await user.type(screen.getByLabelText("Número do protocolo"), "2026/123");
+      await user.click(
+        screen.getByRole("button", { name: "Salvar protocolo" }),
+      );
+
+      await waitFor(() => {
+        expect(atualizarProcessoRenovacao).toHaveBeenCalledWith(9, {
+          status: "protocolado",
+          protocolo_numero: "2026/123",
+          protocolo_orgao: "",
+          protocolo_data: null,
+          observacoes: "",
+        });
+      });
+      expect(onAtualizado).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Protocolo salvo.");
+    });
+
+    it("mostra erro quando salvar o protocolo falha", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(atualizarProcessoRenovacao).mockRejectedValue(
+        new Error("Falha de rede."),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+      await user.type(screen.getByLabelText("Número do protocolo"), "2026/1");
+
+      await user.click(
+        screen.getByRole("button", { name: "Salvar protocolo" }),
+      );
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalled();
       });
     });
-    expect(onRegistrado).toHaveBeenCalled();
-    expect(
-      await screen.findByText(/solicitação · concluída/i),
-    ).toBeInTheDocument();
-    expect(toast.success).toHaveBeenCalledWith(
-      "Processo de renovação iniciado.",
-    );
-    expect(
-      screen.queryByRole("button", { name: "Iniciar processo de renovação" }),
-    ).not.toBeInTheDocument();
-  });
 
-  it("mostra toast de erro e mantém o passo de confirmação quando a criação falha", async () => {
-    vi.mocked(criarProcessoRenovacao).mockRejectedValue(
-      new Error("Falha de rede."),
-    );
-    const onRegistrado = vi.fn();
-    const user = userEvent.setup();
-    renderComponente(true, vi.fn(), onRegistrado);
+    it("'Concluir renovação' fica desabilitado sem validade e evidência", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
 
-    await user.click(
-      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
-    );
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      ).toBeDisabled();
     });
-    expect(onRegistrado).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Iniciar processo de renovação" }),
-    ).toBeInTheDocument();
+
+    it("Concluir envia a evidência e depois o PATCH status=concluido com nova_validade", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({
+        id: 1,
+        usuario: USUARIO,
+        arquivo: "renovado.pdf",
+        nome_original: "renovado.pdf",
+        tamanho_bytes: 100,
+        vigente: true,
+        emitido_em: null,
+        validade_comprovada: null,
+        processo_renovacao: 9,
+        created_at: "2026-09-10T00:00:00Z",
+      });
+      vi.mocked(atualizarProcessoRenovacao).mockResolvedValue(
+        processo({ status: "concluido" }),
+      );
+      const onOpenChange = vi.fn();
+      const onAtualizado = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, onOpenChange, onAtualizado);
+      await screen.findByLabelText("Número do protocolo");
+
+      await user.type(screen.getByLabelText(/nova validade/i), "2027-06-02");
+      const arquivo = new File(["conteudo"], "renovado.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+
+      await user.click(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(55, arquivo);
+      });
+      await waitFor(() => {
+        expect(atualizarProcessoRenovacao).toHaveBeenCalledWith(9, {
+          status: "concluido",
+          nova_validade: "2027-06-02",
+          protocolo_numero: "",
+          protocolo_orgao: "",
+          protocolo_data: null,
+          observacoes: "",
+        });
+      });
+      expect(onAtualizado).toHaveBeenCalled();
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it("'Concluir renovação' envia os campos de Protocolo digitados, mesmo sem clicar em 'Salvar protocolo' antes", async () => {
+      // Achado em análise de falhas críticas: sem isto, editar Número/
+      // Órgão/Observações e clicar direto em "Concluir renovação" (sem
+      // passar por "Salvar protocolo" antes) descartava essas edições em
+      // silêncio -- o PATCH de conclusão só mandava status+nova_validade.
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({
+        id: 1,
+        usuario: USUARIO,
+        arquivo: "renovado.pdf",
+        nome_original: "renovado.pdf",
+        tamanho_bytes: 100,
+        vigente: true,
+        emitido_em: null,
+        validade_comprovada: null,
+        processo_renovacao: 9,
+        created_at: "2026-09-10T00:00:00Z",
+      });
+      vi.mocked(atualizarProcessoRenovacao).mockResolvedValue(
+        processo({ status: "concluido" }),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      await user.type(screen.getByLabelText("Número do protocolo"), "2026/999");
+      await user.type(
+        screen.getByLabelText("Observações"),
+        "Concluído sem protocolo formal.",
+      );
+      await user.type(screen.getByLabelText(/nova validade/i), "2027-06-02");
+      const arquivo = new File(["conteudo"], "renovado.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+
+      await user.click(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(atualizarProcessoRenovacao).toHaveBeenCalledWith(9, {
+          status: "concluido",
+          nova_validade: "2027-06-02",
+          protocolo_numero: "2026/999",
+          protocolo_orgao: "",
+          protocolo_data: null,
+          observacoes: "Concluído sem protocolo formal.",
+        });
+      });
+    });
+
+    it("se o PATCH falhar depois da evidência ter sido enviada, um novo clique não reenvia o arquivo", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({
+        id: 1,
+        usuario: USUARIO,
+        arquivo: "renovado.pdf",
+        nome_original: "renovado.pdf",
+        tamanho_bytes: 100,
+        vigente: true,
+        emitido_em: null,
+        validade_comprovada: null,
+        processo_renovacao: 9,
+        created_at: "2026-09-10T00:00:00Z",
+      });
+      vi.mocked(atualizarProcessoRenovacao).mockRejectedValue(
+        new Error("Falha de rede."),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      await user.type(screen.getByLabelText(/nova validade/i), "2027-06-02");
+      const arquivo = new File(["conteudo"], "renovado.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+      await user.click(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      );
+      await waitFor(() => {
+        expect(enviarEvidenciaLegalizacao).toHaveBeenCalledTimes(1);
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      );
+
+      await waitFor(() => {
+        expect(atualizarProcessoRenovacao).toHaveBeenCalledTimes(2);
+      });
+      expect(enviarEvidenciaLegalizacao).toHaveBeenCalledTimes(1);
+    });
   });
 });

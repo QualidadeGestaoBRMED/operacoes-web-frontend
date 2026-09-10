@@ -14,6 +14,15 @@ import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 
 vi.mock("@/lib/legalizacao");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: { usuarioId: 7 },
+    perfil: null,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: false,
+  }),
+}));
 
 import {
   atualizarDocumentoLegalizacao,
@@ -22,6 +31,7 @@ import {
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
   listarHistoricoLegalizacao,
+  listarProcessosRenovacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
 import { toast } from "sonner";
@@ -185,6 +195,7 @@ beforeEach(() => {
   vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
   vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([]);
   vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([]);
+  vi.mocked(listarProcessosRenovacao).mockResolvedValue([]);
 });
 
 describe("DetalheDocumentoModal (STC-380)", () => {
@@ -320,7 +331,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(screen.queryByText("antiga.pdf")).not.toBeInTheDocument();
   });
 
-  it("mostra o histórico, com 'Sistema' quando não há usuário (ação automática)", async () => {
+  it("mostra o histórico, com 'Sistema' quando não há usuário (ação automática), e traduz o status pro rótulo (não o código cru)", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
       historico({
@@ -337,8 +348,48 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     await user.click(screen.getByRole("tab", { name: /histórico/i }));
 
     expect(screen.getByText("Sistema")).toBeInTheDocument();
-    expect(screen.getByText('"em_andamento"')).toBeInTheDocument();
-    expect(screen.getByText('"vencido"')).toBeInTheDocument();
+    expect(screen.getByText('"Em andamento"')).toBeInTheDocument();
+    expect(screen.getByText('"Vencido"')).toBeInTheDocument();
+    expect(screen.queryByText('"em_andamento"')).not.toBeInTheDocument();
+  });
+
+  it("traduz o status do processo de renovação no histórico (acao processo_status)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
+      historico({
+        acao: "processo_status",
+        valor_anterior: "em_andamento",
+        valor_novo: "concluido",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+    expect(screen.getByText('"Em andamento"')).toBeInTheDocument();
+    expect(screen.getByText('"Concluído"')).toBeInTheDocument();
+  });
+
+  it("não traduz valores de ações que já são texto livre (ex.: observações do protocolo)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
+      historico({
+        acao: "processo_observacoes",
+        valor_anterior: "",
+        valor_novo: "Aguardando retorno da Prefeitura.",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+    expect(
+      screen.getByText('"Aguardando retorno da Prefeitura."'),
+    ).toBeInTheDocument();
   });
 
   it("'Marcar como Não aplicável' exige justificativa antes de confirmar", async () => {
@@ -459,7 +510,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
 
     await user.click(screen.getByRole("tab", { name: /histórico/i }));
 
-    expect(await screen.findByText('"nao_aplicavel"')).toBeInTheDocument();
+    expect(await screen.findByText('"Não aplicável"')).toBeInTheDocument();
   });
 
   it("esconde 'Registrar renovação' e 'Marcar como Não aplicável' quando já é Não aplicável", async () => {
@@ -478,7 +529,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
   });
 
   it.each(["em_andamento", "protocolado"] as const)(
-    "esconde 'Registrar renovação' quando já existe um processo em curso (status %s)",
+    "troca 'Registrar renovação' por 'Acompanhar Renovação' quando já existe um processo em curso (status %s)",
     async (status) => {
       vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
         documento({ status }),
@@ -490,7 +541,9 @@ describe("DetalheDocumentoModal (STC-380)", () => {
         screen.queryByRole("button", { name: "Registrar renovação" }),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText("Processo de renovação em andamento."),
+        screen.getByRole("button", {
+          name: "Acompanhar Renovação",
+        }),
       ).toBeInTheDocument();
     },
   );
@@ -567,10 +620,11 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     await waitFor(() => {
       expect(criarProcessoRenovacao).toHaveBeenCalledWith({
         documento_unidade: 55,
+        usuario_responsavel: 7,
       });
     });
     expect(
-      await screen.findByText(/solicitação · concluída/i),
+      await screen.findByRole("button", { name: "Salvar protocolo" }),
     ).toBeInTheDocument();
   });
 
@@ -614,9 +668,9 @@ describe("DetalheDocumentoModal (STC-380)", () => {
 
   it("Confirmar no modal de Processo de Renovação revalida o histórico do documento", async () => {
     // Criar o processo grava HistoricoRegulatorio no documento (acao
-    // "processo_status", legalizacao/views.py) -- sem revalidar o histórico
-    // aqui, o registro dessa própria ação só aparecia depois de fechar e
-    // reabrir o modal (achado em code review).
+    // "status", _sincronizar_documento em legalizacao/views.py) -- sem
+    // revalidar o histórico aqui, o registro dessa própria ação só aparecia
+    // depois de fechar e reabrir o modal (achado em code review).
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
       documento({ status: "vencido" }),
     );

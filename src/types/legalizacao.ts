@@ -194,6 +194,21 @@ export interface ProcessoRenovacaoPayload {
   usuario_responsavel?: number | null;
 }
 
+// Payload de PATCH /processos-renovacao/{id}/ (STC-381) -- "Salvar
+// protocolo" manda status=protocolado + os 4 campos de protocolo;
+// "Concluir renovação" manda status=concluido + nova_validade (write-only
+// no serializer, aplicado em DocumentoUnidade.validade pela view, nunca
+// volta na leitura). documento_unidade/usuario_responsavel nunca são
+// reenviados por aqui -- travado/preservado no backend.
+export interface ProcessoRenovacaoAtualizacaoPayload {
+  status?: StatusProcessoRenovacao;
+  protocolo_numero?: string;
+  protocolo_orgao?: string;
+  protocolo_data?: string | null;
+  observacoes?: string;
+  nova_validade?: string;
+}
+
 // Espelha DocumentoUnidadeFilterSet (backend/legalizacao/views.py) --
 // "search"/"ordering" não existem aqui (DocumentoUnidadeViewSet não declara
 // esses filter_backends, diferente de DemandaViewSet). "categoria" também

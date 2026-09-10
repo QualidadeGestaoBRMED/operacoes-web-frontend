@@ -6,7 +6,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import type { EvidenciaRegulatoria } from "@/types/legalizacao";
 
 export function useEvidenciasLegalizacao(documentoId: number | null) {
-  const { data, error, isLoading } = useSWR<EvidenciaRegulatoria[]>(
+  const { data, error, isLoading, mutate } = useSWR<EvidenciaRegulatoria[]>(
     documentoId ? ["documento-legalizacao", documentoId, "evidencias"] : null,
     () => listarEvidenciasLegalizacao(documentoId as number),
   );
@@ -16,5 +16,6 @@ export function useEvidenciasLegalizacao(documentoId: number | null) {
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    mutate,
   };
 }

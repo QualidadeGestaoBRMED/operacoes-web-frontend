@@ -6,6 +6,7 @@ import type {
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
   ProcessoRenovacao,
+  ProcessoRenovacaoAtualizacaoPayload,
   ProcessoRenovacaoPayload,
 } from "@/types/legalizacao";
 
@@ -123,6 +124,32 @@ export async function criarProcessoRenovacao(
 ): Promise<ProcessoRenovacao> {
   const { data } = await api.post<ProcessoRenovacao>(
     PROCESSOS_RENOVACAO_URL,
+    payload,
+  );
+  return data;
+}
+
+// Sem paginação (mesmo motivo de listarHistoricoLegalizacao) -- processos de
+// um documento só, no máximo um não-concluído por vez (UniqueConstraint no
+// backend) + um histórico curto de concluídos. Mais recente primeiro
+// (Meta.ordering do model), então o ativo (se existir) é o 1º não-concluído.
+export async function listarProcessosRenovacao(
+  documentoUnidadeId: number,
+): Promise<ProcessoRenovacao[]> {
+  const { data } = await api.get<ProcessoRenovacao[]>(PROCESSOS_RENOVACAO_URL, {
+    params: { documento_unidade: documentoUnidadeId },
+  });
+  return data;
+}
+
+// "Salvar protocolo" e "Concluir renovação" (STC-381) usam isto -- PATCH
+// parcial, aceita qualquer subconjunto dos campos editáveis do processo.
+export async function atualizarProcessoRenovacao(
+  id: number,
+  payload: ProcessoRenovacaoAtualizacaoPayload,
+): Promise<ProcessoRenovacao> {
+  const { data } = await api.patch<ProcessoRenovacao>(
+    `${PROCESSOS_RENOVACAO_URL}${id}/`,
     payload,
   );
   return data;
