@@ -286,7 +286,12 @@ export function MovimentacaoProfissionalModal({
               </p>
             </DialogHeader>
 
-            <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            {/* p-1: sem isso, o anel de foco (box-shadow, ~3px além da
+                borda) dos campos w-full ficava cortado rente à borda deste
+                container -- overflow-y-auto sem padding próprio faz o
+                navegador tratar overflow-x também como cortado (achado
+                testando ao vivo: "todas as caixas" tinham o mesmo corte). */}
+            <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs">Tipo de movimentação</Label>
                 <div className="flex rounded-md bg-muted p-0.5">
