@@ -752,4 +752,25 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       }),
     ).not.toBeInTheDocument();
   });
+
+  it("clicar em 'Reportar Movimentação Profissional' abre o MovimentacaoProfissionalModal (STC-382)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }) }),
+    );
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderComponente(55);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /reportar movimentação profissional/i,
+      }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /reportar movimentação profissional/i,
+      }),
+    ).toBeInTheDocument();
+  });
 });
