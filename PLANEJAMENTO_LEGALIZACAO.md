@@ -187,7 +187,7 @@ removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3, P4.4, P4.5 e P4.7 implementados e mergeados em `main` — P4.3/STC-380 (PR #35, 7 rodadas de code review automático, todas corrigidas), P4.4/STC-381 (PR #36, 1 rodada de code review automático, 2 achados corrigidos), P4.5/STC-382 (PR #37, 6 rodadas de code review automático, todas corrigidas), P4.7/STC-415 (PR #34, 2 rodadas de code review automático); P4.6 a iniciar)
+**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3, P4.4, P4.5, P4.7 e P4.8 implementados — P4.3/STC-380 (PR #35, 7 rodadas de code review automático, todas corrigidas), P4.4/STC-381 (PR #36, 1 rodada de code review automático, 2 achados corrigidos), P4.5/STC-382 (PR #37, 6 rodadas de code review automático, todas corrigidas), P4.7/STC-415 (PR #34, 2 rodadas de code review automático), P4.8/STC-434 (branch aberta, ainda sem PR); P4.6 a iniciar)
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
@@ -301,6 +301,18 @@ relação ao plano original abaixo:
 - **Pendência aberta, achada durante essa correção de RBAC**: o carve-out de `evidencias` em `PodeEscreverDocumentoUnidade` libera Admin a fazer POST de evidência em **qualquer** documento, a qualquer momento — não só no cadastro inicial que motivou a exceção. Ainda não corrigido (é backend, fora do escopo da revisão de código desta issue, que cobriu só o frontend) — ver `Plano de Ação §9`.
 - **Cobertura de teste**: suíte RTL dos 3 blocos, incluindo os fluxos de rollback/retry acima; suíte completa do frontend em 298 testes depois da correção dos achados de code review.
 - **Ponto de contato fora de `legalizacao/`, ainda não verificado nesta issue**: o card espelho travado contra arraste manual (backend P3.5) precisa de um ajuste correspondente no Kanban do MP001 (`components/gestao-demandas/KanbanBoard`/`DemandaCard`) — não foi tocado por esta issue, que mexeu só na tela de Administração, não no Kanban.
+
+### P4.8 Botão "Reverter para aplicável" (STC-434) — `mockup` inexistente, mesmo padrão de confirmação simples já usado no módulo
+
+**Status:** ✅ Implementado, branch aberta ainda sem PR (STC-434). Depende do endpoint `documentos/{id}/reverter/` da STC-430 (backend, `PR #36 em revisão`) — implementado e testado contra o contrato já fechado nessa PR, antes do merge.
+
+- Botão em `DetalheDocumentoModal.tsx`, visível só quando `documento.status` é `nao_aplicavel` ou `unidade_encerramento` (`podeReverter`).
+- **Confirmação via `ConfirmDialog` (componente compartilhado, já usado em `AnexoList.tsx`/`ResponsavelSection.tsx`)**, não um modal de formulário — sem campo nenhum pra preencher, batendo com o backend não exigir justificativa pra reverter.
+- Sem payload: `reverterDocumentoLegalizacao(documentoId)` (novo em `lib/legalizacao.ts`) chama o endpoint sem corpo — o backend recalcula o destino sozinho pela `validade`.
+- `useReverterDocumentoLegalizacao` (novo hook, `useDocumentosLegalizacao.ts`) invalida a mesma chave de lista que os outros hooks de mutação do módulo (`ehChaveDeListaDeDocumentos`).
+- **Achado em análise própria de falhas críticas, corrigido antes do push**: antes desta issue, "Marcar como Não aplicável" já era oferecido a partir de `unidade_encerramento` (transição coringa válida no backend, `STATUS_CORINGA_COM_JUSTIFICATIVA`) — sem excluir, os dois botões (uma ação que aprofunda a exceção, outra que desfaz) apareciam juntos na mesma tela pro mesmo documento. Corrigido: `podeMarcarNaoAplicavel` agora exclui sempre que `podeReverter` for verdadeiro (nao_aplicavel **ou** unidade_encerramento), não só `nao_aplicavel` como antes.
+- Segue o mesmo padrão de "fecha o dialog em qualquer desfecho" já usado em `AnexoList.tsx::confirmarExclusao` (try/catch/finally) — `ConfirmDialog`/`AlertDialogAction` (Radix) fecha sozinho ao clicar, então o estado local precisa fechar junto mesmo se a chamada falhar.
+- 6 testes novos em `DetalheDocumentoModal.test.tsx`: botão escondido quando Regular, mostrado nos dois status de origem (e "Marcar como Não aplicável" escondido nesses mesmos dois), confirmação sem payload, sucesso com revalidação de histórico, erro.
 
 ---
 
