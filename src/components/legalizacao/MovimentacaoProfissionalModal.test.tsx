@@ -166,6 +166,32 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     ).toBeInTheDocument();
   });
 
+  it("grupo Tipo de movimentação tem nome acessível associado ao Label (role=group + aria-labelledby)", async () => {
+    renderComponente();
+    await screen.findByRole("heading", {
+      name: /reportar movimentação profissional/i,
+    });
+
+    expect(
+      screen.getByRole("group", { name: "Tipo de movimentação" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ícone, toggle, callout e botão derivam de uma única CSS custom property --mode-color, que muda junto ao trocar de tipo", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByRole("heading", {
+      name: /reportar movimentação profissional/i,
+    });
+
+    const raiz = screen.getByRole("dialog");
+    expect(raiz.style.getPropertyValue("--mode-color")).toContain("red-600");
+
+    await user.click(screen.getByRole("button", { name: "Entrada" }));
+
+    expect(raiz.style.getPropertyValue("--mode-color")).toContain("cyan-700");
+  });
+
   it("clicar em Entrada troca o rótulo do botão e o texto do callout", async () => {
     const user = userEvent.setup();
     renderComponente();

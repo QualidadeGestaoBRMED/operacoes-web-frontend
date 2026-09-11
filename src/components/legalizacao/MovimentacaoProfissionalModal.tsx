@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
 import { AlertTriangle, UserPlus, UserX } from "lucide-react";
 import { toast } from "sonner";
@@ -306,7 +307,16 @@ export function MovimentacaoProfissionalModal({
   }
 
   const IconeModo = tipo === "saida" ? UserX : UserPlus;
-  const corModo = tipo === "saida" ? "text-red-600" : "text-cyan-700";
+  // Fonte única da cor do modo: achado no code review automático (PR #37) --
+  // ícone, toggle, callout e botão repetiam a mesma condição
+  // `tipo === "saida" ? ... : ...` de forma independente, arriscando os três
+  // divergirem numa alteração futura. Todos os quatro agora leem
+  // `var(--mode-color)` (Tailwind v4 expõe a paleta padrão como
+  // `--color-*` em :root), com este único ponto decidindo o valor.
+  const corModoEstilo = {
+    "--mode-color":
+      tipo === "saida" ? "var(--color-red-600)" : "var(--color-cyan-700)",
+  } as CSSProperties;
 
   return (
     // !enviando: achado no code review automático (PR #37) -- Escape,
@@ -321,12 +331,15 @@ export function MovimentacaoProfissionalModal({
       open={aberto}
       onOpenChange={(open) => !open && !enviando && fechar()}
     >
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[480px]">
+      <DialogContent
+        className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[480px]"
+        style={corModoEstilo}
+      >
         {documento && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <IconeModo className={cn("size-4", corModo)} />
+                <IconeModo className="size-4 text-[var(--mode-color)]" />
                 Reportar movimentação profissional
               </DialogTitle>
               <p className="text-[12.5px] text-muted-foreground">
@@ -341,8 +354,19 @@ export function MovimentacaoProfissionalModal({
                 testando ao vivo: "todas as caixas" tinham o mesmo corte). */}
             <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1">
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">Tipo de movimentação</Label>
-                <div className="flex rounded-md bg-muted p-0.5">
+                <Label id="mp-tipo-label" className="text-xs">
+                  Tipo de movimentação
+                </Label>
+                {/* role="group" + aria-labelledby: achado no code review
+                    automático (PR #37) -- o Label visual não tinha nenhuma
+                    associação programática com os dois botões (nem
+                    htmlFor, nem group/aria-label), diferente dos outros
+                    campos do mesmo formulário. */}
+                <div
+                  role="group"
+                  aria-labelledby="mp-tipo-label"
+                  className="flex rounded-md bg-muted p-0.5"
+                >
                   {(["saida", "entrada"] as const).map((valor) => (
                     <button
                       key={valor}
@@ -353,10 +377,7 @@ export function MovimentacaoProfissionalModal({
                       className={cn(
                         "flex-1 rounded-[5px] px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         tipo === valor &&
-                          "bg-card shadow-xs " +
-                            (valor === "saida"
-                              ? "text-red-600"
-                              : "text-cyan-700"),
+                          "bg-card text-[var(--mode-color)] shadow-xs",
                       )}
                     >
                       {valor === "saida" ? "Saída" : "Entrada"}
@@ -530,9 +551,7 @@ export function MovimentacaoProfissionalModal({
               )}
 
               <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-2.5 text-[12px] text-foreground">
-                <AlertTriangle
-                  className={cn("mt-0.5 size-3.5 shrink-0", corModo)}
-                />
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--mode-color)]" />
                 <span>
                   <TextoCallout tipo={tipo} />
                 </span>
@@ -546,11 +565,7 @@ export function MovimentacaoProfissionalModal({
               <Button
                 disabled={!podeConfirmar}
                 onClick={() => void confirmar()}
-                className={cn(
-                  tipo === "saida"
-                    ? "bg-red-600 hover:bg-red-600/90"
-                    : "bg-cyan-700 hover:bg-cyan-700/90",
-                )}
+                className="bg-[var(--mode-color)] hover:opacity-90"
               >
                 {enviando
                   ? "Enviando..."
