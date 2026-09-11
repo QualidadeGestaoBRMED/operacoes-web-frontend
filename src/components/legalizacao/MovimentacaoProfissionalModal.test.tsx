@@ -388,6 +388,39 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     expect(toast.success).toHaveBeenCalledWith("Saída reportada.");
   });
 
+  it("Escape durante o envio não fecha o modal -- só fecha quando o envio realmente terminar", async () => {
+    // Achado no code review automático (PR #37): o componente nunca
+    // desmonta entre aberturas (o pai sempre o renderiza, só troca
+    // `aberto`), então fechar no meio de um envio (Escape, clique no
+    // overlay, "X") deixava a Promise.allSettled em curso resolver depois,
+    // sobrescrevendo o estado já resetado e podendo até disparar
+    // onEntradaConcluida() sozinha, sem nenhuma interação do usuário.
+    let resolverEnvio: (valor: DocumentoUnidade) => void = () => {};
+    vi.mocked(reportarMovimentacaoProfissional).mockReturnValue(
+      new Promise<DocumentoUnidade>((resolve) => {
+        resolverEnvio = resolve;
+      }),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderComponente(true, CNES, onOpenChange);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+    await waitFor(() => {
+      expect(reportarMovimentacaoProfissional).toHaveBeenCalled();
+    });
+
+    await user.keyboard("{Escape}");
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+
+    resolverEnvio({ ...CNES, id: 10 });
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
   describe("encadeamento com o Acompanhar Renovação (STC-382/STC-431)", () => {
     it("Entrada com sucesso total, com o documento de origem marcado, chama onEntradaConcluida", async () => {
       vi.mocked(reportarMovimentacaoProfissional).mockImplementation(

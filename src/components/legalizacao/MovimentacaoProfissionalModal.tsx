@@ -309,7 +309,18 @@ export function MovimentacaoProfissionalModal({
   const corModo = tipo === "saida" ? "text-red-600" : "text-cyan-700";
 
   return (
-    <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
+    // !enviando: achado no code review automático (PR #37) -- Escape,
+    // clique no overlay e o "X" chamam onOpenChange direto, sem passar
+    // pelo botão "Cancelar" (que já respeita `enviando`). O componente
+    // nunca desmonta entre aberturas (o pai sempre o renderiza, só troca
+    // `aberto`), então fechar no meio de um envio deixava a
+    // Promise.allSettled em curso resolver depois, sobrescrevendo o
+    // estado já resetado e podendo até disparar onEntradaConcluida()
+    // sozinha, sem nenhuma interação do usuário.
+    <Dialog
+      open={aberto}
+      onOpenChange={(open) => !open && !enviando && fechar()}
+    >
       <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-[480px]">
         {documento && (
           <>
