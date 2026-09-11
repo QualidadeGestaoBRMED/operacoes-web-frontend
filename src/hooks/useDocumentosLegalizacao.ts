@@ -8,6 +8,7 @@ import {
   criarDocumentoLegalizacao,
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
+  reverterDocumentoLegalizacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
@@ -120,6 +121,25 @@ export function useAtualizarDocumentoLegalizacao() {
 
   return {
     atualizar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// Sem payload (STC-430) -- o backend recalcula o destino sozinho pela
+// validade já registrada, sem exigir justificativa.
+export function useReverterDocumentoLegalizacao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "reverter-documento-legalizacao",
+    (_chave, { arg }: { arg: { id: number } }) =>
+      reverterDocumentoLegalizacao(arg.id),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    reverter: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

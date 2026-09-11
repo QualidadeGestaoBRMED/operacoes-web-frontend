@@ -170,3 +170,15 @@ export async function reportarMovimentacaoProfissional(
   );
   return data;
 }
+
+// Sem payload -- o backend recalcula o destino sozinho pela `validade` já
+// registrada (STC-430). Não exige justificativa, diferente de
+// atualizarDocumentoLegalizacao({status: "nao_aplicavel", ...}).
+export async function reverterDocumentoLegalizacao(
+  documentoId: number,
+): Promise<DocumentoUnidade> {
+  const { data } = await api.post<DocumentoUnidade>(
+    `${DOCUMENTOS_URL}${documentoId}/reverter/`,
+  );
+  return data;
+}
