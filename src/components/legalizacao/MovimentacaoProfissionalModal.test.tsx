@@ -626,6 +626,44 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     expect(screen.queryByText(/não foi possível/i)).not.toBeInTheDocument();
   });
 
+  it("desmarcar o único documento que falhou desabilita o Confirmar, em vez de virar um clique sem efeito", async () => {
+    // Achado no code review automático (PR #37): depois de um sucesso
+    // parcial, desmarcar o documento que falhou (a forma de desistir do
+    // retry) fazia `marcados` sobrar só com ids já confirmados. O rótulo
+    // do botão voltava de "Tentar novamente" pra "Confirmar ...", parecendo
+    // acionável, mas idsParaEnviar ficava vazio -- clique virava no-op
+    // silencioso (sem chamada, sem toast, sem fechar).
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => {
+        if (id === 11) throw new Error("Falha de rede.");
+        return { ...CNES, id };
+      },
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderComponente(true, CNES, onOpenChange);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Registro CREMERJ/ }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Confirmar saída" }),
+    ).toBeDisabled();
+
+    vi.mocked(reportarMovimentacaoProfissional).mockClear();
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+
+    expect(reportarMovimentacaoProfissional).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
   it("um novo clique em 'Tentar novamente' reenvia só o documento que falhou, não o já confirmado", async () => {
     vi.mocked(reportarMovimentacaoProfissional)
       .mockImplementationOnce(async (id) => ({ ...CNES, id })) // CNES (10), 1ª tentativa

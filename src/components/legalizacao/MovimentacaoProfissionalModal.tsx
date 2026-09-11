@@ -234,10 +234,20 @@ export function MovimentacaoProfissionalModal({
   // evento (mesma pessoa, mesma data) ficarem com semânticas diferentes no
   // histórico -- um "saída", o outro "entrada", por exemplo.
   const jaTentouEnviar = confirmados.size > 0 || haErroPendente;
+  // Achado no code review automático (PR #37): `marcados.size > 0` não
+  // basta -- depois de um sucesso parcial, desmarcar o único documento que
+  // falhou (a forma de desistir do retry, ver alternarMarcado) deixa
+  // `marcados` só com ids já confirmados. `haErroPendente` some, o botão
+  // volta a "Confirmar ..." parecendo acionável, mas idsParaEnviar em
+  // confirmar() fica vazio -- clique virava no-op silencioso. Precisa
+  // sobrar pelo menos 1 id marcado e ainda não confirmado.
+  const haAlgoParaEnviar = Array.from(marcados).some(
+    (id) => !confirmados.has(id),
+  );
   const podeConfirmar =
     !!profissional.trim() &&
     !!data &&
-    marcados.size > 0 &&
+    haAlgoParaEnviar &&
     !antecedenciaDosimetroInsuficiente &&
     !enviando;
 
