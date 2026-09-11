@@ -314,6 +314,16 @@ relação ao plano original abaixo:
 - Segue o mesmo padrão de "fecha o dialog em qualquer desfecho" já usado em `AnexoList.tsx::confirmarExclusao` (try/catch/finally) — `ConfirmDialog`/`AlertDialogAction` (Radix) fecha sozinho ao clicar, então o estado local precisa fechar junto mesmo se a chamada falhar.
 - 6 testes novos em `DetalheDocumentoModal.test.tsx`: botão escondido quando Regular, mostrado nos dois status de origem (e "Marcar como Não aplicável" escondido nesses mesmos dois), confirmação sem payload, sucesso com revalidação de histórico, erro.
 
+### P4.9 Restringir upload de evidência a PDF (STC-433) — sem mockup próprio
+
+**Status:** ✅ Implementado, branch aberta ainda sem PR. Depende do backend (STC-429, já mergeado em `main`) rejeitar qualquer extensão além de `.pdf`.
+
+- `ACCEPT_EVIDENCIA` (`ProcessoRenovacaoModal.tsx`) e o `accept` do input de evidência em `FormCadastrarDocumento.tsx` (Administração do Catálogo) restritos de `.pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg` pra só `.pdf`.
+- Erro amigável quando o backend rejeitar um arquivo não-PDF já era coberto de graça pelo mecanismo existente: os dois componentes já envolvem o upload em `try/catch` com `extrairMensagemErro` (`lib/erros.ts`), que já normaliza o corpo `{"arquivo": ["..."]}` do DRF numa string exibível — nenhum código novo de tratamento de erro foi necessário.
+- 2 testes novos (um por componente), cada um confirmando `accept=".pdf"` no único `input[type="file"]` da árvore renderizada.
+- Fora de escopo, conforme a issue: qualquer mudança em Gestão de Demandas (`AnexoSerializer`/`ACCEPT` próprios, inalterados).
+- Análise própria de falhas críticas não encontrou nenhum achado: mudança mínima, os dois arquivos ficaram consistentes entre si, nenhum outro ponto de upload de evidência no módulo (`DetalheDocumentoModal.tsx` só lista/exibe evidências, não tem input de arquivo).
+
 ---
 
 ## Pacote P6 — Testes e Homologação

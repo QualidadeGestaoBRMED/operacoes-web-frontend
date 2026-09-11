@@ -372,6 +372,18 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       ).toBeDisabled();
     });
 
+    it("input de evidência aceita só PDF (STC-433)", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+
+      expect(inputArquivo).toHaveAttribute("accept", ".pdf");
+    });
+
     it("Concluir envia a evidência e depois o PATCH status=concluido com nova_validade", async () => {
       vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
       vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({

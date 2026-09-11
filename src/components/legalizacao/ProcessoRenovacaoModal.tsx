@@ -31,7 +31,9 @@ import type {
 
 // Mesma whitelist de FormCadastrarDocumento.tsx (Administração) -- mesmos
 // tipos de arquivo aceitos em todo o módulo.
-const ACCEPT_EVIDENCIA = ".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg";
+// STC-433: restrito a PDF -- o backend (validar_arquivo, core/arquivos.py)
+// já rejeita qualquer outra extensão para evidências de Legalização.
+const ACCEPT_EVIDENCIA = ".pdf";
 
 // Exportado -- reaproveitado no Histórico do documento (DetalheDocumentoModal.tsx)
 // pra traduzir o valor cru de HistoricoRegulatorio quando acao=="processo_status".
