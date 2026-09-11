@@ -5,6 +5,7 @@ import type {
   DocumentoUnidadePayload,
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
+  MovimentacaoProfissionalPayload,
   ProcessoRenovacao,
   ProcessoRenovacaoAtualizacaoPayload,
   ProcessoRenovacaoPayload,
@@ -150,6 +151,21 @@ export async function atualizarProcessoRenovacao(
 ): Promise<ProcessoRenovacao> {
   const { data } = await api.patch<ProcessoRenovacao>(
     `${PROCESSOS_RENOVACAO_URL}${id}/`,
+    payload,
+  );
+  return data;
+}
+
+// Não existe endpoint em lote (STC-382) -- uma chamada por documento
+// marcado no modal de Movimentação Profissional, cada uma independente
+// (Promise.allSettled no componente, não aqui). Devolve o DocumentoUnidade
+// já atualizado (status novo), mesmo shape de leitura de buscarDocumentoLegalizacao.
+export async function reportarMovimentacaoProfissional(
+  documentoId: number,
+  payload: MovimentacaoProfissionalPayload,
+): Promise<DocumentoUnidade> {
+  const { data } = await api.post<DocumentoUnidade>(
+    `${DOCUMENTOS_URL}${documentoId}/movimentacao-profissional/`,
     payload,
   );
   return data;

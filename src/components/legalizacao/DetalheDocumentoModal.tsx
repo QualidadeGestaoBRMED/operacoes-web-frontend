@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
 import {
   LABEL_STATUS_PROCESSO,
   ProcessoRenovacaoModal,
@@ -32,6 +33,7 @@ import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
 import {
+  CODIGOS_MOVIMENTACAO_PROFISSIONAL,
   COR_CRITICIDADE_ALTA,
   COR_STATUS_BADGE,
   LABEL_CATEGORIA,
@@ -54,19 +56,6 @@ import type {
   StatusDocumento,
   StatusProcessoRenovacao,
 } from "@/types/legalizacao";
-
-// Mesmo raciocínio de CODIGO_TIPO_DOCUMENTO_DOSIMETRIA (backend, RN12) --
-// sem flag estrutural pra "este tipo aceita movimentação profissional",
-// código fixo do catálogo seed (RN11). CRM/RT tem 2 códigos hoje (CREMERJ/
-// COREN, ver seed_catalogo_legalizacao.py); se novos conselhos profissionais
-// forem cadastrados no catálogo (ex. biomedicina, citado no Plano de Ação),
-// este conjunto precisa crescer junto -- não é um campo estrutural real.
-const CODIGOS_MOVIMENTACAO_PROFISSIONAL = new Set([
-  "cnes",
-  "dosimetria",
-  "registro-cremerj",
-  "registro-coren",
-]);
 
 // Duplicado de TabelaTiposDocumento.tsx (Administração) de propósito --
 // mesmo padrão já aceito no módulo pra rótulos pequenos e fixos.
@@ -291,6 +280,10 @@ export function DetalheDocumentoModal({
     useState(false);
   const [mostrandoProcessoRenovacao, setMostrandoProcessoRenovacao] =
     useState(false);
+  const [
+    mostrandoMovimentacaoProfissional,
+    setMostrandoMovimentacaoProfissional,
+  ] = useState(false);
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -314,6 +307,7 @@ export function DetalheDocumentoModal({
     setJustificativa("");
     setMostrandoHistoricoEvidencias(false);
     setMostrandoProcessoRenovacao(false);
+    setMostrandoMovimentacaoProfissional(false);
     onOpenChange(false);
   }
 
@@ -600,14 +594,14 @@ export function DetalheDocumentoModal({
                         </Button>
                       )}
                       {mostraMovimentacaoProfissional && (
-                        // onClick chega na STC-382 -- por enquanto só a
-                        // visibilidade condicional (critério de aceite desta
-                        // issue) está implementada.
                         <Button
                           variant="outline"
                           className="border-red-600/40 text-red-700 hover:bg-red-600/5 hover:text-red-700"
+                          onClick={() =>
+                            setMostrandoMovimentacaoProfissional(true)
+                          }
                         >
-                          Reportar Movimentação Profissional
+                          Reportar Movimentação
                         </Button>
                       )}
                     </div>
@@ -742,6 +736,21 @@ export function DetalheDocumentoModal({
           void mutateHistorico().catch(() => {});
           void mutateEvidencias().catch(() => {});
         }}
+      />
+      <MovimentacaoProfissionalModal
+        documento={documento ?? null}
+        aberto={mostrandoMovimentacaoProfissional}
+        onOpenChange={setMostrandoMovimentacaoProfissional}
+        onAtualizado={() => {
+          // Reportar movimentação também pode mudar OUTROS documentos da
+          // mesma unidade (checklist), não só este -- cada um já invalida a
+          // própria chave em useReportarMovimentacaoProfissional; aqui só
+          // garante que ESTE modal (o documento que abriu a ação) refaz
+          // fetch mesmo que ele próprio não estivesse marcado no checklist.
+          void mutate();
+          void mutateHistorico().catch(() => {});
+        }}
+        onEntradaConcluida={() => setMostrandoProcessoRenovacao(true)}
       />
     </>
   );
