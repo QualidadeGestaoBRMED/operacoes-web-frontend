@@ -404,9 +404,18 @@ export function MovimentacaoProfissionalModal({
                   disabled={enviando || jaTentouEnviar}
                   onChange={(evento) => setData(evento.target.value)}
                   className="max-w-[200px]"
+                  aria-describedby={
+                    antecedenciaDosimetroInsuficiente
+                      ? "mp-data-erro"
+                      : undefined
+                  }
                 />
                 {antecedenciaDosimetroInsuficiente && (
-                  <p className="text-[11.5px] text-destructive">
+                  <p
+                    id="mp-data-erro"
+                    role="alert"
+                    className="text-[11.5px] text-destructive"
+                  >
                     Entrada em documento de Dosimetria exige data com pelo menos{" "}
                     {ANTECEDENCIA_MINIMA_DOSIMETRO_DIAS} dias de antecedência
                     (RN12).
@@ -435,6 +444,16 @@ export function MovimentacaoProfissionalModal({
                     {documentosAfetados.map((doc) => {
                       const confirmado = confirmados.has(doc.id);
                       const erro = errosPorDocumento[doc.id];
+                      const ehCnesComAviso =
+                        doc.tipo_documento.codigo === CODIGO_CNES &&
+                        !!documentoCnesMarcado;
+                      const idErro = `mp-erro-${doc.id}`;
+                      const describedBy = [
+                        erro ? idErro : null,
+                        ehCnesComAviso ? "mp-aviso-cnes" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
                       return (
                         <div key={doc.id} className="flex flex-col gap-1">
                           <label
@@ -446,6 +465,7 @@ export function MovimentacaoProfissionalModal({
                             <Checkbox
                               checked={marcados.has(doc.id)}
                               disabled={confirmado || enviando}
+                              aria-describedby={describedBy || undefined}
                               onCheckedChange={() => alternarMarcado(doc.id)}
                             />
                             {doc.tipo_documento.nome}
@@ -456,7 +476,11 @@ export function MovimentacaoProfissionalModal({
                             )}
                           </label>
                           {erro && (
-                            <p className="pl-2 text-[11.5px] text-destructive">
+                            <p
+                              id={idErro}
+                              role="alert"
+                              className="pl-2 text-[11.5px] text-destructive"
+                            >
                               {erro}
                             </p>
                           )}
@@ -468,7 +492,11 @@ export function MovimentacaoProfissionalModal({
               </div>
 
               {documentoCnesMarcado && (
-                <div className="flex items-start gap-2 rounded-md border border-amber-600/25 bg-amber-600/5 p-2.5 text-[12px] text-foreground">
+                <div
+                  id="mp-aviso-cnes"
+                  role="status"
+                  className="flex items-start gap-2 rounded-md border border-amber-600/25 bg-amber-600/5 p-2.5 text-[12px] text-foreground"
+                >
                   <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-700" />
                   <span>
                     {janelaCnes?.janela_dia_inicio != null &&

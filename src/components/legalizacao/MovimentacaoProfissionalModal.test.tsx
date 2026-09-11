@@ -287,6 +287,26 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
         screen.getByRole("button", { name: "Confirmar saída" }),
       ).toBeEnabled();
     });
+
+    it("o aviso de RN12 é anunciado (role=alert) e ligado ao campo Data via aria-describedby", async () => {
+      // Achado no code review automático (PR #37): erros/avisos dinâmicos
+      // não eram anunciados pra leitor de tela.
+      const user = userEvent.setup();
+      renderComponente();
+      await screen.findByText("CNES");
+      await preencherObrigatorios(user);
+      await user.click(screen.getByRole("button", { name: "Entrada" }));
+      await user.click(
+        screen.getByRole("checkbox", { name: /Controle de Dosimetria/ }),
+      );
+
+      const aviso = screen.getByRole("alert");
+      expect(aviso).toHaveTextContent(/RN12/);
+      expect(screen.getByLabelText(/data da movimentação/i)).toHaveAttribute(
+        "aria-describedby",
+        aviso.id,
+      );
+    });
   });
 
   describe("RN13 -- janela do CNES", () => {
@@ -322,6 +342,18 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
       await user.click(screen.getByRole("checkbox", { name: /CNES/ }));
 
       expect(screen.queryByText(/RN13/)).not.toBeInTheDocument();
+    });
+
+    it("o aviso do CNES é anunciado (role=status, não interrompe como alert) e ligado ao checkbox do CNES via aria-describedby", async () => {
+      renderComponente();
+      await screen.findByText("CNES");
+
+      const aviso = screen.getByRole("status");
+      expect(aviso).toHaveTextContent(/RN13/);
+      expect(screen.getByRole("checkbox", { name: /CNES/ })).toHaveAttribute(
+        "aria-describedby",
+        aviso.id,
+      );
     });
   });
 
@@ -465,6 +497,21 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
         "Confirmado",
       ),
     ).toBeInTheDocument();
+
+    // Achado no code review automático (PR #37): o erro por documento
+    // precisa ser anunciado (role=alert) e ligado ao checkbox correspondente
+    // via aria-describedby, não só visível na tela. Escopo mais estreito
+    // aqui (só a linha do CREMERJ, não a lista inteira) pra pegar o
+    // checkbox certo.
+    const linhaCremerjEstreita = screen
+      .getByText("Registro CREMERJ")
+      .closest("div")!;
+    const erroCremerj = within(linhaCremerjEstreita).getByRole("alert");
+    expect(erroCremerj).toHaveTextContent(/não foi possível/i);
+    expect(within(linhaCremerjEstreita).getByRole("checkbox")).toHaveAttribute(
+      "aria-describedby",
+      erroCremerj.id,
+    );
   });
 
   it("depois de uma tentativa parcial, trava Tipo/Profissional/Função/Data -- retry não pode virar um evento diferente do original", async () => {
