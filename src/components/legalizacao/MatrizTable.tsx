@@ -242,7 +242,13 @@ export function MatrizTable({
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div className="truncate">
+                          {/* STC-432: tipo controlado_por_profissional
+                              (Dosimetria) pode ter várias linhas do mesmo
+                              tipo+unidade, uma por profissional -- sem o
+                              nome aqui, ficariam indistinguíveis na Lista. */}
                           {documento.tipo_documento.nome}
+                          {documento.profissional &&
+                            ` — ${documento.profissional}`}
                         </div>
                         <div className="truncate text-[11px] text-muted-foreground">
                           {LABEL_CATEGORIA[documento.tipo_documento.categoria]}

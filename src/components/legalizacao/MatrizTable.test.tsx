@@ -43,6 +43,7 @@ function tipo(
     exige_validade: true,
     exige_protocolo: false,
     exige_evidencia: true,
+    controlado_por_profissional: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -69,6 +70,7 @@ function documento(
         created_at: "2026-01-01T00:00:00Z",
       },
     ],
+    profissional: "",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -133,5 +135,52 @@ describe("MatrizTable (STC-380, acessibilidade da linha clicável)", () => {
 
     await user.keyboard("{Enter}");
     expect(onClickLinha).toHaveBeenCalledTimes(1);
+  });
+
+  it("mostra o profissional junto ao tipo pra diferenciar linhas do mesmo tipo+unidade (STC-432)", () => {
+    const tipoDosimetria = tipo({
+      id: 9,
+      codigo: "dosimetria",
+      nome: "Dosimetria",
+      controlado_por_profissional: true,
+    });
+    render(
+      <table>
+        <MatrizTable
+          documentos={[
+            documento({
+              id: 1,
+              tipo_documento: tipoDosimetria,
+              profissional: "Dr. João",
+            }),
+            documento({
+              id: 2,
+              tipo_documento: tipoDosimetria,
+              profissional: "Dra. Maria",
+            }),
+          ]}
+          carregandoPrimeiraVez={false}
+          ordenacao={null}
+          onOrdenar={vi.fn()}
+          refTabela={{ current: null }}
+          maxHeight={undefined}
+          onClickLinha={vi.fn()}
+        />
+      </table>,
+    );
+
+    expect(screen.getByText("Dosimetria — Dr. João")).toBeInTheDocument();
+    expect(screen.getByText("Dosimetria — Dra. Maria")).toBeInTheDocument();
+  });
+
+  it("não mostra separador quando o documento não tem profissional (tipo comum)", () => {
+    renderTabela(vi.fn());
+
+    // getByText casa a string inteira do nó de texto -- se tivesse anexado
+    // " — <profissional>" (documento() default tem profissional: ""), essa
+    // busca exata não encontraria nada.
+    expect(
+      screen.getByText("Alvará de Funcionamento"),
+    ).toBeInTheDocument();
   });
 });

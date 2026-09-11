@@ -67,6 +67,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       exige_validade: true,
       exige_protocolo: false,
       exige_evidencia: true,
+      controlado_por_profissional: false,
       ativo: true,
       created_at: "2026-01-01T00:00:00Z",
     });
@@ -118,6 +119,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       exige_validade: false,
       exige_protocolo: true,
       exige_evidencia: false,
+      controlado_por_profissional: false,
       ativo: true,
       created_at: "2026-01-01T00:00:00Z",
     });
