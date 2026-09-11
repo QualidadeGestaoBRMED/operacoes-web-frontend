@@ -325,6 +325,19 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("input de evidência aceita só PDF (STC-433)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+
+    expect(inputArquivo).toHaveAttribute("accept", ".pdf");
+  });
+
   it("com evidência anexada, envia o arquivo pro documento recém-criado", async () => {
     vi.mocked(criarRegraDocumento).mockResolvedValue({
       id: 55,

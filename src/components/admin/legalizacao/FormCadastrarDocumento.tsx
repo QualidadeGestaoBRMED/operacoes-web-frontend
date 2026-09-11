@@ -640,7 +640,10 @@ export function FormCadastrarDocumento({
                   <input
                     ref={inputArquivoRef}
                     type="file"
-                    accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg"
+                    // STC-433: restrito a PDF -- o backend (validar_arquivo,
+                    // core/arquivos.py) já rejeita qualquer outra extensão
+                    // para evidências de Legalização.
+                    accept=".pdf"
                     className="hidden"
                     onChange={(evento) =>
                       setArquivo(evento.target.files?.[0] ?? null)
