@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import {
 import {
   useAtualizarDocumentoLegalizacao,
   useDocumentoLegalizacao,
+  useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
@@ -284,6 +286,8 @@ export function DetalheDocumentoModal({
     mostrandoMovimentacaoProfissional,
     setMostrandoMovimentacaoProfissional,
   ] = useState(false);
+  const [mostrandoConfirmarReversao, setMostrandoConfirmarReversao] =
+    useState(false);
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -301,6 +305,8 @@ export function DetalheDocumentoModal({
   } = useHistoricoLegalizacao(aberto ? documentoId : null);
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
+  const { reverter, isLoading: revertendo } =
+    useReverterDocumentoLegalizacao();
 
   function fechar() {
     setMostrandoJustificativa(false);
@@ -308,6 +314,7 @@ export function DetalheDocumentoModal({
     setMostrandoHistoricoEvidencias(false);
     setMostrandoProcessoRenovacao(false);
     setMostrandoMovimentacaoProfissional(false);
+    setMostrandoConfirmarReversao(false);
     onOpenChange(false);
   }
 
@@ -338,6 +345,23 @@ export function DetalheDocumentoModal({
     // documento em si) -- sem isto, o registro dessa ação só aparecia depois
     // de fechar e reabrir o modal.
     void mutateHistorico().catch(() => {});
+  }
+
+  async function reverterParaAplicavel() {
+    if (!documento) return;
+    // Mesmo padrão de AnexoList.tsx (ConfirmDialog/AlertDialogAction fecha
+    // sozinho ao clicar, então o estado precisa fechar junto em qualquer
+    // desfecho, não só sucesso).
+    try {
+      await reverter({ id: documento.id });
+      toast.success("Documento revertido para aplicável.");
+      void mutate().catch(() => {});
+      void mutateHistorico().catch(() => {});
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setMostrandoConfirmarReversao(false);
+    }
   }
 
   const prazo = documento ? prazoDocumento(documento) : null;
@@ -378,8 +402,18 @@ export function DetalheDocumentoModal({
     !processoJaEmCurso &&
     documento.status !== "nao_aplicavel" &&
     documento.status !== "unidade_encerramento";
-  const podeMarcarNaoAplicavel =
-    documento && documento.status !== "nao_aplicavel";
+  // STC-430 (backend): reverter só é aceito a partir desses dois status.
+  const podeReverter =
+    documento?.status === "nao_aplicavel" ||
+    documento?.status === "unidade_encerramento";
+  // Achado em análise própria de falhas críticas (STC-434): antes do
+  // Reverter existir, oferecer "Marcar como Não aplicável" a partir de
+  // Unidade em encerramento já era uma transição válida (STATUS_CORINGA_
+  // COM_JUSTIFICATIVA, backend), só não tinha um botão oposto na mesma
+  // tela pra conflitar visualmente. Excluir sempre que podeReverter (nao_
+  // aplicavel OU unidade_encerramento) evita as duas ações opostas
+  // aparecerem juntas.
+  const podeMarcarNaoAplicavel = documento && !podeReverter;
 
   return (
     <>
@@ -593,6 +627,14 @@ export function DetalheDocumentoModal({
                           Marcar como Não aplicável
                         </Button>
                       )}
+                      {podeReverter && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setMostrandoConfirmarReversao(true)}
+                        >
+                          Reverter para aplicável
+                        </Button>
+                      )}
                       {mostraMovimentacaoProfissional && (
                         <Button
                           variant="outline"
@@ -751,6 +793,15 @@ export function DetalheDocumentoModal({
           void mutateHistorico().catch(() => {});
         }}
         onEntradaConcluida={() => setMostrandoProcessoRenovacao(true)}
+      />
+      <ConfirmDialog
+        open={mostrandoConfirmarReversao}
+        onOpenChange={setMostrandoConfirmarReversao}
+        titulo="Reverter para aplicável"
+        descricao="O documento volta a ser aplicável a esta unidade. O status é recalculado pela validade já registrada (sem validade vira Não iniciado, validade vencida vira Vencido, validade futura vira Regular)."
+        textoConfirmar="Reverter"
+        isLoading={revertendo}
+        onConfirmar={() => void reverterParaAplicavel()}
       />
     </>
   );

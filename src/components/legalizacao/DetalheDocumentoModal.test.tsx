@@ -32,6 +32,7 @@ import {
   listarEvidenciasLegalizacao,
   listarHistoricoLegalizacao,
   listarProcessosRenovacao,
+  reverterDocumentoLegalizacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
 import { toast } from "sonner";
@@ -526,6 +527,120 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     expect(
       screen.queryByRole("button", { name: "Marcar como Não aplicável" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("esconde 'Reverter para aplicável' quando o documento é Regular", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    expect(
+      screen.queryByRole("button", { name: "Reverter para aplicável" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each(["nao_aplicavel", "unidade_encerramento"] as const)(
+    "mostra 'Reverter para aplicável' e esconde 'Marcar como Não aplicável' quando o documento está %s",
+    async (status) => {
+      // Achado em análise própria de falhas críticas: antes desta issue,
+      // "Marcar como Não aplicável" também aparecia em Unidade em
+      // encerramento (transição coringa válida no backend) -- sem excluir
+      // aqui, as duas ações opostas ficavam visíveis juntas.
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ status, justificativa_excecao: "x" }),
+      );
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      expect(
+        screen.getByRole("button", { name: "Reverter para aplicável" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Marcar como Não aplicável" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("'Reverter para aplicável' não exige justificativa -- confirmar chama a API sem payload", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_aplicavel", justificativa_excecao: "x" }),
+    );
+    vi.mocked(reverterDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_iniciado", justificativa_excecao: "" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Reverter para aplicável" }),
+    );
+    expect(
+      screen.getByText(/o status é recalculado pela validade/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reverter" }));
+
+    await waitFor(() => {
+      expect(reverterDocumentoLegalizacao).toHaveBeenCalledWith(55);
+    });
+  });
+
+  it("'Reverter para aplicável' mostra sucesso e revalida documento e histórico", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_aplicavel", justificativa_excecao: "x" }),
+    );
+    vi.mocked(reverterDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "nao_iniciado", justificativa_excecao: "" }),
+    );
+    vi.mocked(listarHistoricoLegalizacao)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        historico({
+          acao: "status",
+          valor_anterior: "nao_aplicavel",
+          valor_novo: "nao_iniciado",
+        }),
+      ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Reverter para aplicável" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Reverter" }));
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        "Documento revertido para aplicável.",
+      );
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+    expect(await screen.findByText('"Não iniciado"')).toBeInTheDocument();
+  });
+
+  it("'Reverter para aplicável' mostra erro quando a API falha", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "unidade_encerramento", justificativa_excecao: "x" }),
+    );
+    vi.mocked(reverterDocumentoLegalizacao).mockRejectedValue(
+      new Error("Falha de rede."),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Reverter para aplicável" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Reverter" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it.each(["em_andamento", "protocolado"] as const)(
