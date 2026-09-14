@@ -5,15 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardList, Home, Lock, Settings, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useModulosNavegacao } from "@/hooks/useModulosNavegacao";
 import { cn } from "@/lib/utils";
-import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 
 // Hub escondido por enquanto (bloqueado de vez, ver src/app/(app)/hub/page.tsx):
 // com um só módulo ativo, um painel agregador não tem o que agregar ainda.
 // Componentes ficam intactos em src/app/(app)/hub/HubContent.tsx -- reativar:
 // trocar o redirect de hub/page.tsx e mover "Hub" de volta pra cima como
 // SidebarLink (e apontar os redirects de login/raiz pra "/hub" de novo).
-const MODULOS_BLOQUEADOS = [{ nome: "Hub", icon: Home }, ...MODULOS_FUTUROS];
+// Fica sempre bloqueado, sempre primeiro -- não é um Modulo real do backend,
+// não passa pelo cruzamento de status que useModulosNavegacao faz.
+const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
 
 // onNavegar: opcional -- só o AppShell em modo overlay mobile passa algo
 // (fecha o drawer ao escolher um destino); no modo "push" (desktop/tablet)
@@ -22,6 +24,15 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
   const { isAdminQG, isAdminOps } = useAuth();
+  // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
+  // Modulo.status === "ativo" no backend viram link de verdade; o resto
+  // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
+  const modulosNavegacao = useModulosNavegacao();
+  const modulosAtivos = modulosNavegacao.filter((modulo) => modulo.ativo);
+  const modulosBloqueados = [
+    HUB_BLOQUEADO,
+    ...modulosNavegacao.filter((modulo) => !modulo.ativo),
+  ];
 
   return (
     // h-full: achado no dogfooding do overlay mobile -- sem altura própria,
@@ -59,9 +70,23 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
           onClick={onNavegar}
         />
 
+        {/* rota as string: useModulosNavegacao só marca ativo=true quando
+            rota também está preenchida (ver ModuloNavegacao.ativo) --
+            garantia do hook, não repetida aqui em runtime. */}
+        {modulosAtivos.map((modulo) => (
+          <SidebarLink
+            key={modulo.nome}
+            href={modulo.rota as string}
+            icon={modulo.icon}
+            label={modulo.nome}
+            active={pathname.startsWith(modulo.rota as string)}
+            onClick={onNavegar}
+          />
+        ))}
+
         <div className="my-2.5 h-px bg-sidebar-border/40" />
 
-        {MODULOS_BLOQUEADOS.map((modulo) => (
+        {modulosBloqueados.map((modulo) => (
           <SidebarLinkBloqueado
             key={modulo.nome}
             icon={modulo.icon ?? Lock}
