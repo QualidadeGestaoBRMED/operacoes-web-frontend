@@ -414,7 +414,7 @@ export function FormCadastrarDocumento({
             validade: valores.validade || null,
             regra_aplicada: regra.id,
             ...(tipoControladoPorProfissional && {
-              profissional: valores.profissional,
+              profissional: profissionalTrimado,
             }),
           });
         } catch (erroDocumento) {

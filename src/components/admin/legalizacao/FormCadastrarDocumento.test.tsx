@@ -900,5 +900,55 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       });
       expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
     });
+
+    it("trim: o caminho normal (com regra) envia o profissional sem espaços, não o valor bruto do input", async () => {
+      // Achado no code review automático do PR: o trim só tinha sido
+      // aplicado no caminho "Não aplicável" (o de exceção) -- o caminho
+      // comum, que cria/reaproveita uma regra, ainda mandava o valor bruto
+      // do input pro backend.
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      vi.mocked(criarRegraDocumento).mockResolvedValue({
+        id: 55,
+        tipo_documento: TIPO_DOSIMETRIA.id,
+        unidade: UNIDADE.id,
+        antecedencia_dias: 60,
+        periodicidade_meses: null,
+        janela_dia_inicio: null,
+        janela_dia_fim: null,
+        criticidade: "alta",
+        vigente_a_partir: "2026-01-01",
+        ativa: true,
+        gera_card_demanda: true,
+        created_at: "2026-01-01T00:00:00Z",
+      });
+      vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+        }),
+      );
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "  Dr. João  ");
+      await preencherCamposObrigatorios(user);
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      await waitFor(() => {
+        expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+          expect.objectContaining({ profissional: "Dr. João" }),
+        );
+      });
+    });
   });
 });
