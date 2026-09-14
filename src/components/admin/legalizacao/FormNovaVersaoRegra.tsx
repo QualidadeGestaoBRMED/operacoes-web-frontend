@@ -380,6 +380,25 @@ export function FormNovaVersaoRegra() {
             <p className="text-destructive">
               Não foi possível carregar o documento: {mensagemErro}
             </p>
+          ) : documentos.length > 1 ? (
+            // STC-432 (achado em análise própria de falhas críticas): tipos
+            // controlado_por_profissional (Dosimetria) podem ter mais de um
+            // documento pra esta combinação unidade+tipo, um por
+            // profissional -- este fluxo foi desenhado assumindo no máximo
+            // um. Escolher documentos[0] às cegas corrigiria a regra de um
+            // profissional arbitrário sem avisar que os outros existem, e
+            // reaproveitar essa regra em FormCadastrarDocumento.tsx pra um
+            // profissional novo passaria a depender de qual documento a API
+            // devolveu primeiro. Bloqueia até este fluxo suportar de fato
+            // múltiplos documentos por combinação.
+            <p className="text-muted-foreground">
+              Este tipo de documento é controlado por profissional e tem{" "}
+              {documentos.length} documentos cadastrados nesta unidade (um por
+              profissional, mesma regra pra todos). Corrigir a regra por
+              aqui ainda não tem suporte pra esse caso -- avisar o time
+              técnico antes de tentar contornar isso criando uma regra
+              separada.
+            </p>
           ) : !documento ? (
             <p className="text-muted-foreground">
               Nenhum documento cadastrado para esta combinação. Use

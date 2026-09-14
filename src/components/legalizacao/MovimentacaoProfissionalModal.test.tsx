@@ -40,6 +40,7 @@ function tipo(
     exige_validade: false,
     exige_protocolo: false,
     exige_evidencia: false,
+    controlado_por_profissional: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -75,6 +76,7 @@ function doc(overrides: Partial<DocumentoUnidade>): DocumentoUnidade {
     evidencia_vigente: null,
     regra_aplicada: null,
     responsaveis: [],
+    profissional: "",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -99,7 +101,19 @@ const DOSIMETRIA = doc({
     id: 3,
     codigo: "dosimetria",
     nome: "Controle de Dosimetria",
+    controlado_por_profissional: true,
   }),
+  profissional: "Dr. João",
+});
+const DOSIMETRIA_2 = doc({
+  id: 14,
+  tipo_documento: tipo({
+    id: 3,
+    codigo: "dosimetria",
+    nome: "Controle de Dosimetria",
+    controlado_por_profissional: true,
+  }),
+  profissional: "Dra. Maria",
 });
 const ALVARA = doc({
   id: 13,
@@ -110,7 +124,7 @@ const ALVARA = doc({
   }),
 });
 const COREN_VENCIDO = doc({
-  id: 14,
+  id: 15,
   status: "vencido",
   tipo_documento: tipo({ id: 5, codigo: "registro-coren", nome: "Registro COREN" }),
 });
@@ -217,7 +231,11 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
 
     expect(await screen.findByText("CNES")).toBeInTheDocument();
     expect(screen.getByText("Registro CREMERJ")).toBeInTheDocument();
-    expect(screen.getByText("Controle de Dosimetria")).toBeInTheDocument();
+    // Dosimetria mostra o profissional junto (STC-432) -- não é mais um nó
+    // de texto exato "Controle de Dosimetria" sozinho.
+    expect(
+      screen.getByText(/Controle de Dosimetria — Dr\. João/),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("Alvará de Funcionamento"),
     ).not.toBeInTheDocument();
@@ -236,7 +254,7 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     ).not.toBeChecked();
   });
 
-  it("trocar Função pra Técnico de Radiologia marca CNES e Dosimetria, desmarca CREMERJ", async () => {
+  it("trocar Função pra Técnico de Radiologia marca CNES, desmarca CREMERJ -- Dosimetria fica de fora da sugestão (STC-432)", async () => {
     const user = userEvent.setup();
     renderComponente();
     await screen.findByText("CNES");
@@ -246,9 +264,14 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
       await screen.findByRole("option", { name: "Técnico de Radiologia" }),
     );
 
+    // Dosimetria é controlado_por_profissional -- com mais de um documento
+    // do mesmo tipo na unidade (um por profissional), a sugestão automática
+    // não tem como saber qual é o certo, então nunca pré-marca; exige
+    // escolha manual sempre (ver alternarMarcado/pré-seleção).
     expect(
       screen.getByRole("checkbox", { name: /Controle de Dosimetria/ }),
-    ).toBeChecked();
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^CNES/ })).toBeChecked();
     expect(
       screen.getByRole("checkbox", { name: /Registro CREMERJ/ }),
     ).not.toBeChecked();
@@ -748,5 +771,87 @@ describe("MovimentacaoProfissionalModal -- documento já Vencido (STC-437)", () 
     expect(
       screen.getByRole("checkbox", { name: /Registro COREN/ }),
     ).not.toBeChecked();
+  });
+});
+
+describe("MovimentacaoProfissionalModal -- tipos controlado_por_profissional (STC-432)", () => {
+  beforeEach(() => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      CNES,
+      DOSIMETRIA,
+      DOSIMETRIA_2,
+    ]);
+  });
+
+  it("marcar um segundo documento controlado por profissional desmarca o primeiro", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Dr\. João/ }),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: /Dr\. João/ }),
+    ).toBeChecked();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Dra\. Maria/ }),
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: /Dr\. João/ }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: /Dra\. Maria/ }),
+    ).toBeChecked();
+  });
+
+  it("'Saída' com um documento controlado marcado trava Profissional no nome já associado a ele", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(screen.getByRole("checkbox", { name: /Dr\. João/ }));
+
+    const campoProfissional = screen.getByLabelText("Profissional");
+    expect(campoProfissional).toHaveValue("Dr. João");
+    expect(campoProfissional).toBeDisabled();
+  });
+
+  it("'Entrada' com um documento controlado marcado deixa Profissional livre pra cadastrar alguém novo", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(screen.getByRole("button", { name: "Entrada" }));
+    await user.click(screen.getByRole("checkbox", { name: /Dr\. João/ }));
+
+    const campoProfissional = screen.getByLabelText("Profissional");
+    expect(campoProfissional).not.toBeDisabled();
+    await user.type(campoProfissional, "Dr. João Substituto");
+    expect(campoProfissional).toHaveValue("Dr. João Substituto");
+  });
+
+  it("envia o profissional travado do documento marcado, não o que estiver no estado interno do campo", async () => {
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => ({ ...DOSIMETRIA, id }),
+    );
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(screen.getByRole("checkbox", { name: /Dr\. João/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Confirmar saída" }),
+    );
+
+    await waitFor(() => {
+      expect(reportarMovimentacaoProfissional).toHaveBeenCalledWith(12, {
+        tipo: "saida",
+        profissional: "Dr. João",
+        data: expect.any(String),
+      });
+    });
   });
 });

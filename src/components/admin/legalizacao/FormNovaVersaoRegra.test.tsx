@@ -43,6 +43,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   exige_validade: true,
   exige_protocolo: false,
   exige_evidencia: true,
+  controlado_por_profissional: false,
   ativo: true,
   created_at: "2026-01-01T00:00:00Z",
 };
@@ -73,6 +74,7 @@ function documento(
       created_at: "2026-01-01T00:00:00Z",
     },
     responsaveis: [],
+    profissional: "",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -342,5 +344,42 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     await waitFor(() => {
       expect(excluirRegraDocumento).toHaveBeenCalledWith(99);
     });
+  });
+
+  it("bloqueia 'Corrigir regra' quando a combinação tem mais de um documento (tipo controlado por profissional, STC-432)", async () => {
+    const TIPO_DOSIMETRIA: TipoDocumentoRegulatorio = {
+      ...TIPO,
+      id: 9,
+      codigo: "dosimetria",
+      nome: "Dosimetria",
+      controlado_por_profissional: true,
+    };
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO_DOSIMETRIA]);
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documento({
+        id: 1,
+        tipo_documento: TIPO_DOSIMETRIA,
+        profissional: "Dr. João",
+      }),
+      documento({
+        id: 2,
+        tipo_documento: TIPO_DOSIMETRIA,
+        profissional: "Dra. Maria",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente();
+
+    await user.click(screen.getByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText("Tipo de documento"));
+    await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+    expect(
+      await screen.findByText(/2 documentos cadastrados nesta unidade/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Criar nova versão" }),
+    ).not.toBeInTheDocument();
   });
 });

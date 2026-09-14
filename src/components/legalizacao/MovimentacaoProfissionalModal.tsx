@@ -180,7 +180,16 @@ export function MovimentacaoProfissionalModal({
     jaInicializouRef.current = true;
     const codigosFuncao = CODIGOS_POR_FUNCAO[funcao];
     const sugeridos = documentosAfetados
-      .filter((doc) => codigosFuncao.includes(doc.tipo_documento.codigo))
+      .filter(
+        (doc) =>
+          codigosFuncao.includes(doc.tipo_documento.codigo) &&
+          // STC-432: tipos controlado_por_profissional (Dosimetria) nunca
+          // entram na pré-marcação automática -- com mais de um documento
+          // do mesmo tipo na unidade (um por profissional), a sugestão não
+          // tem como saber qual profissional é o certo; exige escolha
+          // manual sempre.
+          !doc.tipo_documento.controlado_por_profissional,
+      )
       .map((doc) => doc.id);
     setMarcados(new Set(sugeridos));
   }
@@ -201,10 +210,24 @@ export function MovimentacaoProfissionalModal({
   }
 
   function alternarMarcado(id: number) {
+    const doc = documentosAfetados.find((d) => d.id === id);
     setMarcados((atual) => {
       const novo = new Set(atual);
-      if (novo.has(id)) novo.delete(id);
-      else novo.add(id);
+      if (novo.has(id)) {
+        novo.delete(id);
+      } else {
+        // STC-432: no máximo um documento controlado_por_profissional
+        // marcado por vez -- profissional/data são compartilhados por todo
+        // o envio (uma chamada por documento, mesmo payload), não dá pra
+        // representar duas pessoas diferentes na mesma confirmação. Marcar
+        // um novo desmarca automaticamente outro já marcado do mesmo grupo.
+        if (doc?.tipo_documento.controlado_por_profissional) {
+          documentosAfetados
+            .filter((d) => d.tipo_documento.controlado_por_profissional)
+            .forEach((d) => novo.delete(d.id));
+        }
+        novo.add(id);
+      }
       return novo;
     });
     // Desmarcar um documento que falhou é a forma de desistir do retry
@@ -222,7 +245,11 @@ export function MovimentacaoProfissionalModal({
     setFuncao(novaFuncao);
     const codigosFuncao = CODIGOS_POR_FUNCAO[novaFuncao];
     const sugeridos = documentosAfetados
-      .filter((doc) => codigosFuncao.includes(doc.tipo_documento.codigo))
+      .filter(
+        (doc) =>
+          codigosFuncao.includes(doc.tipo_documento.codigo) &&
+          !doc.tipo_documento.controlado_por_profissional,
+      )
       .map((doc) => doc.id);
     setMarcados(new Set(sugeridos));
   }
@@ -263,6 +290,24 @@ export function MovimentacaoProfissionalModal({
   );
   const janelaCnes = documentoCnesMarcado?.regra_aplicada;
 
+  // STC-432: documento controlado_por_profissional marcado (no máximo 1,
+  // garantido por alternarMarcado). Numa "saída", o profissional que sai é
+  // o que já está gravado no documento -- travar o campo com esse valor
+  // evita reportar a saída de alguém errado (o backend já ignora esse
+  // campo em "saida" desde o achado de code review da STC-428, mas exibir
+  // o nome certo aqui evita confundir quem preenche). Numa "entrada", o
+  // campo continua livre -- é como se cadastra/reatribui um profissional
+  // novo pra esse documento.
+  const documentoControladoMarcado = documentosAfetados.find(
+    (doc) =>
+      marcados.has(doc.id) && doc.tipo_documento.controlado_por_profissional,
+  );
+  const profissionalTravado =
+    tipo === "saida" && !!documentoControladoMarcado;
+  const profissionalEfetivo = profissionalTravado
+    ? documentoControladoMarcado!.profissional
+    : profissional.trim();
+
   const haErroPendente = Object.keys(errosPorDocumento).length > 0;
   // Uma vez que a 1ª tentativa aconteceu (algum documento já confirmado, ou
   // com erro esperando retry), os campos do topo travam -- achado em
@@ -289,7 +334,7 @@ export function MovimentacaoProfissionalModal({
     (id) => !confirmados.has(id) && idsAfetadosAtuais.has(id),
   );
   const podeConfirmar =
-    !!profissional.trim() &&
+    !!profissionalEfetivo &&
     !!data &&
     haAlgoParaEnviar &&
     !antecedenciaDosimetroInsuficiente &&
@@ -311,7 +356,7 @@ export function MovimentacaoProfissionalModal({
     setEnviando(true);
     const payload: MovimentacaoProfissionalPayload = {
       tipo,
-      profissional: profissional.trim(),
+      profissional: profissionalEfetivo,
       data,
     };
     // Não existe endpoint em lote no backend -- uma chamada por documento
@@ -452,11 +497,24 @@ export function MovimentacaoProfissionalModal({
                 </Label>
                 <Input
                   id="mp-profissional"
-                  value={profissional}
-                  disabled={enviando || jaTentouEnviar}
+                  value={profissionalTravado ? profissionalEfetivo : profissional}
+                  disabled={enviando || jaTentouEnviar || profissionalTravado}
                   onChange={(evento) => setProfissional(evento.target.value)}
                   placeholder="Nome do profissional"
+                  aria-describedby={
+                    profissionalTravado ? "mp-profissional-travado" : undefined
+                  }
                 />
+                {profissionalTravado && (
+                  <p
+                    id="mp-profissional-travado"
+                    className="text-[11.5px] text-muted-foreground"
+                  >
+                    Travado -- é quem já está associado ao documento marcado
+                    abaixo. Uma saída reporta que essa pessoa saiu, nunca
+                    reatribui o documento a outro nome.
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -561,6 +619,7 @@ export function MovimentacaoProfissionalModal({
                               onCheckedChange={() => alternarMarcado(doc.id)}
                             />
                             {doc.tipo_documento.nome}
+                            {doc.profissional && ` — ${doc.profissional}`}
                             {confirmado && (
                               <span className="ml-auto text-[11px] font-semibold text-green-700">
                                 Confirmado

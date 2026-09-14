@@ -72,6 +72,7 @@ function tipo(
     exige_validade: true,
     exige_protocolo: false,
     exige_evidencia: true,
+    controlado_por_profissional: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -111,6 +112,7 @@ function documento(
         created_at: "2026-01-01T00:00:00Z",
       },
     ],
+    profissional: "",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -878,6 +880,38 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       await screen.findByRole("heading", {
         name: /reportar movimentação profissional/i,
       }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("DetalheDocumentoModal -- título diferencia por profissional (STC-432)", () => {
+  it("mostra o profissional no título quando o documento é controlado por profissional", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({
+        tipo_documento: tipo({
+          nome: "Dosimetria",
+          controlado_por_profissional: true,
+        }),
+        profissional: "Dra. Maria",
+      }),
+    );
+    renderComponente(55);
+
+    // Achado no code review automático: sem o profissional aqui, abrir
+    // qualquer uma das linhas de Dosimetria da mesma unidade (uma por
+    // profissional) mostrava o mesmo título -- nada diferenciava qual
+    // documento estava aberto.
+    expect(
+      await screen.findByRole("heading", { name: "Dosimetria — Dra. Maria" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não mostra travessão quando o documento não tem profissional (caso comum)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    renderComponente(55);
+
+    expect(
+      await screen.findByRole("heading", { name: "Alvará de Funcionamento" }),
     ).toBeInTheDocument();
   });
 });
