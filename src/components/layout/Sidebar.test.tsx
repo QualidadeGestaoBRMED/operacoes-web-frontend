@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Modulo } from "@/types";
 import { Sidebar } from "./Sidebar";
 
 vi.mock("next/navigation", () => ({
@@ -10,13 +12,37 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/lib/plataforma");
+
 import { useAuth } from "@/hooks/useAuth";
+import { listarModulos } from "@/lib/plataforma";
+
+function renderSidebar() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <Sidebar />
+    </SWRConfig>,
+  );
+}
+
+function modulo(overrides: Partial<Modulo> = {}): Modulo {
+  return {
+    id: 1,
+    nome: "Legalização",
+    codigo: "legalizacao",
+    descricao: "",
+    status: "em_breve",
+    versao: "0.1.0",
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(listarModulos).mockResolvedValue([]);
+});
 
 describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   // vi.stubEnv não reverte sozinho (precisaria de unstubEnvs:true no
   // vitest.config.ts, que não está ligado) -- sem isso, o valor ficaria
   // vazando em process.env pra qualquer teste rodado depois deste, no
@@ -31,7 +57,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
       isAdminOps: false,
     } as ReturnType<typeof useAuth>);
 
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
@@ -51,7 +77,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
 
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
     expect(screen.getByText("Administração")).toBeInTheDocument();
@@ -68,7 +94,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
 
-    render(<Sidebar />);
+    renderSidebar();
 
     const linkDjango = screen.getByRole("link", { name: /admin q&g/i });
     expect(linkDjango).toHaveAttribute("href", "https://api.exemplo.test/admin");
@@ -88,10 +114,76 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
 
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: /admin operações/i });
     expect(link).toHaveAttribute("href", "/admin/permissoes");
+  });
+});
+
+describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+    } as ReturnType<typeof useAuth>);
+  });
+
+  it("Legalização aparece bloqueada quando Modulo.status é 'em_breve'", async () => {
+    vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "em_breve" })]);
+
+    renderSidebar();
+    // Espera a resolução de fato (não só o primeiro render, que já nasce
+    // bloqueado por padrão antes do fetch responder) -- sem isto, o teste
+    // passaria mesmo se a leitura de Modulo.status estivesse quebrada, já
+    // que o estado inicial e o estado "em_breve" resolvido são idênticos na
+    // tela. O teste seguinte ("status é 'ativo'") é quem prova de fato que
+    // o hook reage ao dado resolvido, com um resultado diferente do padrão.
+    await waitFor(() => expect(listarModulos).toHaveBeenCalledTimes(1));
+
+    // Legalização some da lista de links reais e continua entre os itens
+    // com badge "em breve" (não é o único ali -- os outros módulos do
+    // roadmap, sem rota nenhuma, sempre ficam bloqueados também).
+    await screen.findByText("Legalização");
+    expect(
+      screen.queryByRole("link", { name: /legalização/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Legalização vira link real, pra /modulos/legalizacao, quando Modulo.status é 'ativo'", async () => {
+    vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "ativo" })]);
+
+    renderSidebar();
+
+    const link = await screen.findByRole("link", { name: /legalização/i });
+    expect(link).toHaveAttribute("href", "/modulos/legalizacao");
+  });
+
+  it("sem nenhum Modulo real ainda (API vazia), Legalização continua bloqueada", async () => {
+    renderSidebar();
+
+    await screen.findByText("Legalização");
+    expect(
+      screen.queryByRole("link", { name: /legalização/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("um módulo sem rota configurada no frontend continua bloqueado mesmo com status 'ativo' no backend", async () => {
+    // "Gestão RH" não tem `codigo`/`rota` em modulos-futuros.ts (ainda sem
+    // página construída) -- mesmo que por algum motivo já exista um Modulo
+    // "ativo" com esse código no banco, a checagem de rota/ícone continua
+    // sendo do frontend, por decisão da própria issue.
+    vi.mocked(listarModulos).mockResolvedValue([
+      modulo({ id: 2, nome: "Gestão RH", codigo: "gestao-rh", status: "ativo" }),
+    ]);
+
+    renderSidebar();
+
+    await screen.findByText("Legalização");
+    expect(screen.getByText("Gestão RH")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /gestão rh/i }),
+    ).not.toBeInTheDocument();
   });
 });
