@@ -109,6 +109,11 @@ const ALVARA = doc({
     nome: "Alvará de Funcionamento",
   }),
 });
+const COREN_VENCIDO = doc({
+  id: 14,
+  status: "vencido",
+  tipo_documento: tipo({ id: 5, codigo: "registro-coren", nome: "Registro COREN" }),
+});
 
 function renderComponente(
   aberto = true,
@@ -691,5 +696,57 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
       11,
       expect.objectContaining({ tipo: "saida" }),
     );
+  });
+});
+
+describe("MovimentacaoProfissionalModal -- documento já Vencido (STC-437)", () => {
+  beforeEach(() => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      CNES,
+      COREN_VENCIDO,
+    ]);
+  });
+
+  it("'Saída' não oferece documento já Vencido pra marcar", async () => {
+    renderComponente();
+    await screen.findByText("CNES");
+
+    expect(
+      screen.queryByRole("checkbox", { name: /Registro COREN/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("'Entrada' continua oferecendo documento Vencido normalmente", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(screen.getByRole("button", { name: "Entrada" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: /Registro COREN/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("trocar de 'Entrada' pra 'Saída' desmarca um documento Vencido que já estava marcado", async () => {
+    const user = userEvent.setup();
+    renderComponente();
+    await screen.findByText("CNES");
+
+    await user.click(screen.getByRole("button", { name: "Entrada" }));
+    await user.click(screen.getByRole("checkbox", { name: /Registro COREN/ }));
+    expect(
+      screen.getByRole("checkbox", { name: /Registro COREN/ }),
+    ).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Saída" }));
+
+    // O documento nem aparece mais na lista (filtrado) -- confirma que o
+    // id também saiu de `marcados`, não só escondido da tela, marcando
+    // "Entrada" de novo e conferindo que o checkbox voltou desmarcado.
+    await user.click(screen.getByRole("button", { name: "Entrada" }));
+    expect(
+      screen.getByRole("checkbox", { name: /Registro COREN/ }),
+    ).not.toBeChecked();
   });
 });
