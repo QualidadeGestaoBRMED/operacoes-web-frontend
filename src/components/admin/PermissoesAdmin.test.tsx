@@ -616,6 +616,62 @@ describe("PermissoesAdmin (STC-266)", () => {
     });
   });
 
+  it("STC-422: não mostra 'recurso órfão' nem permite submeter enquanto o catálogo de módulos ainda está carregando (3º achado no code review)", async () => {
+    // Achado no code review: recursos=[] durante o carregamento do catálogo
+    // é visualmente idêntico a "recurso removido de verdade" -- sem
+    // distinguir os dois estados, Renovar numa permissão com um recurso
+    // perfeitamente válido ("gestao-demandas.kanban") mostrava o aviso
+    // falso "não está mais no catálogo" só porque o fetch de módulos ainda
+    // não tinha respondido, e submeter nessa janela perdia o módulo
+    // (mesmo defeito do achado anterior, só que causado por timing, não
+    // por remoção real).
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    let resolverModulos: (modulos: Modulo[]) => void = () => {};
+    vi.mocked(listarModulos).mockReturnValue(
+      new Promise((resolve) => {
+        resolverModulos = resolve;
+      }),
+    );
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      // recurso válido de propósito (o mesmo usado em permissaoBase()) --
+      // "gestao-demandas.kanban" continua existindo no catálogo, só o
+      // fetch é que ainda não voltou.
+      permissaoBase({ ativo: false, data_fim: "2026-01-15" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /renovar permissão/i,
+    });
+
+    // Catálogo ainda pendente: nem o aviso de órfão, nem o botão liberado.
+    expect(
+      within(dialog).queryByText(/não está mais no catálogo/i),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /renovar permissão/i }),
+    ).toBeDisabled();
+
+    resolverModulos([MODULO_GESTAO_DEMANDAS]);
+
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: /renovar permissão/i }),
+      ).not.toBeDisabled();
+    });
+    expect(
+      within(dialog).queryByText(/não está mais no catálogo/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,

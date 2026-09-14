@@ -129,7 +129,11 @@ export function FormNovaPermissao({
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
-  const { modulos } = useModulos();
+  // catalogoCarregando: mesma chave SWR de useRecursosPermissao() por baixo
+  // -- ver achado de code review abaixo, sobre por que essa distinção
+  // importa (recursos=[] durante o carregamento vs. recurso de fato
+  // removido do catálogo são estados diferentes).
+  const { modulos, isLoading: catalogoCarregando } = useModulos();
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -176,8 +180,17 @@ export function FormNovaPermissao({
   // sem isto, o Select ficava em branco (nem "Selecionar...", nem o valor
   // real), como se nada estivesse escolhido, quando na verdade o campo
   // ainda guarda essa chave por baixo.
+  //
+  // Achado numa 3ª rodada de code review: recursos=[] durante o
+  // carregamento do catálogo é visualmente idêntico a "recurso realmente
+  // não existe mais" -- sem checar catalogoCarregando, um recurso válido
+  // (ex. "gestao-demandas.kanban") aparecia como órfão por uma fração de
+  // segundo em todo "Renovar", já que useRecursosPermissao()/useModulos()
+  // ainda não tinham respondido quando o formulário abre pré-preenchido.
   const recursoOrfao =
-    recursoSelecionado && !recursoAtual ? recursoSelecionado : null;
+    recursoSelecionado && !recursoAtual && !catalogoCarregando
+      ? recursoSelecionado
+      : null;
 
   useEffect(() => {
     // Achado ao tornar Ação dependente do catálogo: trocar de recurso (ou o
@@ -198,6 +211,19 @@ export function FormNovaPermissao({
   }, [recursoSelecionado, recursos]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
+    // Achado numa 3ª rodada de code review: com o catálogo ainda carregando,
+    // tanto encontrarRecursoPorChave(recursos, ...) quanto o fallback por
+    // Modulo.codigo (modulos.find abaixo) falhavam juntos -- os dois vêm da
+    // mesma chamada assíncrona (useModulos()) -- resultando no mesmo
+    // `modulo: null` que o achado anterior já tinha corrigido pro caso de
+    // recurso de fato removido. O botão já fica desabilitado enquanto isso
+    // (ver disabled no submit abaixo); esta é a segunda camada, caso o form
+    // seja submetido de outro jeito (ex. Enter) antes do React re-renderizar
+    // o botão.
+    if (catalogoCarregando) {
+      toast.error("Catálogo de recursos ainda carregando -- tente de novo em instantes.");
+      return;
+    }
     try {
       // O módulo dono do recurso normalmente já vem junto ao achatar o
       // catálogo (useRecursosPermissao -- ver moduloId em useModulos.ts).
@@ -461,7 +487,11 @@ export function FormNovaPermissao({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            {/* catalogoCarregando: achado em code review -- sem isso, dava
+                pra submeter enquanto recursos/modulos ainda não tinham
+                resolvido, resultando em modulo: null mesmo pra um recurso
+                válido. */}
+            <Button type="submit" disabled={isLoading || catalogoCarregando}>
               {isLoading
                 ? valoresIniciais
                   ? "Renovando..."
