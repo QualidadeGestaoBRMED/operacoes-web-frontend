@@ -170,6 +170,14 @@ export function FormNovaPermissao({
   const acoesDisponiveis = recursoAtual
     ? ACOES_KANBAN.filter((acao) => recursoAtual.acoes_suportadas.includes(acao))
     : ACOES_KANBAN;
+  // Achado no code review: um recurso real (não hipotético -- é exatamente
+  // o "recurso novo cadastrado no backend" que a issue promete suportar sem
+  // PR de frontend) pode não ter nenhuma interseção com ACOES_KANBAN (ex.:
+  // um recurso que só suporta "configurar"). Sem isto, o Select de Ação
+  // ficava vazio mas o valor por baixo (watch("acao")) continuava com o
+  // padrão "visualizar" -- silenciosamente inválido pro recurso escolhido,
+  // sem bloquear o submit nem avisar quem está concedendo.
+  const acaoIndisponivel = !!recursoAtual && acoesDisponiveis.length === 0;
   // Achado em code review: "Renovar" pré-preenche recurso/ação direto de
   // valoresIniciais (reset() abaixo), possivelmente antes do catálogo
   // (useRecursosPermissao) terminar de carregar -- se recursos chegasse
@@ -200,6 +208,10 @@ export function FormNovaPermissao({
     // só suporta "visualizar") -- sem isto, o valor ficava só visualmente
     // escondido, mas ainda selecionado por baixo, pronto pra ir no submit
     // inválido.
+    // acoesDisponiveis.length > 0: quando fica vazio (recurso sem nenhuma
+    // ação em comum com ACOES_KANBAN), não tem valor válido pra setValue --
+    // esse caso é bloqueado no submit e avisado na tela (acaoIndisponivel
+    // abaixo), não silenciosamente ignorado.
     if (
       acaoSelecionada &&
       acoesDisponiveis.length > 0 &&
@@ -222,6 +234,18 @@ export function FormNovaPermissao({
     // o botão.
     if (catalogoCarregando) {
       toast.error("Catálogo de recursos ainda carregando -- tente de novo em instantes.");
+      return;
+    }
+    // Achado no code review: um recurso sem nenhuma ação em comum com
+    // ACOES_KANBAN não tinha bloqueio nenhum -- o Select de Ação ficava
+    // vazio, mas o valor padrão ("visualizar") sobrevivia por baixo e ia
+    // pro submit como se o recurso suportasse essa ação. Segunda camada
+    // (o botão já fica desabilitado, ver disabled abaixo), mesmo motivo do
+    // catalogoCarregando acima.
+    if (acaoIndisponivel) {
+      toast.error(
+        "Este recurso não suporta nenhuma ação que este formulário pode conceder.",
+      );
       return;
     }
     try {
@@ -361,10 +385,16 @@ export function FormNovaPermissao({
                 )}
               />
               {errors.acao && <p className="text-xs text-destructive">{errors.acao.message}</p>}
-              <p className="text-xs text-muted-foreground">
-                Editar também concede visualização. Lixeira, aprovação e configurações continuam
-                seguindo as regras administrativas do sistema.
-              </p>
+              {acaoIndisponivel ? (
+                <p className="text-xs text-destructive">
+                  Este recurso não suporta nenhuma ação que este formulário pode conceder.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Editar também concede visualização. Lixeira, aprovação e configurações continuam
+                  seguindo as regras administrativas do sistema.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -490,8 +520,14 @@ export function FormNovaPermissao({
             {/* catalogoCarregando: achado em code review -- sem isso, dava
                 pra submeter enquanto recursos/modulos ainda não tinham
                 resolvido, resultando em modulo: null mesmo pra um recurso
-                válido. */}
-            <Button type="submit" disabled={isLoading || catalogoCarregando}>
+                válido. acaoIndisponivel: achado em code review -- sem isso,
+                dava pra submeter um recurso sem nenhuma ação em comum com
+                ACOES_KANBAN, mantendo em silêncio o valor padrão
+                ("visualizar") mesmo o Select mostrando vazio. */}
+            <Button
+              type="submit"
+              disabled={isLoading || catalogoCarregando || acaoIndisponivel}
+            >
               {isLoading
                 ? valoresIniciais
                   ? "Renovando..."

@@ -337,6 +337,54 @@ describe("PermissoesAdmin (STC-266)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("STC-422: bloqueia o submit e avisa quando o recurso escolhido não suporta nenhuma ação deste formulário (4º achado no code review)", async () => {
+    // Achado no code review: um recurso real (não hipotético -- é
+    // exatamente o "recurso novo cadastrado no backend" que a issue
+    // promete suportar sem PR de frontend) pode não ter nenhuma interseção
+    // com visualizar/editar (ex.: só suporta "configurar"). Sem bloqueio, o
+    // Select de Ação ficava vazio mas o valor padrão ("visualizar")
+    // sobrevivia por baixo e ia pro submit como se fosse suportado.
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      {
+        ...MODULO_GESTAO_DEMANDAS,
+        recursos_permissao: [
+          {
+            id: 3,
+            chave: "gestao-demandas.configuracoes",
+            rotulo: "Configurações",
+            acoes_suportadas: ["configurar"],
+          },
+        ],
+      },
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    await user.click(
+      await screen.findByRole("option", { name: /configurações/i }),
+    );
+
+    expect(
+      within(dialog).getByText(
+        /não suporta nenhuma ação que este formulário pode conceder/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /conceder permissão/i }),
+    ).toBeDisabled();
+    expect(criarPermissao).not.toHaveBeenCalled();
+  });
+
   it("STC-422: um Modulo sem recursos_permissao não derruba a página (achado no code review)", async () => {
     // recursos_permissao é sempre presente no contrato real (ModuloSerializer
     // sempre serializa a lista, mesmo vazia), mas nada garante isso em
