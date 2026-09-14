@@ -443,7 +443,15 @@ export function DetalheDocumentoModal({
                 abaixo, junto do resto do cabeçalho, não ao lado do título. */}
               <DialogHeader className="gap-2.5 border-b border-border px-6 py-4">
                 <DialogTitle className="text-[17px] leading-snug font-semibold text-foreground">
+                  {/* Achado no code review automático (STC-432): tipo
+                      controlado_por_profissional (Dosimetria) pode ter
+                      várias linhas do mesmo tipo+unidade, uma por
+                      profissional -- sem o nome aqui, abrir qualquer uma
+                      delas na Lista mostrava o mesmo título, sem diferenciar
+                      qual documento está aberto. Mesmo formato de
+                      MatrizTable.tsx ("Tipo — Profissional"). */}
                   {documento.tipo_documento.nome}
+                  {documento.profissional && ` — ${documento.profissional}`}
                 </DialogTitle>
                 <p className="text-[12.5px] text-muted-foreground">
                   {documento.unidade.nome} ·{" "}
