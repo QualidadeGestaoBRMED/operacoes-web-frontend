@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useModulos } from "@/hooks/useModulos";
+import { encontrarRecursoPorChave, useRecursosPermissao } from "@/hooks/useModulos";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -33,30 +33,14 @@ import type { AcaoPermissao, EscopoPermissao } from "@/types";
 
 type AcaoKanban = Extract<AcaoPermissao, "visualizar" | "editar">;
 
-const ACOES: AcaoKanban[] = [
-  "visualizar",
-  "editar",
-];
-
-// recurso é texto livre no backend (PermissaoUsuario.recurso, sem choices),
-// mas hoje só existe UM valor real em uso -- fixar como select em vez de
-// input de texto evita erro de digitação (uma string que não bate com
-// nenhuma checagem real do backend cria uma permissão "fantasma", sem
-// efeito nenhum, sem nenhum erro avisando). Se um recurso novo aparecer no
-// backend, precisa ser adicionado aqui também -- não tem como descobrir a
-// lista dinamicamente hoje (não existe um catálogo consultável via API).
-// Convenção "<código do módulo>.<recurso>" (ver Modulo.codigo, backend) --
-// aoSubmeter usa o prefixo antes do "." pra achar o modulo_id certo e
-// preencher PermissaoUsuario.modulo, sem precisar mapear aqui de novo. Um
-// módulo novo só precisa de uma entrada aqui com o código dele como prefixo.
-const RECURSOS: { valor: string; rotulo: string }[] = [
-  { valor: "gestao-demandas.kanban", rotulo: "Gestão de Demandas -- Kanban" },
-  // Único recurso que PermissaoUsuario afeta de verdade no módulo (o
-  // catálogo -- tipos-documento/regras -- não passa por permissão
-  // individual, só por nível/setor: PodeEscreverCatalogoLegalizacao,
-  // legalizacao/permissions.py).
-  { valor: "legalizacao.documentos", rotulo: "Legalização -- Documentos" },
-];
+// STC-422: este formulário só concede visualizar/editar (nunca os outros
+// valores de PermissaoUsuario.Acao) -- "editar" já implica leitura no
+// backend, então não faz sentido criar também um segundo registro
+// "visualizar". Continua fixo aqui (não vem do catálogo): é um teto do que
+// ESTE formulário sabe conceder, não do que o recurso suporta -- a lista
+// realmente oferecida pro usuário é a interseção com
+// recurso.acoes_suportadas (ver acoesDisponiveis abaixo).
+const ACOES_KANBAN: AcaoKanban[] = ["visualizar", "editar"];
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   visualizar: "Visualizar",
@@ -140,7 +124,7 @@ export function FormNovaPermissao({
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
   const { setores } = useSetores();
-  const { modulos } = useModulos();
+  const { recursos } = useRecursosPermissao();
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -149,6 +133,7 @@ export function FormNovaPermissao({
     control,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -167,14 +152,54 @@ export function FormNovaPermissao({
   }, [open, reset]);
 
   const escopoSelecionado = watch("escopo_tipo");
+  const recursoSelecionado = watch("recurso");
+  const acaoSelecionada = watch("acao");
+  const recursoAtual = encontrarRecursoPorChave(recursos, recursoSelecionado);
+  // Teto ACOES_KANBAN ∩ o que o recurso escolhido realmente suporta -- sem
+  // recurso escolhido ainda, mostra o teto inteiro (mesmo comportamento de
+  // antes, quando a lista era só um array fixo).
+  const acoesDisponiveis = recursoAtual
+    ? ACOES_KANBAN.filter((acao) => recursoAtual.acoes_suportadas.includes(acao))
+    : ACOES_KANBAN;
+  // Achado em code review: "Renovar" pré-preenche recurso/ação direto de
+  // valoresIniciais (reset() abaixo), possivelmente antes do catálogo
+  // (useRecursosPermissao) terminar de carregar -- se recursos chegasse
+  // depois sem entrar nas deps do efeito abaixo, uma ação incompatível já
+  // pré-preenchida nunca era revalidada, e ia pro submit sem aviso.
+  // recursoOrfao: a chave pré-preenchida pode não existir (mais) no
+  // catálogo carregado (recurso removido depois da permissão original) --
+  // sem isto, o Select ficava em branco (nem "Selecionar...", nem o valor
+  // real), como se nada estivesse escolhido, quando na verdade o campo
+  // ainda guarda essa chave por baixo.
+  const recursoOrfao =
+    recursoSelecionado && !recursoAtual ? recursoSelecionado : null;
+
+  useEffect(() => {
+    // Achado ao tornar Ação dependente do catálogo: trocar de recurso (ou o
+    // catálogo terminar de carregar depois de um "Renovar" já ter
+    // pré-preenchido os campos) pode deixar a ação já escolhida fora da
+    // lista nova (ex.: veio de um recurso que suporta "editar" pra um que
+    // só suporta "visualizar") -- sem isto, o valor ficava só visualmente
+    // escondido, mas ainda selecionado por baixo, pronto pra ir no submit
+    // inválido.
+    if (
+      acaoSelecionada &&
+      acoesDisponiveis.length > 0 &&
+      !acoesDisponiveis.includes(acaoSelecionada)
+    ) {
+      setValue("acao", acoesDisponiveis[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recursoSelecionado, recursos]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
-      // recurso segue "<código do módulo>.<recurso>" -- acha o Modulo real
-      // pelo prefixo (null se o módulo ainda não tiver linha em Modulo, ex.:
-      // um dos "em breve" na Sidebar que só existe como config de frontend).
-      const codigoModulo = valores.recurso.split(".")[0];
-      const moduloId = modulos.find((modulo) => modulo.codigo === codigoModulo)?.id ?? null;
+      // STC-422: o módulo dono do recurso já vem junto ao achatar o
+      // catálogo (useRecursosPermissao -- ver moduloId em useModulos.ts),
+      // sem precisar mais inferir pelo prefixo de "recurso" antes do ".".
+      const moduloId =
+        encontrarRecursoPorChave(recursos, valores.recurso)
+          ?.moduloId ?? null;
 
       await criar({
         usuario: valores.usuario,
@@ -249,9 +274,18 @@ export function FormNovaPermissao({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {RECURSOS.map((recurso) => (
-                        <SelectItem key={recurso.valor} value={recurso.valor}>
-                          {recurso.rotulo}
+                      {/* Renovar pode pré-preencher uma chave que saiu do
+                          catálogo depois -- mostra ela mesmo assim (em vez
+                          de o Select ficar em branco, escondendo que já
+                          existe um valor selecionado por baixo). */}
+                      {recursoOrfao && (
+                        <SelectItem value={recursoOrfao} disabled>
+                          {recursoOrfao} (não está mais no catálogo)
+                        </SelectItem>
+                      )}
+                      {recursos.map((recurso) => (
+                        <SelectItem key={recurso.chave} value={recurso.chave}>
+                          {recurso.moduloNome} -- {recurso.rotulo}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -276,7 +310,7 @@ export function FormNovaPermissao({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACOES.map((acao) => (
+                      {acoesDisponiveis.map((acao) => (
                         <SelectItem key={acao} value={acao}>
                           {ROTULO_ACAO[acao]}
                         </SelectItem>

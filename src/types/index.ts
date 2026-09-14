@@ -45,6 +45,16 @@ export interface Setor {
   ativo: boolean;
 }
 
+// STC-421 (backend): catálogo de recursos de PermissaoUsuario, fonte única
+// de quais ações cada recurso suporta -- ver RecursoPermissao no backend.
+// Nasce aninhado em Modulo (nested read-only), não tem endpoint próprio.
+export interface RecursoPermissao {
+  id: number;
+  chave: string;
+  rotulo: string;
+  acoes_suportadas: AcaoPermissao[];
+}
+
 export interface Modulo {
   id: number;
   nome: string;
@@ -52,6 +62,7 @@ export interface Modulo {
   descricao: string;
   status: string;
   versao: string;
+  recursos_permissao: RecursoPermissao[];
 }
 
 export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos";

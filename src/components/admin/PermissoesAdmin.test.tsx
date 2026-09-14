@@ -60,6 +60,14 @@ const MODULO_GESTAO_DEMANDAS: Modulo = {
   descricao: "",
   status: "ativo",
   versao: "0.1.0",
+  recursos_permissao: [
+    {
+      id: 1,
+      chave: "gestao-demandas.kanban",
+      rotulo: "Kanban de Demandas",
+      acoes_suportadas: ["visualizar", "editar"],
+    },
+  ],
 };
 
 const ADMIN_CONCEDENTE: Usuario = {
@@ -243,8 +251,8 @@ describe("PermissoesAdmin (STC-266)", () => {
       expect(criarPermissao).toHaveBeenCalledWith(
         expect.objectContaining({
           usuario: USUARIO.id,
-          // modulo resolvido a partir do prefixo de "recurso" ("gestao-demandas")
-          // batendo com o Modulo.codigo real, não hardcoded no formulário.
+          // STC-422: modulo vem junto do catálogo (recurso achatado carrega
+          // moduloId), não mais inferido por prefixo de string.
           modulo: MODULO_GESTAO_DEMANDAS.id,
           recurso: "gestao-demandas.kanban",
           acao: "visualizar",
@@ -327,6 +335,225 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(
       screen.queryByRole("option", { name: "Configurar" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("STC-422: um Modulo sem recursos_permissao não derruba a página (achado no code review)", async () => {
+    // recursos_permissao é sempre presente no contrato real (ModuloSerializer
+    // sempre serializa a lista, mesmo vazia), mas nada garante isso em
+    // runtime -- uma resposta em cache de uma versão anterior do backend,
+    // por exemplo. Cast forçado de propósito: simula exatamente esse
+    // contrato quebrado, que TypeScript sozinho não pega (só existe em
+    // runtime, não em compile-time).
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      { ...MODULO_GESTAO_DEMANDAS, recursos_permissao: undefined },
+    ] as unknown as Modulo[]);
+
+    renderTela();
+
+    expect(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("STC-422: um recurso novo no catálogo aparece no dropdown sem mudar o formulário", async () => {
+    // Critério de aceite da issue: recurso novo no catálogo do backend
+    // aparece em Conceder permissão sem PR de frontend -- aqui simulado
+    // com um módulo/recurso que não existia nas versões anteriores deste
+    // teste (nenhum código de FormNovaPermissao.tsx precisou mudar).
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      MODULO_GESTAO_DEMANDAS,
+      {
+        id: 8,
+        nome: "Legalização",
+        codigo: "legalizacao",
+        descricao: "",
+        status: "ativo",
+        versao: "0.1.0",
+        recursos_permissao: [
+          {
+            id: 2,
+            chave: "legalizacao.documentos",
+            rotulo: "Documentos de Legalização",
+            acoes_suportadas: ["visualizar", "editar"],
+          },
+        ],
+      },
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
+    await user.click(screen.getByLabelText(/recurso/i));
+
+    expect(
+      await screen.findByRole("option", { name: /documentos de legalização/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("STC-422: Ação só oferece o que o recurso escolhido suporta, e desmarca uma escolha que deixou de valer", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      MODULO_GESTAO_DEMANDAS,
+      {
+        id: 8,
+        nome: "Legalização",
+        codigo: "legalizacao",
+        descricao: "",
+        status: "ativo",
+        versao: "0.1.0",
+        recursos_permissao: [
+          // Só "visualizar" de propósito -- prova que a lista de Ação não é
+          // mais um array fixo, e sim derivada do recurso escolhido.
+          {
+            id: 2,
+            chave: "legalizacao.documentos",
+            rotulo: "Documentos de Legalização",
+            acoes_suportadas: ["visualizar"],
+          },
+        ],
+      },
+    ]);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(within(dialog).getByLabelText(/pessoa/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Fernanda Lima" }),
+    );
+
+    // Escolhe "editar" pro recurso do Kanban primeiro (suporta as duas).
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    await user.click(await screen.findByRole("option", { name: /kanban/i }));
+    await user.click(within(dialog).getByLabelText(/^ação/i));
+    await user.click(await screen.findByRole("option", { name: "Editar" }));
+
+    // Troca pro recurso que só suporta "visualizar" -- achado ao tornar Ação
+    // dependente do catálogo: sem o efeito de reset, "editar" continuaria
+    // selecionado por baixo mesmo sumindo da lista visível.
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    await user.click(
+      await screen.findByRole("option", { name: /documentos de legalização/i }),
+    );
+
+    await user.click(within(dialog).getByLabelText(/^ação/i));
+    expect(
+      await screen.findByRole("option", { name: "Visualizar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Editar" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "Visualizar" }));
+
+    await user.click(within(dialog).getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    await user.click(
+      within(dialog).getByRole("button", { name: /conceder permissão/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recurso: "legalizacao.documentos",
+          acao: "visualizar",
+        }),
+      );
+    });
+  });
+
+  it("STC-422: coluna 'Recurso' mostra o módulo e o rótulo do catálogo", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    expect(
+      tabela.getByText("Gestão de Demandas -- Kanban de Demandas"),
+    ).toBeInTheDocument();
+  });
+
+  it("STC-422: coluna 'Recurso' cai pra chave crua se o recurso não estiver mais no catálogo", async () => {
+    // Defensivo: uma permissão histórica pode apontar pra um recurso que
+    // saiu do catálogo depois -- a linha não deve sumir nem quebrar.
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ recurso: "modulo-antigo.recurso-removido" }),
+    ]);
+
+    renderTela();
+
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    expect(
+      tabela.getByText("modulo-antigo.recurso-removido"),
+    ).toBeInTheDocument();
+  });
+
+  it("STC-422: Renovar com um recurso que não existe mais no catálogo mostra a chave em vez de deixar o Select em branco", async () => {
+    // Achado no code review: sem isso, o Select ficava vazio (nem
+    // "Selecionar...", nem o valor real) escondendo que o campo ainda
+    // guardava essa chave por baixo -- um Renovar sem tocar em Recurso
+    // criava uma permissão com modulo: null em silêncio.
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({
+        ativo: false,
+        data_fim: "2026-01-15",
+        recurso: "modulo-antigo.recurso-removido",
+      }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /renovar permissão/i,
+    });
+    // getAllByText: o próprio Radix Select espelha o valor também num
+    // <select> nativo escondido (acessibilidade/autofill) -- o texto
+    // aparece duas vezes no DOM por conta disso, não é um problema do
+    // componente.
+    expect(
+      within(dialog).getAllByText(/modulo-antigo\.recurso-removido/).length,
+    ).toBeGreaterThan(0);
   });
 
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
