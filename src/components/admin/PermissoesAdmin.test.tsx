@@ -720,6 +720,45 @@ describe("PermissoesAdmin (STC-266)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("STC-422: não mostra 'recurso órfão' nem permite submeter quando o catálogo de módulos falha ao carregar (5º achado no code review)", async () => {
+    // Achado no code review: só isLoading era considerado -- quando o fetch
+    // de módulos termina em erro (timeout, 5xx), o SWR volta isLoading:
+    // false com data undefined, deixando recursos/modulos em [] de forma
+    // *permanente* (não só durante uma janela curta de carregamento) -- o
+    // mesmo estado que o código tratava como "carregado com sucesso e
+    // vazio". Sem tratar o erro, Renovar numa permissão com um recurso
+    // perfeitamente válido mostrava o aviso falso "não está mais no
+    // catálogo" e liberava o submit, perdendo o módulo (modulo: null).
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockRejectedValue(new Error("falha de rede"));
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ ativo: false, data_fim: "2026-01-15" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /renovar permissão/i,
+    });
+
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: /renovar permissão/i }),
+      ).toBeDisabled();
+    });
+    expect(
+      within(dialog).queryByText(/não está mais no catálogo/i),
+    ).not.toBeInTheDocument();
+    expect(criarPermissao).not.toHaveBeenCalled();
+  });
+
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,

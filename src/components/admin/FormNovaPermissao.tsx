@@ -129,11 +129,20 @@ export function FormNovaPermissao({
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
-  // catalogoCarregando: mesma chave SWR de useRecursosPermissao() por baixo
-  // -- ver achado de code review abaixo, sobre por que essa distinção
-  // importa (recursos=[] durante o carregamento vs. recurso de fato
+  // catalogoCarregando/catalogoComErro: mesma chave SWR de
+  // useRecursosPermissao() por baixo -- ver achado de code review abaixo,
+  // sobre por que essa distinção importa (recursos=[] durante o
+  // carregamento, ou por causa de um erro de rede, vs. recurso de fato
   // removido do catálogo são estados diferentes).
-  const { modulos, isLoading: catalogoCarregando } = useModulos();
+  const { modulos, isLoading: catalogoCarregando, error: catalogoComErro } = useModulos();
+  // Achado em code review: só `isLoading` era considerado -- quando o fetch
+  // de módulos falhava (timeout, 5xx), o SWR volta `isLoading: false` com
+  // `data` undefined, então `recursos`/`modulos` ficavam `[]`
+  // *permanentemente* (até o retry automático), o mesmo estado que o código
+  // tratava como "carregado com sucesso e vazio". Tratado aqui como o mesmo
+  // "não sei ainda" de catalogoCarregando, não como "recurso confirmado
+  // ausente".
+  const catalogoIndisponivel = catalogoCarregando || !!catalogoComErro;
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -196,7 +205,7 @@ export function FormNovaPermissao({
   // segundo em todo "Renovar", já que useRecursosPermissao()/useModulos()
   // ainda não tinham respondido quando o formulário abre pré-preenchido.
   const recursoOrfao =
-    recursoSelecionado && !recursoAtual && !catalogoCarregando
+    recursoSelecionado && !recursoAtual && !catalogoIndisponivel
       ? recursoSelecionado
       : null;
 
@@ -232,8 +241,12 @@ export function FormNovaPermissao({
     // (ver disabled no submit abaixo); esta é a segunda camada, caso o form
     // seja submetido de outro jeito (ex. Enter) antes do React re-renderizar
     // o botão.
-    if (catalogoCarregando) {
-      toast.error("Catálogo de recursos ainda carregando -- tente de novo em instantes.");
+    if (catalogoIndisponivel) {
+      toast.error(
+        catalogoComErro
+          ? "Não foi possível carregar o catálogo de recursos -- tente novamente."
+          : "Catálogo de recursos ainda carregando -- tente de novo em instantes.",
+      );
       return;
     }
     // Achado no code review: um recurso sem nenhuma ação em comum com
@@ -517,16 +530,17 @@ export function FormNovaPermissao({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            {/* catalogoCarregando: achado em code review -- sem isso, dava
+            {/* catalogoIndisponivel: achado em code review -- sem isso, dava
                 pra submeter enquanto recursos/modulos ainda não tinham
-                resolvido, resultando em modulo: null mesmo pra um recurso
-                válido. acaoIndisponivel: achado em code review -- sem isso,
-                dava pra submeter um recurso sem nenhuma ação em comum com
-                ACOES_KANBAN, mantendo em silêncio o valor padrão
-                ("visualizar") mesmo o Select mostrando vazio. */}
+                resolvido (ou tinham falhado em carregar), resultando em
+                modulo: null mesmo pra um recurso válido. acaoIndisponivel:
+                achado em code review -- sem isso, dava pra submeter um
+                recurso sem nenhuma ação em comum com ACOES_KANBAN, mantendo
+                em silêncio o valor padrão ("visualizar") mesmo o Select
+                mostrando vazio. */}
             <Button
               type="submit"
-              disabled={isLoading || catalogoCarregando || acaoIndisponivel}
+              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel}
             >
               {isLoading
                 ? valoresIniciais
