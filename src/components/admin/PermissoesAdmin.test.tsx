@@ -385,6 +385,52 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(criarPermissao).not.toHaveBeenCalled();
   });
 
+  it("STC-422: um recurso sem acoes_suportadas não derruba a página (achado numa 6ª rodada de code review)", async () => {
+    // Mesma classe de falha do teste abaixo (Modulo sem recursos_permissao),
+    // agora um nível mais fundo: acoes_suportadas é obrigatório só pro
+    // TypeScript, listarModulos() não valida a resposta em runtime. Cast
+    // forçado de propósito, simulando o contrato quebrado.
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      {
+        ...MODULO_GESTAO_DEMANDAS,
+        recursos_permissao: [
+          {
+            id: 3,
+            chave: "gestao-demandas.configuracoes",
+            rotulo: "Configurações",
+            acoes_suportadas: undefined,
+          },
+        ],
+      },
+    ] as unknown as Modulo[]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(
+      await screen.findByRole("button", { name: /nova permissão/i }),
+    );
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    // Selecionar o recurso é o que dispara o acesso a
+    // recursoAtual.acoes_suportadas (cálculo de acoesDisponiveis) -- sem a
+    // guarda, `.includes` num `undefined` derruba a página inteira aqui.
+    await user.click(
+      await screen.findByRole("option", { name: /configurações/i }),
+    );
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        /não suporta nenhuma ação que este formulário pode conceder/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("STC-422: um Modulo sem recursos_permissao não derruba a página (achado no code review)", async () => {
     // recursos_permissao é sempre presente no contrato real (ModuloSerializer
     // sempre serializa a lista, mesmo vazia), mas nada garante isso em

@@ -176,8 +176,16 @@ export function FormNovaPermissao({
   // Teto ACOES_KANBAN ∩ o que o recurso escolhido realmente suporta -- sem
   // recurso escolhido ainda, mostra o teto inteiro (mesmo comportamento de
   // antes, quando a lista era só um array fixo).
+  // Achado em code review: acoes_suportadas é obrigatório só pro
+  // TypeScript -- listarModulos() faz cast direto da resposta do axios, sem
+  // validação em runtime. Um recurso vindo de uma resposta com contrato
+  // quebrado (backend antigo, cache de cliente durante rollout) sem esse
+  // campo derrubaria a página inteira com TypeError; `?? []` é a mesma
+  // defesa já aplicada a recursos_permissao em useRecursosPermissao().
   const acoesDisponiveis = recursoAtual
-    ? ACOES_KANBAN.filter((acao) => recursoAtual.acoes_suportadas.includes(acao))
+    ? ACOES_KANBAN.filter((acao) =>
+        (recursoAtual.acoes_suportadas ?? []).includes(acao),
+      )
     : ACOES_KANBAN;
   // Achado no code review: um recurso real (não hipotético -- é exatamente
   // o "recurso novo cadastrado no backend" que a issue promete suportar sem
