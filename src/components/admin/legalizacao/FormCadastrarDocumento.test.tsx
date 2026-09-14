@@ -44,6 +44,22 @@ const TIPO: TipoDocumentoRegulatorio = {
   exige_validade: true,
   exige_protocolo: false,
   exige_evidencia: true,
+  controlado_por_profissional: false,
+  ativo: true,
+  created_at: "2026-01-01T00:00:00Z",
+};
+
+const TIPO_DOSIMETRIA: TipoDocumentoRegulatorio = {
+  id: 9,
+  codigo: "dosimetria",
+  nome: "Dosimetria",
+  categoria: "registros_tecnicos",
+  area_responsavel: "legalizacao",
+  setor_apoio: "",
+  exige_validade: true,
+  exige_protocolo: false,
+  exige_evidencia: false,
+  controlado_por_profissional: true,
   ativo: true,
   created_at: "2026-01-01T00:00:00Z",
 };
@@ -61,6 +77,7 @@ function documentoCriado(
     evidencia_vigente: null,
     regra_aplicada: null,
     responsaveis: [],
+    profissional: "",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -629,5 +646,363 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(criarRegraDocumento).toHaveBeenCalledTimes(1);
     expect(criarDocumentoLegalizacao).toHaveBeenCalledTimes(1);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  describe("Dosimetria -- tipo controlado por profissional (STC-432)", () => {
+    async function preencherCamposObrigatorios(
+      user: ReturnType<typeof userEvent.setup>,
+    ) {
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Em andamento" }),
+      );
+      await user.type(
+        screen.getByLabelText(/vigente a partir/i),
+        "2026-01-01",
+      );
+      await user.type(screen.getByLabelText(/antecedência/i), "60");
+      await user.click(screen.getByLabelText(/criticidade/i));
+      await user.click(await screen.findByRole("option", { name: "Alta" }));
+    }
+
+    it("campo Profissional só aparece pra tipo controlado por profissional", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+      expect(screen.queryByLabelText(/profissional/i)).not.toBeInTheDocument();
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      expect(screen.getByLabelText(/profissional/i)).toBeInTheDocument();
+    });
+
+    it("tipo controlado por profissional continua disponível mesmo já cadastrado nesta unidade", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+
+      expect(
+        await screen.findByRole("option", { name: "Dosimetria" }),
+      ).toBeInTheDocument();
+    });
+
+    it("bloqueia no client, sem chamar a API, se Profissional ficar vazio", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await preencherCamposObrigatorios(user);
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      expect(
+        await screen.findByText("Obrigatório para este tipo de documento."),
+      ).toBeInTheDocument();
+      expect(criarRegraDocumento).not.toHaveBeenCalled();
+      expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+    });
+
+    it("cadastra um segundo profissional na mesma unidade reaproveitando a regra já existente", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const regraExistente = {
+        id: 55,
+        tipo_documento: TIPO_DOSIMETRIA.id,
+        unidade: UNIDADE.id,
+        antecedencia_dias: 60,
+        periodicidade_meses: null,
+        janela_dia_inicio: null,
+        janela_dia_fim: null,
+        criticidade: "alta" as const,
+        vigente_a_partir: "2026-01-01",
+        ativa: true,
+        gera_card_demanda: true,
+        created_at: "2026-01-01T00:00:00Z",
+      };
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+          regra_aplicada: regraExistente,
+        }),
+      ]);
+      vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dra. Maria",
+          regra_aplicada: regraExistente,
+        }),
+      );
+      const onOpenChange = vi.fn();
+      const user = userEvent.setup();
+      renderForm(onOpenChange);
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "Dra. Maria");
+      // STC-432: vigente_a_partir/antecedência/criticidade já vêm
+      // preenchidos (e desabilitados) pela regra reaproveitada -- só falta
+      // escolher o status inicial, que é por documento, não por regra.
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Em andamento" }),
+      );
+
+      expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+      expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      await waitFor(() => {
+        expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tipo_documento: TIPO_DOSIMETRIA.id,
+            profissional: "Dra. Maria",
+            regra_aplicada: 55,
+          }),
+        );
+      });
+      expect(criarRegraDocumento).not.toHaveBeenCalled();
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it("bloqueia cadastro duplicado do mesmo profissional na mesma unidade", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "Dr. João");
+      await preencherCamposObrigatorios(user);
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      await waitFor(() => {
+        expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({
+          unidade: UNIDADE.id,
+          tipo_documento: TIPO_DOSIMETRIA.id,
+        });
+      });
+      expect(criarRegraDocumento).not.toHaveBeenCalled();
+      expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+    });
+
+    it("trocar de tipo limpa o Profissional digitado antes (achado em análise própria)", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "Dr. João");
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+      expect(screen.queryByLabelText(/profissional/i)).not.toBeInTheDocument();
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+      // Se não tivesse limpado, o profissional de antes (de um tipo já
+      // trocado) reapareceria aqui sem o usuário ter digitado nada.
+      expect(screen.getByLabelText(/profissional/i)).toHaveValue("");
+    });
+
+    it("trocar de tipo depois de reaproveitar uma regra limpa os campos de regra preenchidos (achado no code review automático)", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const regraExistente = {
+        id: 55,
+        tipo_documento: TIPO_DOSIMETRIA.id,
+        unidade: UNIDADE.id,
+        antecedencia_dias: 60,
+        periodicidade_meses: null,
+        janela_dia_inicio: null,
+        janela_dia_fim: null,
+        criticidade: "alta" as const,
+        vigente_a_partir: "2026-01-01",
+        ativa: true,
+        gera_card_demanda: true,
+        created_at: "2026-01-01T00:00:00Z",
+      };
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+          regra_aplicada: regraExistente,
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+      // Regra reaproveitada: campos vêm preenchidos e travados.
+      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue(
+        "2026-01-01",
+      );
+      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
+      expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+
+      // Achado no code review automático: sem limpar, estes campos ficavam
+      // editáveis de novo mas com os valores da regra de Dosimetria, prontos
+      // pra ir no submit como se fossem da regra nova de Licença Sanitária.
+      expect(screen.getByLabelText(/vigente a partir/i)).not.toBeDisabled();
+      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("");
+      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(null);
+    });
+
+    it("trim: não deixa cadastrar duplicata do mesmo profissional só por espaço em branco a mais", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "  Dr. João  ");
+      await preencherCamposObrigatorios(user);
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      await waitFor(() => {
+        expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({
+          unidade: UNIDADE.id,
+          tipo_documento: TIPO_DOSIMETRIA.id,
+        });
+      });
+      expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+    });
+
+    it("trim: o caminho normal (com regra) envia o profissional sem espaços, não o valor bruto do input", async () => {
+      // Achado no code review automático do PR: o trim só tinha sido
+      // aplicado no caminho "Não aplicável" (o de exceção) -- o caminho
+      // comum, que cria/reaproveita uma regra, ainda mandava o valor bruto
+      // do input pro backend.
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      vi.mocked(criarRegraDocumento).mockResolvedValue({
+        id: 55,
+        tipo_documento: TIPO_DOSIMETRIA.id,
+        unidade: UNIDADE.id,
+        antecedencia_dias: 60,
+        periodicidade_meses: null,
+        janela_dia_inicio: null,
+        janela_dia_fim: null,
+        criticidade: "alta",
+        vigente_a_partir: "2026-01-01",
+        ativa: true,
+        gera_card_demanda: true,
+        created_at: "2026-01-01T00:00:00Z",
+      });
+      vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+        }),
+      );
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+      await user.type(screen.getByLabelText(/profissional/i), "  Dr. João  ");
+      await preencherCamposObrigatorios(user);
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      await waitFor(() => {
+        expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+          expect.objectContaining({ profissional: "Dr. João" }),
+        );
+      });
+    });
   });
 });

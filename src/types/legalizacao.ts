@@ -25,6 +25,9 @@ export interface TipoDocumentoRegulatorio {
   exige_validade: boolean;
   exige_protocolo: boolean;
   exige_evidencia: boolean;
+  // STC-428 (backend): true só pra Dosimetria hoje -- DocumentoUnidade deste
+  // tipo aceita múltiplas linhas por unidade, uma por `profissional`.
+  controlado_por_profissional: boolean;
   ativo: boolean;
   created_at: string;
 }
@@ -81,6 +84,11 @@ export interface DocumentoUnidade {
   evidencia_vigente: number | null;
   regra_aplicada: RegraDocumento | null;
   responsaveis: ResponsavelDocumento[];
+  // STC-428 (backend): texto livre, vazio pro caso comum. Obrigatório
+  // quando tipo_documento.controlado_por_profissional=True (Dosimetria),
+  // proibido nos demais tipos -- é o campo que diferencia múltiplas linhas
+  // do mesmo tipo+unidade.
+  profissional: string;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +146,7 @@ export interface TipoDocumentoRegulatorioPayload {
   exige_validade: boolean;
   exige_protocolo: boolean;
   exige_evidencia: boolean;
+  controlado_por_profissional?: boolean;
   ativo?: boolean;
 }
 
@@ -165,6 +174,7 @@ export interface DocumentoUnidadePayload {
   justificativa_excecao?: string;
   validade?: string | null;
   regra_aplicada?: number | null;
+  profissional?: string;
 }
 
 export type StatusProcessoRenovacao =
@@ -213,10 +223,12 @@ export type TipoMovimentacaoProfissional = "saida" | "entrada";
 
 // Payload de POST /documentos/{id}/movimentacao-profissional/ (STC-382) --
 // MovimentacaoProfissionalSerializer (backend), os 3 campos são os únicos
-// aceitos e todos obrigatórios. `profissional`/`funcao` (esta última só
-// client-side, nunca enviada) existem só pra registrar/guiar a UI -- o
-// backend não persiste nome de profissional em lugar nenhum além do
-// histórico (valor_novo formatado com o nome, ver registrar_historico).
+// aceitos e todos obrigatórios. `funcao` (client-side, nunca enviada) existe
+// só pra guiar a pré-marcação da UI. `profissional` sempre vai pro
+// histórico (valor_novo formatado com o nome); pra documentos de tipo
+// controlado_por_profissional=True (STC-428), uma "entrada" também grava
+// esse valor em DocumentoUnidade.profissional -- "saida" nunca persiste no
+// documento (só no histórico), pra não trocar de dono silenciosamente.
 export interface MovimentacaoProfissionalPayload {
   tipo: TipoMovimentacaoProfissional;
   profissional: string;

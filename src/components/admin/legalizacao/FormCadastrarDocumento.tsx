@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Paperclip, Plus, X } from "lucide-react";
@@ -67,63 +67,95 @@ const numeroDiaOpcional = z.preprocess(
   z.coerce.number().int().min(1).max(31).optional(),
 );
 
-const schema = z
-  .object({
-    unidade: z.coerce
-      .number({ error: "Selecione a unidade." })
-      .int()
-      .positive(),
-    tipo_documento: z.coerce
-      .number({ error: "Selecione o tipo de documento." })
-      .int()
-      .positive(),
-    nao_aplicavel: z.boolean(),
-    justificativa_excecao: z.string().optional(),
-    status: z
-      .enum(STATUS_INICIAIS as [StatusDocumento, ...StatusDocumento[]])
-      .optional(),
-    validade: z.string().optional(),
-    vigente_a_partir: z.string().optional(),
-    antecedencia_dias: z.coerce.number().int().min(0).optional(),
-    janela_dia_inicio: numeroDiaOpcional,
-    janela_dia_fim: numeroDiaOpcional,
-    criticidade: z
-      .enum(CRITICIDADES as [Criticidade, ...Criticidade[]])
-      .optional(),
-    gera_card_demanda: z.boolean(),
-  })
-  // Espelha DocumentoUnidadeWriteSerializer.validate() (backend) -- ver
-  // legalizacao/serializers.py: os 4 campos abaixo só são exigidos quando
-  // NÃO é o caminho "Não aplicável".
-  .refine((v) => !v.nao_aplicavel || !!v.justificativa_excecao, {
-    message: "Obrigatória para marcar Não aplicável.",
-    path: ["justificativa_excecao"],
-  })
-  .refine((v) => v.nao_aplicavel || !!v.status, {
-    message: "Selecione o status inicial.",
-    path: ["status"],
-  })
-  .refine((v) => v.nao_aplicavel || !!v.vigente_a_partir, {
-    message: "Obrigatório.",
-    path: ["vigente_a_partir"],
-  })
-  .refine((v) => v.nao_aplicavel || v.antecedencia_dias !== undefined, {
-    message: "Obrigatória.",
-    path: ["antecedencia_dias"],
-  })
-  .refine((v) => v.nao_aplicavel || !!v.criticidade, {
-    message: "Selecione a criticidade.",
-    path: ["criticidade"],
-  })
-  // Mesma regra de validate() (backend): "Vencido" sempre exige validade,
-  // criação inclusa.
-  .refine((v) => v.nao_aplicavel || v.status !== "vencido" || !!v.validade, {
-    message: "Obrigatória para status 'Vencido'.",
-    path: ["validade"],
-  });
+// STC-432: schema vira função do conjunto de tipos controlado_por_profissional
+// (Dosimetria hoje) -- "profissional" só é exigido quando o tipo escolhido
+// tiver essa flag (espelha DocumentoUnidadeWriteSerializer.validate() no
+// backend, que exige/proíbe o campo pela mesma flag). Não dá pra expressar
+// isso com um .refine() estático porque a flag mora no objeto do tipo
+// (useTiposDocumento), não em outro campo do próprio formulário.
+function criarSchema(idsControladosPorProfissional: Set<number>) {
+  return z
+    .object({
+      unidade: z.coerce
+        .number({ error: "Selecione a unidade." })
+        .int()
+        .positive(),
+      tipo_documento: z.coerce
+        .number({ error: "Selecione o tipo de documento." })
+        .int()
+        .positive(),
+      profissional: z.string().optional(),
+      nao_aplicavel: z.boolean(),
+      justificativa_excecao: z.string().optional(),
+      status: z
+        .enum(STATUS_INICIAIS as [StatusDocumento, ...StatusDocumento[]])
+        .optional(),
+      validade: z.string().optional(),
+      vigente_a_partir: z.string().optional(),
+      antecedencia_dias: z.coerce.number().int().min(0).optional(),
+      janela_dia_inicio: numeroDiaOpcional,
+      janela_dia_fim: numeroDiaOpcional,
+      criticidade: z
+        .enum(CRITICIDADES as [Criticidade, ...Criticidade[]])
+        .optional(),
+      gera_card_demanda: z.boolean(),
+    })
+    // Espelha DocumentoUnidadeWriteSerializer.validate() (backend) -- ver
+    // legalizacao/serializers.py: os 4 campos abaixo só são exigidos quando
+    // NÃO é o caminho "Não aplicável".
+    .refine((v) => !v.nao_aplicavel || !!v.justificativa_excecao, {
+      message: "Obrigatória para marcar Não aplicável.",
+      path: ["justificativa_excecao"],
+    })
+    .refine((v) => v.nao_aplicavel || !!v.status, {
+      message: "Selecione o status inicial.",
+      path: ["status"],
+    })
+    .refine((v) => v.nao_aplicavel || !!v.vigente_a_partir, {
+      message: "Obrigatório.",
+      path: ["vigente_a_partir"],
+    })
+    .refine((v) => v.nao_aplicavel || v.antecedencia_dias !== undefined, {
+      message: "Obrigatória.",
+      path: ["antecedencia_dias"],
+    })
+    .refine((v) => v.nao_aplicavel || !!v.criticidade, {
+      message: "Selecione a criticidade.",
+      path: ["criticidade"],
+    })
+    // Mesma regra de validate() (backend): "Vencido" sempre exige validade,
+    // criação inclusa.
+    .refine((v) => v.nao_aplicavel || v.status !== "vencido" || !!v.validade, {
+      message: "Obrigatória para status 'Vencido'.",
+      path: ["validade"],
+    })
+    // Espelha DocumentoUnidadeWriteSerializer.validate() (backend):
+    // "profissional" obrigatório pra tipos controlados por profissional...
+    .refine(
+      (v) =>
+        !idsControladosPorProfissional.has(v.tipo_documento) ||
+        !!v.profissional?.trim(),
+      {
+        message: "Obrigatório para este tipo de documento.",
+        path: ["profissional"],
+      },
+    )
+    // ...e proibido pros demais -- sem isso, um valor digitado antes de
+    // trocar pra um tipo comum passaria batido no client e só falharia no
+    // servidor.
+    .refine(
+      (v) =>
+        idsControladosPorProfissional.has(v.tipo_documento) ||
+        !v.profissional?.trim(),
+      {
+        message: "Só pode ser preenchido para tipos controlados por profissional.",
+        path: ["profissional"],
+      },
+    );
+}
 
-type FormValuesEntrada = z.input<typeof schema>;
-type FormValuesSaida = z.output<typeof schema>;
+type FormValuesEntrada = z.input<ReturnType<typeof criarSchema>>;
+type FormValuesSaida = z.output<ReturnType<typeof criarSchema>>;
 
 const valoresPadrao: Partial<FormValuesEntrada> = {
   nao_aplicavel: false,
@@ -156,6 +188,19 @@ export function FormCadastrarDocumento({
   const inputArquivoRef = useRef<HTMLInputElement>(null);
 
   const tiposAtivos = tiposDocumento.filter((tipo) => tipo.ativo);
+  const idsControladosPorProfissional = useMemo(
+    () =>
+      new Set(
+        tiposDocumento
+          .filter((tipo) => tipo.controlado_por_profissional)
+          .map((tipo) => tipo.id),
+      ),
+    [tiposDocumento],
+  );
+  const schema = useMemo(
+    () => criarSchema(idsControladosPorProfissional),
+    [idsControladosPorProfissional],
+  );
 
   const {
     register,
@@ -181,6 +226,12 @@ export function FormCadastrarDocumento({
   const naoAplicavel = watch("nao_aplicavel");
   const status = watch("status");
   const unidadeSelecionada = watch("unidade") as number | undefined;
+  const tipoDocumentoSelecionado = watch("tipo_documento") as
+    | number
+    | undefined;
+  const tipoSelecionado = tiposDocumento.find(
+    (tipo) => tipo.id === tipoDocumentoSelecionado,
+  );
 
   // Achado no dogfooding: só avisar depois de preencher o formulário
   // inteiro (no submit) que a combinação já existe era tarde demais -- nem
@@ -195,9 +246,63 @@ export function FormCadastrarDocumento({
   const idsTiposJaCadastrados = new Set(
     documentosDaUnidade.map((documento) => documento.tipo_documento.id),
   );
+  // STC-432: tipos controlado_por_profissional (Dosimetria) continuam
+  // disponíveis mesmo já cadastrados -- cada profissional é uma linha
+  // própria, então "já tem um documento deste tipo" não esgota a unidade
+  // pra esses tipos (a checagem real de duplicata vira por profissional,
+  // ver aoSubmeter).
   const tiposDisponiveis = tiposAtivos.filter(
-    (tipo) => !idsTiposJaCadastrados.has(tipo.id),
+    (tipo) =>
+      tipo.controlado_por_profissional ||
+      !idsTiposJaCadastrados.has(tipo.id),
   );
+
+  // STC-432 (achado em análise própria de falhas críticas): pra um 2º+
+  // profissional do mesmo tipo controlado_por_profissional nesta unidade, a
+  // regra é reaproveitada em aoSubmeter (RegraDocumento não varia por
+  // profissional) -- sem isto, o formulário continuava pedindo/mostrando os
+  // campos de regra como se fossem criar uma regra nova, e qualquer valor
+  // digitado ali era descartado em silêncio no submit, sem nenhum aviso.
+  const regraExistenteParaTipo =
+    tipoSelecionado?.controlado_por_profissional && tipoDocumentoSelecionado
+      ? (documentosDaUnidade.find(
+          (doc) =>
+            doc.tipo_documento.id === tipoDocumentoSelecionado &&
+            doc.regra_aplicada,
+        )?.regra_aplicada ?? null)
+      : null;
+
+  useEffect(() => {
+    if (!regraExistenteParaTipo) return;
+    setValue("vigente_a_partir", regraExistenteParaTipo.vigente_a_partir);
+    setValue("antecedencia_dias", regraExistenteParaTipo.antecedencia_dias);
+    setValue(
+      "janela_dia_inicio",
+      regraExistenteParaTipo.janela_dia_inicio ?? undefined,
+    );
+    setValue(
+      "janela_dia_fim",
+      regraExistenteParaTipo.janela_dia_fim ?? undefined,
+    );
+    setValue("criticidade", regraExistenteParaTipo.criticidade);
+    setValue("gera_card_demanda", regraExistenteParaTipo.gera_card_demanda);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regraExistenteParaTipo?.id, setValue]);
+
+  // Achado no code review automático (STC-432): o efeito acima só preenche
+  // os campos de regra quando regraExistenteParaTipo existe -- ele nunca os
+  // limpa quando deixa de existir (troca de unidade/tipo saindo de um tipo
+  // controlado com regra já cadastrada pra outro sem regra). Sem isto, os
+  // valores da regra anterior ficavam visíveis e editáveis, prontos pra ir
+  // no submit como se fossem da regra nova.
+  function limparCamposDeRegra() {
+    setValue("vigente_a_partir", undefined);
+    setValue("antecedencia_dias", undefined);
+    setValue("janela_dia_inicio", undefined);
+    setValue("janela_dia_fim", undefined);
+    setValue("criticidade", undefined);
+    setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+  }
 
   // Extraído do fluxo principal -- também usado quando o usuário clica
   // "Cadastrar documento" de novo depois de um envio de evidência que já
@@ -240,19 +345,41 @@ export function FormCadastrarDocumento({
         return;
       }
 
+      const tipoControladoPorProfissional = idsControladosPorProfissional.has(
+        valores.tipo_documento,
+      );
+
       // Achado no dogfooding: sem checar antes, uma tentativa repetida pro
       // mesmo tipo+unidade criava uma regra nova (etapa 1) que colidia com a
       // regra órfã da tentativa anterior (mesma vigente_a_partir) -- o
       // usuário via um erro técnico de unicidade da Regra em vez de um
       // aviso claro de "documento já existe". Checa aqui, antes de criar
       // qualquer coisa.
+      //
+      // STC-432: pra tipos controlado_por_profissional, a duplicata real é
+      // por profissional (mesmo tipo+unidade com profissionais diferentes é
+      // esperado, uma linha por profissional) -- só bloqueia se o MESMO
+      // profissional já tiver documento deste tipo nesta unidade.
+      //
+      // trim() aqui (achado em análise própria de falhas críticas): sem
+      // isso, " Dr. João" e "Dr. João" (o valor já salvo, sempre trimado no
+      // envio) não batiam nessa comparação, deixando passar uma duplicata
+      // real por causa só de espaço em branco.
+      const profissionalTrimado = valores.profissional?.trim() ?? "";
       const existentes = await listarDocumentosLegalizacao({
         unidade: valores.unidade,
         tipo_documento: valores.tipo_documento,
       });
-      if (existentes.length > 0) {
+      const duplicado = tipoControladoPorProfissional
+        ? existentes.some(
+            (documento) => documento.profissional === profissionalTrimado,
+          )
+        : existentes.length > 0;
+      if (duplicado) {
         toast.error(
-          'Já existe um documento cadastrado para esta unidade e tipo. Use "Corrigir regra existente" para atualizar.',
+          tipoControladoPorProfissional
+            ? "Já existe um documento deste tipo e unidade para este profissional."
+            : 'Já existe um documento cadastrado para esta unidade e tipo. Use "Corrigir regra existente" para atualizar.',
         );
         return;
       }
@@ -263,21 +390,36 @@ export function FormCadastrarDocumento({
           unidade: valores.unidade,
           status: "nao_aplicavel",
           justificativa_excecao: valores.justificativa_excecao,
+          ...(tipoControladoPorProfissional && {
+            profissional: profissionalTrimado,
+          }),
         });
       } else {
-        // 1) Regra própria da unidade -- 2) documento, já com a regra recém
-        // criada aplicada -- 3) evidência, se anexada. Único fluxo, 3
-        // chamadas em sequência (não existe endpoint combinado no backend).
-        const regra = await criarRegra({
-          tipo_documento: valores.tipo_documento,
-          unidade: valores.unidade,
-          antecedencia_dias: valores.antecedencia_dias as number,
-          janela_dia_inicio: valores.janela_dia_inicio ?? null,
-          janela_dia_fim: valores.janela_dia_fim ?? null,
-          criticidade: valores.criticidade as Criticidade,
-          vigente_a_partir: valores.vigente_a_partir as string,
-          gera_card_demanda: valores.gera_card_demanda,
-        });
+        // STC-432: regra é por tipo+unidade, nunca por profissional (prazo/
+        // antecedência não variam entre profissionais do mesmo tipo) -- se
+        // já existe uma regra de uma linha anterior deste tipo+unidade
+        // (outro profissional), reaproveita em vez de criar outra, que
+        // colidiria com a UniqueConstraint (tipo_documento, unidade,
+        // vigente_a_partir) no backend.
+        const regraExistente = existentes.find(
+          (documento) => documento.regra_aplicada,
+        )?.regra_aplicada;
+        // 1) Regra própria da unidade (ou reaproveitada) -- 2) documento,
+        // com a regra aplicada -- 3) evidência, se anexada. Único fluxo, no
+        // máximo 3 chamadas em sequência (não existe endpoint combinado no
+        // backend).
+        const regra =
+          regraExistente ??
+          (await criarRegra({
+            tipo_documento: valores.tipo_documento,
+            unidade: valores.unidade,
+            antecedencia_dias: valores.antecedencia_dias as number,
+            janela_dia_inicio: valores.janela_dia_inicio ?? null,
+            janela_dia_fim: valores.janela_dia_fim ?? null,
+            criticidade: valores.criticidade as Criticidade,
+            vigente_a_partir: valores.vigente_a_partir as string,
+            gera_card_demanda: valores.gera_card_demanda,
+          }));
         let documento;
         try {
           documento = await criarDocumento({
@@ -286,6 +428,9 @@ export function FormCadastrarDocumento({
             status: valores.status as StatusDocumento,
             validade: valores.validade || null,
             regra_aplicada: regra.id,
+            ...(tipoControladoPorProfissional && {
+              profissional: profissionalTrimado,
+            }),
           });
         } catch (erroDocumento) {
           // A regra já foi criada com sucesso -- se o documento falhar
@@ -293,10 +438,17 @@ export function FormCadastrarDocumento({
           // desfaz a regra órfã em vez de deixar lixo no catálogo. Best
           // effort: se a própria exclusão falhar, ignora e mostra o erro
           // original (que é o que importa pro usuário).
-          try {
-            await excluirRegraDocumento(regra.id);
-          } catch {
-            // Ignora.
+          //
+          // STC-432: só desfaz se a regra foi criada agora -- uma regra
+          // reaproveitada (regraExistente) já está em uso por outro
+          // documento (outro profissional do mesmo tipo/unidade), excluí-la
+          // quebraria aquele documento também.
+          if (!regraExistente) {
+            try {
+              await excluirRegraDocumento(regra.id);
+            } catch {
+              // Ignora.
+            }
           }
           throw erroDocumento;
         }
@@ -353,6 +505,13 @@ export function FormCadastrarDocumento({
                         "tipo_documento",
                         undefined as unknown as number,
                       );
+                      // Achado em análise própria de falhas críticas: sem
+                      // isto, um profissional digitado pra Unidade A
+                      // sobrevivia silenciosamente à troca pra Unidade B --
+                      // fácil de não notar e cadastrar o documento errado
+                      // pro profissional errado.
+                      setValue("profissional", "");
+                      limparCamposDeRegra();
                     }}
                   >
                     <SelectTrigger id="cd-unidade" className="w-full">
@@ -385,7 +544,14 @@ export function FormCadastrarDocumento({
                 render={({ field }) => (
                   <Select
                     value={field.value ? String(field.value) : undefined}
-                    onValueChange={(valor) => field.onChange(Number(valor))}
+                    onValueChange={(valor) => {
+                      field.onChange(Number(valor));
+                      // Mesmo motivo da troca de unidade acima -- um
+                      // profissional digitado pra um tipo não deve
+                      // sobreviver silenciosamente à troca pra outro tipo.
+                      setValue("profissional", "");
+                      limparCamposDeRegra();
+                    }}
                     disabled={!unidadeSelecionada}
                   >
                     <SelectTrigger id="cd-tipo" className="w-full">
@@ -423,6 +589,28 @@ export function FormCadastrarDocumento({
                 </p>
               )}
             </div>
+
+            {tipoSelecionado?.controlado_por_profissional && (
+              <div className="space-y-1.5">
+                <Label htmlFor="cd-profissional">
+                  Profissional <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="cd-profissional"
+                  placeholder="Nome do profissional"
+                  {...register("profissional")}
+                />
+                {errors.profissional && (
+                  <p className="text-xs text-destructive">
+                    {errors.profissional.message}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Este tipo de documento é controlado por profissional -- cada
+                  profissional tem uma linha própria nesta unidade.
+                </p>
+              </div>
+            )}
 
             <Separator />
 
@@ -516,9 +704,9 @@ export function FormCadastrarDocumento({
                     Regra desta unidade
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Os valores abaixo valem só para esta unidade e este tipo de
-                    documento. Cada unidade tem seu próprio prazo, mesmo sendo o
-                    mesmo tipo de documento.
+                    {regraExistenteParaTipo
+                      ? "Este tipo é controlado por profissional e já tem uma regra cadastrada nesta unidade (reaproveitada de outro profissional) -- os campos abaixo só mostram os valores já em vigor, não editáveis aqui."
+                      : "Os valores abaixo valem só para esta unidade e este tipo de documento. Cada unidade tem seu próprio prazo, mesmo sendo o mesmo tipo de documento."}
                   </p>
                 </div>
 
@@ -531,6 +719,7 @@ export function FormCadastrarDocumento({
                     <Input
                       id="cd-vigente"
                       type="date"
+                      disabled={!!regraExistenteParaTipo}
                       {...register("vigente_a_partir")}
                     />
                     {errors.vigente_a_partir && (
@@ -549,6 +738,7 @@ export function FormCadastrarDocumento({
                       id="cd-antecedencia"
                       type="number"
                       min={0}
+                      disabled={!!regraExistenteParaTipo}
                       {...register("antecedencia_dias")}
                     />
                     {errors.antecedencia_dias && (
@@ -569,6 +759,7 @@ export function FormCadastrarDocumento({
                       type="number"
                       min={1}
                       max={31}
+                      disabled={!!regraExistenteParaTipo}
                       {...register("janela_dia_inicio")}
                     />
                   </div>
@@ -579,6 +770,7 @@ export function FormCadastrarDocumento({
                       type="number"
                       min={1}
                       max={31}
+                      disabled={!!regraExistenteParaTipo}
                       {...register("janela_dia_fim")}
                     />
                   </div>
@@ -598,6 +790,7 @@ export function FormCadastrarDocumento({
                     render={({ field }) => (
                       <Select
                         value={field.value}
+                        disabled={!!regraExistenteParaTipo}
                         onValueChange={field.onChange}
                       >
                         <SelectTrigger id="cd-criticidade" className="w-full">
@@ -627,6 +820,7 @@ export function FormCadastrarDocumento({
                     render={({ field }) => (
                       <Checkbox
                         checked={field.value}
+                        disabled={!!regraExistenteParaTipo}
                         onCheckedChange={field.onChange}
                       />
                     )}
