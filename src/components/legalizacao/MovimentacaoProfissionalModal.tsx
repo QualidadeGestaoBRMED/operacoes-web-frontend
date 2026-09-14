@@ -89,6 +89,40 @@ function dataMinimaDosimetro(): Date {
   return minima;
 }
 
+// STC-437: fonte única de verdade pra "quais documentos entram na lista de
+// afetados pra este tipo de movimentação" -- usada tanto pra renderizar o
+// checklist quanto pra podar `marcados` ao trocar de tipo (trocarTipo).
+// Sem isso, achado no code review: a regra de "vencido" ficava duplicada em
+// dois lugares que podiam divergir se um dos dois mudasse sem o outro.
+//
+// idsParaManter (achado numa 2ª rodada de code review): a exclusão por
+// Vencido pode acontecer sozinha, sem o usuário trocar de tipo -- o poll de
+// 60s (useDocumentosLegalizacao) revalida em background enquanto o modal
+// segue aberto em "saida". Sem uma forma de manter um id já marcado/
+// confirmado/com erro na lista mesmo depois de excluído pela regra, a linha
+// inteira desaparecia da tela (badge "Confirmado" incluído), sem nenhum
+// aviso -- quem chama decide quais ids "já envolvidos" precisam continuar
+// visíveis mesmo perdendo elegibilidade.
+function filtrarDocumentosAfetados(
+  docs: DocumentoUnidade[],
+  tipoAlvo: TipoMovimentacaoProfissional,
+  idsParaManter: Set<number> = new Set(),
+): DocumentoUnidade[] {
+  return docs.filter(
+    (doc) =>
+      doc.status !== "nao_aplicavel" &&
+      doc.status !== "unidade_encerramento" &&
+      // "saida" num documento já Vencido é redundante -- o backend já
+      // rejeita (STC-436), então nem oferece pra marcar. "entrada" continua
+      // vendo documentos Vencido normalmente (caminho legítimo de retomada,
+      // Vencido -> Em andamento). idsParaManter contorna essa exclusão só
+      // pra quem já estava envolvido antes dela passar a valer.
+      (idsParaManter.has(doc.id) ||
+        !(tipoAlvo === "saida" && doc.status === "vencido")) &&
+      CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(doc.tipo_documento.codigo),
+  );
+}
+
 function TextoCallout({ tipo }: { tipo: TipoMovimentacaoProfissional }) {
   if (tipo === "saida") {
     return (
@@ -152,17 +186,42 @@ export function MovimentacaoProfissionalModal({
     documento ? { unidade: documento.unidade.id } : undefined,
     { desabilitado: !aberto || !documento },
   );
-  const documentosAfetados = documentosDaUnidade.filter(
-    (doc) =>
-      doc.status !== "nao_aplicavel" &&
-      doc.status !== "unidade_encerramento" &&
-      CODIGOS_MOVIMENTACAO_PROFISSIONAL.has(doc.tipo_documento.codigo),
+  const documentosElegiveis = filtrarDocumentosAfetados(
+    documentosDaUnidade,
+    tipo,
+  );
+  // idsEnvolvidos/documentosParaExibir (achado numa 2ª rodada de code
+  // review): um documento já marcado, confirmado ou com erro pendente pode
+  // sair de `documentosElegiveis` sem o usuário trocar de tipo -- ver
+  // comentário em filtrarDocumentosAfetados. `documentosParaExibir` é só
+  // pra renderizar o checklist (e pra alternarMarcado achar a linha que o
+  // usuário está clicando); toda decisão de "isto pode ser enviado/pré-
+  // marcado" continua usando `documentosElegiveis`.
+  const idsEnvolvidos = new Set<number>([
+    ...marcados,
+    ...confirmados,
+    ...Object.keys(errosPorDocumento).map(Number),
+  ]);
+  const documentosParaExibir = filtrarDocumentosAfetados(
+    documentosDaUnidade,
+    tipo,
+    idsEnvolvidos,
+  );
+  // Base sem a exclusão por Vencido (reaproveita a mesma função com
+  // tipoAlvo "entrada", que nunca exclui por Vencido) -- achado em code
+  // review: só assim dá pra distinguir "não há nenhum documento cadastrado
+  // nesta unidade" de "há documentos, mas todos excluídos pela regra de
+  // Vencido em saída"; a mensagem de estado vazio afirmava sempre a
+  // primeira coisa.
+  const documentosRelevantesNaUnidade = filtrarDocumentosAfetados(
+    documentosDaUnidade,
+    "entrada",
   );
 
-  if (!jaInicializouRef.current && documentosAfetados.length > 0) {
+  if (!jaInicializouRef.current && documentosElegiveis.length > 0) {
     jaInicializouRef.current = true;
     const codigosFuncao = CODIGOS_POR_FUNCAO[funcao];
-    const sugeridos = documentosAfetados
+    const sugeridos = documentosElegiveis
       .filter(
         (doc) =>
           codigosFuncao.includes(doc.tipo_documento.codigo) &&
@@ -193,7 +252,11 @@ export function MovimentacaoProfissionalModal({
   }
 
   function alternarMarcado(id: number) {
-    const doc = documentosAfetados.find((d) => d.id === id);
+    // documentosParaExibir (não documentosElegiveis): esta função também
+    // precisa achar a linha de um documento já marcado/com erro que saiu de
+    // documentosElegiveis (ex.: virou Vencido em background) -- é assim que
+    // o usuário desmarca/desiste dele, ver comentário abaixo.
+    const doc = documentosParaExibir.find((d) => d.id === id);
     setMarcados((atual) => {
       const novo = new Set(atual);
       if (novo.has(id)) {
@@ -205,7 +268,7 @@ export function MovimentacaoProfissionalModal({
         // representar duas pessoas diferentes na mesma confirmação. Marcar
         // um novo desmarca automaticamente outro já marcado do mesmo grupo.
         if (doc?.tipo_documento.controlado_por_profissional) {
-          documentosAfetados
+          documentosParaExibir
             .filter((d) => d.tipo_documento.controlado_por_profissional)
             .forEach((d) => novo.delete(d.id));
         }
@@ -227,7 +290,7 @@ export function MovimentacaoProfissionalModal({
   function trocarFuncao(novaFuncao: FuncaoMovimentacao) {
     setFuncao(novaFuncao);
     const codigosFuncao = CODIGOS_POR_FUNCAO[novaFuncao];
-    const sugeridos = documentosAfetados
+    const sugeridos = documentosElegiveis
       .filter(
         (doc) =>
           codigosFuncao.includes(doc.tipo_documento.codigo) &&
@@ -237,7 +300,28 @@ export function MovimentacaoProfissionalModal({
     setMarcados(new Set(sugeridos));
   }
 
-  const documentoDosimetriaMarcado = documentosAfetados.find(
+  function trocarTipo(novoTipo: TipoMovimentacaoProfissional) {
+    setTipo(novoTipo);
+    // STC-437: trocar de tipo pode tirar documento(s) da lista de afetados
+    // (hoje só "vencido" ao entrar em "saida", mas usa o mesmo filtro do
+    // checklist -- filtrarDocumentosAfetados -- de propósito, pra nunca
+    // divergir se essa regra ganhar mais casos no futuro). Sem podar aqui,
+    // um id que já estava marcado sumia da tela mas continuava marcado por
+    // dentro, indo junto no próximo envio sem o usuário perceber.
+    const idsValidosNoNovoTipo = new Set(
+      filtrarDocumentosAfetados(documentosDaUnidade, novoTipo).map(
+        (doc) => doc.id,
+      ),
+    );
+    setMarcados((atual) => {
+      const novo = new Set(
+        Array.from(atual).filter((id) => idsValidosNoNovoTipo.has(id)),
+      );
+      return novo;
+    });
+  }
+
+  const documentoDosimetriaMarcado = documentosElegiveis.find(
     (doc) =>
       marcados.has(doc.id) && doc.tipo_documento.codigo === CODIGO_DOSIMETRIA,
   );
@@ -247,7 +331,7 @@ export function MovimentacaoProfissionalModal({
     !!data &&
     paraDataLocal(data) < dataMinimaDosimetro();
 
-  const documentoCnesMarcado = documentosAfetados.find(
+  const documentoCnesMarcado = documentosElegiveis.find(
     (doc) => marcados.has(doc.id) && doc.tipo_documento.codigo === CODIGO_CNES,
   );
   const janelaCnes = documentoCnesMarcado?.regra_aplicada;
@@ -260,7 +344,7 @@ export function MovimentacaoProfissionalModal({
   // o nome certo aqui evita confundir quem preenche). Numa "entrada", o
   // campo continua livre -- é como se cadastra/reatribui um profissional
   // novo pra esse documento.
-  const documentoControladoMarcado = documentosAfetados.find(
+  const documentoControladoMarcado = documentosElegiveis.find(
     (doc) =>
       marcados.has(doc.id) && doc.tipo_documento.controlado_por_profissional,
   );
@@ -286,8 +370,14 @@ export function MovimentacaoProfissionalModal({
   // volta a "Confirmar ..." parecendo acionável, mas idsParaEnviar em
   // confirmar() fica vazio -- clique virava no-op silencioso. Precisa
   // sobrar pelo menos 1 id marcado e ainda não confirmado.
+  // STC-437: também exige que o id ainda esteja em documentosElegiveis --
+  // mesmo raciocínio do achado acima (PR #37), agora aplicado a um id que
+  // ficou "fantasma" (marcado, mas fora da lista atual) sem o usuário
+  // trocar de tipo -- senão o botão parece acionável e o clique em
+  // confirmar() vira no-op silencioso de novo.
+  const idsAfetadosAtuais = new Set(documentosElegiveis.map((doc) => doc.id));
   const haAlgoParaEnviar = Array.from(marcados).some(
-    (id) => !confirmados.has(id),
+    (id) => !confirmados.has(id) && idsAfetadosAtuais.has(id),
   );
   const podeConfirmar =
     !!profissionalEfetivo &&
@@ -298,8 +388,15 @@ export function MovimentacaoProfissionalModal({
 
   async function confirmar() {
     if (!podeConfirmar || !documento) return;
+    // STC-437 (achado no code review): `marcados` pode ficar desatualizado
+    // sem o usuário trocar de tipo -- o poll de 60s (useDocumentosLegalizacao)
+    // pode trazer um documento que virou Vencido enquanto o modal seguia
+    // aberto em "saida". Interseção com documentosElegiveis (idsAfetadosAtuais)
+    // barra esse id aqui -- a linha continua visível (documentosParaExibir,
+    // achado numa 2ª rodada), mas com um aviso, em vez de deixar ir pro
+    // backend e travar o modal num erro sem linha visível pra mostrar.
     const idsParaEnviar = Array.from(marcados).filter(
-      (id) => !confirmados.has(id),
+      (id) => !confirmados.has(id) && idsAfetadosAtuais.has(id),
     );
     if (idsParaEnviar.length === 0) return;
 
@@ -428,7 +525,7 @@ export function MovimentacaoProfissionalModal({
                       type="button"
                       aria-pressed={tipo === valor}
                       disabled={enviando || jaTentouEnviar}
-                      onClick={() => setTipo(valor)}
+                      onClick={() => trocarTipo(valor)}
                       className={cn(
                         "flex-1 rounded-[5px] px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-60",
                         tipo === valor &&
@@ -534,16 +631,36 @@ export function MovimentacaoProfissionalModal({
                     Não foi possível carregar os documentos desta unidade:{" "}
                     {erroAfetados}
                   </p>
-                ) : documentosAfetados.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum documento regulado por movimentação de profissional
-                    está cadastrado nesta unidade.
-                  </p>
+                ) : documentosParaExibir.length === 0 ? (
+                  documentosRelevantesNaUnidade.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum documento regulado por movimentação de
+                      profissional está cadastrado nesta unidade.
+                    </p>
+                  ) : (
+                    // Achado em code review: a mensagem acima ("nenhum
+                    // documento cadastrado") é factualmente errada aqui --
+                    // os documentos existem, só estão todos excluídos pela
+                    // regra de "saida" + Vencido (STC-436).
+                    <p className="text-sm text-muted-foreground">
+                      Os documentos regulados desta unidade já estão Vencidos
+                      -- não há nada pra reportar como saída. Troque para
+                      &quot;Entrada&quot; se for retomar algum deles.
+                    </p>
+                  )
                 ) : (
                   <div className="flex flex-col gap-1.5">
-                    {documentosAfetados.map((doc) => {
+                    {documentosParaExibir.map((doc) => {
                       const confirmado = confirmados.has(doc.id);
                       const erro = errosPorDocumento[doc.id];
+                      // Achado em code review (2ª rodada): um documento já
+                      // marcado/com erro pode sair de documentosElegiveis
+                      // sem sumir da tela (ver idsEnvolvidos acima) -- sem
+                      // avisar que ele não é mais elegível, "Tentar
+                      // novamente" continuava parecendo que ia reenviá-lo,
+                      // quando na verdade idsAfetadosAtuais já o exclui em
+                      // silêncio.
+                      const aindaElegivel = idsAfetadosAtuais.has(doc.id);
                       const ehCnesComAviso =
                         doc.tipo_documento.codigo === CODIGO_CNES &&
                         !!documentoCnesMarcado;
@@ -583,6 +700,13 @@ export function MovimentacaoProfissionalModal({
                               className="pl-2 text-[11.5px] text-destructive"
                             >
                               {erro}
+                            </p>
+                          )}
+                          {!confirmado && !aindaElegivel && (
+                            <p className="pl-2 text-[11.5px] text-muted-foreground">
+                              Este documento passou a Vencido -- não pode mais
+                              ser reportado como saída. Desmarque-o ou troque
+                              para &quot;Entrada&quot; pra continuar com ele.
                             </p>
                           )}
                         </div>
