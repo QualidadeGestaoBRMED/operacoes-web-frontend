@@ -22,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { encontrarRecursoPorChave, useRecursosPermissao } from "@/hooks/useModulos";
+import {
+  encontrarRecursoPorChave,
+  useModulos,
+  useRecursosPermissao,
+} from "@/hooks/useModulos";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -125,6 +129,7 @@ export function FormNovaPermissao({
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
+  const { modulos } = useModulos();
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -194,12 +199,22 @@ export function FormNovaPermissao({
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
-      // STC-422: o módulo dono do recurso já vem junto ao achatar o
-      // catálogo (useRecursosPermissao -- ver moduloId em useModulos.ts),
-      // sem precisar mais inferir pelo prefixo de "recurso" antes do ".".
+      // O módulo dono do recurso normalmente já vem junto ao achatar o
+      // catálogo (useRecursosPermissao -- ver moduloId em useModulos.ts).
+      // Achado no code review: "Renovar" pode reenviar uma chave de recurso
+      // que saiu do catálogo (recursoOrfao acima) sem o usuário tocar no
+      // campo -- nesse caso encontrarRecursoPorChave não acha nada, e sem
+      // fallback o módulo se perdia (`modulo: null`) mesmo quando o módulo
+      // em si continua existindo, só aquele recurso específico é que não
+      // está mais listado nele. Fallback pelo prefixo de "recurso" antes do
+      // "." contra Modulo.codigo -- mesmo mecanismo que existia antes desta
+      // issue trocar a fonte de dados, mantido só como rede de segurança
+      // pra esse caminho.
       const moduloId =
-        encontrarRecursoPorChave(recursos, valores.recurso)
-          ?.moduloId ?? null;
+        encontrarRecursoPorChave(recursos, valores.recurso)?.moduloId ??
+        modulos.find((modulo) => modulo.codigo === valores.recurso.split(".")[0])
+          ?.id ??
+        null;
 
       await criar({
         usuario: valores.usuario,

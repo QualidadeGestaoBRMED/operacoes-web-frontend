@@ -523,8 +523,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   it("STC-422: Renovar com um recurso que não existe mais no catálogo mostra a chave em vez de deixar o Select em branco", async () => {
     // Achado no code review: sem isso, o Select ficava vazio (nem
     // "Selecionar...", nem o valor real) escondendo que o campo ainda
-    // guardava essa chave por baixo -- um Renovar sem tocar em Recurso
-    // criava uma permissão com modulo: null em silêncio.
+    // guardava essa chave por baixo.
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isLoading: false,
@@ -554,6 +553,67 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(
       within(dialog).getAllByText(/modulo-antigo\.recurso-removido/).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("STC-422: Renovar sem tocar em Recurso continua resolvendo o módulo mesmo quando o recurso saiu do catálogo (2º achado no code review)", async () => {
+    // Achado no code review: a checagem visual acima (achado 1) resolvia só
+    // a aparência -- o campo "recurso" continuava com a chave órfã, e
+    // encontrarRecursoPorChave() não acha nada pra ela no catálogo atual.
+    // Sem um fallback, moduloId caía em null no submit, mesmo o módulo
+    // "modulo-antigo" continuando a existir (só aquele recurso específico é
+    // que não está mais listado nele) -- reativar sem tocar no campo
+    // Recurso (o próprio caso de uso do botão) perdia a associação de
+    // módulo da permissão em silêncio.
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([
+      MODULO_GESTAO_DEMANDAS,
+      {
+        id: 9,
+        nome: "Módulo Antigo",
+        codigo: "modulo-antigo",
+        descricao: "",
+        status: "ativo",
+        versao: "0.1.0",
+        recursos_permissao: [],
+      },
+    ]);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({
+        ativo: false,
+        data_fim: "2026-01-15",
+        recurso: "modulo-antigo.recurso-removido",
+      }),
+    ]);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: /renovar permissão/i,
+    });
+
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    await user.click(
+      within(dialog).getByRole("button", { name: /renovar permissão/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recurso: "modulo-antigo.recurso-removido",
+          modulo: 9,
+        }),
+      );
+    });
   });
 
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
