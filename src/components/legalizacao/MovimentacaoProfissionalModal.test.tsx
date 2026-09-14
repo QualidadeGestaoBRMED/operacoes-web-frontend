@@ -855,3 +855,109 @@ describe("MovimentacaoProfissionalModal -- tipos controlado_por_profissional (ST
     });
   });
 });
+
+describe("MovimentacaoProfissionalModal -- exclusão de documento sem o usuário trocar de tipo (2ª rodada de code review, STC-437)", () => {
+  it("documento confirmado com sucesso continua visível (com o badge 'Confirmado') mesmo depois que a revalidação disparada pelo próprio sucesso devolve ele como Vencido", async () => {
+    // Achado no code review: a revalidação que o próprio reportar() dispara
+    // em caso de sucesso (mutate(ehChaveDeListaDeDocumentos), useMovimentacaoProfissional.ts)
+    // podia trazer o documento recém-confirmado já como Vencido (STC-436:
+    // "saida" confirmada vira Vencido na hora, sem esperar a varredura
+    // diária) -- sem manter ids já envolvidos na lista, a linha inteira
+    // (badge incluído) sumia da tela no meio de um sucesso parcial.
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => {
+        if (id === 11) throw new Error("Falha de rede.");
+        return { ...CNES, id };
+      },
+    );
+    vi.mocked(listarDocumentosLegalizacao)
+      .mockResolvedValueOnce([CNES, CREMERJ])
+      .mockResolvedValueOnce([{ ...CNES, status: "vencido" }, CREMERJ]);
+    const user = userEvent.setup();
+    renderComponente(true, CNES);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2);
+    });
+    const linhaCnes = screen.getByText("CNES").closest("div")!.parentElement!;
+    expect(within(linhaCnes).getByText("Confirmado")).toBeInTheDocument();
+  });
+
+  it("documento marcado com erro, que vira Vencido numa revalidação sem o usuário trocar de tipo, continua visível com aviso -- 'Tentar novamente' não vira clique sem efeito", async () => {
+    // Achado no code review: o mesmo buraco do teste acima também se aplica
+    // a um documento com erro pendente (aguardando retry) -- ele podia virar
+    // Vencido "por conta própria" (poll de 60s, ou -- como simulado aqui --
+    // a mesma revalidação que o sucesso de um documento-irmão já dispara),
+    // sumindo da tela junto com o erro que estava sendo mostrado, sem
+    // nenhuma ação do usuário.
+    vi.mocked(reportarMovimentacaoProfissional).mockImplementation(
+      async (id) => {
+        if (id === 11) throw new Error("Falha de rede.");
+        return { ...CNES, id };
+      },
+    );
+    vi.mocked(listarDocumentosLegalizacao)
+      .mockResolvedValueOnce([CNES, CREMERJ])
+      .mockResolvedValueOnce([
+        { ...CNES, status: "vencido" },
+        { ...CREMERJ, status: "vencido" },
+      ]);
+    const user = userEvent.setup();
+    renderComponente(true, CNES);
+    await screen.findByText("CNES");
+    await preencherObrigatorios(user);
+    await user.click(screen.getByRole("button", { name: "Confirmar saída" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    // A revalidação disparada pelo sucesso do CNES (reportar() -> mutate)
+    // devolve CREMERJ também como Vencido -- a linha continua visível, com
+    // o aviso de que não é mais elegível.
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /passou a Vencido -- não pode mais ser reportado como saída/i,
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("Registro CREMERJ")).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByText("Registro CREMERJ").closest("div")!,
+      ).getByRole("alert"),
+    ).toHaveTextContent(/não foi possível/i);
+    expect(
+      screen.getByRole("button", { name: "Tentar novamente" }),
+    ).toBeDisabled();
+  });
+
+  it("mostra mensagem específica (não 'nenhum documento cadastrado') quando os documentos existem mas estão todos Vencidos pra Saída", async () => {
+    // Achado no code review: a mensagem de estado vazio afirmava que nenhum
+    // documento estava cadastrado na unidade, mesmo quando o documento
+    // existia e só estava excluído pela regra de "saida" + Vencido
+    // (STC-436) -- cenário plausível ao abrir o modal a partir do próprio
+    // documento já Vencido (o botão "Reportar Movimentação" não bloqueia
+    // isso em DetalheDocumentoModal.tsx).
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      COREN_VENCIDO,
+    ]);
+    renderComponente();
+
+    expect(
+      await screen.findByText(
+        /já estão Vencidos -- não há nada pra reportar como saída/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/nenhum documento regulado/i),
+    ).not.toBeInTheDocument();
+  });
+});
