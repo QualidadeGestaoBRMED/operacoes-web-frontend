@@ -22,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useModulos } from "@/hooks/useModulos";
+import {
+  encontrarRecursoPorChave,
+  useModulos,
+  useRecursosPermissao,
+} from "@/hooks/useModulos";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -33,30 +37,14 @@ import type { AcaoPermissao, EscopoPermissao } from "@/types";
 
 type AcaoKanban = Extract<AcaoPermissao, "visualizar" | "editar">;
 
-const ACOES: AcaoKanban[] = [
-  "visualizar",
-  "editar",
-];
-
-// recurso é texto livre no backend (PermissaoUsuario.recurso, sem choices),
-// mas hoje só existe UM valor real em uso -- fixar como select em vez de
-// input de texto evita erro de digitação (uma string que não bate com
-// nenhuma checagem real do backend cria uma permissão "fantasma", sem
-// efeito nenhum, sem nenhum erro avisando). Se um recurso novo aparecer no
-// backend, precisa ser adicionado aqui também -- não tem como descobrir a
-// lista dinamicamente hoje (não existe um catálogo consultável via API).
-// Convenção "<código do módulo>.<recurso>" (ver Modulo.codigo, backend) --
-// aoSubmeter usa o prefixo antes do "." pra achar o modulo_id certo e
-// preencher PermissaoUsuario.modulo, sem precisar mapear aqui de novo. Um
-// módulo novo só precisa de uma entrada aqui com o código dele como prefixo.
-const RECURSOS: { valor: string; rotulo: string }[] = [
-  { valor: "gestao-demandas.kanban", rotulo: "Gestão de Demandas -- Kanban" },
-  // Único recurso que PermissaoUsuario afeta de verdade no módulo (o
-  // catálogo -- tipos-documento/regras -- não passa por permissão
-  // individual, só por nível/setor: PodeEscreverCatalogoLegalizacao,
-  // legalizacao/permissions.py).
-  { valor: "legalizacao.documentos", rotulo: "Legalização -- Documentos" },
-];
+// STC-422: este formulário só concede visualizar/editar (nunca os outros
+// valores de PermissaoUsuario.Acao) -- "editar" já implica leitura no
+// backend, então não faz sentido criar também um segundo registro
+// "visualizar". Continua fixo aqui (não vem do catálogo): é um teto do que
+// ESTE formulário sabe conceder, não do que o recurso suporta -- a lista
+// realmente oferecida pro usuário é a interseção com
+// recurso.acoes_suportadas (ver acoesDisponiveis abaixo).
+const ACOES_KANBAN: AcaoKanban[] = ["visualizar", "editar"];
 
 const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   visualizar: "Visualizar",
@@ -140,7 +128,21 @@ export function FormNovaPermissao({
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
   const { setores } = useSetores();
-  const { modulos } = useModulos();
+  const { recursos } = useRecursosPermissao();
+  // catalogoCarregando/catalogoComErro: mesma chave SWR de
+  // useRecursosPermissao() por baixo -- ver achado de code review abaixo,
+  // sobre por que essa distinção importa (recursos=[] durante o
+  // carregamento, ou por causa de um erro de rede, vs. recurso de fato
+  // removido do catálogo são estados diferentes).
+  const { modulos, isLoading: catalogoCarregando, error: catalogoComErro } = useModulos();
+  // Achado em code review: só `isLoading` era considerado -- quando o fetch
+  // de módulos falhava (timeout, 5xx), o SWR volta `isLoading: false` com
+  // `data` undefined, então `recursos`/`modulos` ficavam `[]`
+  // *permanentemente* (até o retry automático), o mesmo estado que o código
+  // tratava como "carregado com sucesso e vazio". Tratado aqui como o mesmo
+  // "não sei ainda" de catalogoCarregando, não como "recurso confirmado
+  // ausente".
+  const catalogoIndisponivel = catalogoCarregando || !!catalogoComErro;
   const { criar, isLoading } = useCriarPermissao();
 
   const {
@@ -149,6 +151,7 @@ export function FormNovaPermissao({
     control,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
@@ -167,14 +170,122 @@ export function FormNovaPermissao({
   }, [open, reset]);
 
   const escopoSelecionado = watch("escopo_tipo");
+  const recursoSelecionado = watch("recurso");
+  const acaoSelecionada = watch("acao");
+  const recursoAtual = encontrarRecursoPorChave(recursos, recursoSelecionado);
+  // Teto ACOES_KANBAN ∩ o que o recurso escolhido realmente suporta -- sem
+  // recurso escolhido ainda, mostra o teto inteiro (mesmo comportamento de
+  // antes, quando a lista era só um array fixo).
+  // Achado em code review: acoes_suportadas é obrigatório só pro
+  // TypeScript -- listarModulos() faz cast direto da resposta do axios, sem
+  // validação em runtime. Um recurso vindo de uma resposta com contrato
+  // quebrado (backend antigo, cache de cliente durante rollout) sem esse
+  // campo derrubaria a página inteira com TypeError; `?? []` é a mesma
+  // defesa já aplicada a recursos_permissao em useRecursosPermissao().
+  const acoesDisponiveis = recursoAtual
+    ? ACOES_KANBAN.filter((acao) =>
+        (recursoAtual.acoes_suportadas ?? []).includes(acao),
+      )
+    : ACOES_KANBAN;
+  // Achado no code review: um recurso real (não hipotético -- é exatamente
+  // o "recurso novo cadastrado no backend" que a issue promete suportar sem
+  // PR de frontend) pode não ter nenhuma interseção com ACOES_KANBAN (ex.:
+  // um recurso que só suporta "configurar"). Sem isto, o Select de Ação
+  // ficava vazio mas o valor por baixo (watch("acao")) continuava com o
+  // padrão "visualizar" -- silenciosamente inválido pro recurso escolhido,
+  // sem bloquear o submit nem avisar quem está concedendo.
+  const acaoIndisponivel = !!recursoAtual && acoesDisponiveis.length === 0;
+  // Achado em code review: "Renovar" pré-preenche recurso/ação direto de
+  // valoresIniciais (reset() abaixo), possivelmente antes do catálogo
+  // (useRecursosPermissao) terminar de carregar -- se recursos chegasse
+  // depois sem entrar nas deps do efeito abaixo, uma ação incompatível já
+  // pré-preenchida nunca era revalidada, e ia pro submit sem aviso.
+  // recursoOrfao: a chave pré-preenchida pode não existir (mais) no
+  // catálogo carregado (recurso removido depois da permissão original) --
+  // sem isto, o Select ficava em branco (nem "Selecionar...", nem o valor
+  // real), como se nada estivesse escolhido, quando na verdade o campo
+  // ainda guarda essa chave por baixo.
+  //
+  // Achado numa 3ª rodada de code review: recursos=[] durante o
+  // carregamento do catálogo é visualmente idêntico a "recurso realmente
+  // não existe mais" -- sem checar catalogoCarregando, um recurso válido
+  // (ex. "gestao-demandas.kanban") aparecia como órfão por uma fração de
+  // segundo em todo "Renovar", já que useRecursosPermissao()/useModulos()
+  // ainda não tinham respondido quando o formulário abre pré-preenchido.
+  const recursoOrfao =
+    recursoSelecionado && !recursoAtual && !catalogoIndisponivel
+      ? recursoSelecionado
+      : null;
+
+  useEffect(() => {
+    // Achado ao tornar Ação dependente do catálogo: trocar de recurso (ou o
+    // catálogo terminar de carregar depois de um "Renovar" já ter
+    // pré-preenchido os campos) pode deixar a ação já escolhida fora da
+    // lista nova (ex.: veio de um recurso que suporta "editar" pra um que
+    // só suporta "visualizar") -- sem isto, o valor ficava só visualmente
+    // escondido, mas ainda selecionado por baixo, pronto pra ir no submit
+    // inválido.
+    // acoesDisponiveis.length > 0: quando fica vazio (recurso sem nenhuma
+    // ação em comum com ACOES_KANBAN), não tem valor válido pra setValue --
+    // esse caso é bloqueado no submit e avisado na tela (acaoIndisponivel
+    // abaixo), não silenciosamente ignorado.
+    if (
+      acaoSelecionada &&
+      acoesDisponiveis.length > 0 &&
+      !acoesDisponiveis.includes(acaoSelecionada)
+    ) {
+      setValue("acao", acoesDisponiveis[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recursoSelecionado, recursos]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
+    // Achado numa 3ª rodada de code review: com o catálogo ainda carregando,
+    // tanto encontrarRecursoPorChave(recursos, ...) quanto o fallback por
+    // Modulo.codigo (modulos.find abaixo) falhavam juntos -- os dois vêm da
+    // mesma chamada assíncrona (useModulos()) -- resultando no mesmo
+    // `modulo: null` que o achado anterior já tinha corrigido pro caso de
+    // recurso de fato removido. O botão já fica desabilitado enquanto isso
+    // (ver disabled no submit abaixo); esta é a segunda camada, caso o form
+    // seja submetido de outro jeito (ex. Enter) antes do React re-renderizar
+    // o botão.
+    if (catalogoIndisponivel) {
+      toast.error(
+        catalogoComErro
+          ? "Não foi possível carregar o catálogo de recursos -- tente novamente."
+          : "Catálogo de recursos ainda carregando -- tente de novo em instantes.",
+      );
+      return;
+    }
+    // Achado no code review: um recurso sem nenhuma ação em comum com
+    // ACOES_KANBAN não tinha bloqueio nenhum -- o Select de Ação ficava
+    // vazio, mas o valor padrão ("visualizar") sobrevivia por baixo e ia
+    // pro submit como se o recurso suportasse essa ação. Segunda camada
+    // (o botão já fica desabilitado, ver disabled abaixo), mesmo motivo do
+    // catalogoCarregando acima.
+    if (acaoIndisponivel) {
+      toast.error(
+        "Este recurso não suporta nenhuma ação que este formulário pode conceder.",
+      );
+      return;
+    }
     try {
-      // recurso segue "<código do módulo>.<recurso>" -- acha o Modulo real
-      // pelo prefixo (null se o módulo ainda não tiver linha em Modulo, ex.:
-      // um dos "em breve" na Sidebar que só existe como config de frontend).
-      const codigoModulo = valores.recurso.split(".")[0];
-      const moduloId = modulos.find((modulo) => modulo.codigo === codigoModulo)?.id ?? null;
+      // O módulo dono do recurso normalmente já vem junto ao achatar o
+      // catálogo (useRecursosPermissao -- ver moduloId em useModulos.ts).
+      // Achado no code review: "Renovar" pode reenviar uma chave de recurso
+      // que saiu do catálogo (recursoOrfao acima) sem o usuário tocar no
+      // campo -- nesse caso encontrarRecursoPorChave não acha nada, e sem
+      // fallback o módulo se perdia (`modulo: null`) mesmo quando o módulo
+      // em si continua existindo, só aquele recurso específico é que não
+      // está mais listado nele. Fallback pelo prefixo de "recurso" antes do
+      // "." contra Modulo.codigo -- mesmo mecanismo que existia antes desta
+      // issue trocar a fonte de dados, mantido só como rede de segurança
+      // pra esse caminho.
+      const moduloId =
+        encontrarRecursoPorChave(recursos, valores.recurso)?.moduloId ??
+        modulos.find((modulo) => modulo.codigo === valores.recurso.split(".")[0])
+          ?.id ??
+        null;
 
       await criar({
         usuario: valores.usuario,
@@ -249,9 +360,18 @@ export function FormNovaPermissao({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {RECURSOS.map((recurso) => (
-                        <SelectItem key={recurso.valor} value={recurso.valor}>
-                          {recurso.rotulo}
+                      {/* Renovar pode pré-preencher uma chave que saiu do
+                          catálogo depois -- mostra ela mesmo assim (em vez
+                          de o Select ficar em branco, escondendo que já
+                          existe um valor selecionado por baixo). */}
+                      {recursoOrfao && (
+                        <SelectItem value={recursoOrfao} disabled>
+                          {recursoOrfao} (não está mais no catálogo)
+                        </SelectItem>
+                      )}
+                      {recursos.map((recurso) => (
+                        <SelectItem key={recurso.chave} value={recurso.chave}>
+                          {recurso.moduloNome} -- {recurso.rotulo}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -276,7 +396,7 @@ export function FormNovaPermissao({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACOES.map((acao) => (
+                      {acoesDisponiveis.map((acao) => (
                         <SelectItem key={acao} value={acao}>
                           {ROTULO_ACAO[acao]}
                         </SelectItem>
@@ -286,10 +406,16 @@ export function FormNovaPermissao({
                 )}
               />
               {errors.acao && <p className="text-xs text-destructive">{errors.acao.message}</p>}
-              <p className="text-xs text-muted-foreground">
-                Editar também concede visualização. Lixeira, aprovação e configurações continuam
-                seguindo as regras administrativas do sistema.
-              </p>
+              {acaoIndisponivel ? (
+                <p className="text-xs text-destructive">
+                  Este recurso não suporta nenhuma ação que este formulário pode conceder.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Editar também concede visualização. Lixeira, aprovação e configurações continuam
+                  seguindo as regras administrativas do sistema.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -412,7 +538,18 @@ export function FormNovaPermissao({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            {/* catalogoIndisponivel: achado em code review -- sem isso, dava
+                pra submeter enquanto recursos/modulos ainda não tinham
+                resolvido (ou tinham falhado em carregar), resultando em
+                modulo: null mesmo pra um recurso válido. acaoIndisponivel:
+                achado em code review -- sem isso, dava pra submeter um
+                recurso sem nenhuma ação em comum com ACOES_KANBAN, mantendo
+                em silêncio o valor padrão ("visualizar") mesmo o Select
+                mostrando vazio. */}
+            <Button
+              type="submit"
+              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel}
+            >
               {isLoading
                 ? valoresIniciais
                   ? "Renovando..."

@@ -31,6 +31,7 @@ import {
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { encontrarRecursoPorChave, useRecursosPermissao } from "@/hooks/useModulos";
 import {
   usePermissoes,
   useReativarPermissao,
@@ -160,6 +161,7 @@ export function PermissoesAdmin() {
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
   const { setores } = useSetores();
+  const { recursos } = useRecursosPermissao();
   const { revogar, isLoading: revogando } = useRevogarPermissao();
   const { reativar, isLoading: reativando } = useReativarPermissao();
 
@@ -284,6 +286,17 @@ export function PermissoesAdmin() {
   function nomeUsuario(usuarioId: number) {
     const usuario = usuarios.find((candidato) => candidato.id === usuarioId);
     return usuario ? nomeExibicao(usuario) : `Usuário #${usuarioId}`;
+  }
+
+  // STC-422: achado no dogfooding -- a tabela nunca mostrava qual
+  // recurso/módulo cada permissão cobre (fazia sentido enquanto só existia
+  // um recurso no sistema inteiro, deixou de fazer com um segundo módulo em
+  // uso). Cai de volta pra chave crua se o recurso não estiver (mais) no
+  // catálogo -- ex. uma permissão histórica de um recurso já removido --
+  // pra não sumir a linha nem quebrar o render.
+  function rotuloRecurso(chave: string) {
+    const recurso = encontrarRecursoPorChave(recursos, chave);
+    return recurso ? `${recurso.moduloNome} -- ${recurso.rotulo}` : chave;
   }
 
   function nomeEscopo(permissao: {
@@ -642,6 +655,7 @@ export function PermissoesAdmin() {
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                     <th className="px-4 py-2.5">Pessoa</th>
+                    <th className="px-4 py-2.5">Recurso</th>
                     <th className="px-4 py-2.5">Concedido</th>
                     <th className="px-4 py-2.5">Ação</th>
                     <th className="px-4 py-2.5">Escopo</th>
@@ -660,6 +674,9 @@ export function PermissoesAdmin() {
                       >
                         <td className="px-4 py-2.5 font-medium text-foreground">
                           {nomeUsuario(permissao.usuario)}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          {rotuloRecurso(permissao.recurso)}
                         </td>
                         {/* Achado no dogfooding: faltava rastro de quem
                             concedeu e quando -- só o período de validade não

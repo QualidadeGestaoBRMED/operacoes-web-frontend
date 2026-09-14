@@ -33,6 +33,7 @@ function modulo(overrides: Partial<Modulo> = {}): Modulo {
     descricao: "",
     status: "em_breve",
     versao: "0.1.0",
+    recursos_permissao: [],
     ...overrides,
   };
 }
