@@ -867,6 +867,60 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       expect(screen.getByLabelText(/profissional/i)).toHaveValue("");
     });
 
+    it("trocar de tipo depois de reaproveitar uma regra limpa os campos de regra preenchidos (achado no code review automático)", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const regraExistente = {
+        id: 55,
+        tipo_documento: TIPO_DOSIMETRIA.id,
+        unidade: UNIDADE.id,
+        antecedencia_dias: 60,
+        periodicidade_meses: null,
+        janela_dia_inicio: null,
+        janela_dia_fim: null,
+        criticidade: "alta" as const,
+        vigente_a_partir: "2026-01-01",
+        ativa: true,
+        gera_card_demanda: true,
+        created_at: "2026-01-01T00:00:00Z",
+      };
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+        documentoCriado({
+          tipo_documento: TIPO_DOSIMETRIA,
+          profissional: "Dr. João",
+          regra_aplicada: regraExistente,
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+      // Regra reaproveitada: campos vêm preenchidos e travados.
+      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue(
+        "2026-01-01",
+      );
+      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
+      expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+
+      // Achado no code review automático: sem limpar, estes campos ficavam
+      // editáveis de novo mas com os valores da regra de Dosimetria, prontos
+      // pra ir no submit como se fossem da regra nova de Licença Sanitária.
+      expect(screen.getByLabelText(/vigente a partir/i)).not.toBeDisabled();
+      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("");
+      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(null);
+    });
+
     it("trim: não deixa cadastrar duplicata do mesmo profissional só por espaço em branco a mais", async () => {
       vi.mocked(listarTiposDocumento).mockResolvedValue([
         TIPO,

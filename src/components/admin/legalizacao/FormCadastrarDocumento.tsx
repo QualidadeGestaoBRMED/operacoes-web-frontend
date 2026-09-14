@@ -289,6 +289,21 @@ export function FormCadastrarDocumento({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regraExistenteParaTipo?.id, setValue]);
 
+  // Achado no code review automático (STC-432): o efeito acima só preenche
+  // os campos de regra quando regraExistenteParaTipo existe -- ele nunca os
+  // limpa quando deixa de existir (troca de unidade/tipo saindo de um tipo
+  // controlado com regra já cadastrada pra outro sem regra). Sem isto, os
+  // valores da regra anterior ficavam visíveis e editáveis, prontos pra ir
+  // no submit como se fossem da regra nova.
+  function limparCamposDeRegra() {
+    setValue("vigente_a_partir", undefined);
+    setValue("antecedencia_dias", undefined);
+    setValue("janela_dia_inicio", undefined);
+    setValue("janela_dia_fim", undefined);
+    setValue("criticidade", undefined);
+    setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+  }
+
   // Extraído do fluxo principal -- também usado quando o usuário clica
   // "Cadastrar documento" de novo depois de um envio de evidência que já
   // falhou uma vez (documentoCriado setado): regra e documento já existem,
@@ -496,6 +511,7 @@ export function FormCadastrarDocumento({
                       // fácil de não notar e cadastrar o documento errado
                       // pro profissional errado.
                       setValue("profissional", "");
+                      limparCamposDeRegra();
                     }}
                   >
                     <SelectTrigger id="cd-unidade" className="w-full">
@@ -534,6 +550,7 @@ export function FormCadastrarDocumento({
                       // profissional digitado pra um tipo não deve
                       // sobreviver silenciosamente à troca pra outro tipo.
                       setValue("profissional", "");
+                      limparCamposDeRegra();
                     }}
                     disabled={!unidadeSelecionada}
                   >
