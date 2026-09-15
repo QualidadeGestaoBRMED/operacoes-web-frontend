@@ -199,6 +199,43 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(screen.getByText("Nenhum arquivo cadastrado")).toBeInTheDocument();
   });
 
+  // Achado em code review: faltava cobertura pra essas duas regras de cor,
+  // e as duas tinham bug (ícone usava só `evidencia`, ficando vermelho num
+  // documento regular; esmaecimento não existia no código, apesar do
+  // critério de aceite pedir).
+  it("documento sem evidência e NÃO vencido aparece esmaecido; vencido sem evidência fica em destaque total", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documento({
+        id: 20,
+        evidencia_vigente: null,
+        status: "nao_iniciado",
+        tipo_documento: tipo({ id: 3, codigo: "crm", nome: "CRM" }),
+      }),
+      documento({ id: 21, evidencia_vigente: null, status: "vencido" }),
+    ]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([]);
+
+    renderTela();
+
+    const cardNaoIniciado = (await screen.findByText("CRM")).closest("div.rounded-lg");
+    expect(cardNaoIniciado).toHaveClass("opacity-60");
+
+    const cardVencido = screen.getByText("Alvará de Funcionamento").closest("div.rounded-lg");
+    expect(cardVencido).not.toHaveClass("opacity-60");
+  });
+
+  it("ícone do documento com evidência é vermelho só quando vencido; regular usa verde", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]); // status "regular"
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+
+    renderTela();
+
+    const botaoNome = await screen.findByRole("button", { name: "Alvará de Funcionamento" });
+    const icone = botaoNome.closest("div.rounded-lg")?.querySelector(".rounded-md");
+    expect(icone).toHaveClass("bg-green-600");
+    expect(icone).not.toHaveClass("bg-red-600");
+  });
+
   it("clicar no nome do documento abre o painel de pré-visualização com o PDF embutido; clicar de novo fecha", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
     vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);

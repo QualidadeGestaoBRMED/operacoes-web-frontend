@@ -344,6 +344,14 @@ export function BibliotecaDocumentos() {
                             documento.status === "vencido"
                               ? "border-red-600/40 bg-red-600/5"
                               : evidencia && "border-green-600/40 bg-green-600/5",
+                            // Esmaecido (achado em code review: faltava --
+                            // critério de aceite da issue pede diferenciação
+                            // visual pra documento sem evidência, "por
+                            // exemplo esmaecidos"). Só quando não há
+                            // evidência E não está vencido -- um vencido sem
+                            // evidência continua em destaque total (é o caso
+                            // mais acionável de todos, não o contrário).
+                            !evidencia && documento.status !== "vencido" && "opacity-60",
                           )}
                         >
                           {/* Ícone de documento, não texto abreviado --
@@ -353,7 +361,16 @@ export function BibliotecaDocumentos() {
                           <div
                             className={cn(
                               "flex size-9 shrink-0 items-center justify-center rounded-md",
-                              evidencia ? "bg-red-600" : "bg-muted-foreground",
+                              // Achado em code review: usava só `evidencia`,
+                              // deixando o ícone vermelho (cor de "Vencido")
+                              // num documento regular em dia -- mesma regra
+                              // da borda do card, acima, não uma condição
+                              // própria.
+                              documento.status === "vencido"
+                                ? "bg-red-600"
+                                : evidencia
+                                  ? "bg-green-600"
+                                  : "bg-muted-foreground",
                             )}
                           >
                             {evidencia ? (
