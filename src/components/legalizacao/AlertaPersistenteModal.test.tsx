@@ -117,6 +117,31 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  // Achado em code review (5ª rodada): a supressão existente só cobria a
+  // colisão com DetalheDocumentoModal (?documento= na URL) -- qualquer
+  // outro <Dialog>/<AlertDialog> da plataforma (form de demanda,
+  // ConfirmDialog etc.) já aberto quando um alerta novo chega (poll) também
+  // não devia levar o alerta persistente a abrir por cima.
+  it("com outro <Dialog>/<AlertDialog> já aberto na página, não abre -- e abre assim que ele fecha, sem esperar poll", async () => {
+    vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
+    const outroDialogo = document.createElement("div");
+    outroDialogo.setAttribute("role", "alertdialog");
+    outroDialogo.setAttribute("data-state", "open");
+    document.body.appendChild(outroDialogo);
+
+    try {
+      renderModal();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      // fecha o outro diálogo -- MutationObserver reage sem precisar de poll novo
+      outroDialogo.setAttribute("data-state", "closed");
+      expect(await screen.findByText("Alvará de Funcionamento")).toBeInTheDocument();
+    } finally {
+      outroDialogo.remove();
+    }
+  });
+
   it("sem alerta pendente, não mostra nada", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([]);
 

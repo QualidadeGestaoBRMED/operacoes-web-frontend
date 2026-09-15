@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,53 @@ import { cn, formatarTempoRelativo } from "@/lib/utils";
 // lugar da plataforma, não só nas telas de Legalização.
 const ROTA_MATRIZ = "/modulos/legalizacao";
 
+// Marca o próprio DialogContent (abaixo) pra distinguir "outro diálogo
+// aberto" do diálogo do próprio alerta persistente na varredura do DOM.
+const ATRIBUTO_PROPRIO = "data-alerta-persistente-modal";
+const SELETOR_QUALQUER_DIALOGO_ABERTO =
+  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
+
+// useLayoutEffect (não useEffect): roda antes do navegador pintar -- sem
+// isso, o estado inicial otimista (useState(false), "nenhum outro diálogo
+// aberto") deixaria o 1º frame abrir por cima de um diálogo que já estava
+// lá antes de checar de verdade. Isomorfo só pra evitar o warning do React
+// em SSR (mesmo padrão de useMediaQuery.ts/useAlturaSemLinhaCortada.ts).
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+// Achado em code review: a supressão existente (temDocumentoAtivoNaUrl,
+// abaixo) só cobre a colisão com DetalheDocumentoModal (via ?documento= na
+// URL) -- mas o alerta persistente é montado fora de qualquer rota
+// (AppShell.tsx) exatamente pra poder interromper em qualquer lugar da
+// plataforma, então também pode reabrir (poll de 60s trazendo alerta novo,
+// ou começando a falhar) por cima de QUALQUER outro <Dialog>/<AlertDialog>
+// já aberto -- um formulário (FormNovaDemanda.tsx), um ConfirmDialog, etc.
+// Dois diálogos do Radix montados ao mesmo tempo disputam foco/Tab/Escape
+// entre si, não é só sobreposição visual. MutationObserver (não só checar
+// uma vez) pra reagir tanto a um diálogo abrindo quanto a ele fechando --
+// sem isso, o alerta só voltaria a aparecer no próximo poll (até 60s
+// depois do outro diálogo já ter fechado).
+function useExisteOutroDialogoAberto(): boolean {
+  const [existeOutro, setExisteOutro] = useState(false);
+
+  useIsomorphicLayoutEffect(() => {
+    function checar() {
+      const abertos = document.querySelectorAll(SELETOR_QUALQUER_DIALOGO_ABERTO);
+      setExisteOutro(Array.from(abertos).some((el) => !el.hasAttribute(ATRIBUTO_PROPRIO)));
+    }
+    checar();
+    const observer = new MutationObserver(checar);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["data-state", "role"],
+      childList: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return existeOutro;
+}
+
 export function AlertaPersistenteModal() {
   const router = useRouter();
   const pathname = usePathname();
@@ -48,6 +95,7 @@ export function AlertaPersistenteModal() {
   // ele fechar (MatrizConformidade limpa o parâmetro), o alerta persistente
   // volta a aparecer normalmente, se ainda houver pendência.
   const temDocumentoAtivoNaUrl = numeroDaUrl(searchParams.get("documento")) !== undefined;
+  const existeOutroDialogoAberto = useExisteOutroDialogoAberto();
 
   // Um novo alerta chegando (poll de 60s) depois do usuário já ter
   // dispensado nesta sessão deve voltar a interromper -- "permanece
@@ -88,7 +136,10 @@ export function AlertaPersistenteModal() {
   }, [idsPendentes, error]);
 
   const aberto =
-    (totalPendentes > 0 || Boolean(error)) && !dispensado && !temDocumentoAtivoNaUrl;
+    (totalPendentes > 0 || Boolean(error)) &&
+    !dispensado &&
+    !temDocumentoAtivoNaUrl &&
+    !existeOutroDialogoAberto;
 
   function abrirDocumento(documentoId: number) {
     setDispensado(true);
@@ -125,7 +176,14 @@ export function AlertaPersistenteModal() {
 
   return (
     <Dialog open={aberto} onOpenChange={() => setDispensado(true)}>
-      <DialogContent className="max-h-[85vh] flex flex-col gap-4">
+      <DialogContent
+        {...{ [ATRIBUTO_PROPRIO]: "" }}
+        // sm:max-w-xl (não o max-w-lg padrão do Dialog) -- pedido do Tech
+        // Lead depois de ver o modal em uso real (Gestão de Demandas):
+        // ficava estreito pra uma lista com criticidade + "· N alertas" ao
+        // lado do nome do documento, texto cortando com facilidade.
+        className="max-h-[85vh] flex flex-col gap-4 sm:max-w-xl"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-5 text-destructive" />
