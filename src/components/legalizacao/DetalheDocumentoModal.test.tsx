@@ -835,6 +835,29 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).toBeInTheDocument();
   });
 
+  // Achado no dogfooding: tipos rastreados por movimentação profissional
+  // (CNES/Dosimetria/CRM/CREMERJ-COREN) não têm ciclo de renovação
+  // independente de quem é o profissional responsável -- "vencido" nesses
+  // casos só se resolve reportando a entrada de um novo responsável.
+  // "Registrar renovação" sozinho é um caminho paralelo sem sentido de
+  // negócio pra esses tipos, mesmo antes de virar vencido (regular também).
+  it.each(["regular", "vencido"] as const)(
+    "esconde 'Registrar renovação' pra CNES com status %s -- só 'Reportar Movimentação' faz sentido",
+    async (status) => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }), status }),
+      );
+      renderComponente(55);
+
+      expect(
+        await screen.findByRole("button", { name: "Reportar Movimentação" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Registrar renovação" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it.each(["nao_aplicavel", "unidade_encerramento"] as const)(
     "não mostra 'Reportar Movimentação' pra CNES com status %s (backend rejeita, STATUS_CORINGA_COM_JUSTIFICATIVA)",
     async (status) => {
