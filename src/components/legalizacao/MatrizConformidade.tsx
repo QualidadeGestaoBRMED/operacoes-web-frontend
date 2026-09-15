@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -49,6 +50,7 @@ export function MatrizConformidade() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { isCoordenacaoUnidade } = useAuth();
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
@@ -177,7 +179,7 @@ export function MatrizConformidade() {
 
   return (
     <div ref={refPai} className="flex h-full min-h-0 flex-col">
-      <ToggleMapaLista ativo="lista" linkBiblioteca />
+      <ToggleMapaLista ativo="lista" linkBiblioteca mostrarMapa={!isCoordenacaoUnidade} />
       <MatrizFiltros
         filtros={filtros}
         onMudarFiltros={setFiltros}

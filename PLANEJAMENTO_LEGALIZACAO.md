@@ -354,7 +354,7 @@ relação ao plano original abaixo:
 
 ### P4.11 Alerta regulatório persistente na plataforma (STC-443) — sem mockup próprio
 
-**Status:** PR #45 aberto, em revisão (4 rodadas de code review corrigidas), ainda não mergeado.
+**Status:** Mergeado em `main` (PR #45, 4 rodadas de code review corrigidas antes do merge).
 
 Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/MP002, e a seção "Canais e persistência" de `Regras de Alertas e Status.md`, ambos no Obsidian): "o alerta permanece visível na plataforma até a resolução" — a STC-373 (P5.1, backend) só cobriu o aviso avulso e dispensável (sino do Topbar), não a persistência. Achado revisando a Biblioteca de Documentos (STC-416): usuário identificou a lacuna citando a intenção original antes de eu confirmar contra a documentação.
 
@@ -373,6 +373,18 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
   - `listarAlertasPendentes()` só aplicava `alertaAindaRelevante()` no caminho raro (múltiplas páginas) — o caminho comum (1 página) devolvia sem filtro nenhum.
 - **Agrupamento por documento** (achado no feedback visual, depois do merge da STC-447): um mesmo documento pode ter mais de um `AlertaRegulatorio` pendente ao mesmo tempo e legítimo (ex. imediato de movimentação profissional + de ciclo da varredura diária, os dois válidos enquanto o documento não é resolvido) — contar/listar por alerta fazia o mesmo documento aparecer 2x e o título dizer "4 alertas" quando só 3 documentos precisavam de atenção de verdade. `agruparAlertasPorDocumento()` (`legalizacaoMatriz.ts`, testado à parte) agrupa por `documento_unidade.id`; cada grupo usa a criticidade mais alta e a data mais antiga entre os alertas do documento, com "· N alertas" na linha quando há mais de um. Título/contagem passam a ser "N documentos regulatórios pendentes", não mais "N alertas".
 - Fora de escopo: aviso por e-mail (a outra metade do RN22) — pendência própria, travada em avaliação de viabilidade via Mandrill desde 27/08; escalonamento de alertas não tratados — regra de negócio ainda não definida.
+
+### P4.12 Card espelho substitui o modal de demanda pelo de origem (STC-451) — sem mockup próprio
+
+**Implementado via STC-451 (15/09/2026), em revisão.** Achado dogfooding a criação automática de card no Kanban (STC-448): clicar num card espelho de Legalização abria o modal genérico de `DetalheCard.tsx` (Gestão de Demandas), sem nenhum jeito de voltar pro documento real que precisa de ação -- só a descrição em texto livre mencionando "card espelho".
+
+**Decisão de UX corrigida durante a implementação**: a 1ª versão adicionava um botão "Ver documento de origem" *dentro* do modal de demanda -- feedback direto do usuário (dono do produto) foi que isso está errado: um card espelho não é uma demanda com um atalho a mais, é conceitualmente outro tipo de card. Clicar nele deve abrir **só** o modal de origem, substituindo o de demanda por completo, nunca os dois.
+
+- `Demanda.origem_url` (backend, STC-450) exposto em `DemandaReadSerializer` -- vazio no caso comum (demanda criada manualmente), preenchido só em card espelho.
+- `origem_url: string` adicionado ao tipo `Demanda` (`src/types/index.ts`) e ao fixture `criarDemanda()` (`test-utils/fixtures.ts`).
+- `KanbanBoard.tsx::selecionarDemanda()` (o único lugar que decide abrir `DetalheCard`, chamado ao clicar em qualquer card): quando `demanda.origem_url` vem preenchido, `router.push(demanda.origem_url)` e retorna -- nunca chega a setar `demandaSelecionadaId`, então `DetalheCard`/`useDemanda()` nunca chegam a montar/buscar nada. `origem_url` já vem no formato de deep-link que a Matriz de Legalização entende (`/modulos/legalizacao?documento=<id>`, mesma rota da STC-443) -- nenhuma construção de URL do lado do cliente.
+- Fora de escopo: RBAC/visibilidade do próprio card no Kanban (quem enxerga o card) -- assunto separado.
+- **Adicional, mesma issue**: Mapa de Conformidade escondido pra Coordenação da Unidade -- pedido direto do usuário depois de ver a tela real (Mapa é panorama da rede inteira, uma linha por unidade; Coordenação só acompanha a própria unidade, então a visão não faz sentido nesse perfil). `useAuth()` ganhou `isCoordenacaoUnidade` (nível 3, mesmo nível do RBAC de backend, `accounts.permissions.NIVEL_UNIDADE`). `ToggleMapaLista` ganhou a prop `mostrarMapa` (default `true`) -- quando `false`, não renderiza o link "Mapa" nem o segmented control (só o rótulo "Lista" solto, mesmo raciocínio já usado pro `hidden sm:flex` de mobile: um toggle com um destino só não serve pra nada). `MatrizConformidade.tsx` (Lista) passa `mostrarMapa={!isCoordenacaoUnidade}`; `MapaConformidade.tsx` (Mapa) ganhou o mesmo redirect pra `/modulos/legalizacao` já usado pra mobile, agora também por perfil -- defesa em profundidade pra quem chegar direto por um link salvo/compartilhado.
 
 ---
 

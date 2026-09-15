@@ -395,6 +395,15 @@ export function KanbanBoard() {
   }
 
   function selecionarDemanda(demanda: Demanda) {
+    // STC-451: card espelho de outro módulo (ex. Legalização, STC-448) --
+    // origem_url preenchido substitui o modal de demanda inteiro, não abre
+    // como um passo a mais dentro dele. O card em si não tem nada
+    // acionável (edição bloqueada por origem_bloqueada, STC-371/448); quem
+    // decide o que fazer é a tela real de onde ele veio.
+    if (demanda.origem_url) {
+      router.push(demanda.origem_url);
+      return;
+    }
     setDemandaSelecionadaId(demanda.id);
   }
 
