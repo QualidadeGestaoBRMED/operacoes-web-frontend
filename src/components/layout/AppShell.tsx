@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
 import { cn, iniciaisDe } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -151,6 +152,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      {/* STC-443: montado uma vez aqui (não por tela) -- alerta regulatório
+          persistente (RN22) tem que interromper em qualquer lugar da
+          plataforma, não só nas telas de Legalização. Só depois do usuário
+          resolvido -- sem sessão, useAlertasPendentes só bateria 401 à toa. */}
+      {user && <AlertaPersistenteModal />}
     </div>
   );
 }
