@@ -211,7 +211,19 @@ export function AlertaPersistenteModal() {
           </p>
         )}
 
-        <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1">
+        {
+          // Pedido: no desktop, a lista não deve crescer indefinidamente até
+          // os 85vh do Dialog (o normal seria caber uns 6-7 documentos numa
+          // tela comum) -- trava em 5 linhas, o resto rola. 438px medido de
+          // verdade (Playwright, viewport 1440x1200): cada card tem 78px de
+          // altura (p-4 + as duas linhas de texto + borda) e o gap entre
+          // eles é 12px -- 5*78 + 4*12 = 438. Só a partir de sm: -- no
+          // celular a tela já é curta o bastante pra o cap de 85vh do
+          // próprio Dialog (acima) ser a régua certa; um valor fixo em px
+          // ali só arriscaria sobrar espaço vazio ou não caber, dependendo
+          // do aparelho.
+        }
+        <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 sm:max-h-[438px]">
           {documentosAgrupados.map((grupo) => (
             <button
               key={grupo.documentoId}
