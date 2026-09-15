@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, Lock, MessageSquare, Paperclip, Clock as ClockIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Calendar,
+  ExternalLink,
+  Lock,
+  MessageSquare,
+  Paperclip,
+  Clock as ClockIcon,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +86,7 @@ export function DetalheCard({
   secaoInicial?: "status" | "responsavel";
   statusAlvoInicial?: StatusDemanda;
 }) {
+  const router = useRouter();
   const { demanda, isLoading, mensagemErro } = useDemanda(demandaId);
   // Chamados aqui só pra alimentar os contadores das abas (badge de
   // quantidade) -- a chave do SWR é a mesma usada dentro de ComentarioFeed/
@@ -297,6 +306,27 @@ export function DetalheCard({
                       {demanda.descricao || "Sem descrição."}
                     </p>
                   </CampoMeta>
+                )}
+
+                {/* STC-451: origem_url só vem preenchido em demanda criada
+                    por outro módulo (ex. card espelho da Legalização,
+                    STC-448/450) -- sem isso, não existia jeito de voltar
+                    pro documento real que precisa de ação, só a descrição
+                    em texto livre explicando que é um card espelho. Fecha
+                    este modal antes de navegar (mesmo padrão de
+                    abrirDocumento(), AlertaPersistenteModal.tsx). */}
+                {demanda.origem_url && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenChange(false);
+                      router.push(demanda.origem_url);
+                    }}
+                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Ver documento de origem
+                  </button>
                 )}
 
                 <div className="mt-auto border-t border-border pt-3 text-[11.5px] leading-relaxed text-muted-foreground">

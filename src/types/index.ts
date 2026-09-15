@@ -129,6 +129,10 @@ export interface Demanda {
   data_prevista: string;
   data_conclusao: string | null;
   confidencial: boolean;
+  // Preenchido só em demanda criada por outro módulo (ex. card espelho da
+  // Legalização, STC-448) -- vazio ("") no caso comum. Link de volta pra
+  // tela real de onde a demanda foi gerada (STC-450/STC-451).
+  origem_url: string;
   comentarios_count: number;
   anexos_count: number;
   // Capacidade calculada pelo backend para o usuário autenticado. Inclui
