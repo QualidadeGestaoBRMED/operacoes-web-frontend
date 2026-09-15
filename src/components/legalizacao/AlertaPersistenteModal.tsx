@@ -183,12 +183,14 @@ export function AlertaPersistenteModal() {
         // ficava estreito pra uma lista com criticidade + "· N alertas" ao
         // lado do nome do documento, texto cortando com facilidade. Um 1º
         // aumento pra sm:max-w-xl passou despercebido (diferença pequena
-        // demais, 512px -> 576px) -- pulando direto pra 2xl (672px).
-        className="max-h-[85vh] flex flex-col gap-4 sm:max-w-2xl"
+        // demais, 512px -> 576px) -- pulando direto pra 2xl (672px). gap-6
+        // (não o gap-4 padrão) e o conteúdo de cada linha (abaixo) maiores --
+        // mesmo pedido, o modal ficava alto o bastante pra largura nova.
+        className="max-h-[85vh] flex flex-col gap-6 sm:max-w-2xl"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="size-5 text-destructive" />
+            <AlertTriangle className="size-6 text-destructive" />
             {falhaSemNenhumDadoAnterior
               ? "Não foi possível verificar alertas pendentes"
               : totalDocumentos === 1
@@ -209,19 +211,19 @@ export function AlertaPersistenteModal() {
           </p>
         )}
 
-        <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1">
+        <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1">
           {documentosAgrupados.map((grupo) => (
             <button
               key={grupo.documentoId}
               type="button"
               onClick={() => abrirDocumento(grupo.documentoId)}
-              className="flex items-start justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted"
+              className="flex items-start justify-between gap-4 rounded-lg border border-border p-4 text-left transition-colors hover:bg-muted"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
+                <p className="truncate text-base font-medium text-foreground">
                   {grupo.tipoDocumentoNome}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   {grupo.unidadeNome} · gerado {formatarTempoRelativo(grupo.dataMaisAntiga)}
                   {grupo.totalAlertas > 1 && ` · ${grupo.totalAlertas} alertas`}
                 </p>
@@ -229,7 +231,7 @@ export function AlertaPersistenteModal() {
               {grupo.criticidade && (
                 <span
                   className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase",
+                    "shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide uppercase",
                     grupo.criticidade === "alta"
                       ? "border-red-200 bg-red-100 text-red-700"
                       : "border-border bg-muted text-muted-foreground",
