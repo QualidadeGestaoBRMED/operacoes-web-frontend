@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  agruparAlertasPorDocumento,
   documentoBateNaBusca,
   documentoBateNaCategoria,
   ordenarDocumentos,
   prazoDocumento,
 } from "./legalizacaoMatriz";
 import type {
+  AlertaRegulatorio,
   Criticidade,
   DocumentoUnidade,
   ResponsavelDocumento,
@@ -365,5 +367,78 @@ describe("ordenarDocumentos", () => {
         (d) => d.id,
       ),
     ).toEqual([2, 4, 1, 3]);
+  });
+});
+
+function alerta(overrides: Partial<AlertaRegulatorio> = {}): AlertaRegulatorio {
+  return {
+    id: 1,
+    documento_unidade: documento(),
+    ciclo_referencia: "2026-12-01",
+    antecedencia_usada_dias: 60,
+    criticidade: "alta",
+    imediato: false,
+    status_tratamento: "pendente",
+    data_geracao: "2026-09-15T12:00:00Z",
+    ...overrides,
+  };
+}
+
+describe("agruparAlertasPorDocumento (STC-443)", () => {
+  it("documentos diferentes viram grupos diferentes, um por documento", () => {
+    const grupos = agruparAlertasPorDocumento([
+      alerta({ id: 1, documento_unidade: documento({ id: 10 }) }),
+      alerta({ id: 2, documento_unidade: documento({ id: 11 }) }),
+    ]);
+
+    expect(grupos.map((g) => g.documentoId)).toEqual([10, 11]);
+    expect(grupos.every((g) => g.totalAlertas === 1)).toBe(true);
+  });
+
+  it("vários alertas do MESMO documento viram um grupo só, com a contagem certa", () => {
+    const grupos = agruparAlertasPorDocumento([
+      alerta({ id: 1, documento_unidade: documento({ id: 10 }) }),
+      alerta({ id: 2, documento_unidade: documento({ id: 10 }) }),
+      alerta({ id: 3, documento_unidade: documento({ id: 10 }) }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].totalAlertas).toBe(3);
+  });
+
+  it("criticidade do grupo é a mais alta entre os alertas, não a do primeiro", () => {
+    const grupos = agruparAlertasPorDocumento([
+      alerta({ id: 1, documento_unidade: documento({ id: 10 }), criticidade: "baixa" }),
+      alerta({ id: 2, documento_unidade: documento({ id: 10 }), criticidade: "alta" }),
+      alerta({ id: 3, documento_unidade: documento({ id: 10 }), criticidade: "media" }),
+    ]);
+
+    expect(grupos[0].criticidade).toBe("alta");
+  });
+
+  it("criticidade vazia (sem regra) não sobrescreve uma criticidade real já vista no grupo", () => {
+    const grupos = agruparAlertasPorDocumento([
+      alerta({ id: 1, documento_unidade: documento({ id: 10 }), criticidade: "media" }),
+      alerta({ id: 2, documento_unidade: documento({ id: 10 }), criticidade: "" }),
+    ]);
+
+    expect(grupos[0].criticidade).toBe("media");
+  });
+
+  it("data do grupo é a mais ANTIGA entre os alertas (há quanto tempo isso está pendente)", () => {
+    const grupos = agruparAlertasPorDocumento([
+      alerta({
+        id: 1,
+        documento_unidade: documento({ id: 10 }),
+        data_geracao: "2026-09-15T12:00:00Z",
+      }),
+      alerta({
+        id: 2,
+        documento_unidade: documento({ id: 10 }),
+        data_geracao: "2026-09-10T08:00:00Z",
+      }),
+    ]);
+
+    expect(grupos[0].dataMaisAntiga).toBe("2026-09-10T08:00:00Z");
   });
 });

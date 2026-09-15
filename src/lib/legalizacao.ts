@@ -1,5 +1,7 @@
 import api from "./api";
+import type { RespostaPaginada } from "@/types";
 import type {
+  AlertaRegulatorio,
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
   DocumentoUnidadePayload,
@@ -15,6 +17,7 @@ import type {
 const MODULO_URL = "/modulos/legalizacao/";
 const DOCUMENTOS_URL = `${MODULO_URL}documentos/`;
 const PROCESSOS_RENOVACAO_URL = `${MODULO_URL}processos-renovacao/`;
+const ALERTAS_URL = `${MODULO_URL}alertas/`;
 
 // Mesmo motivo de demandas.ts::urlAbsolutaDoAnexo -- ambiente sem R2
 // configurado (dev/staging, fallback pra FileSystemStorage) devolve URL
@@ -195,4 +198,76 @@ export async function reverterDocumentoLegalizacao(
     `${DOCUMENTOS_URL}${documentoId}/reverter/`,
   );
   return data;
+}
+
+// STC-443: alertas/ pagina 20 por página no backend (STC-398) -- mesmo
+// motivo/limite defensivo de listarDemandas() (demandas.ts): segue ?page=N
+// pelo mesmo cliente, nunca o "next" que o DRF devolve (URL absoluta contra
+// NEXT_PUBLIC_API_URL, que sairia sem o token do proxy e bateria na CSP
+// connect-src 'self'). Alerta pendente acumulado é raro passar de uma
+// página na prática, mas o modal de alerta persistente precisa mostrar
+// TODOS os pendentes, não só os primeiros 20.
+const MAXIMO_DE_PAGINAS_DE_ALERTAS = 50;
+
+// STC-447 (backend) já fecha status_tratamento quando o documento é
+// resolvido -- mas só a partir da correção (transições novas) e via uma
+// migration pontual pro que já existia até o deploy. Este filtro é defesa
+// em profundidade no cliente: mesmo critério da migration de backend
+// (não repete ingenuamente "documento resolvido = todos os alertas dele
+// somem" -- um documento Regular pode ter um alerta LEGÍTIMO, a varredura
+// diária gera alerta pra documento ainda Regular quando a validade entra
+// na janela de antecedência).
+export function alertaAindaRelevante(alerta: AlertaRegulatorio): boolean {
+  const documento = alerta.documento_unidade;
+  if (documento.status === "nao_aplicavel" || documento.status === "unidade_encerramento") {
+    return false;
+  }
+  if (documento.status === "regular") {
+    if (alerta.imediato) return false;
+    return alerta.ciclo_referencia === documento.validade;
+  }
+  return true;
+}
+
+export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
+  const params = { status_tratamento: "pendente" };
+  const primeira = await api.get<RespostaPaginada<AlertaRegulatorio>>(ALERTAS_URL, {
+    params,
+  });
+  if (!primeira.data.next) {
+    // Achado em code review: o caminho de 1 página só (o comum -- ver
+    // comentário acima, alerta pendente acumulado raramente passa de uma
+    // página) devolvia direto, sem passar por alertaAindaRelevante -- só o
+    // loop de várias páginas abaixo filtrava. Mesmo filtro nos dois
+    // caminhos, senão o mesmo alerta aparece ou some dependendo só de
+    // quantas páginas a API devolveu, não da regra de negócio.
+    return primeira.data.results.filter(alertaAindaRelevante);
+  }
+
+  const tamanhoDaPagina = primeira.data.results.length;
+  const totalDePaginas = Math.min(
+    Math.ceil(primeira.data.count / tamanhoDaPagina),
+    MAXIMO_DE_PAGINAS_DE_ALERTAS,
+  );
+  const demaisPaginas = await Promise.all(
+    Array.from({ length: totalDePaginas - 1 }, (_, indice) =>
+      api.get<RespostaPaginada<AlertaRegulatorio>>(ALERTAS_URL, {
+        params: { ...params, page: indice + 2 },
+      }),
+    ),
+  );
+
+  // Mesmo cuidado de listarDemandas(): paginação por offset não é atômica,
+  // um alerta novo gerado pela varredura diária entre uma página e outra
+  // desloca as seguintes -- descarta repetição mantendo a 1ª ocorrência.
+  const vistos = new Set<number>();
+  const resultados: AlertaRegulatorio[] = [];
+  for (const { data } of [primeira, ...demaisPaginas]) {
+    for (const alerta of data.results) {
+      if (vistos.has(alerta.id)) continue;
+      vistos.add(alerta.id);
+      if (alertaAindaRelevante(alerta)) resultados.push(alerta);
+    }
+  }
+  return resultados;
 }
