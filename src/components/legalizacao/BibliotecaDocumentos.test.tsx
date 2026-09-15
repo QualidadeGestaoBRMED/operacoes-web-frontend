@@ -113,6 +113,17 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([NITEROI, VITORIA]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
   vi.mocked(listarEvidenciasVigentes).mockResolvedValue([]);
+
+  // O painel de preview busca os bytes do PDF via
+  // /api/media/evidencia-vigente (proxy same-origin, ver BibliotecaDocumentos.tsx)
+  // e monta uma Blob URL local -- sem mockar fetch/URL aqui, o fetch real
+  // falhava (URL relativa sem host) e o iframe nunca aparecia.
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    blob: () => Promise.resolve(new Blob(["%PDF-fake"], { type: "application/pdf" })),
+  } as Response);
+  global.URL.createObjectURL = vi.fn(() => "blob:mock-evidencia");
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 describe("BibliotecaDocumentos (STC-416)", () => {
@@ -159,12 +170,16 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(
       await screen.findByRole("button", { name: "Alvará de Funcionamento" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /pdf/i })).toHaveAttribute(
+    // Botão de baixar é só ícone (achado no feedback visual) -- nome
+    // acessível cai pro title="Baixar", não tem mais texto "PDF" visível.
+    expect(screen.getByRole("link", { name: "Baixar" })).toHaveAttribute(
       "href",
       expect.stringContaining("/media/evidencias/alvara.pdf"),
     );
-    // validade 2027-01-01 (bem no futuro) -- prazoDocumento() devolve "em N dias".
-    expect(screen.getByText(/em \d+ dias?/)).toBeInTheDocument();
+    // validade 2027-01-01 (bem no futuro, urgencia "normal") -- achado no
+    // feedback visual: "em N dias" vira ilegível pra prazos longos, mostra
+    // a data absoluta em vez de contagem regressiva nesse caso.
+    expect(screen.getByText(/Válido até 01\/01\/2027/)).toBeInTheDocument();
   });
 
   it("documento sem evidência vigente aparece esmaecido, com o status real, sem link de baixar nem virar botão", async () => {
@@ -179,9 +194,9 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(
       screen.queryByRole("button", { name: "Alvará de Funcionamento" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /pdf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Baixar" })).not.toBeInTheDocument();
     expect(screen.getByText("Vencido")).toBeInTheDocument();
-    expect(screen.getByText("Sem evidência vigente cadastrada")).toBeInTheDocument();
+    expect(screen.getByText("Nenhum arquivo cadastrado")).toBeInTheDocument();
   });
 
   it("clicar no nome do documento abre o painel de pré-visualização com o PDF embutido; clicar de novo fecha", async () => {
@@ -196,8 +211,13 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     await user.click(botaoDocumento);
 
     expect(screen.getByText("alvara.pdf")).toBeInTheDocument();
-    const iframe = screen.getByTitle("Pré-visualização de alvara.pdf");
-    expect(iframe).toHaveAttribute("src", expect.stringContaining("/media/evidencias/alvara.pdf"));
+    // src é uma Blob URL montada a partir do proxy (ver useEffect em
+    // BibliotecaDocumentos.tsx), não a URL do arquivo em si.
+    const iframe = await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(iframe).toHaveAttribute("src", "blob:mock-evidencia#toolbar=0&navpanes=0&scrollbar=0");
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/media/evidencia-vigente?documento=10"),
+    );
     expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeInTheDocument();
 
     await user.click(botaoDocumento);
@@ -213,7 +233,7 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     await user.click(
       await screen.findByRole("button", { name: "Alvará de Funcionamento" }),
     );
-    expect(screen.getByTitle(/Pré-visualização/)).toBeInTheDocument();
+    expect(await screen.findByTitle(/Pré-visualização/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Fechar pré-visualização" }));
 

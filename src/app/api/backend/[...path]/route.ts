@@ -1,57 +1,14 @@
-import { encode } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
+import {
+  codificarCookieSessao,
+  MAX_AGE_COOKIE_SEGUNDOS,
+  NOME_COOKIE_SESSAO,
+  renovarToken,
+  SECURE_COOKIE,
+} from "@/lib/renovarTokenBackend";
 
 type ParamsPromise = Promise<{ path: string[] }>;
-
-const SECURE_COOKIE = process.env.NODE_ENV === "production";
-// encode() não autodetecta isso sozinho -- mesmo achado já documentado em
-// obterTokenBackend() (authBackend.ts), vale igual pro nome do cookie que a
-// renovação de token (STC-208) reescreve.
-const NOME_COOKIE_SESSAO = SECURE_COOKIE ? "__Secure-authjs.session-token" : "authjs.session-token";
-const SEGREDO = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-// Mesma vida do refresh do backend (SIMPLE_JWT.REFRESH_TOKEN_LIFETIME) --
-// não faz sentido o cookie sobreviver além do que o refresh nele permite.
-const MAX_AGE_COOKIE_SEGUNDOS = 60 * 60 * 24 * 7;
-
-// Dedupe de renovação concorrente (STC-208): duas requisições vendo o mesmo
-// access expirado não podem cada uma chamar /refresh/ com o mesmo refresh --
-// a rotação do backend blacklista o antigo, a 2ª perderia a corrida e
-// tomaria um 401 indevido em vez de reaproveitar o resultado da 1ª. Só
-// protege dentro da mesma instância do processo Node (não é lock
-// distribuído entre instâncias serverless) -- suficiente pra escala atual.
-const renovacoesEmAndamento = new Map<
-  string,
-  Promise<{ access: string; refresh: string } | null>
->();
-
-async function renovarToken(
-  refreshToken: string,
-): Promise<{ access: string; refresh: string } | null> {
-  const emAndamento = renovacoesEmAndamento.get(refreshToken);
-  if (emAndamento) return emAndamento;
-
-  const promessa = (async () => {
-    try {
-      const resposta = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-      if (!resposta.ok) return null;
-      return (await resposta.json()) as { access: string; refresh: string };
-    } catch {
-      return null;
-    }
-  })();
-
-  renovacoesEmAndamento.set(refreshToken, promessa);
-  try {
-    return await promessa;
-  } finally {
-    renovacoesEmAndamento.delete(refreshToken);
-  }
-}
 
 async function encaminhar(request: NextRequest, { params }: { params: ParamsPromise }) {
   const token = await obterTokenBackend(request);
@@ -113,18 +70,7 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
       // resposta que já tinha dado certo, devolvendo 500 à toa.
       resposta = await chamarBackend(tokensNovos.access);
       try {
-        cookieRenovado = await encode({
-          token: {
-            ...token,
-            backendAccessToken: tokensNovos.access,
-            backendRefreshToken: tokensNovos.refresh,
-          },
-          // encode() (ao contrário de getToken(), usado acima) não aceita
-          // `secret` opcional no tipo -- mesma env var, só o "!" muda.
-          secret: SEGREDO!,
-          salt: NOME_COOKIE_SESSAO,
-          maxAge: MAX_AGE_COOKIE_SEGUNDOS,
-        });
+        cookieRenovado = await codificarCookieSessao(token, tokensNovos);
       } catch (erro) {
         console.error("Falha ao reescrever o cookie de sessão após renovar o token:", erro);
       }
