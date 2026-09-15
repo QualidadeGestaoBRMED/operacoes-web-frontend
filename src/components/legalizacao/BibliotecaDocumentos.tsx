@@ -488,17 +488,22 @@ export function BibliotecaDocumentos() {
                 )}
               </div>
               <div className="border-t border-border px-5 py-3.5">
-                <a
-                  href={urlAbsolutaDaEvidencia(evidenciaSelecionada.arquivo)}
-                  target="_blank"
-                  rel="noreferrer"
-                  download={evidenciaSelecionada.nome_original}
-                >
-                  <Button type="button" variant="outline" size="sm" className="w-full gap-1.5">
+                {/* asChild (achado em code review): <Button> dentro de <a>
+                    gerava dois elementos interativos aninhados no DOM (dois
+                    paradas de Tab pra uma ação só, ambíguo pra leitor de
+                    tela) -- mesmo padrão já usado em alert-dialog.tsx pra
+                    projetar o <a> como a própria raiz interativa. */}
+                <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
+                  <a
+                    href={urlAbsolutaDaEvidencia(evidenciaSelecionada.arquivo)}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={evidenciaSelecionada.nome_original}
+                  >
                     <Download className="size-3.5" />
                     Baixar PDF
-                  </Button>
-                </a>
+                  </a>
+                </Button>
               </div>
             </aside>
           )}

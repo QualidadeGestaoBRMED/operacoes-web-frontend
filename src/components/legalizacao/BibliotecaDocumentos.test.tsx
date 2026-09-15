@@ -218,7 +218,10 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/media/evidencia-vigente?documento=10"),
     );
-    expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeInTheDocument();
+    // Button asChild (achado em code review) projeta o <a> como raiz --
+    // role vira "link", não "button", pra não aninhar dois elementos
+    // interativos no DOM.
+    expect(screen.getByRole("link", { name: "Baixar PDF" })).toBeInTheDocument();
 
     await user.click(botaoDocumento);
 

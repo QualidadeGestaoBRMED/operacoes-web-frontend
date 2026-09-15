@@ -143,9 +143,14 @@ export async function GET(request: NextRequest) {
   return comCookieRenovado(
     new NextResponse(bytes, {
       status: 200,
-      headers: {
-        "Content-Type": respostaArquivo.headers.get("Content-Type") ?? "application/pdf",
-      },
+      // Fixo, não repassado da origem (achado em code review): esta rota só
+      // serve pré-visualização de evidência regulatória, sempre PDF por
+      // desenho -- nada aqui garante que o upload original tenha sido
+      // validado como PDF de verdade (accept=".pdf" no input é só dica de
+      // UI, não filtra drag-and-drop nem é reenviado ao servidor). Fixar o
+      // header evita depender dessa garantia externa, em vez de repassar o
+      // que a origem mandar pra dentro de um iframe same-origin.
+      headers: { "Content-Type": "application/pdf" },
     }),
   );
 }
