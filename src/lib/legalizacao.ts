@@ -4,6 +4,7 @@ import type {
   DocumentoUnidadeFiltros,
   DocumentoUnidadePayload,
   EvidenciaRegulatoria,
+  EvidenciaVigente,
   HistoricoRegulatorio,
   MovimentacaoProfissionalPayload,
   ProcessoRenovacao,
@@ -100,6 +101,19 @@ export async function listarEvidenciasLegalizacao(
 ): Promise<EvidenciaRegulatoria[]> {
   const { data } = await api.get<EvidenciaRegulatoria[]>(
     `${DOCUMENTOS_URL}${documentoId}/evidencias/`,
+  );
+  return data;
+}
+
+// STC-416 (Biblioteca de Documentos): endpoint agregado, uma linha por
+// documento com evidência vigente na unidade -- evita um fetch por
+// documento no cliente (ver decisão técnica na issue).
+export async function listarEvidenciasVigentes(
+  unidadeId: number,
+): Promise<EvidenciaVigente[]> {
+  const { data } = await api.get<EvidenciaVigente[]>(
+    `${DOCUMENTOS_URL}evidencias-vigentes/`,
+    { params: { unidade: unidadeId } },
   );
   return data;
 }

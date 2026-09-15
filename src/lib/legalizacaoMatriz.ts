@@ -244,3 +244,13 @@ export function documentoBateNaCategoria(
   if (!categoria) return true;
   return documento.tipo_documento.categoria === categoria;
 }
+
+// Compartilhado entre MatrizConformidade.tsx e BibliotecaDocumentos.tsx --
+// achado em code review: as duas telas leem um id de filtro (unidade) da
+// URL do mesmo jeito, e tinham cada uma sua própria cópia idêntica desta
+// função antes desta extração.
+export function numeroDaUrl(valor: string | null): number | undefined {
+  if (!valor) return undefined;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : undefined;
+}

@@ -37,10 +37,14 @@ export function construirCsp(nonce: string): string {
     // sem uso de <object>/<embed>/<applet> hoje (conferido) -- fecha
     // superfície de conteúdo plugin/embeddable legado.
     "object-src 'none'",
-    // Explícito em vez de herdar de default-src implicitamente -- app não
-    // embeda nada (mesma postura de frame-ancestors 'none': nem embeda,
-    // nem é embedável).
-    "frame-src 'none'",
+    // Explícito em vez de herdar de default-src implicitamente. "self blob:"
+    // (não mais 'none', achado testando a Biblioteca de Documentos, STC-416):
+    // o preview de PDF embeda um <iframe src="blob:..."> montado no client a
+    // partir de bytes já buscados via /api/media (proxy same-origin) -- sem
+    // "blob:" aqui, o frame-src bloqueia a própria blob URL que a página
+    // criou, mesmo sendo conteúdo 100% local. Continua não embedando nada de
+    // outra origem (mesma postura de frame-ancestors 'none' abaixo).
+    "frame-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

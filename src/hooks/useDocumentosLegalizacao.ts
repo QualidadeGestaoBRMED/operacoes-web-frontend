@@ -8,6 +8,7 @@ import {
   criarDocumentoLegalizacao,
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
+  listarEvidenciasVigentes,
   reverterDocumentoLegalizacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -16,6 +17,7 @@ import type {
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
   DocumentoUnidadePayload,
+  EvidenciaVigente,
 } from "@/types/legalizacao";
 
 // Chave raiz usada por toda variação de filtro de useDocumentosLegalizacao
@@ -65,6 +67,26 @@ export function useDocumentosLegalizacao(
     isValidating,
     isFilterChangeValidating: trocandoFiltro,
     carregandoPrimeiraVez: data === undefined,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+    mutate,
+  };
+}
+
+// STC-416 (Biblioteca de Documentos): endpoint agregado, uma linha por
+// documento com evidência vigente na unidade -- mesmo poll de 60s dos
+// outros hooks deste módulo, documento regulatório não muda rápido o
+// suficiente pra justificar algo mais agressivo.
+export function useEvidenciasVigentes(unidadeId: number | null) {
+  const { data, error, isLoading, mutate } = useSWR<EvidenciaVigente[]>(
+    unidadeId ? ["evidencias-vigentes", unidadeId] : null,
+    () => listarEvidenciasVigentes(unidadeId as number),
+    { refreshInterval: INTERVALO_POLL_MS },
+  );
+
+  return {
+    evidencias: data ?? [],
+    isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
     mutate,

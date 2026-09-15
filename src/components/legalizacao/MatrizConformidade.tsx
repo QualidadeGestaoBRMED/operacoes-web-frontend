@@ -9,6 +9,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import {
   documentoBateNaBusca,
   documentoBateNaCategoria,
+  numeroDaUrl,
   ordenarDocumentos,
   ORDEM_CATEGORIA,
   type CampoOrdenavel,
@@ -23,12 +24,6 @@ import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
-
-function numeroDaUrl(valor: string | null): number | undefined {
-  if (!valor) return undefined;
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? numero : undefined;
-}
 
 // Achado no code review: o clique numa célula do Mapa sempre manda um valor
 // de ORDEM_CATEGORIA (MatrizMapaGrid.tsx), mas a URL pode ser editada à mão
@@ -168,7 +163,7 @@ export function MatrizConformidade() {
 
   return (
     <div ref={refPai} className="flex h-full min-h-0 flex-col">
-      <ToggleMapaLista ativo="lista" />
+      <ToggleMapaLista ativo="lista" linkBiblioteca />
       <MatrizFiltros
         filtros={filtros}
         onMudarFiltros={setFiltros}
