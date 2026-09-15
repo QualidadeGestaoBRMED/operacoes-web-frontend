@@ -1,11 +1,12 @@
-import { encode, getToken } from "next-auth/jwt";
+import { encode } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { obterTokenBackend } from "@/lib/authBackend";
 
 type ParamsPromise = Promise<{ path: string[] }>;
 
 const SECURE_COOKIE = process.env.NODE_ENV === "production";
-// getToken()/encode() não autodetectam isso sozinhos -- mesmo achado já
-// documentado abaixo pro getToken(), vale igual pro nome do cookie que a
+// encode() não autodetecta isso sozinho -- mesmo achado já documentado em
+// obterTokenBackend() (authBackend.ts), vale igual pro nome do cookie que a
 // renovação de token (STC-208) reescreve.
 const NOME_COOKIE_SESSAO = SECURE_COOKIE ? "__Secure-authjs.session-token" : "authjs.session-token";
 const SEGREDO = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
@@ -53,25 +54,7 @@ async function renovarToken(
 }
 
 async function encaminhar(request: NextRequest, { params }: { params: ParamsPromise }) {
-  // getToken() é o helper standalone de next-auth/jwt -- diferente do
-  // auth()/handlers exportados por src/auth.ts, ele não detecta o secret
-  // sozinho a partir do NextAuth({...}) principal. Precisa receber
-  // explicitamente, senão lança MissingSecret (nunca tinha sido exercitado
-  // de ponta a ponta localmente até agora).
-  //
-  // Achado em produção: secureCookie não é autodetectado por getToken() --
-  // sem passar, ele assume "false" e procura o cookie "authjs.session-token"
-  // (sem prefixo). Em produção (HTTPS) o NextAuth grava a sessão como
-  // "__Secure-authjs.session-token"; sem secureCookie:true aqui, getToken()
-  // nunca acha o cookie certo e sempre volta null -- todo request pro
-  // backend caía em 401 mesmo com o usuário de fato logado. Vercel só serve
-  // por HTTPS (produção e preview), então NODE_ENV === "production" é sinal
-  // confiável; localmente (dev, HTTP) continua usando o cookie sem prefixo.
-  const token = await getToken({
-    req: request,
-    secret: SEGREDO,
-    secureCookie: SECURE_COOKIE,
-  });
+  const token = await obterTokenBackend(request);
 
   if (!token?.backendAccessToken) {
     return NextResponse.json({ detail: "Não autenticado." }, { status: 401 });
