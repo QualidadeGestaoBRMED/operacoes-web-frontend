@@ -178,11 +178,13 @@ export function AlertaPersistenteModal() {
     <Dialog open={aberto} onOpenChange={() => setDispensado(true)}>
       <DialogContent
         {...{ [ATRIBUTO_PROPRIO]: "" }}
-        // sm:max-w-xl (não o max-w-lg padrão do Dialog) -- pedido do Tech
+        // sm:max-w-2xl (não o max-w-lg padrão do Dialog) -- pedido do Tech
         // Lead depois de ver o modal em uso real (Gestão de Demandas):
         // ficava estreito pra uma lista com criticidade + "· N alertas" ao
-        // lado do nome do documento, texto cortando com facilidade.
-        className="max-h-[85vh] flex flex-col gap-4 sm:max-w-xl"
+        // lado do nome do documento, texto cortando com facilidade. Um 1º
+        // aumento pra sm:max-w-xl passou despercebido (diferença pequena
+        // demais, 512px -> 576px) -- pulando direto pra 2xl (672px).
+        className="max-h-[85vh] flex flex-col gap-4 sm:max-w-2xl"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
