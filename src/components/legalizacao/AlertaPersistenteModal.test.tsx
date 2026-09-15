@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
-import { SWRConfig } from "swr";
+import { SWRConfig, useSWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AlertaRegulatorio } from "@/types/legalizacao";
 import { AlertaPersistenteModal } from "./AlertaPersistenteModal";
@@ -123,5 +123,49 @@ describe("AlertaPersistenteModal (STC-443)", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(empurrar).not.toHaveBeenCalled();
+  });
+
+  // Achado em code review: a versão original reabria em QUALQUER mudança de
+  // contagem, inclusive uma queda (alerta resolvido) -- o modal pipocava de
+  // novo bem na hora em que o usuário tinha acabado de tratar algo.
+  // mutate() aqui simula o poll de 60s sob demanda, sem depender de timer.
+  it("dispensado, NÃO reabre quando a contagem cai (alerta resolvido), mas reabre quando sobe (alerta novo)", async () => {
+    vi.mocked(listarAlertasPendentes)
+      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 3 })])
+      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 })])
+      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 4 })]);
+
+    function Harness() {
+      const { mutate } = useSWRConfig();
+      return (
+        <>
+          <button type="button" onClick={() => mutate("alertas-pendentes")}>
+            revalidar
+          </button>
+          <AlertaPersistenteModal />
+        </>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <Harness />
+      </SWRConfig>,
+    );
+
+    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver depois" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    // poll traz contagem menor (2) -- não deve reabrir
+    await user.click(screen.getByRole("button", { name: "revalidar" }));
+    await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    // poll seguinte traz contagem maior (3, um alerta novo) -- deve reabrir
+    await user.click(screen.getByRole("button", { name: "revalidar" }));
+    await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
   });
 });

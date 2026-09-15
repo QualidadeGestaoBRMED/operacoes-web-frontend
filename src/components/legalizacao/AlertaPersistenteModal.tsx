@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,9 +41,18 @@ export function AlertaPersistenteModal() {
   // que existia quando a aba abriu. Contagem (não a lista inteira) como
   // dependência -- referência de array novo a cada poll (mesmo objeto,
   // ainda sem mudança de conteúdo) não pode reabrir o modal à toa.
+  //
+  // Achado em code review: comparar só "> 0" reabria em QUALQUER mudança,
+  // inclusive uma queda -- um alerta sendo resolvido (ex.: o próprio usuário
+  // clicou aqui, foi lá e tratou) fazia o modal pipocar de novo assim que o
+  // próximo poll refletisse a contagem menor, bem na hora em que o usuário
+  // tinha acabado de fazer o que era pedido. useRef guarda a última
+  // contagem vista pra só reabrir quando ela de fato SOBE.
   const totalPendentes = alertas.length;
+  const totalAnteriorRef = useRef(totalPendentes);
   useEffect(() => {
-    if (totalPendentes > 0) setDispensado(false);
+    if (totalPendentes > totalAnteriorRef.current) setDispensado(false);
+    totalAnteriorRef.current = totalPendentes;
   }, [totalPendentes]);
 
   const aberto = totalPendentes > 0 && !dispensado;
