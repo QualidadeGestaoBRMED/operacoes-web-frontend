@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAlertasPendentes } from "@/hooks/useAlertasPendentes";
-import { LABEL_CRITICIDADE } from "@/lib/legalizacaoMatriz";
+import { LABEL_CRITICIDADE, numeroDaUrl } from "@/lib/legalizacaoMatriz";
 import { cn, formatarTempoRelativo } from "@/lib/utils";
 import type { AlertaRegulatorio } from "@/types/legalizacao";
 
@@ -32,8 +32,20 @@ import type { AlertaRegulatorio } from "@/types/legalizacao";
 // lugar da plataforma, não só nas telas de Legalização.
 export function AlertaPersistenteModal() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { alertas, error } = useAlertasPendentes();
   const [dispensado, setDispensado] = useState(false);
+
+  // Achado em code review (3ª rodada): este modal é montado fora de
+  // qualquer rota (AppShell.tsx) e não sabia nada sobre
+  // DetalheDocumentoModal (aberto via ?documento= na URL, lido por
+  // MatrizConformidade.tsx) -- um usuário chegando direto em
+  // /modulos/legalizacao?documento=57 (link salvo/compartilhado) com algum
+  // alerta pendente via os DOIS diálogos abertos ao mesmo tempo, empilhados.
+  // Suprime a abertura enquanto houver um documento ativo na URL; assim que
+  // ele fechar (MatrizConformidade limpa o parâmetro), o alerta persistente
+  // volta a aparecer normalmente, se ainda houver pendência.
+  const temDocumentoAtivoNaUrl = numeroDaUrl(searchParams.get("documento")) !== undefined;
 
   // Um novo alerta chegando (poll de 60s) depois do usuário já ter
   // dispensado nesta sessão deve voltar a interromper -- "permanece
@@ -73,7 +85,8 @@ export function AlertaPersistenteModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- idsPendentes já resume `alertas`.
   }, [idsPendentes, error]);
 
-  const aberto = (totalPendentes > 0 || Boolean(error)) && !dispensado;
+  const aberto =
+    (totalPendentes > 0 || Boolean(error)) && !dispensado && !temDocumentoAtivoNaUrl;
 
   function abrirDocumento(alerta: AlertaRegulatorio) {
     setDispensado(true);

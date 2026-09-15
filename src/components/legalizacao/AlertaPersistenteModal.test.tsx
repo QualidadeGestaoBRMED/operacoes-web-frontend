@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig, useSWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AlertaRegulatorio } from "@/types/legalizacao";
@@ -8,6 +8,7 @@ import { AlertaPersistenteModal } from "./AlertaPersistenteModal";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
+  useSearchParams: vi.fn(),
 }));
 
 vi.mock("@/lib/legalizacao");
@@ -81,9 +82,26 @@ const empurrar = vi.fn();
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useRouter).mockReturnValue({ push: empurrar } as never);
+  vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
 });
 
 describe("AlertaPersistenteModal (STC-443)", () => {
+  // Achado em code review (3ª rodada): um link direto pra
+  // /modulos/legalizacao?documento=57 (salvo, compartilhado) abre
+  // DetalheDocumentoModal via MatrizConformidade -- sem essa supressão, o
+  // alerta persistente abria por cima ao mesmo tempo, dois <Dialog> juntos.
+  it("com ?documento= já ativo na URL, não abre (mesmo com alerta pendente)", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(
+      new URLSearchParams({ documento: "57" }) as never,
+    );
+    vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
+
+    renderModal();
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("sem alerta pendente, não mostra nada", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([]);
 

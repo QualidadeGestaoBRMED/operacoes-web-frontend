@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
@@ -155,8 +155,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* STC-443: montado uma vez aqui (não por tela) -- alerta regulatório
           persistente (RN22) tem que interromper em qualquer lugar da
           plataforma, não só nas telas de Legalização. Só depois do usuário
-          resolvido -- sem sessão, useAlertasPendentes só bateria 401 à toa. */}
-      {user && <AlertaPersistenteModal />}
+          resolvido -- sem sessão, useAlertasPendentes só bateria 401 à toa.
+          Suspense exigido pelo App Router: usa useSearchParams() (pra saber
+          se já há um documento aberto via URL, achado em code review), 1º
+          uso desse hook nesta árvore de layout. */}
+      {user && (
+        <Suspense fallback={null}>
+          <AlertaPersistenteModal />
+        </Suspense>
+      )}
     </div>
   );
 }
