@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, MapPin, X } from "lucide-react";
+import { Download, FileText, FileX, MapPin, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -36,6 +36,25 @@ import type {
 function formatarData(data: string) {
   const [ano, mes, dia] = data.split("-");
   return `${dia}/${mes}/${ano}`;
+}
+
+// prazoDocumento() (legalizacaoMatriz.ts) devolve só "em N dias" pro caso
+// futuro -- na Matriz isso aparece dentro de uma coluna chamada "Prazo",
+// contexto suficiente; aqui, solto num card, ficava ambíguo (achado no
+// feedback visual). "vencido há N dias"/"vence hoje" já têm verbo, não
+// precisam de nada a mais.
+//
+// urgencia "normal" (achado no feedback visual): um prazo longe (ex. 1 ano)
+// vira "em 365 dias" -- ninguém pensa em prazo de validade contando dia a
+// dia nesse horizonte, só faz sentido a contagem regressiva quando está
+// perto (mesmo limiar que já classifica "próximo" vs "normal" na Matriz).
+// Longe, a data real é mais clara.
+function textoPrazoComVerbo(documento: DocumentoUnidade): string {
+  const { texto, urgencia } = prazoDocumento(documento);
+  if (urgencia === "normal" && documento.validade) {
+    return `Válido até ${formatarData(documento.validade)}`;
+  }
+  return texto.startsWith("em ") ? `Vence ${texto}` : texto;
 }
 
 export function BibliotecaDocumentos() {
@@ -142,6 +161,68 @@ export function BibliotecaDocumentos() {
     );
   }
 
+  // Achado no feedback visual: um <iframe> apontando direto pra URL do
+  // arquivo nunca renderiza -- (1) CSP (connect-src 'self', src/lib/csp.ts)
+  // bloqueia fetch() direto pro backend/R2, (2) em dev o backend manda
+  // X-Frame-Options: DENY em toda resposta, (3) em produção toda URL
+  // assinada do R2 já vem com Content-Disposition: attachment forçado
+  // (achado de segurança do próprio backend, base.py). Contorna buscando os
+  // bytes via um proxy same-origin (/api/media/evidencia-vigente, só
+  // leitura -- nunca aceita uma URL do cliente pra evitar SSRF, rebusca a
+  // evidência vigente direto do backend pelo id do documento) e montando
+  // uma Blob URL local pro <iframe>, que nenhum dos três se aplica.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [carregandoPreview, setCarregandoPreview] = useState(false);
+  const [erroPreview, setErroPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Só documentoSelecionadoId na dependência (não evidenciaSelecionada) --
+    // achado testando: os itens de `evidencias` ganham referência nova a
+    // cada poll de 60s (useEvidenciasVigentes), mesmo sem o conteúdo mudar;
+    // dependendo do objeto inteiro, o preview refazia o fetch/Blob URL a
+    // cada poll, piscando a pré-visualização à toa. O próprio proxy
+    // reconfirma que a evidência vigente existe (RBAC incluído), não
+    // precisa ser checado nesta ponta de novo.
+    if (!documentoSelecionadoId) {
+      setPreviewUrl(null);
+      setErroPreview(null);
+      return;
+    }
+    let cancelado = false;
+    let urlLocal: string | null = null;
+    setCarregandoPreview(true);
+    setErroPreview(null);
+    fetch(`/api/media/evidencia-vigente?documento=${documentoSelecionadoId}`)
+      .then((resposta) => {
+        if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+        return resposta.blob();
+      })
+      .then((blob) => {
+        if (cancelado) return;
+        urlLocal = URL.createObjectURL(blob);
+        // #toolbar=0&navpanes=0&scrollbar=0 -- parâmetros que o visualizador
+        // de PDF nativo do Chrome lê da fragment da URL (mesmo padrão usado
+        // no prontuai, front-end/app/checagem/page.tsx). Sem isto, a barra
+        // dele (baixar/imprimir/"⋮") aparecia por cima do documento,
+        // duplicando o botão "Baixar PDF" do rodapé e destoando do resto da
+        // tela.
+        setPreviewUrl(`${urlLocal}#toolbar=0&navpanes=0&scrollbar=0`);
+      })
+      .catch(() => {
+        if (!cancelado) setErroPreview("Não foi possível carregar a pré-visualização.");
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoPreview(false);
+      });
+    // Revoga a Blob URL anterior ao trocar de documento ou fechar o painel
+    // -- sem isto, cada documento aberto vazava um Blob na memória do
+    // navegador, nunca liberado.
+    return () => {
+      cancelado = true;
+      if (urlLocal) URL.revokeObjectURL(urlLocal);
+    };
+  }, [documentoSelecionadoId]);
+
   // Achado numa checagem de falhas críticas: sem isto, uma lista de
   // unidades vazia (zero unidades cadastradas) deixava `unidadeId`
   // indefinido pra sempre -- o efeito que escolhe a 1ª unidade nunca acha
@@ -235,7 +316,14 @@ export function BibliotecaDocumentos() {
                       {docsDaCategoria.length}
                     </span>
                   </div>
-                  <div className="flex flex-col">
+                  {/* Card por documento (não linha com borda inferior) --
+                      mesmo padrão visual de ItemEvidencia em
+                      DetalheDocumentoModal.tsx: card com borda arredondada,
+                      tingido de verde quando há evidência vigente (mesmo
+                      significado -- "vigente" -- que aquele componente já
+                      usa), badge de arquivo à esquerda, botão de baixar
+                      circular à direita. */}
+                  <div className="flex flex-col gap-2">
                     {docsDaCategoria.map((documento) => {
                       const evidencia = evidenciaPorDocumento.get(documento.id);
                       const selecionado = documento.id === documentoSelecionadoId;
@@ -243,17 +331,36 @@ export function BibliotecaDocumentos() {
                         <div
                           key={documento.id}
                           className={cn(
-                            "flex items-center gap-3.5 border-b border-border py-3 last:border-b-0",
-                            !evidencia && "opacity-60",
+                            "flex items-center gap-3.5 rounded-lg border border-border bg-background p-2.5",
+                            // Achado conversando sobre o propósito da tela:
+                            // status de workflow (Em andamento, Protocolado,
+                            // Não iniciado) não interessa pra quem só vai
+                            // mostrar o documento numa fiscalização -- só
+                            // Vencido é acionável o bastante pra merecer
+                            // destaque, mesmo aqui. Verde só quando tem
+                            // arquivo E não está vencido ("documento em
+                            // ordem"); vermelho sempre que vencido,
+                            // independente de ter um arquivo velho anexado.
+                            documento.status === "vencido"
+                              ? "border-red-600/40 bg-red-600/5"
+                              : evidencia && "border-green-600/40 bg-green-600/5",
                           )}
                         >
+                          {/* Ícone de documento, não texto abreviado --
+                              achado no feedback visual: "PDF" é redundante
+                              (só existe essa extensão neste módulo, STC-429)
+                              e "!" sozinho não comunica "sem arquivo". */}
                           <div
                             className={cn(
-                              "flex size-9 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white",
+                              "flex size-9 shrink-0 items-center justify-center rounded-md",
                               evidencia ? "bg-red-600" : "bg-muted-foreground",
                             )}
                           >
-                            {evidencia ? "PDF" : "!"}
+                            {evidencia ? (
+                              <FileText className="size-4 text-white" />
+                            ) : (
+                              <FileX className="size-4 text-white" />
+                            )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -263,21 +370,26 @@ export function BibliotecaDocumentos() {
                                   onClick={() => alternarSelecao(documento.id)}
                                   aria-pressed={selecionado}
                                   className={cn(
-                                    "truncate text-[13.5px] font-semibold text-foreground hover:text-secondary hover:underline",
+                                    "min-w-0 flex-1 truncate text-left text-[13.5px] font-medium text-foreground hover:text-secondary hover:underline",
                                     selecionado && "text-secondary underline",
                                   )}
                                 >
                                   {documento.tipo_documento.nome}
                                 </button>
                               ) : (
-                                <span className="truncate text-[13.5px] font-semibold text-foreground">
+                                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground">
                                   {documento.tipo_documento.nome}
                                 </span>
                               )}
-                              {!evidencia && (
+                              {/* Só Vencido -- os outros estados de
+                                  workflow (Em andamento, Protocolado, Não
+                                  iniciado) são internos da Coordenação/
+                                  Legalização, não interessam a quem só vai
+                                  mostrar o documento numa fiscalização. */}
+                              {documento.status === "vencido" && (
                                 <span
                                   className={cn(
-                                    "inline-block shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase",
+                                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase",
                                     COR_STATUS_BADGE[documento.status],
                                   )}
                                 >
@@ -285,16 +397,16 @@ export function BibliotecaDocumentos() {
                                 </span>
                               )}
                             </div>
-                            <p className="truncate text-[11.5px] text-muted-foreground">
+                            <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
                               {evidencia ? (
                                 <>
-                                  {prazoDocumento(documento).texto}
+                                  {textoPrazoComVerbo(documento)}
                                   {evidencia.emitido_em && (
                                     <> · emitido em {formatarData(evidencia.emitido_em)}</>
                                   )}
                                 </>
                               ) : (
-                                "Sem evidência vigente cadastrada"
+                                "Nenhum arquivo cadastrado"
                               )}
                             </p>
                           </div>
@@ -305,10 +417,9 @@ export function BibliotecaDocumentos() {
                               rel="noreferrer"
                               download={evidencia.nome_original}
                               title="Baixar"
-                              className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-secondary hover:underline"
+                              className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
-                              <Download className="size-3.5" />
-                              PDF
+                              <Download className="size-4" />
                             </a>
                           )}
                         </div>
@@ -324,10 +435,21 @@ export function BibliotecaDocumentos() {
               documento é clicado (achado no refinamento do mockup, Plano de
               Ação - Legalização.md §4, 24/08): sem nada selecionado, a lista
               ocupa a largura toda. Documento real embutido via <iframe>
-              (todo navegador moderno renderiza PDF nativamente assim) --
-              não um esboço estático como no mockup. */}
+              (não um esboço estático como no mockup) -- mas apontando pra
+              uma Blob URL local (ver useEffect acima), não direto pra URL do
+              arquivo: o backend manda X-Frame-Options: DENY em toda
+              resposta, então um <iframe src> direto nunca renderizava. */}
           {documentoSelecionado && evidenciaSelecionada && (
-            <aside className="flex w-full shrink-0 flex-col border-border sm:w-[380px] sm:border-l">
+            <aside
+              // 380px fixo (achado no feedback visual) ficava apertado em
+              // desktop -- a página do PDF já saía mais larga que isso,
+              // forçando scroll horizontal dentro do próprio preview. clamp()
+              // cresce com a tela (até 45% do card) sem depender de mais um
+              // breakpoint, mas trava num teto (640px) pra não virar metade
+              // da tela em monitor ultrawide; embaixo de sm continua tela
+              // cheia, igual antes.
+              className="flex w-full shrink-0 flex-col border-border sm:w-[clamp(380px,45%,640px)] sm:border-l"
+            >
               <div className="flex items-start justify-between gap-2.5 border-b border-border px-5 py-4">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-foreground">
@@ -348,12 +470,22 @@ export function BibliotecaDocumentos() {
                   <X className="size-4" />
                 </Button>
               </div>
-              <div className="min-h-0 flex-1 bg-muted/30">
-                <iframe
-                  title={`Pré-visualização de ${evidenciaSelecionada.nome_original}`}
-                  src={urlAbsolutaDaEvidencia(evidenciaSelecionada.arquivo)}
-                  className="size-full border-0"
-                />
+              <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/30">
+                {carregandoPreview ? (
+                  <p className="text-sm text-muted-foreground">Carregando...</p>
+                ) : erroPreview ? (
+                  <p className="px-5 text-center text-sm text-destructive">
+                    {erroPreview}
+                  </p>
+                ) : (
+                  previewUrl && (
+                    <iframe
+                      title={`Pré-visualização de ${evidenciaSelecionada.nome_original}`}
+                      src={previewUrl}
+                      className="size-full border-0"
+                    />
+                  )
+                )}
               </div>
               <div className="border-t border-border px-5 py-3.5">
                 <a
