@@ -120,6 +120,22 @@ export interface EvidenciaRegulatoria {
   created_at: string;
 }
 
+// STC-416 (Biblioteca de Documentos): visão agregada, uma linha por
+// documento com evidência vigente numa unidade -- endpoint dedicado
+// (documentos/evidencias-vigentes/?unidade=X), não o DocumentoUnidadeRead
+// Serializer normal (evidencia_vigente ali continua FK crua, sem
+// arquivo/nome_original). documento_unidade é o ID cru do DocumentoUnidade
+// dono desta evidência -- chave pra casar com a lista de
+// useDocumentosLegalizacao().
+export interface EvidenciaVigente {
+  documento_unidade: number;
+  arquivo: string;
+  nome_original: string;
+  tamanho_bytes: number;
+  emitido_em: string | null;
+  validade_comprovada: string | null;
+}
+
 // 100% leitura (AlertaRegulatorioSerializer, STC-398 paginado) -- nasce só
 // pela varredura diária ou pela movimentação profissional (imediato=true).
 // criticidade pode vir "" (blank=True no model -- formato de escalonamento
