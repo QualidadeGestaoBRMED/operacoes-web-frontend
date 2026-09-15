@@ -300,4 +300,18 @@ describe("BibliotecaDocumentos (STC-416)", () => {
       await screen.findByText(/nenhum documento regulatório cadastrado nesta unidade/i),
     ).toBeInTheDocument();
   });
+
+  it("mostra mensagem específica (não fica em 'Carregando...' pra sempre) quando não há nenhuma unidade cadastrada", async () => {
+    // Achado numa checagem de falhas críticas: sem isto, unidades=[] deixava
+    // unidadeId indefinido pra sempre (o efeito que escolhe a 1ª unidade
+    // nunca acha pra onde ir) -- a tela ficava presa em "Carregando..."
+    // eternamente, sem nenhum estado de saída (diferente da Matriz, onde
+    // "nenhuma unidade" é um estado válido).
+    vi.mocked(listarUnidades).mockResolvedValue([]);
+
+    renderTela();
+
+    expect(await screen.findByText("Nenhuma unidade cadastrada.")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+  });
 });

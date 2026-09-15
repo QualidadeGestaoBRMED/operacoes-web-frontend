@@ -142,7 +142,17 @@ export function BibliotecaDocumentos() {
     );
   }
 
-  const carregandoUnidadeAtual = unidadeId === undefined && !erroUnidades;
+  // Achado numa checagem de falhas críticas: sem isto, uma lista de
+  // unidades vazia (zero unidades cadastradas) deixava `unidadeId`
+  // indefinido pra sempre -- o efeito que escolhe a 1ª unidade nunca acha
+  // pra onde ir, e a tela ficava presa em "Carregando..." eternamente, sem
+  // nenhum estado de saída. Diferente da Matriz (onde "nenhuma unidade
+  // selecionada" é um estado válido, "todas as unidades"), esta tela exige
+  // uma unidade real por design.
+  const semUnidadesCadastradas =
+    !carregandoUnidades && !erroUnidades && unidades.length === 0;
+  const carregandoUnidadeAtual =
+    unidadeId === undefined && !erroUnidades && !semUnidadesCadastradas;
   const carregando =
     carregandoUnidadeAtual ||
     aguardandoValidacaoDeUnidade ||
@@ -203,6 +213,10 @@ export function BibliotecaDocumentos() {
           >
             {carregando ? (
               <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : semUnidadesCadastradas ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma unidade cadastrada.
+              </p>
             ) : error ? (
               <p className="text-sm text-destructive">
                 Não foi possível carregar os documentos desta unidade:{" "}
