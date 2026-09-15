@@ -57,13 +57,27 @@ export function MatrizConformidade() {
   );
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
-  // Deep link (STC-380): mesmo princípio de leitura só-na-entrada de
-  // unidade/categoria acima -- é o alvo do clique no card espelho do Kanban
-  // de Gestão de Demandas (Plano de Ação §4), não precisa sincronizar nos
-  // dois sentidos depois da abertura inicial.
+  // Deep link (STC-380): estado inicial lido só na montagem (mesmo
+  // princípio de unidade/categoria acima) -- é o alvo do clique no card
+  // espelho do Kanban de Gestão de Demandas (Plano de Ação §4), que sempre
+  // cruza de rota, garantindo montagem nova.
   const [documentoAbertoId, setDocumentoAbertoId] = useState<number | null>(
     () => numeroDaUrl(searchParams.get("documento")) ?? null,
   );
+
+  // Achado em code review (STC-443): o modal de alerta persistente
+  // (AlertaPersistenteModal.tsx, montado uma vez em AppShell.tsx, fora de
+  // qualquer rota) pode disparar esse mesmo link com o usuário já NESTA
+  // tela -- router.push só troca a querystring da rota atual, não remonta
+  // o componente, então o useState acima (que só lê na montagem) nunca
+  // pegava o id novo. Resincroniza sempre que o parâmetro da URL diverge do
+  // estado local -- idempotente pro fluxo interno normal (abrirDetalhe/
+  // fecharDetalhe, abaixo, já escrevem os dois juntos), só tem efeito
+  // quando a URL muda por fora deste componente.
+  const documentoIdNaUrl = numeroDaUrl(searchParams.get("documento")) ?? null;
+  useEffect(() => {
+    setDocumentoAbertoId(documentoIdNaUrl);
+  }, [documentoIdNaUrl]);
 
   // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
   // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união

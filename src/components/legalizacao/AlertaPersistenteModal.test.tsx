@@ -62,6 +62,20 @@ function renderModal() {
   );
 }
 
+// Expõe um botão pra forçar revalidação do SWR sob demanda -- simula o
+// poll de 60s sem depender de timer real/fake.
+function Harness() {
+  const { mutate } = useSWRConfig();
+  return (
+    <>
+      <button type="button" onClick={() => mutate("alertas-pendentes")}>
+        revalidar
+      </button>
+      <AlertaPersistenteModal />
+    </>
+  );
+}
+
 const empurrar = vi.fn();
 
 beforeEach(() => {
@@ -77,6 +91,19 @@ describe("AlertaPersistenteModal (STC-443)", () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // Achado em code review: uma falha na busca virava "sem alerta" (mesmo
+  // resultado visual de tudo em dia) -- o modal precisa aparecer mesmo sem
+  // nenhum alerta carregado, avisando que não deu pra checar.
+  it("falha ao buscar (sem nenhum dado anterior): mostra aviso, não fica em silêncio", async () => {
+    vi.mocked(listarAlertasPendentes).mockRejectedValue(new Error("Falha de rede."));
+
+    renderModal();
+
+    expect(
+      await screen.findByText("Não foi possível verificar alertas pendentes"),
+    ).toBeInTheDocument();
   });
 
   it("1 alerta pendente: contagem no singular, mostra documento/unidade/criticidade", async () => {
@@ -135,18 +162,6 @@ describe("AlertaPersistenteModal (STC-443)", () => {
       .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 })])
       .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 4 })]);
 
-    function Harness() {
-      const { mutate } = useSWRConfig();
-      return (
-        <>
-          <button type="button" onClick={() => mutate("alertas-pendentes")}>
-            revalidar
-          </button>
-          <AlertaPersistenteModal />
-        </>
-      );
-    }
-
     const user = userEvent.setup();
     render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
@@ -166,6 +181,32 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     // poll seguinte traz contagem maior (3, um alerta novo) -- deve reabrir
     await user.click(screen.getByRole("button", { name: "revalidar" }));
     await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+  });
+
+  // Achado em code review (2ª rodada, ponto levantado como "validar com o
+  // time"): comparar só a CONTAGEM deixava passar batido o caso de um
+  // alerta ser resolvido e outro surgir no mesmo ciclo de poll -- a
+  // contagem total fica igual (3 -> 3), mas o conjunto de ids mudou de
+  // verdade (id 3 some, id 4 aparece). Precisa reabrir mesmo assim.
+  it("dispensado, reabre quando a contagem fica IGUAL mas o conjunto de ids muda (resolvido + novo no mesmo poll)", async () => {
+    vi.mocked(listarAlertasPendentes)
+      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 3 })])
+      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 4 })]);
+
+    const user = userEvent.setup();
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <Harness />
+      </SWRConfig>,
+    );
+
+    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ver depois" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "revalidar" }));
+    await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
   });
 });

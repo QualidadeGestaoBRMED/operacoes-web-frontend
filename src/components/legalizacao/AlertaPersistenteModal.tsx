@@ -32,35 +32,60 @@ import type { AlertaRegulatorio } from "@/types/legalizacao";
 // lugar da plataforma, não só nas telas de Legalização.
 export function AlertaPersistenteModal() {
   const router = useRouter();
-  const { alertas } = useAlertasPendentes();
+  const { alertas, error } = useAlertasPendentes();
   const [dispensado, setDispensado] = useState(false);
 
   // Um novo alerta chegando (poll de 60s) depois do usuário já ter
   // dispensado nesta sessão deve voltar a interromper -- "permanece
   // visível... até a resolução" vale pra cada alerta, não só pro conjunto
-  // que existia quando a aba abriu. Contagem (não a lista inteira) como
-  // dependência -- referência de array novo a cada poll (mesmo objeto,
-  // ainda sem mudança de conteúdo) não pode reabrir o modal à toa.
+  // que existia quando a aba abriu.
   //
-  // Achado em code review: comparar só "> 0" reabria em QUALQUER mudança,
-  // inclusive uma queda -- um alerta sendo resolvido (ex.: o próprio usuário
-  // clicou aqui, foi lá e tratou) fazia o modal pipocar de novo assim que o
-  // próximo poll refletisse a contagem menor, bem na hora em que o usuário
-  // tinha acabado de fazer o que era pedido. useRef guarda a última
-  // contagem vista pra só reabrir quando ela de fato SOBE.
+  // Achado em code review: comparar só a CONTAGEM ("> 0"/"> anterior")
+  // reabria em qualquer mudança de total, inclusive uma queda (alerta
+  // resolvido), e também deixava passar batido o caso de um alerta ser
+  // resolvido e outro surgir no mesmo ciclo de poll -- a contagem ficava
+  // igual, o alerta novo nunca reabria o modal. Comparando o CONJUNTO de
+  // ids (não só o tamanho) resolve os dois: só reabre quando aparece um id
+  // que não existia no último conjunto visto. idsPendentes (string
+  // derivada, estável entre polls sem mudança de conteúdo) é a dependência
+  // do efeito -- alertas.length/alertas em si mudam de referência a cada
+  // poll mesmo sem mudança real, o que reabriria o modal à toa.
   const totalPendentes = alertas.length;
-  const totalAnteriorRef = useRef(totalPendentes);
+  const idsPendentes = alertas
+    .map((a) => a.id)
+    .sort((a, b) => a - b)
+    .join(",");
+  const idsAnterioresRef = useRef<Set<number>>(new Set());
+  const tinhaErroRef = useRef(Boolean(error));
   useEffect(() => {
-    if (totalPendentes > totalAnteriorRef.current) setDispensado(false);
-    totalAnteriorRef.current = totalPendentes;
-  }, [totalPendentes]);
+    const idsAtuais = new Set(alertas.map((a) => a.id));
+    const surgiuIdNovo = [...idsAtuais].some((id) => !idsAnterioresRef.current.has(id));
+    // Achado em code review (2ª rodada): uma falha de rede virava "sem
+    // alerta" pro modal (useAlertasPendentes já loga, mas isso não é
+    // visível pra quem usa a plataforma) -- justo o cenário que RN22 existe
+    // pra cobrir, "está tudo em dia" e "não consegui checar" não podem
+    // parecer a mesma coisa. Erro também reabre se começou a falhar depois
+    // de já dispensado (mesma lógica de "info nova", não só alerta novo).
+    const erroComecouAgora = Boolean(error) && !tinhaErroRef.current;
+    if (surgiuIdNovo || erroComecouAgora) setDispensado(false);
+    idsAnterioresRef.current = idsAtuais;
+    tinhaErroRef.current = Boolean(error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- idsPendentes já resume `alertas`.
+  }, [idsPendentes, error]);
 
-  const aberto = totalPendentes > 0 && !dispensado;
+  const aberto = (totalPendentes > 0 || Boolean(error)) && !dispensado;
 
   function abrirDocumento(alerta: AlertaRegulatorio) {
     setDispensado(true);
     router.push(`/modulos/legalizacao?documento=${alerta.documento_unidade.id}`);
   }
+
+  // totalPendentes = 0 aqui só é alcançável com erro (aberto exige um dos
+  // dois) -- nunca conseguimos checar, então não dá pra dizer "está tudo em
+  // dia" nem mostrar uma lista (não existe lista nenhuma, com ou sem cache
+  // -- SWR mantém o último `data` bom, então se já tinha alerta antes, ele
+  // continua aparecendo abaixo mesmo com erro agora).
+  const falhaSemNenhumDadoAnterior = totalPendentes === 0 && Boolean(error);
 
   return (
     <Dialog open={aberto} onOpenChange={() => setDispensado(true)}>
@@ -68,14 +93,25 @@ export function AlertaPersistenteModal() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="size-5 text-destructive" />
-            {totalPendentes === 1
-              ? "1 alerta regulatório pendente"
-              : `${totalPendentes} alertas regulatórios pendentes`}
+            {falhaSemNenhumDadoAnterior
+              ? "Não foi possível verificar alertas pendentes"
+              : totalPendentes === 1
+                ? "1 alerta regulatório pendente"
+                : `${totalPendentes} alertas regulatórios pendentes`}
           </DialogTitle>
           <DialogDescription>
-            Documentos entrando na janela de renovação que ainda não tiveram nenhuma ação.
+            {falhaSemNenhumDadoAnterior
+              ? "A checagem falhou agora -- pode haver alertas pendentes sem aparecer aqui. Tente de novo em instantes."
+              : "Documentos entrando na janela de renovação que ainda não tiveram nenhuma ação."}
           </DialogDescription>
         </DialogHeader>
+
+        {error && !falhaSemNenhumDadoAnterior && (
+          <p className="-mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Não foi possível atualizar esta lista agora -- pode haver mudanças recentes (alertas
+            novos ou já resolvidos) ainda não refletidas abaixo.
+          </p>
+        )}
 
         <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1">
           {alertas.map((alerta) => (
