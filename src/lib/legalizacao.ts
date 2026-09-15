@@ -209,6 +209,26 @@ export async function reverterDocumentoLegalizacao(
 // TODOS os pendentes, não só os primeiros 20.
 const MAXIMO_DE_PAGINAS_DE_ALERTAS = 50;
 
+// STC-447 (backend) já fecha status_tratamento quando o documento é
+// resolvido -- mas só a partir da correção (transições novas) e via uma
+// migration pontual pro que já existia até o deploy. Este filtro é defesa
+// em profundidade no cliente: mesmo critério da migration de backend
+// (não repete ingenuamente "documento resolvido = todos os alertas dele
+// somem" -- um documento Regular pode ter um alerta LEGÍTIMO, a varredura
+// diária gera alerta pra documento ainda Regular quando a validade entra
+// na janela de antecedência).
+export function alertaAindaRelevante(alerta: AlertaRegulatorio): boolean {
+  const documento = alerta.documento_unidade;
+  if (documento.status === "nao_aplicavel" || documento.status === "unidade_encerramento") {
+    return false;
+  }
+  if (documento.status === "regular") {
+    if (alerta.imediato) return false;
+    return alerta.ciclo_referencia === documento.validade;
+  }
+  return true;
+}
+
 export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
   const params = { status_tratamento: "pendente" };
   const primeira = await api.get<RespostaPaginada<AlertaRegulatorio>>(ALERTAS_URL, {
@@ -240,7 +260,7 @@ export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
     for (const alerta of data.results) {
       if (vistos.has(alerta.id)) continue;
       vistos.add(alerta.id);
-      resultados.push(alerta);
+      if (alertaAindaRelevante(alerta)) resultados.push(alerta);
     }
   }
   return resultados;
