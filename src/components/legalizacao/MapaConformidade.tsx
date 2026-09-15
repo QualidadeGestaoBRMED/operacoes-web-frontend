@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -20,9 +21,18 @@ export function MapaConformidade() {
   // não só esconde o link no toggle -- cobre também quem chega direto por
   // um link salvo/compartilhado em mobile.
   const ehMobile = useMediaQuery("(max-width: 639px)");
+  // STC-451: Coordenação da Unidade só acompanha a própria unidade -- o
+  // Mapa é o panorama da rede inteira (sem filtro nenhum, ver comentário
+  // abaixo), não faz sentido pra esse perfil. ToggleMapaLista já esconde o
+  // link (MatrizConformidade.tsx), isto é a defesa em profundidade pra
+  // quem chega direto por um link salvo/compartilhado -- mesmo raciocínio
+  // do redirect de mobile logo acima, só que por perfil em vez de largura
+  // de tela.
+  const { isCoordenacaoUnidade } = useAuth();
+  const redireciona = ehMobile || isCoordenacaoUnidade;
   useEffect(() => {
-    if (ehMobile) router.replace("/modulos/legalizacao");
-  }, [ehMobile, router]);
+    if (redireciona) router.replace("/modulos/legalizacao");
+  }, [redireciona, router]);
 
   // Sem filtro nenhum de propósito -- o Mapa é o panorama da rede inteira,
   // igual ResumoCards/MatrizMapaGrid precisam ver todas as unidades pra
@@ -65,7 +75,7 @@ export function MapaConformidade() {
 
   // Depois de todos os hooks (regra dos hooks) -- evita desenhar a grade
   // por um frame antes do redirect dar tempo de disparar.
-  if (ehMobile) return null;
+  if (redireciona) return null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
