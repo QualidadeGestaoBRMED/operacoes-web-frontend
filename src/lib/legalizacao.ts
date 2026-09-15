@@ -235,7 +235,13 @@ export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
     params,
   });
   if (!primeira.data.next) {
-    return primeira.data.results;
+    // Achado em code review: o caminho de 1 página só (o comum -- ver
+    // comentário acima, alerta pendente acumulado raramente passa de uma
+    // página) devolvia direto, sem passar por alertaAindaRelevante -- só o
+    // loop de várias páginas abaixo filtrava. Mesmo filtro nos dois
+    // caminhos, senão o mesmo alerta aparece ou some dependendo só de
+    // quantas páginas a API devolveu, não da regra de negócio.
+    return primeira.data.results.filter(alertaAindaRelevante);
   }
 
   const tamanhoDaPagina = primeira.data.results.length;

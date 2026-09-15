@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig, useSWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AlertaRegulatorio } from "@/types/legalizacao";
@@ -8,6 +8,7 @@ import { AlertaPersistenteModal } from "./AlertaPersistenteModal";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
+  usePathname: vi.fn(),
   useSearchParams: vi.fn(),
 }));
 
@@ -82,6 +83,7 @@ const empurrar = vi.fn();
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useRouter).mockReturnValue({ push: empurrar } as never);
+  vi.mocked(usePathname).mockReturnValue("/modulos/legalizacao");
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
 });
 
@@ -156,6 +158,35 @@ describe("AlertaPersistenteModal (STC-443)", () => {
 
     expect(empurrar).toHaveBeenCalledWith("/modulos/legalizacao?documento=10");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // Achado em code review: sobrescrever a querystring inteira perdia
+  // filtro ativo (ex. ?unidade=5) quando o usuário já estava na própria
+  // Matriz -- o modal é montado fora de qualquer rota e pode disparar com
+  // o usuário já lá (poll de 60s trazendo um alerta novo).
+  it("clicar num alerta com filtro de unidade já ativo na Matriz preserva o filtro na URL", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams({ unidade: "5" }) as never);
+    vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByText("Alvará de Funcionamento"));
+
+    expect(empurrar).toHaveBeenCalledWith("/modulos/legalizacao?unidade=5&documento=10");
+  });
+
+  it("clicar num alerta vindo de outra tela (fora da Matriz) não carrega parâmetros daquela tela", async () => {
+    vi.mocked(usePathname).mockReturnValue("/dashboard");
+    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams({ algumFiltro: "x" }) as never);
+    vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByText("Alvará de Funcionamento"));
+
+    expect(empurrar).toHaveBeenCalledWith("/modulos/legalizacao?documento=10");
   });
 
   it('clicar em "Ver depois" fecha o modal sem navegar', async () => {

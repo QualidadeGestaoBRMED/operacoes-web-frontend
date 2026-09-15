@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AlertaRegulatorio } from "@/types/legalizacao";
-import { alertaAindaRelevante } from "./legalizacao";
+import api from "./api";
+import { alertaAindaRelevante, listarAlertasPendentes } from "./legalizacao";
+
+vi.mock("./api", () => ({
+  default: { get: vi.fn() },
+}));
+
+const apiGetMock = vi.mocked(api.get);
 
 // Mesmo critério da migration de backend (STC-447) -- defesa em
 // profundidade no cliente, não repete ingenuamente "documento resolvido =
@@ -86,5 +93,28 @@ describe("alertaAindaRelevante (STC-443/STC-447)", () => {
       validade: "2026-12-01",
     });
     expect(alertaAindaRelevante(a)).toBe(false);
+  });
+});
+
+describe("listarAlertasPendentes", () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+  });
+
+  // Achado em code review: o caminho de 1 página só (next === null, o
+  // comum na prática) devolvia os resultados direto, sem passar por
+  // alertaAindaRelevante -- só o caminho de várias páginas filtrava. Mesmo
+  // alerta "não relevante" aparecia ou sumia dependendo só de quantas
+  // páginas a API devolveu, não da regra de negócio.
+  it("aplica alertaAindaRelevante mesmo quando cabe numa única página (next === null)", async () => {
+    const relevante = alerta({ id: 1 });
+    const naoRelevante = comDocumento(alerta({ id: 2, imediato: true }), { status: "regular" });
+    apiGetMock.mockResolvedValueOnce({
+      data: { count: 2, next: null, previous: null, results: [relevante, naoRelevante] },
+    });
+
+    const resultado = await listarAlertasPendentes();
+
+    expect(resultado.map((a) => a.id)).toEqual([1]);
   });
 });

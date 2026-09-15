@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,11 @@ import type { AlertaRegulatorio } from "@/types/legalizacao";
 //
 // Montado uma vez em AppShell.tsx, não por tela -- dispara em qualquer
 // lugar da plataforma, não só nas telas de Legalização.
+const ROTA_MATRIZ = "/modulos/legalizacao";
+
 export function AlertaPersistenteModal() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { alertas, error } = useAlertasPendentes();
   const [dispensado, setDispensado] = useState(false);
@@ -90,7 +93,17 @@ export function AlertaPersistenteModal() {
 
   function abrirDocumento(alerta: AlertaRegulatorio) {
     setDispensado(true);
-    router.push(`/modulos/legalizacao?documento=${alerta.documento_unidade.id}`);
+    // Achado em code review: sobrescrever a querystring inteira perdia
+    // filtro ativo (ex. ?unidade=5) se o usuário já estivesse na própria
+    // Matriz quando o alerta apareceu (poll de 60s, modal montado fora de
+    // qualquer rota). Só mescla os parâmetros existentes quando já estamos
+    // na Matriz -- vindo de outra tela, os parâmetros dela não têm nada a
+    // ver com o destino, começa do zero. Mesmo padrão de abrirDetalhe()
+    // (MatrizConformidade.tsx).
+    const params =
+      pathname === ROTA_MATRIZ ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
+    params.set("documento", String(alerta.documento_unidade.id));
+    router.push(`${ROTA_MATRIZ}?${params.toString()}`);
   }
 
   // totalPendentes = 0 aqui só é alcançável com erro (aberto exige um dos
