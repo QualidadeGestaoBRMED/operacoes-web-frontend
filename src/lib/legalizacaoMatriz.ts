@@ -5,6 +5,7 @@ import {
 } from "./ordenacao";
 import { nomeExibicao } from "./utils";
 import type {
+  AlertaRegulatorio,
   CategoriaDocumento,
   Criticidade,
   DocumentoUnidade,
@@ -117,6 +118,58 @@ export const LABEL_CRITICIDADE: Record<Criticidade, string> = {
 // informação principal da linha.
 export const COR_CRITICIDADE_ALTA = "border-red-200 bg-red-100 text-red-700";
 
+// STC-443: um mesmo documento pode ter mais de um AlertaRegulatorio pendente
+// ao mesmo tempo (ex.: um imediato de movimentação profissional + um de
+// ciclo da varredura diária, os dois legítimos enquanto o documento não é
+// resolvido) -- achado no feedback visual, "CNES" aparecia 2x na lista do
+// modal de alerta persistente, contando registro de alerta em vez de
+// documento precisando de atenção. Agrupa por documento_unidade.id; a ordem
+// de entrada em `alertas` já é por -data_geracao (Meta.ordering do backend),
+// então o Map preserva "documento com o alerta mais recente primeiro" sem
+// precisar reordenar aqui.
+export interface AlertaAgrupado {
+  documentoId: number;
+  tipoDocumentoNome: string;
+  unidadeNome: string;
+  criticidade: Criticidade | "";
+  dataMaisAntiga: string;
+  totalAlertas: number;
+}
+
+export function agruparAlertasPorDocumento(alertas: AlertaRegulatorio[]): AlertaAgrupado[] {
+  const porDocumento = new Map<number, AlertaRegulatorio[]>();
+  for (const alerta of alertas) {
+    const id = alerta.documento_unidade.id;
+    const grupo = porDocumento.get(id);
+    if (grupo) grupo.push(alerta);
+    else porDocumento.set(id, [alerta]);
+  }
+
+  return Array.from(porDocumento.values()).map((grupo) => {
+    const [primeiro, ...resto] = grupo;
+    let criticidadeMaisAlta = primeiro.criticidade;
+    let dataMaisAntiga = primeiro.data_geracao;
+    for (const alerta of resto) {
+      if (
+        alerta.criticidade &&
+        (!criticidadeMaisAlta ||
+          ORDEM_CRITICIDADE[alerta.criticidade] < ORDEM_CRITICIDADE[criticidadeMaisAlta])
+      ) {
+        criticidadeMaisAlta = alerta.criticidade;
+      }
+      if (alerta.data_geracao < dataMaisAntiga) dataMaisAntiga = alerta.data_geracao;
+    }
+    return {
+      documentoId: primeiro.documento_unidade.id,
+      tipoDocumentoNome: primeiro.documento_unidade.tipo_documento.nome,
+      unidadeNome: primeiro.documento_unidade.unidade.nome,
+      criticidade: criticidadeMaisAlta,
+      dataMaisAntiga,
+      totalAlertas: grupo.length,
+    };
+  });
+}
+
 // Status sem prazo relevante -- documento nasceu "coringa" (justificativa
 // no lugar de validade), então não faz sentido calcular urgência de nada.
 const STATUS_SEM_PRAZO: ReadonlySet<StatusDocumento> = new Set([
@@ -179,7 +232,10 @@ export type CampoOrdenavel =
 // não muda a API pública deste módulo.
 export type Ordenacao = OrdenacaoGenerica<CampoOrdenavel>;
 
-const ORDEM_CRITICIDADE: Record<Criticidade, number> = {
+// Exportado -- STC-443 (AlertaPersistenteModal) reaproveita a mesma ordem
+// pra escolher a criticidade mais alta entre vários alertas do mesmo
+// documento, em vez de duplicar o mapeamento.
+export const ORDEM_CRITICIDADE: Record<Criticidade, number> = {
   alta: 0,
   media: 1,
   baixa: 2,

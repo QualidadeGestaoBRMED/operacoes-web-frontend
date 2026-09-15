@@ -56,6 +56,19 @@ function alerta(overrides: Partial<AlertaRegulatorio> = {}): AlertaRegulatorio {
   };
 }
 
+// Atalho pra criar um alerta de um documento ESPECÍFICO -- vários testes
+// abaixo simulam "N pendências" e precisam deixar claro se são N alertas do
+// MESMO documento (colapsam numa linha, agrupamento por documento) ou de
+// documentos DIFERENTES (N linhas).
+function alertaDoDocumento(
+  alertaId: number,
+  documentoId: number,
+  overrides: Partial<AlertaRegulatorio> = {},
+): AlertaRegulatorio {
+  const base = alerta({ id: alertaId, ...overrides });
+  return { ...base, documento_unidade: { ...base.documento_unidade, id: documentoId } };
+}
+
 function renderModal() {
   return render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
@@ -126,26 +139,51 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     ).toBeInTheDocument();
   });
 
-  it("1 alerta pendente: contagem no singular, mostra documento/unidade/criticidade", async () => {
+  it("1 documento pendente: contagem no singular, mostra documento/unidade/criticidade", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
 
     renderModal();
 
-    expect(await screen.findByText("1 alerta regulatório pendente")).toBeInTheDocument();
+    expect(await screen.findByText("1 documento regulatório pendente")).toBeInTheDocument();
     expect(screen.getByText("Alvará de Funcionamento")).toBeInTheDocument();
     expect(screen.getByText(/Niterói/)).toBeInTheDocument();
     expect(screen.getByText("Alta")).toBeInTheDocument();
   });
 
-  it("vários alertas pendentes: contagem no plural", async () => {
+  it("vários documentos pendentes: contagem no plural, 1 linha por documento", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([
-      alerta({ id: 1 }),
-      alerta({ id: 2, documento_unidade: { ...alerta().documento_unidade, id: 11 } }),
+      alertaDoDocumento(1, 10),
+      alertaDoDocumento(2, 11),
     ]);
 
     renderModal();
 
-    expect(await screen.findByText("2 alertas regulatórios pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("2 documentos regulatórios pendentes")).toBeInTheDocument();
+  });
+
+  // Achado no feedback visual: o mesmo documento pode ter mais de um
+  // AlertaRegulatorio pendente ao mesmo tempo (ex. imediato de movimentação
+  // profissional + de ciclo da varredura diária) -- contar/listar por
+  // ALERTA fazia o mesmo documento aparecer 2x na lista.
+  it("mesmo documento com 2 alertas pendentes: 1 linha só, criticidade mais alta, data mais antiga", async () => {
+    vi.mocked(listarAlertasPendentes).mockResolvedValue([
+      alertaDoDocumento(1, 10, {
+        criticidade: "baixa",
+        data_geracao: "2026-09-15T12:00:00Z",
+      }),
+      alertaDoDocumento(2, 10, {
+        criticidade: "alta",
+        data_geracao: "2026-09-10T12:00:00Z",
+      }),
+    ]);
+
+    renderModal();
+
+    expect(await screen.findByText("1 documento regulatório pendente")).toBeInTheDocument();
+    expect(screen.getAllByText("Alvará de Funcionamento")).toHaveLength(1);
+    expect(screen.getByText("Alta")).toBeInTheDocument();
+    expect(screen.queryByText("Baixa")).not.toBeInTheDocument();
+    expect(screen.getByText(/· 2 alertas/)).toBeInTheDocument();
   });
 
   it("clicar num alerta fecha o modal e navega pro documento", async () => {
@@ -207,9 +245,17 @@ describe("AlertaPersistenteModal (STC-443)", () => {
   // mutate() aqui simula o poll de 60s sob demanda, sem depender de timer.
   it("dispensado, NÃO reabre quando a contagem cai (alerta resolvido), mas reabre quando sobe (alerta novo)", async () => {
     vi.mocked(listarAlertasPendentes)
-      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 3 })])
-      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 })])
-      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 4 })]);
+      .mockResolvedValueOnce([
+        alertaDoDocumento(1, 10),
+        alertaDoDocumento(2, 11),
+        alertaDoDocumento(3, 12),
+      ])
+      .mockResolvedValueOnce([alertaDoDocumento(1, 10), alertaDoDocumento(2, 11)])
+      .mockResolvedValueOnce([
+        alertaDoDocumento(1, 10),
+        alertaDoDocumento(2, 11),
+        alertaDoDocumento(4, 13),
+      ]);
 
     const user = userEvent.setup();
     render(
@@ -218,7 +264,7 @@ describe("AlertaPersistenteModal (STC-443)", () => {
       </SWRConfig>,
     );
 
-    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("3 documentos regulatórios pendentes")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ver depois" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
@@ -230,7 +276,7 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     // poll seguinte traz contagem maior (3, um alerta novo) -- deve reabrir
     await user.click(screen.getByRole("button", { name: "revalidar" }));
     await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(3));
-    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("3 documentos regulatórios pendentes")).toBeInTheDocument();
   });
 
   // Achado em code review (2ª rodada, ponto levantado como "validar com o
@@ -240,8 +286,16 @@ describe("AlertaPersistenteModal (STC-443)", () => {
   // verdade (id 3 some, id 4 aparece). Precisa reabrir mesmo assim.
   it("dispensado, reabre quando a contagem fica IGUAL mas o conjunto de ids muda (resolvido + novo no mesmo poll)", async () => {
     vi.mocked(listarAlertasPendentes)
-      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 3 })])
-      .mockResolvedValueOnce([alerta({ id: 1 }), alerta({ id: 2 }), alerta({ id: 4 })]);
+      .mockResolvedValueOnce([
+        alertaDoDocumento(1, 10),
+        alertaDoDocumento(2, 11),
+        alertaDoDocumento(3, 12),
+      ])
+      .mockResolvedValueOnce([
+        alertaDoDocumento(1, 10),
+        alertaDoDocumento(2, 11),
+        alertaDoDocumento(4, 13),
+      ]);
 
     const user = userEvent.setup();
     render(
@@ -250,12 +304,12 @@ describe("AlertaPersistenteModal (STC-443)", () => {
       </SWRConfig>,
     );
 
-    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("3 documentos regulatórios pendentes")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ver depois" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "revalidar" }));
     await waitFor(() => expect(listarAlertasPendentes).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("3 alertas regulatórios pendentes")).toBeInTheDocument();
+    expect(await screen.findByText("3 documentos regulatórios pendentes")).toBeInTheDocument();
   });
 });

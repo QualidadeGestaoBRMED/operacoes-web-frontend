@@ -13,9 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAlertasPendentes } from "@/hooks/useAlertasPendentes";
-import { LABEL_CRITICIDADE, numeroDaUrl } from "@/lib/legalizacaoMatriz";
+import { agruparAlertasPorDocumento, LABEL_CRITICIDADE, numeroDaUrl } from "@/lib/legalizacaoMatriz";
 import { cn, formatarTempoRelativo } from "@/lib/utils";
-import type { AlertaRegulatorio } from "@/types/legalizacao";
 
 // STC-443 (RN22, MP002): "o alerta permanece visível na plataforma até a
 // resolução" -- STC-373 só cobriu o aviso avulso e dispensável (sino do
@@ -91,7 +90,7 @@ export function AlertaPersistenteModal() {
   const aberto =
     (totalPendentes > 0 || Boolean(error)) && !dispensado && !temDocumentoAtivoNaUrl;
 
-  function abrirDocumento(alerta: AlertaRegulatorio) {
+  function abrirDocumento(documentoId: number) {
     setDispensado(true);
     // Achado em code review: sobrescrever a querystring inteira perdia
     // filtro ativo (ex. ?unidade=5) se o usuário já estivesse na própria
@@ -102,9 +101,20 @@ export function AlertaPersistenteModal() {
     // (MatrizConformidade.tsx).
     const params =
       pathname === ROTA_MATRIZ ? new URLSearchParams(searchParams.toString()) : new URLSearchParams();
-    params.set("documento", String(alerta.documento_unidade.id));
+    params.set("documento", String(documentoId));
     router.push(`${ROTA_MATRIZ}?${params.toString()}`);
   }
+
+  // Achado no feedback visual: um mesmo documento pode ter mais de um
+  // AlertaRegulatorio pendente (ex. imediato de movimentação profissional +
+  // de ciclo da varredura diária, os dois legítimos enquanto o documento
+  // não é resolvido) -- contar/listar por ALERTA fazia "CNES" aparecer 2x,
+  // e o título dizia "4 alertas" quando só 3 documentos precisavam de
+  // atenção de verdade. Agrupa por documento (agruparAlertasPorDocumento,
+  // legalizacaoMatriz.ts) -- a contagem e a lista passam a refletir quantos
+  // DOCUMENTOS têm pendência, não quantos registros de alerta existem.
+  const documentosAgrupados = agruparAlertasPorDocumento(alertas);
+  const totalDocumentos = documentosAgrupados.length;
 
   // totalPendentes = 0 aqui só é alcançável com erro (aberto exige um dos
   // dois) -- nunca conseguimos checar, então não dá pra dizer "está tudo em
@@ -121,9 +131,9 @@ export function AlertaPersistenteModal() {
             <AlertTriangle className="size-5 text-destructive" />
             {falhaSemNenhumDadoAnterior
               ? "Não foi possível verificar alertas pendentes"
-              : totalPendentes === 1
-                ? "1 alerta regulatório pendente"
-                : `${totalPendentes} alertas regulatórios pendentes`}
+              : totalDocumentos === 1
+                ? "1 documento regulatório pendente"
+                : `${totalDocumentos} documentos regulatórios pendentes`}
           </DialogTitle>
           <DialogDescription>
             {falhaSemNenhumDadoAnterior
@@ -140,32 +150,32 @@ export function AlertaPersistenteModal() {
         )}
 
         <div className="scrollbar-discreta -mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1">
-          {alertas.map((alerta) => (
+          {documentosAgrupados.map((grupo) => (
             <button
-              key={alerta.id}
+              key={grupo.documentoId}
               type="button"
-              onClick={() => abrirDocumento(alerta)}
+              onClick={() => abrirDocumento(grupo.documentoId)}
               className="flex items-start justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">
-                  {alerta.documento_unidade.tipo_documento.nome}
+                  {grupo.tipoDocumentoNome}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {alerta.documento_unidade.unidade.nome} · gerado{" "}
-                  {formatarTempoRelativo(alerta.data_geracao)}
+                  {grupo.unidadeNome} · gerado {formatarTempoRelativo(grupo.dataMaisAntiga)}
+                  {grupo.totalAlertas > 1 && ` · ${grupo.totalAlertas} alertas`}
                 </p>
               </div>
-              {alerta.criticidade && (
+              {grupo.criticidade && (
                 <span
                   className={cn(
                     "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase",
-                    alerta.criticidade === "alta"
+                    grupo.criticidade === "alta"
                       ? "border-red-200 bg-red-100 text-red-700"
                       : "border-border bg-muted text-muted-foreground",
                   )}
                 >
-                  {LABEL_CRITICIDADE[alerta.criticidade]}
+                  {LABEL_CRITICIDADE[grupo.criticidade]}
                 </span>
               )}
             </button>
