@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import { useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
@@ -8,8 +7,6 @@ import { useHistorico } from "@/hooks/useHistorico";
 import { criarDemanda } from "@/test-utils/fixtures";
 import type { Demanda } from "@/types";
 import { DetalheCard } from "./DetalheCard";
-
-vi.mock("next/navigation", () => ({ useRouter: vi.fn() }));
 
 vi.mock("@/hooks/useAnexos", () => ({ useAnexos: vi.fn() }));
 vi.mock("@/hooks/useComentarios", () => ({ useComentarios: vi.fn() }));
@@ -27,13 +24,7 @@ vi.mock("./EditarDemandaSection", () => ({
   ),
 }));
 
-const push = vi.fn();
-
-function renderizar(
-  podeEditar: boolean,
-  overrides: Partial<Demanda> = {},
-  onOpenChange = vi.fn(),
-) {
+function renderizar(podeEditar: boolean, overrides: Partial<Demanda> = {}) {
   vi.mocked(useDemanda).mockReturnValue({
     demanda: criarDemanda({ pode_editar: podeEditar, ...overrides }),
     isLoading: false,
@@ -42,15 +33,11 @@ function renderizar(
     mutate: vi.fn(),
   } as ReturnType<typeof useDemanda>);
 
-  render(<DetalheCard demandaId={1} onOpenChange={onOpenChange} />);
-  return { onOpenChange };
+  render(<DetalheCard demandaId={1} onOpenChange={vi.fn()} />);
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(useRouter).mockReturnValue({
-    push,
-  } as unknown as ReturnType<typeof useRouter>);
   vi.mocked(useComentarios).mockReturnValue({
     comentarios: [],
     isLoading: false,
@@ -105,26 +92,5 @@ describe("DetalheCard — Pills de área responsável", () => {
     });
 
     expect(screen.getByText("Niterói")).toBeInTheDocument();
-  });
-});
-
-describe("DetalheCard — link de origem (STC-451)", () => {
-  it("mostra o link e navega pra origem_url quando presente, fechando o modal", async () => {
-    const { onOpenChange } = renderizar(true, {
-      origem_url: "/modulos/legalizacao?documento=59",
-    });
-
-    const link = screen.getByRole("button", { name: /ver documento de origem/i });
-    link.click();
-
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(push).toHaveBeenCalledWith("/modulos/legalizacao?documento=59");
-  });
-
-  it("não mostra o link quando origem_url está vazio (demanda comum)", () => {
-    renderizar(true, { origem_url: "" });
-
-    expect(screen.queryByRole("button", { name: /ver documento de origem/i })).not.toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
   });
 });

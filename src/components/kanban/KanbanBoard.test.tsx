@@ -130,6 +130,7 @@ function mockarTiposGestao() {
 // resto de useRouter()) -- os testes de tipo_gestao inválido precisam
 // inspecionar exatamente o que o board tentou escrever na URL.
 const substituirUrl = vi.fn();
+const navegarPush = vi.fn();
 
 function mockarDemandas(demandas: ReturnType<typeof criarDemanda>[]) {
   vi.mocked(listarDemandas).mockImplementation(async (filtros) => {
@@ -149,7 +150,7 @@ beforeEach(() => {
   mockarTiposGestao();
   // Default equivalente ao antigo mock fixo (URL sem filtro nenhum) -- só
   // os testes de tipo_gestao inválido sobrescrevem useSearchParams.
-  vi.mocked(useRouter).mockReturnValue({ replace: substituirUrl, push: vi.fn() } as never);
+  vi.mocked(useRouter).mockReturnValue({ replace: substituirUrl, push: navegarPush } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
 });
 
@@ -225,6 +226,26 @@ describe("KanbanBoard", () => {
     // reproduzir).
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("card espelho de outro módulo (origem_url preenchido) navega direto, sem abrir o modal de demanda (STC-451)", async () => {
+    const cardEspelho = criarDemanda({
+      titulo: "Renovação -- Dedetização",
+      status: "em_andamento",
+      origem_url: "/modulos/legalizacao?documento=58",
+    });
+    mockarDemandas([cardEspelho]);
+    const user = userEvent.setup();
+
+    renderBoard();
+    await user.click(await screen.findByText("Renovação -- Dedetização"));
+
+    expect(navegarPush).toHaveBeenCalledWith("/modulos/legalizacao?documento=58");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // buscarDemanda (useDemanda, por trás do DetalheCard) nunca deveria ter
+    // sido chamado -- clicar num card espelho não abre o modal de demanda
+    // nem por um instante.
+    expect(buscarDemanda).not.toHaveBeenCalled();
   });
 
   it("move um card com sucesso (dispara o onDragEnd real do board)", async () => {
