@@ -1,6 +1,6 @@
 # Operações Web Frontend
 
-Frontend Next.js da Plataforma Web de Operações — módulo Gestão de Demandas.
+Frontend Next.js da Plataforma Web de Operações (Atlas) — módulos Gestão de Demandas e Legalização.
 
 ## Desenvolvimento local
 
@@ -37,4 +37,5 @@ npm run test:watch # vitest em modo watch
 
 ## Documentação
 
-- [`PLANEJAMENTO.md`](PLANEJAMENTO.md) — planejamento técnico detalhado, pacote por pacote, com o estado real de cada issue.
+- [`PLANEJAMENTO.md`](PLANEJAMENTO.md) — planejamento técnico detalhado do módulo Gestão de Demandas, pacote por pacote, com o estado real de cada issue.
+- [`PLANEJAMENTO_LEGALIZACAO.md`](PLANEJAMENTO_LEGALIZACAO.md) — mesmo formato, módulo Legalização (MP002).
