@@ -26,8 +26,15 @@ export interface TipoDocumentoRegulatorio {
   exige_protocolo: boolean;
   exige_evidencia: boolean;
   // STC-428 (backend): true só pra Dosimetria hoje -- DocumentoUnidade deste
-  // tipo aceita múltiplas linhas por unidade, uma por `profissional`.
+  // tipo aceita múltiplas linhas por unidade, uma por `profissional`. Liga
+  // também o fluxo de Movimentação Profissional (RN11) -- não confundir com
+  // permite_multiplas_instancias abaixo, que é o mecanismo genérico (sem
+  // Movimentação Profissional) usado pra equipamentos.
   controlado_por_profissional: boolean;
+  // STC-489 (backend): true habilita o cadastro em lote (documentos/lote/)
+  // pra este tipo -- N DocumentoUnidade por unidade, um por identificador
+  // livre (reaproveita a mesma coluna `profissional`, sem ligar RN11).
+  permite_multiplas_instancias: boolean;
   ativo: boolean;
   created_at: string;
 }
@@ -163,6 +170,7 @@ export interface TipoDocumentoRegulatorioPayload {
   exige_protocolo: boolean;
   exige_evidencia: boolean;
   controlado_por_profissional?: boolean;
+  permite_multiplas_instancias?: boolean;
   ativo?: boolean;
 }
 
@@ -191,6 +199,25 @@ export interface DocumentoUnidadePayload {
   validade?: string | null;
   regra_aplicada?: number | null;
   profissional?: string;
+}
+
+// Payload de POST documentos/lote/ (STC-489/STC-490) -- cria 1
+// RegraDocumento + N DocumentoUnidade numa transação atômica. Sem
+// criticidade escolhida pelo usuário (mesma decisão da STC-486): quem
+// monta o payload sempre manda "alta" fixo. Resposta é
+// DocumentoUnidade[] (mesmo shape de leitura normal) -- cada item traz o
+// identificador em `profissional` (reaproveitamento de coluna, ver
+// TipoDocumentoRegulatorio.permite_multiplas_instancias acima).
+export interface DocumentoUnidadeLotePayload {
+  tipo_documento: number;
+  unidade: number;
+  vigente_a_partir: string;
+  antecedencia_dias: number;
+  janela_dia_inicio?: number | null;
+  janela_dia_fim?: number | null;
+  criticidade: Criticidade;
+  gera_card_demanda?: boolean;
+  identificadores: string[];
 }
 
 export type StatusProcessoRenovacao =

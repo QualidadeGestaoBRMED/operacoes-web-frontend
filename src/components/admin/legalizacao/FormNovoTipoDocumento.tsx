@@ -68,6 +68,7 @@ const schema = z.object({
   exige_validade: z.boolean(),
   exige_protocolo: z.boolean(),
   exige_evidencia: z.boolean(),
+  permite_multiplas_instancias: z.boolean(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -80,6 +81,7 @@ const valoresPadrao: Partial<FormValues> = {
   exige_validade: true,
   exige_protocolo: false,
   exige_evidencia: true,
+  permite_multiplas_instancias: false,
 };
 
 export function FormNovoTipoDocumento({
@@ -269,6 +271,33 @@ export function FormNovoTipoDocumento({
                   Exige evidência
                 </label>
               </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <Label>Múltiplas instâncias por unidade</Label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Controller
+                    control={control}
+                    name="permite_multiplas_instancias"
+                    render={({ field }) => (
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  Permite múltiplas instâncias
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Libera cadastro em lote (N documentos por unidade, ex.: um
+                por equipamento). Não confundir com &ldquo;Controlado por
+                profissional&rdquo; (Dosimetria) -- esse é outro mecanismo,
+                que também liga o fluxo de Movimentação Profissional, e por
+                isso não tem checkbox aqui: é uma decisão maior, fora do
+                escopo deste cadastro.
+              </p>
             </div>
           </div>
 

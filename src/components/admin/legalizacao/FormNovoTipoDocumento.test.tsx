@@ -68,6 +68,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       exige_protocolo: false,
       exige_evidencia: true,
       controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
       ativo: true,
       created_at: "2026-01-01T00:00:00Z",
     });
@@ -103,6 +104,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
         exige_validade: true,
         exige_protocolo: false,
         exige_evidencia: true,
+        permite_multiplas_instancias: false,
       });
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -120,6 +122,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       exige_protocolo: true,
       exige_evidencia: false,
       controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
       ativo: true,
       created_at: "2026-01-01T00:00:00Z",
     });
@@ -152,6 +155,55 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
           exige_protocolo: true,
           exige_evidencia: false,
         }),
+      );
+    });
+  });
+
+  it("permite ligar 'Permite múltiplas instâncias' (STC-489/STC-490)", async () => {
+    vi.mocked(criarTipoDocumento).mockResolvedValue({
+      id: 3,
+      codigo: "calibracao-balanca",
+      nome: "Calibração de Balança",
+      categoria: "equipamentos",
+      area_responsavel: "legalizacao",
+      setor_apoio: "",
+      exige_validade: true,
+      exige_protocolo: false,
+      exige_evidencia: true,
+      controlado_por_profissional: false,
+      permite_multiplas_instancias: true,
+      ativo: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText(/nome/i), "Calibração de Balança");
+    await user.type(screen.getByLabelText(/código/i), "calibracao-balanca");
+    await user.click(screen.getByLabelText(/categoria/i));
+    await user.click(await screen.findByRole("option", { name: "Equipamentos" }));
+    await user.click(screen.getByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("option", { name: "Legalização" }));
+    await user.click(
+      screen.getByRole("checkbox", { name: "Permite múltiplas instâncias" }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar tipo de documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarTipoDocumento).toHaveBeenCalledWith(
+        expect.objectContaining({
+          permite_multiplas_instancias: true,
+        }),
+      );
+      // Achado em code review: "Controlado por profissional" (Dosimetria)
+      // não tem checkbox nesta tela de propósito -- liga também a
+      // Movimentação Profissional, uma decisão maior que não fazia parte
+      // do escopo da STC-490 (só permite_multiplas_instancias).
+      expect(vi.mocked(criarTipoDocumento).mock.calls[0][0]).not.toHaveProperty(
+        "controlado_por_profissional",
       );
     });
   });

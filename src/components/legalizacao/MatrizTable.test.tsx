@@ -44,6 +44,7 @@ function tipo(
     exige_protocolo: false,
     exige_evidencia: true,
     controlado_por_profissional: false,
+    permite_multiplas_instancias: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -143,6 +144,7 @@ describe("MatrizTable (STC-380, acessibilidade da linha clicável)", () => {
       codigo: "dosimetria",
       nome: "Dosimetria",
       controlado_por_profissional: true,
+      permite_multiplas_instancias: false,
     });
     render(
       <table>
