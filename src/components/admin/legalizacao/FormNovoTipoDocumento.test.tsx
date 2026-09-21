@@ -104,7 +104,6 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
         exige_validade: true,
         exige_protocolo: false,
         exige_evidencia: true,
-        controlado_por_profissional: false,
         permite_multiplas_instancias: false,
       });
     });
@@ -160,7 +159,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
     });
   });
 
-  it("permite ligar 'Controlado por profissional' e 'Permite múltiplas instâncias' (STC-489/STC-490)", async () => {
+  it("permite ligar 'Permite múltiplas instâncias' (STC-489/STC-490)", async () => {
     vi.mocked(criarTipoDocumento).mockResolvedValue({
       id: 3,
       codigo: "calibracao-balanca",
@@ -196,9 +195,15 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
     await waitFor(() => {
       expect(criarTipoDocumento).toHaveBeenCalledWith(
         expect.objectContaining({
-          controlado_por_profissional: false,
           permite_multiplas_instancias: true,
         }),
+      );
+      // Achado em code review: "Controlado por profissional" (Dosimetria)
+      // não tem checkbox nesta tela de propósito -- liga também a
+      // Movimentação Profissional, uma decisão maior que não fazia parte
+      // do escopo da STC-490 (só permite_multiplas_instancias).
+      expect(vi.mocked(criarTipoDocumento).mock.calls[0][0]).not.toHaveProperty(
+        "controlado_por_profissional",
       );
     });
   });
