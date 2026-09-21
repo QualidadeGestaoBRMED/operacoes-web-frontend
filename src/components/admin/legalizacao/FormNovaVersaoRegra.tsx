@@ -33,9 +33,7 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import { LABEL_CRITICIDADE } from "@/lib/legalizacaoMatriz";
-import type { Criticidade, DocumentoUnidade } from "@/types/legalizacao";
-
-const CRITICIDADES: Criticidade[] = ["baixa", "media", "alta"];
+import type { DocumentoUnidade } from "@/types/legalizacao";
 
 // "YYYY-MM-DD" (DateField do Django) formatado sem passar por Date -- mesmo
 // motivo/mesma duplicação já aceita em PermissoesAdmin.tsx::formatarData
@@ -63,9 +61,6 @@ const schema = z.object({
   antecedencia_dias: z.coerce.number({ error: "Obrigatória." }).int().min(0),
   janela_dia_inicio: numeroDiaOpcional,
   janela_dia_fim: numeroDiaOpcional,
-  criticidade: z.enum(CRITICIDADES as [Criticidade, ...Criticidade[]], {
-    error: "Selecione a criticidade.",
-  }),
   vigente_a_partir: z.string().min(1, "Obrigatório."),
   gera_card_demanda: z.boolean(),
 });
@@ -104,7 +99,6 @@ function DialogNovaVersao({
         antecedencia_dias: regraAtual.antecedencia_dias,
         janela_dia_inicio: regraAtual.janela_dia_inicio ?? undefined,
         janela_dia_fim: regraAtual.janela_dia_fim ?? undefined,
-        criticidade: regraAtual.criticidade,
         gera_card_demanda: regraAtual.gera_card_demanda,
         vigente_a_partir: undefined,
       });
@@ -130,7 +124,10 @@ function DialogNovaVersao({
         periodicidade_meses: regraAtual?.periodicidade_meses ?? null,
         janela_dia_inicio: valores.janela_dia_inicio ?? null,
         janela_dia_fim: valores.janela_dia_fim ?? null,
-        criticidade: valores.criticidade,
+        // STC-486: não é mais escolhido no formulário -- na prática toda
+        // regra recebia "Alta" mesmo, então fixa o valor em vez de pedir pro
+        // usuário (sem mudança no backend, "alta" já é um choice válido).
+        criticidade: "alta",
         vigente_a_partir: valores.vigente_a_partir,
         gera_card_demanda: valores.gera_card_demanda,
       });
@@ -234,35 +231,6 @@ function DialogNovaVersao({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="nv-criticidade">
-                Criticidade <span className="text-destructive">*</span>
-              </Label>
-              <Controller
-                control={control}
-                name="criticidade"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="nv-criticidade" className="w-full">
-                      <SelectValue placeholder="Selecionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CRITICIDADES.map((valor) => (
-                        <SelectItem key={valor} value={valor}>
-                          {LABEL_CRITICIDADE[valor]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.criticidade && (
-                <p className="text-xs text-destructive">
-                  {errors.criticidade.message}
-                </p>
-              )}
-            </div>
-
             <label className="flex items-center gap-2 text-sm">
               <Controller
                 control={control}
@@ -325,9 +293,8 @@ export function FormNovaVersaoRegra() {
           Corrigir regra existente
         </h2>
         <p className="text-sm text-muted-foreground">
-          Não é possível editar uma regra já cadastrada. Corrigir o prazo ou a
-          criticidade cria uma regra nova; a antiga fica guardada como
-          histórico.
+          Não é possível editar uma regra já cadastrada. Corrigir o prazo cria
+          uma regra nova; a antiga fica guardada como histórico.
         </p>
       </div>
 

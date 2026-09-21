@@ -39,8 +39,8 @@ import {
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
-import { LABEL_CRITICIDADE, LABEL_STATUS } from "@/lib/legalizacaoMatriz";
-import type { Criticidade, StatusDocumento } from "@/types/legalizacao";
+import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
+import type { StatusDocumento } from "@/types/legalizacao";
 
 // Exclui Não aplicável (é o toggle abaixo, não uma opção deste select) e
 // Unidade em encerramento (fora do escopo desta issue -- ação de nível
@@ -55,8 +55,6 @@ const STATUS_INICIAIS: StatusDocumento[] = [
   "regular",
   "vencido",
 ];
-
-const CRITICIDADES: Criticidade[] = ["baixa", "media", "alta"];
 
 // z.coerce.number() sozinho transforma "" (campo em branco) em 0, não
 // undefined -- .optional() nunca entra em ação, e o campo "opcional" falhava
@@ -95,9 +93,6 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
       antecedencia_dias: z.coerce.number().int().min(0).optional(),
       janela_dia_inicio: numeroDiaOpcional,
       janela_dia_fim: numeroDiaOpcional,
-      criticidade: z
-        .enum(CRITICIDADES as [Criticidade, ...Criticidade[]])
-        .optional(),
       gera_card_demanda: z.boolean(),
     })
     // Espelha DocumentoUnidadeWriteSerializer.validate() (backend) -- ver
@@ -118,10 +113,6 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
     .refine((v) => v.nao_aplicavel || v.antecedencia_dias !== undefined, {
       message: "Obrigatória.",
       path: ["antecedencia_dias"],
-    })
-    .refine((v) => v.nao_aplicavel || !!v.criticidade, {
-      message: "Selecione a criticidade.",
-      path: ["criticidade"],
     })
     // Mesma regra de validate() (backend): "Vencido" sempre exige validade,
     // criação inclusa.
@@ -284,7 +275,6 @@ export function FormCadastrarDocumento({
       "janela_dia_fim",
       regraExistenteParaTipo.janela_dia_fim ?? undefined,
     );
-    setValue("criticidade", regraExistenteParaTipo.criticidade);
     setValue("gera_card_demanda", regraExistenteParaTipo.gera_card_demanda);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regraExistenteParaTipo?.id, setValue]);
@@ -300,7 +290,6 @@ export function FormCadastrarDocumento({
     setValue("antecedencia_dias", undefined);
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
-    setValue("criticidade", undefined);
     setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
   }
 
@@ -416,7 +405,11 @@ export function FormCadastrarDocumento({
             antecedencia_dias: valores.antecedencia_dias as number,
             janela_dia_inicio: valores.janela_dia_inicio ?? null,
             janela_dia_fim: valores.janela_dia_fim ?? null,
-            criticidade: valores.criticidade as Criticidade,
+            // STC-486: não é mais escolhido no formulário -- na prática todo
+            // documento cadastrado recebia "Alta" mesmo, então fixa o valor
+            // em vez de pedir pro usuário (sem mudança no backend, "alta"
+            // já é um choice válido de RegraDocumento.criticidade).
+            criticidade: "alta",
             vigente_a_partir: valores.vigente_a_partir as string,
             gera_card_demanda: valores.gera_card_demanda,
           }));
@@ -779,39 +772,6 @@ export function FormCadastrarDocumento({
                   Preencha só quando o tipo de documento tiver uma janela fixa
                   de atualização no mês (ex.: CNES).
                 </p>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="cd-criticidade">
-                    Criticidade <span className="text-destructive">*</span>
-                  </Label>
-                  <Controller
-                    control={control}
-                    name="criticidade"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        disabled={!!regraExistenteParaTipo}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger id="cd-criticidade" className="w-full">
-                          <SelectValue placeholder="Selecionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CRITICIDADES.map((valor) => (
-                            <SelectItem key={valor} value={valor}>
-                              {LABEL_CRITICIDADE[valor]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.criticidade && (
-                    <p className="text-xs text-destructive">
-                      {errors.criticidade.message}
-                    </p>
-                  )}
-                </div>
 
                 <label className="flex items-center gap-2 text-sm">
                   <Controller

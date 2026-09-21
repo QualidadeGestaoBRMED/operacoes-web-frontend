@@ -156,8 +156,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -226,8 +224,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "30");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -265,8 +261,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.type(screen.getByLabelText(/validade/i), "2026-01-01");
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "30");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -309,8 +303,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -407,8 +399,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -476,8 +466,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -520,8 +508,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -615,8 +601,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
     await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
     await user.type(screen.getByLabelText(/antecedência/i), "60");
-    await user.click(screen.getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Alta" }));
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -661,8 +645,6 @@ describe("FormCadastrarDocumento (STC-415)", () => {
         "2026-01-01",
       );
       await user.type(screen.getByLabelText(/antecedência/i), "60");
-      await user.click(screen.getByLabelText(/criticidade/i));
-      await user.click(await screen.findByRole("option", { name: "Alta" }));
     }
 
     it("campo Profissional só aparece pra tipo controlado por profissional", async () => {
@@ -776,9 +758,9 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(screen.getByLabelText(/tipo de documento/i));
       await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
       await user.type(screen.getByLabelText(/profissional/i), "Dra. Maria");
-      // STC-432: vigente_a_partir/antecedência/criticidade já vêm
-      // preenchidos (e desabilitados) pela regra reaproveitada -- só falta
-      // escolher o status inicial, que é por documento, não por regra.
+      // STC-432: vigente_a_partir/antecedência já vêm preenchidos (e
+      // desabilitados) pela regra reaproveitada -- só falta escolher o
+      // status inicial, que é por documento, não por regra.
       await user.click(screen.getByLabelText(/status inicial/i));
       await user.click(
         await screen.findByRole("option", { name: "Em andamento" }),
