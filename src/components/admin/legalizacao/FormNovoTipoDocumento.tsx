@@ -23,10 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCriarTipoDocumento } from "@/hooks/useTiposDocumento";
+import {
+  useAtualizarTipoDocumento,
+  useCriarTipoDocumento,
+} from "@/hooks/useTiposDocumento";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import type { AreaResponsavelDocumento } from "@/types/legalizacao";
+import type {
+  AreaResponsavelDocumento,
+  TipoDocumentoRegulatorio,
+} from "@/types/legalizacao";
 
 // Espelha TipoDocumentoRegulatorio.AreaResponsavel (backend/legalizacao/
 // models.py) -- só 2 valores, sem hook/endpoint próprio (é um choices fixo,
@@ -84,14 +90,41 @@ const valoresPadrao: Partial<FormValues> = {
   permite_multiplas_instancias: false,
 };
 
+// STC-501: mesmo diálogo cadastra (tipoDocumento ausente) e edita
+// (tipoDocumento presente) -- evita duplicar o formulário inteiro só pra
+// trocar POST por PATCH. `codigo` fica travado em modo edição: é usado
+// como chave fixa em código (CODIGOS_MOVIMENTACAO_PROFISSIONAL,
+// legalizacaoMatriz.ts) pra CNES/Dosimetria/etc. -- mudar o código de um
+// tipo já em uso quebraria esses comportamentos silenciosamente, e o
+// pedido real do cliente é sobre o Nome (capitalização inconsistente),
+// não o código interno.
+function valoresDe(tipo: TipoDocumentoRegulatorio): FormValues {
+  return {
+    nome: tipo.nome,
+    codigo: tipo.codigo,
+    categoria: tipo.categoria,
+    area_responsavel: tipo.area_responsavel,
+    exige_validade: tipo.exige_validade,
+    exige_protocolo: tipo.exige_protocolo,
+    exige_evidencia: tipo.exige_evidencia,
+    permite_multiplas_instancias: tipo.permite_multiplas_instancias,
+  };
+}
+
 export function FormNovoTipoDocumento({
   open,
   onOpenChange,
+  tipoDocumento,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Ausente/null: modo cadastro (padrão). Presente: modo edição.
+  tipoDocumento?: TipoDocumentoRegulatorio | null;
 }) {
-  const { criar, isLoading } = useCriarTipoDocumento();
+  const emEdicao = !!tipoDocumento;
+  const { criar, isLoading: criando } = useCriarTipoDocumento();
+  const { atualizar, isLoading: atualizando } = useAtualizarTipoDocumento();
+  const isLoading = emEdicao ? atualizando : criando;
 
   const {
     register,
@@ -105,13 +138,23 @@ export function FormNovoTipoDocumento({
   });
 
   useEffect(() => {
-    if (!open) reset(valoresPadrao);
-  }, [open, reset]);
+    if (!open) {
+      reset(valoresPadrao);
+    } else if (tipoDocumento) {
+      reset(valoresDe(tipoDocumento));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tipoDocumento?.id]);
 
   async function aoSubmeter(valores: FormValues) {
     try {
-      await criar(valores);
-      toast.success("Tipo de documento cadastrado.");
+      if (tipoDocumento) {
+        await atualizar({ id: tipoDocumento.id, payload: valores });
+        toast.success("Tipo de documento atualizado.");
+      } else {
+        await criar(valores);
+        toast.success("Tipo de documento cadastrado.");
+      }
       onOpenChange(false);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -122,7 +165,9 @@ export function FormNovoTipoDocumento({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] max-w-[min(30rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>Novo tipo de documento</DialogTitle>
+          <DialogTitle>
+            {emEdicao ? "Editar tipo de documento" : "Novo tipo de documento"}
+          </DialogTitle>
         </DialogHeader>
 
         <form
@@ -152,6 +197,7 @@ export function FormNovoTipoDocumento({
               </Label>
               <Input
                 id="td-codigo"
+                disabled={emEdicao}
                 {...register("codigo")}
                 placeholder="Ex.: licenca-sanitaria"
               />
@@ -161,8 +207,9 @@ export function FormNovoTipoDocumento({
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Um código interno do sistema, só pra identificar esse tipo de
-                documento. Não aparece pra quem for usar o catálogo depois.
+                {emEdicao
+                  ? "Não pode ser alterado depois de criado -- é usado internamente pra reconhecer tipos como CNES/Dosimetria."
+                  : "Um código interno do sistema, só pra identificar esse tipo de documento. Não aparece pra quem for usar o catálogo depois."}
               </p>
             </div>
 
@@ -310,7 +357,13 @@ export function FormNovoTipoDocumento({
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Cadastrando..." : "Cadastrar tipo de documento"}
+              {emEdicao
+                ? isLoading
+                  ? "Salvando..."
+                  : "Salvar"
+                : isLoading
+                  ? "Cadastrando..."
+                  : "Cadastrar tipo de documento"}
             </Button>
           </DialogFooter>
         </form>

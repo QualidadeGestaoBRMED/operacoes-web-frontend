@@ -5,6 +5,7 @@ import useSWRMutation from "swr/mutation";
 import {
   atualizarTipoDocumento,
   criarTipoDocumento,
+  listarHistoricoTipoDocumento,
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -58,6 +59,20 @@ export function useAtualizarTipoDocumento() {
   return {
     atualizar: trigger,
     isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useHistoricoTipoDocumento(id: number | null) {
+  const { data, error, isLoading } = useSWR(
+    id ? ["tipo-documento-legalizacao", id, "historico"] : null,
+    () => listarHistoricoTipoDocumento(id as number),
+  );
+
+  return {
+    historico: data ?? [],
+    isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
   };
