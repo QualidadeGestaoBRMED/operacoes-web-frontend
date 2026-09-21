@@ -187,6 +187,27 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(screen.getByText("Balança 03")).toBeInTheDocument();
   });
 
+  it("não perde o foco pro <body> na transição do passo 1 pro passo 2 (achado em code review)", async () => {
+    // O botão de submit (passo 1) some do DOM assim que o passo 2 renderiza
+    // (dois retornos JSX distintos dentro do mesmo Dialog, sem <form>
+    // compartilhado) -- achado em code review automático pra confirmar se o
+    // FocusScope do Radix recupera o foco sozinho ou se ele cai pro <body>,
+    // o que seria ruim pra quem navega por teclado/leitor de tela logo
+    // depois do submit.
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+
+    await screen.findByText("Anexar evidências (opcional)");
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toHaveAttribute("role", "dialog");
+  });
+
   it("bloqueia no client quando não há nenhum identificador", async () => {
     const user = userEvent.setup();
     renderForm();
