@@ -68,14 +68,25 @@ const schema = z.object({
 type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
-function DialogNovaVersao({
+// Exportado (STC-502): DetalheDocumentoModal.tsx (Matriz de Conformidade)
+// abre este mesmo diálogo direto pro documento já em mãos, sem passar
+// pelos Selects de Unidade/Tipo de documento abaixo (só fazem sentido pro
+// fluxo de catálogo, onde ainda não se sabe qual documento).
+export function DialogNovaVersao({
   documento,
   open,
   onOpenChange,
+  onAtualizado,
 }: {
   documento: DocumentoUnidade;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Opcional -- FormNovaVersaoRegra (catálogo) não precisa: já reage à
+  // mudança via polling próprio (useDocumentosLegalizacao, pausado
+  // enquanto o diálogo está aberto). DetalheDocumentoModal.tsx precisa de
+  // um sinal explícito pra invalidar `documento`/histórico na hora, mesmo
+  // motivo de onAtualizado em ProcessoRenovacaoModal/MovimentacaoProfissionalModal.
+  onAtualizado?: () => void;
 }) {
   const regraAtual = documento.regra_aplicada;
   const { criar: criarRegra } = useCriarRegraDocumento();
@@ -149,6 +160,7 @@ function DialogNovaVersao({
         throw erroAplicar;
       }
       toast.success("Nova versão da regra criada.");
+      onAtualizado?.();
       onOpenChange(false);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
