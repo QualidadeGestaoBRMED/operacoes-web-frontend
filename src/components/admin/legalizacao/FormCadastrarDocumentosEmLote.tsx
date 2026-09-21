@@ -269,9 +269,17 @@ export function FormCadastrarDocumentosEmLote({
     setErroSalvamento((e) => ({ ...e, [documentoId]: "" }));
     setStatusSalvamento((s) => ({ ...s, [documentoId]: "salvando" }));
     try {
+      // STC-497 (achado do usuário: status escolhido aqui ficava preso em
+      // "Não iniciado" mesmo depois de "Salvar"): documento criado em lote
+      // nasce em "Não iniciado" e este PATCH é quem de fato aplica o
+      // status escolhido -- sem este flag, a máquina de estados do
+      // backend (pensada pra proteger edição de um documento com fluxo
+      // real em andamento) barrava pular direto pra "Regular"/"Protocolado"/
+      // "Vencido", só permitindo "Em andamento".
       await atualizarDocumentoLegalizacao(documentoId, {
         status,
         validade: validade || null,
+        definindo_status_inicial: true,
       });
       setStatusSalvamento((s) => ({ ...s, [documentoId]: "salvo" }));
     } catch (erro) {

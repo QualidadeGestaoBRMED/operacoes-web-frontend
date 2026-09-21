@@ -199,6 +199,11 @@ export interface DocumentoUnidadePayload {
   validade?: string | null;
   regra_aplicada?: number | null;
   profissional?: string;
+  // STC-497: sinaliza que este PATCH está terminando a configuração de um
+  // documento recém-criado em lote (passo 2 de
+  // FormCadastrarDocumentosEmLote.tsx) -- backend só pula a máquina de
+  // estados de status com este flag explícito, nunca automaticamente.
+  definindo_status_inicial?: boolean;
 }
 
 // Payload de POST documentos/lote/ (STC-489/STC-490) -- cria 1
