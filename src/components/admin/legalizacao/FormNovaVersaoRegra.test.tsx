@@ -217,20 +217,19 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     );
     await user.clear(within(dialog).getByLabelText(/antecedência/i));
     await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
-    await user.click(within(dialog).getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Média" }));
 
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
     );
 
     await waitFor(() => {
+      // STC-486: não é mais escolhido no formulário -- sempre "alta".
       expect(criarRegraDocumento).toHaveBeenCalledWith(
         expect.objectContaining({
           tipo_documento: TIPO.id,
           unidade: UNIDADE.id,
           antecedencia_dias: 45,
-          criticidade: "media",
+          criticidade: "alta",
           vigente_a_partir: "2026-06-01",
           periodicidade_meses: null,
         }),
@@ -288,8 +287,6 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     );
     await user.clear(within(dialog).getByLabelText(/antecedência/i));
     await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
-    await user.click(within(dialog).getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Média" }));
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
     );
@@ -335,8 +332,6 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     );
     await user.clear(within(dialog).getByLabelText(/antecedência/i));
     await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
-    await user.click(within(dialog).getByLabelText(/criticidade/i));
-    await user.click(await screen.findByRole("option", { name: "Média" }));
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
     );
