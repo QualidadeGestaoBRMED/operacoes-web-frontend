@@ -157,6 +157,42 @@ describe("TabelaTiposDocumento -- editar tipo de documento (STC-501)", () => {
       screen.queryByText("Editar tipo de documento"),
     ).not.toBeInTheDocument();
   });
+
+  it("edita outro campo normalmente mesmo quando o código já salvo foge do regex do form (achado em code review)", async () => {
+    // Tipos cadastrados direto no banco/Django Admin (a própria razão desta
+    // issue existir) podem ter código com underscore/maiúscula, fora do
+    // regex de slug do form -- sem schema condicional, o campo travado
+    // (disabled) ainda era validado no submit e travava a edição de
+    // QUALQUER campo, inclusive o Nome (o pedido real do cliente).
+    const tipoComCodigoLegado = { ...TIPO, codigo: "licenca_sanitaria" };
+    vi.mocked(listarTiposDocumento).mockResolvedValue([tipoComCodigoLegado]);
+    vi.mocked(atualizarTipoDocumento).mockResolvedValue({
+      ...tipoComCodigoLegado,
+      nome: "Licença Sanitária Municipal",
+    });
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar Licença Sanitária" }),
+    );
+    await screen.findByText("Editar tipo de documento");
+    const campoNome = screen.getByLabelText(/^nome/i);
+    await user.clear(campoNome);
+    await user.type(campoNome, "Licença Sanitária Municipal");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(atualizarTipoDocumento).toHaveBeenCalledWith(
+        tipoComCodigoLegado.id,
+        expect.objectContaining({ nome: "Licença Sanitária Municipal" }),
+      );
+    });
+    expect(
+      screen.queryByText(/letras minúsculas, números e hífen/i),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("TabelaTiposDocumento -- histórico de edição (STC-501)", () => {

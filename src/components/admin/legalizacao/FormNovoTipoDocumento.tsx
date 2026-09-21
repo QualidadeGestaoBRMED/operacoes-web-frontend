@@ -47,37 +47,52 @@ const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
 // TipoDocumentoRegulatorio.codigo (SlugField, unique).
 const REGEX_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const schema = z.object({
-  nome: z.string().min(1, "Nome é obrigatório."),
-  codigo: z
-    .string()
-    .min(1, "Código é obrigatório.")
-    .regex(
-      REGEX_SLUG,
-      "Use só letras minúsculas, números e hífen (ex.: licenca-sanitaria).",
+// Achado em code review: em modo edição, "codigo" fica disabled mas
+// continua registrado no react-hook-form -- o valor pré-preenchido
+// (valoresDe) segue validado no submit mesmo assim. Tipos cadastrados
+// direto no banco/Django Admin (a própria razão desta issue existir) podem
+// ter código fora deste regex (maiúscula, underscore) -- confirmado: já
+// existem 3 assim no catálogo real. Sem schema condicional, abrir esse
+// tipo pra editar qualquer OUTRO campo (ex. o Nome, o pedido de verdade)
+// travava pra sempre num erro num campo que nem é editável na tela.
+// "codigo" trocado de fato é bloqueado no backend de qualquer forma
+// (TipoDocumentoRegulatorioSerializer.validate()), então validar o
+// formato aqui em modo edição não protege nada.
+function criarSchema(emEdicao: boolean) {
+  return z.object({
+    nome: z.string().min(1, "Nome é obrigatório."),
+    codigo: emEdicao
+      ? z.string().min(1, "Código é obrigatório.")
+      : z
+          .string()
+          .min(1, "Código é obrigatório.")
+          .regex(
+            REGEX_SLUG,
+            "Use só letras minúsculas, números e hífen (ex.: licenca-sanitaria).",
+          ),
+    categoria: z.enum(
+      [
+        "regularizacao",
+        "registros_tecnicos",
+        "capacitacao",
+        "infraestrutura",
+        "equipamentos",
+        "programas",
+        "residuos",
+      ],
+      { error: "Selecione a categoria." },
     ),
-  categoria: z.enum(
-    [
-      "regularizacao",
-      "registros_tecnicos",
-      "capacitacao",
-      "infraestrutura",
-      "equipamentos",
-      "programas",
-      "residuos",
-    ],
-    { error: "Selecione a categoria." },
-  ),
-  area_responsavel: z.enum(["legalizacao", "coordenacao"], {
-    error: "Selecione a área responsável.",
-  }),
-  exige_validade: z.boolean(),
-  exige_protocolo: z.boolean(),
-  exige_evidencia: z.boolean(),
-  permite_multiplas_instancias: z.boolean(),
-});
+    area_responsavel: z.enum(["legalizacao", "coordenacao"], {
+      error: "Selecione a área responsável.",
+    }),
+    exige_validade: z.boolean(),
+    exige_protocolo: z.boolean(),
+    exige_evidencia: z.boolean(),
+    permite_multiplas_instancias: z.boolean(),
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof criarSchema>>;
 
 // Espelha os defaults de TipoDocumentoRegulatorio (backend/legalizacao/
 // models.py): exige_validade/exige_evidencia nascem ligados, exige_protocolo
@@ -133,7 +148,7 @@ export function FormNovoTipoDocumento({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(criarSchema(emEdicao)),
     defaultValues: valoresPadrao,
   });
 
