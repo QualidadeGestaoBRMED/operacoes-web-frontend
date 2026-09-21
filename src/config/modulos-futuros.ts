@@ -16,6 +16,12 @@ export interface ModuloFuturo {
   // a checagem de "existe página construída" é decisão do frontend.
   codigo?: string;
   rota?: string;
+  // STC-496: só Legalização tem hoje -- item de sidebar expansível, revela
+  // as rotas abaixo em vez de um link único. Não é um mecanismo genérico
+  // pra qualquer módulo ainda, só o que essa issue pediu; outro módulo que
+  // precisar disso no futuro também ganha o campo, sem precisar de novo
+  // tipo/abstração.
+  subitens?: { label: string; rota: string }[];
 }
 
 export const MODULOS_FUTUROS: ModuloFuturo[] = [
@@ -25,6 +31,10 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     descricao: "Documentos e conformidade por unidade.",
     codigo: "legalizacao",
     rota: "/modulos/legalizacao",
+    subitens: [
+      { label: "Matriz de Conformidade", rota: "/modulos/legalizacao" },
+      { label: "Biblioteca de Documentos", rota: "/modulos/legalizacao/biblioteca" },
+    ],
   },
   {
     nome: "Gestão RH",
