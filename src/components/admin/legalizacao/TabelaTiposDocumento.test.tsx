@@ -125,7 +125,11 @@ describe("TabelaTiposDocumento -- editar tipo de documento (STC-501)", () => {
     expect(await screen.findByText("Editar tipo de documento")).toBeInTheDocument();
     expect(screen.getByLabelText(/^nome/i)).toHaveValue("Licença Sanitária");
     expect(screen.getByLabelText(/^código/i)).toHaveValue("licenca-sanitaria");
-    expect(screen.getByLabelText(/^código/i)).toBeDisabled();
+    // readOnly (não disabled): achado em code review -- mantém o campo na
+    // ordem de tabulação/leitura pra teclado e leitor de tela, só trava a
+    // edição.
+    expect(screen.getByLabelText(/^código/i)).toHaveAttribute("readonly");
+    expect(screen.getByLabelText(/^código/i)).not.toBeDisabled();
   });
 
   it("salva a edição via PATCH e mostra sucesso", async () => {

@@ -212,7 +212,15 @@ export function FormNovoTipoDocumento({
               </Label>
               <Input
                 id="td-codigo"
-                disabled={emEdicao}
+                // Achado em code review: disabled tira o campo da ordem de
+                // tabulação -- quem navega por teclado/leitor de tela pula
+                // direto de "Nome" pra "Categoria", sem nunca focar "Código"
+                // nem ouvir o valor atual ou o texto explicando por que está
+                // travado. readOnly trava a edição sem remover o campo da
+                // navegação (mantém foco/leitura), mesmo efeito prático.
+                readOnly={emEdicao}
+                aria-readonly={emEdicao}
+                className={emEdicao ? "bg-muted text-muted-foreground" : undefined}
                 {...register("codigo")}
                 placeholder="Ex.: licenca-sanitaria"
               />
