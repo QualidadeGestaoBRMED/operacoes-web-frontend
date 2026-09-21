@@ -138,6 +138,31 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     ).toBeInTheDocument();
   });
 
+  it("trocar de unidade limpa o Tipo de documento selecionado antes (STC-488)", async () => {
+    const OUTRA_UNIDADE: Unidade = {
+      id: 2,
+      nome: "Vitória",
+      codigo: "VIT",
+      cidade: "Vitória",
+      ativa: true,
+    };
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Vitória" }));
+
+    // Mesmo bug de exibição do STC-488 (Select do Radix preso no último
+    // valor ao limpar pra undefined) -- aqui pro próprio Tipo de documento,
+    // não só pros campos do documento.
+    expect(screen.getByLabelText(/tipo de documento/i)).toHaveTextContent(
+      "Selecionar...",
+    );
+  });
+
   it("rede de segurança: bloqueia no submit se o cadastro mudou entre abrir o formulário e enviar", async () => {
     // 1ª chamada (filtro do select, ao escolher a unidade): nada cadastrado
     // ainda, "Licença Sanitária" aparece normal. 2ª chamada (cheque explícito
@@ -901,6 +926,58 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       expect(screen.getByLabelText(/vigente a partir/i)).not.toBeDisabled();
       expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("");
       expect(screen.getByLabelText(/antecedência/i)).toHaveValue(null);
+    });
+
+    it("trocar de tipo limpa status/validade preenchidos antes (STC-488, achado em avaliação de uso)", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Vencido" }));
+      await user.type(screen.getByLabelText(/validade/i), "2026-01-01");
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+      // Achado em avaliação de uso: status/validade sobreviviam
+      // silenciosamente à troca de tipo, prontos pra ir no submit como se
+      // fossem do documento novo (ex.: Bombeiros com status "Vencido" ->
+      // trocar pra Ambiental mantinha "Vencido" e a validade preenchidos).
+      expect(screen.getByLabelText(/status inicial/i)).toHaveTextContent(
+        "Selecionar...",
+      );
+      expect(screen.getByLabelText(/validade/i)).toHaveValue("");
+    });
+
+    it("trocar de tipo desmarca 'Não aplicável' e limpa a justificativa preenchida antes (STC-488)", async () => {
+      vi.mocked(listarTiposDocumento).mockResolvedValue([
+        TIPO,
+        TIPO_DOSIMETRIA,
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      await user.click(
+        screen.getByRole("checkbox", { name: /não aplicável/i }),
+      );
+      await user.type(
+        screen.getByLabelText(/justificativa/i),
+        "Não presta este serviço.",
+      );
+
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
+
+      expect(
+        screen.getByRole("checkbox", { name: /não aplicável/i }),
+      ).not.toBeChecked();
+      expect(screen.queryByLabelText(/justificativa/i)).not.toBeInTheDocument();
     });
 
     it("trim: não deixa cadastrar duplicata do mesmo profissional só por espaço em branco a mais", async () => {
