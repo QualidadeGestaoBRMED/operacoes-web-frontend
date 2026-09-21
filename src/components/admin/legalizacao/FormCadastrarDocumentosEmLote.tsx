@@ -326,6 +326,7 @@ export function FormCadastrarDocumentosEmLote({
                     {documento.profissional}
                   </span>
                   <LinhaEvidencia
+                    identificador={documento.profissional}
                     status={statusEnvio[documento.id]}
                     onSelecionar={(arquivo) =>
                       void enviarEvidenciaDoItem(documento.id, arquivo)
@@ -334,6 +335,7 @@ export function FormCadastrarDocumentosEmLote({
                 </div>
                 <LinhaStatusValidade
                   documentoId={documento.id}
+                  identificador={documento.profissional}
                   status={statusPorItem[documento.id] ?? ""}
                   validade={validadePorItem[documento.id] ?? ""}
                   statusSalvamento={statusSalvamento[documento.id]}
@@ -582,9 +584,11 @@ export function FormCadastrarDocumentosEmLote({
 // -- cada linha é independente, uma falha não afeta as outras (mesmo
 // espírito "best effort" já usado em outras integrações do projeto).
 function LinhaEvidencia({
+  identificador,
   status,
   onSelecionar,
 }: {
+  identificador: string;
   status: StatusEnvio | undefined;
   onSelecionar: (arquivo: File) => void;
 }) {
@@ -630,6 +634,11 @@ function LinhaEvidencia({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
+        aria-label={
+          status === "erro"
+            ? `Tentar anexar evidência de novo para ${identificador}`
+            : `Anexar evidência para ${identificador}`
+        }
         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <Paperclip className="size-3.5" />
@@ -645,6 +654,7 @@ function LinhaEvidencia({
 // sentido juntos antes de ir pro PATCH (Vencido exige validade).
 function LinhaStatusValidade({
   documentoId,
+  identificador,
   status,
   validade,
   statusSalvamento,
@@ -654,6 +664,7 @@ function LinhaStatusValidade({
   onSalvar,
 }: {
   documentoId: number;
+  identificador: string;
   status: StatusDocumento | "";
   validade: string;
   statusSalvamento: StatusSalvamento | undefined;
@@ -702,6 +713,7 @@ function LinhaStatusValidade({
           size="sm"
           variant="outline"
           disabled={statusSalvamento === "salvando"}
+          aria-label={`Salvar status e validade de ${identificador}`}
           onClick={onSalvar}
         >
           {statusSalvamento === "salvando"

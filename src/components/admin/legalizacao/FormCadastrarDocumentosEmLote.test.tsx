@@ -324,6 +324,41 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(await screen.findByText("Falhou")).toBeInTheDocument();
   });
 
+  it("botões 'Anexar'/'Salvar' de cada linha têm aria-label diferenciado por identificador (achado em code review)", async () => {
+    // N linhas repetem os mesmos textos visuais ("Anexar", "Salvar") --
+    // sem aria-label com o identificador, um leitor de tela que navegue
+    // pela lista de controles da página (rotor/lista de botões) via
+    // apenas "Anexar" x3, "Salvar" x3, indistinguíveis fora do contexto
+    // visual da linha.
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+      documentoCriado({ id: 1, profissional: "Balança 01" }),
+      documentoCriado({ id: 2, profissional: "Balança 02" }),
+    ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await preencherCamposComuns(user);
+    await user.type(
+      screen.getByLabelText(/identificadores/i),
+      "Balança 01\nBalança 02",
+    );
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências (opcional)");
+
+    expect(
+      screen.getByRole("button", { name: "Anexar evidência para Balança 01" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Anexar evidência para Balança 02" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Salvar status e validade de Balança 01" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Salvar status e validade de Balança 02" }),
+    ).toBeInTheDocument();
+  });
+
   it("'Concluir' fecha o diálogo mesmo sem anexar nenhuma evidência", async () => {
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     const onOpenChange = vi.fn();
@@ -355,7 +390,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
     await user.type(screen.getByLabelText(/^validade/i), "2026-12-31");
-    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
 
     await waitFor(() => {
       expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
@@ -378,7 +413,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
-    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
 
     expect(
       await screen.findByText("Validade obrigatória para status 'Vencido'."),
