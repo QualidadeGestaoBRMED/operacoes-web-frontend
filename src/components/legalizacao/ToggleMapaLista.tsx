@@ -41,10 +41,6 @@ type ToggleMapaListaProps = (
 // switch de conteúdo dentro do mesmo componente. Tabs do Radix é pra troca
 // de conteúdo client-side controlada por estado, navegação entre página é
 // papel de link, só estilizado pra parecer o segmented control do mockup.
-// hidden sm:flex -- Mapa não tem layout mobile (MapaConformidade.tsx
-// redireciona pra Lista em telas estreitas), então o toggle não faz
-// sentido aparecer nesse tamanho: só sobraria "Lista" sozinha, um segmented
-// control sem pra onde ir.
 export function ToggleMapaLista({
   ativo,
   dica,
@@ -52,9 +48,18 @@ export function ToggleMapaLista({
   mostrarMapa = true,
 }: ToggleMapaListaProps) {
   return (
-    <div className="hidden items-center justify-between gap-4 border-b border-border px-7 py-3 sm:flex">
+    // Acha achado em dogfooding: o "hidden sm:flex" ficava na div de fora,
+    // então escondia o linkBiblioteca junto com o segmented control --
+    // Biblioteca de Documentos (STC-416/441) não tinha NENHUMA outra forma
+    // de navegação no mobile (sidebar hoje é um link só por módulo, sem
+    // submenu), ficando inacessível nesse tamanho de tela. O que não tem
+    // layout mobile é só o toggle Mapa/Lista (MapaConformidade.tsx
+    // redireciona pra Lista em telas estreitas) -- por isso o "hidden
+    // sm:flex/sm:block" migrou pra dentro de cada ramo do toggle, não pro
+    // container inteiro.
+    <div className="flex items-center justify-between gap-4 border-b border-border px-7 py-3">
       {mostrarMapa ? (
-        <div className="flex rounded-md bg-muted p-0.5">
+        <div className="hidden rounded-md bg-muted p-0.5 sm:flex">
           <Link
             href="/modulos/legalizacao/mapa"
             aria-current={ativo === "mapa" ? "page" : undefined}
@@ -84,7 +89,7 @@ export function ToggleMapaLista({
         // alternar -- mesmo raciocínio do "hidden sm:flex" acima pro
         // mobile. Só o rótulo, sem virar link (já estamos na única tela
         // que existe pra esse perfil).
-        <span className="px-1 text-[12.5px] font-semibold text-foreground">
+        <span className="hidden px-1 text-[12.5px] font-semibold text-foreground sm:block">
           Lista
         </span>
       )}
@@ -96,7 +101,7 @@ export function ToggleMapaLista({
       {linkBiblioteca && (
         <Link
           href="/modulos/legalizacao/biblioteca"
-          className="ml-auto hidden text-[12.5px] font-medium text-secondary hover:underline sm:block"
+          className="ml-auto text-[12.5px] font-medium text-secondary hover:underline"
         >
           Biblioteca de Documentos →
         </Link>
