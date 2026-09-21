@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Modulo } from "@/types";
 import { Sidebar } from "./Sidebar";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/modulos/gestao-demandas",
+  usePathname: vi.fn(() => "/modulos/gestao-demandas"),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({
@@ -14,6 +15,7 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("@/lib/plataforma");
 
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { listarModulos } from "@/lib/plataforma";
 
@@ -41,6 +43,7 @@ function modulo(overrides: Partial<Modulo> = {}): Modulo {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(listarModulos).mockResolvedValue([]);
+  vi.mocked(usePathname).mockReturnValue("/modulos/gestao-demandas");
 });
 
 describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () => {
@@ -186,5 +189,83 @@ describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
     expect(
       screen.queryByRole("link", { name: /gestão rh/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar -- submenu expansível de Legalização (STC-496)", () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "ativo" })]);
+  });
+
+  it("Legalização revela Matriz de Conformidade e Biblioteca de Documentos", async () => {
+    renderSidebar();
+
+    const linkMatriz = await screen.findByRole("link", {
+      name: "Matriz de Conformidade",
+    });
+    const linkBiblioteca = screen.getByRole("link", {
+      name: "Biblioteca de Documentos",
+    });
+    expect(linkMatriz).toHaveAttribute("href", "/modulos/legalizacao");
+    expect(linkBiblioteca).toHaveAttribute(
+      "href",
+      "/modulos/legalizacao/biblioteca",
+    );
+  });
+
+  it("recolhido por padrão fora de qualquer rota de Legalização", async () => {
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("button", { name: "Expandir Legalização" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("expande sozinho quando uma rota filha já está ativa (Biblioteca)", async () => {
+    vi.mocked(usePathname).mockReturnValue("/modulos/legalizacao/biblioteca");
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("button", { name: "Recolher Legalização" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    // Match de prefixo mais específico -- "/biblioteca" não pode marcar
+    // "Matriz de Conformidade" (prefixo mais curto, "/modulos/legalizacao")
+    // como ativa também.
+    expect(
+      screen.getByRole("link", { name: "Biblioteca de Documentos" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Matriz de Conformidade" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("clique no chevron expande/recolhe manualmente mesmo fora da rota do módulo", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    const botao = await screen.findByRole("button", {
+      name: "Expandir Legalização",
+    });
+    await user.click(botao);
+
+    expect(
+      screen.getByRole("button", { name: "Recolher Legalização" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("clicar no rótulo 'Legalização' navega pra Matriz (mesma rota do módulo), sem exigir o chevron", async () => {
+    renderSidebar();
+
+    const linkLegalizacao = await screen.findByRole("link", {
+      name: "Legalização",
+    });
+    expect(linkLegalizacao).toHaveAttribute("href", "/modulos/legalizacao");
   });
 });
