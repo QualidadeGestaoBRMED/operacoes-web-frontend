@@ -291,6 +291,16 @@ export function FormCadastrarDocumento({
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
     setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+    // STC-488 (achado em avaliação de uso): esta função limpava só os
+    // campos de regra -- status/validade/justificativa_excecao/nao_aplicavel
+    // sobreviviam silenciosamente à troca de unidade/tipo. Um documento
+    // cadastrado como "Vencido" com validade preenchida, seguido de troca
+    // pra outro tipo de documento no mesmo formulário, mantinha esses
+    // valores prontos pra ir no submit como se fossem do documento novo.
+    setValue("status", undefined);
+    setValue("validade", undefined);
+    setValue("justificativa_excecao", undefined);
+    setValue("nao_aplicavel", valoresPadrao.nao_aplicavel ?? false);
   }
 
   // Extraído do fluxo principal -- também usado quando o usuário clica
@@ -536,7 +546,12 @@ export function FormCadastrarDocumento({
                 name="tipo_documento"
                 render={({ field }) => (
                   <Select
-                    value={field.value ? String(field.value) : undefined}
+                    // STC-488 (achado nesta issue): "" no lugar de
+                    // `undefined` -- mesmo motivo do Select de status
+                    // abaixo, sem isso o Radix trocava de controlado pra
+                    // não-controlado ao limpar (troca de unidade) e o
+                    // trigger ficava preso no último tipo selecionado.
+                    value={field.value ? String(field.value) : ""}
                     onValueChange={(valor) => {
                       field.onChange(Number(valor));
                       // Mesmo motivo da troca de unidade acima -- um
@@ -649,7 +664,14 @@ export function FormCadastrarDocumento({
                       name="status"
                       render={({ field }) => (
                         <Select
-                          value={field.value}
+                          // STC-488 (achado nesta issue): `value={field.value}`
+                          // sozinho fazia o Select do Radix trocar de
+                          // controlado pra não-controlado quando o valor
+                          // limpava pra `undefined` (troca de tipo) -- o
+                          // texto exibido no trigger ficava preso no último
+                          // valor selecionado, mesmo com o form já limpo por
+                          // baixo. `?? ""` mantém sempre controlado.
+                          value={field.value ?? ""}
                           onValueChange={field.onChange}
                         >
                           <SelectTrigger id="cd-status" className="w-full">
