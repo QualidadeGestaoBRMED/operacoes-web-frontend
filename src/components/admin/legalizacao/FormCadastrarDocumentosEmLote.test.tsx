@@ -396,6 +396,10 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
         status: "regular",
         validade: "2026-12-31",
+        // STC-497: sem isto, o backend rejeitava a transição direta
+        // "Não iniciado" -> "Regular" (achado do usuário: status ficava
+        // preso mesmo depois de "Salvar").
+        definindo_status_inicial: true,
       });
     });
     expect(await screen.findByText("Salvo")).toBeInTheDocument();
