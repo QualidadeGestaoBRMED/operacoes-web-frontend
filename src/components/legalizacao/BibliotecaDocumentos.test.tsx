@@ -59,6 +59,7 @@ function tipo(overrides: Partial<TipoDocumentoRegulatorio> = {}): TipoDocumentoR
     exige_protocolo: false,
     exige_evidencia: true,
     controlado_por_profissional: false,
+    permite_multiplas_instancias: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,

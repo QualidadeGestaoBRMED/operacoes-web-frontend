@@ -5,11 +5,13 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FormCadastrarDocumento } from "./FormCadastrarDocumento";
+import { FormCadastrarDocumentosEmLote } from "./FormCadastrarDocumentosEmLote";
 import { FormNovaVersaoRegra } from "./FormNovaVersaoRegra";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 
 export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
   const [formCadastroAberto, setFormCadastroAberto] = useState(false);
+  const [formLoteAberto, setFormLoteAberto] = useState(false);
 
   return (
     // hidden (não desmontar): achado na revisão de código -- essa aba era
@@ -47,16 +49,25 @@ export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
           </h2>
           <p className="text-sm text-muted-foreground">
             Cadastra um tipo de documento para uma unidade, com prazo, status
-            inicial e evidência, tudo em uma única etapa.
+            inicial e evidência, tudo em uma única etapa. Pra tipos com
+            múltiplas instâncias por unidade (ex.: um documento de calibração
+            por equipamento), use o cadastro em lote -- N documentos de uma
+            vez, mesma regra pra todos.
           </p>
         </div>
-        <Button
-          className="shrink-0"
-          onClick={() => setFormCadastroAberto(true)}
-        >
-          <Plus className="size-4" />
-          Cadastrar documento
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setFormLoteAberto(true)}
+          >
+            <Plus className="size-4" />
+            Cadastrar em lote
+          </Button>
+          <Button onClick={() => setFormCadastroAberto(true)}>
+            <Plus className="size-4" />
+            Cadastrar documento
+          </Button>
+        </div>
       </div>
 
       <Separator className="shrink-0" />
@@ -68,6 +79,10 @@ export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
       <FormCadastrarDocumento
         open={formCadastroAberto}
         onOpenChange={setFormCadastroAberto}
+      />
+      <FormCadastrarDocumentosEmLote
+        open={formLoteAberto}
+        onOpenChange={setFormLoteAberto}
       />
     </div>
   );

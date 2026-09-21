@@ -68,6 +68,8 @@ const schema = z.object({
   exige_validade: z.boolean(),
   exige_protocolo: z.boolean(),
   exige_evidencia: z.boolean(),
+  controlado_por_profissional: z.boolean(),
+  permite_multiplas_instancias: z.boolean(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -80,6 +82,8 @@ const valoresPadrao: Partial<FormValues> = {
   exige_validade: true,
   exige_protocolo: false,
   exige_evidencia: true,
+  controlado_por_profissional: false,
+  permite_multiplas_instancias: false,
 };
 
 export function FormNovoTipoDocumento({
@@ -269,6 +273,46 @@ export function FormNovoTipoDocumento({
                   Exige evidência
                 </label>
               </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <Label>Múltiplas instâncias por unidade</Label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Controller
+                    control={control}
+                    name="controlado_por_profissional"
+                    render={({ field }) => (
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  Controlado por profissional
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <Controller
+                    control={control}
+                    name="permite_multiplas_instancias"
+                    render={({ field }) => (
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  Permite múltiplas instâncias
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Os dois liberam múltiplos documentos deste tipo na mesma
+                unidade, mas são fluxos diferentes. &ldquo;Controlado por
+                profissional&rdquo; liga também a Movimentação Profissional
+                (saída/entrada de pessoa -- ex.: Dosimetria). &ldquo;Permite
+                múltiplas instâncias&rdquo; é só o cadastro em lote, sem esse
+                fluxo de pessoa (ex.: um documento por equipamento).
+              </p>
             </div>
           </div>
 

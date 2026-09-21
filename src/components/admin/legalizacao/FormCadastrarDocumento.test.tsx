@@ -45,6 +45,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   exige_protocolo: false,
   exige_evidencia: true,
   controlado_por_profissional: false,
+  permite_multiplas_instancias: false,
   ativo: true,
   created_at: "2026-01-01T00:00:00Z",
 };
@@ -60,6 +61,7 @@ const TIPO_DOSIMETRIA: TipoDocumentoRegulatorio = {
   exige_protocolo: false,
   exige_evidencia: false,
   controlado_por_profissional: true,
+  permite_multiplas_instancias: false,
   ativo: true,
   created_at: "2026-01-01T00:00:00Z",
 };

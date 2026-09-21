@@ -6,6 +6,7 @@ import {
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
+  criarDocumentosLegalizacaoEmLote,
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
   listarEvidenciasVigentes,
@@ -16,6 +17,7 @@ import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type {
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
+  DocumentoUnidadeLotePayload,
   DocumentoUnidadePayload,
   EvidenciaVigente,
 } from "@/types/legalizacao";
@@ -115,6 +117,23 @@ export function useCriarDocumentoLegalizacao() {
     "criar-documento-legalizacao",
     (_chave, { arg }: { arg: DocumentoUnidadePayload }) =>
       criarDocumentoLegalizacao(arg),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    criar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useCriarDocumentosLegalizacaoEmLote() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "criar-documentos-legalizacao-em-lote",
+    (_chave, { arg }: { arg: DocumentoUnidadeLotePayload }) =>
+      criarDocumentosLegalizacaoEmLote(arg),
     { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
   );
 

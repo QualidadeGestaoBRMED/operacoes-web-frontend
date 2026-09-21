@@ -41,6 +41,7 @@ function tipo(
     exige_protocolo: false,
     exige_evidencia: false,
     controlado_por_profissional: false,
+    permite_multiplas_instancias: false,
     ativo: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -102,6 +103,7 @@ const DOSIMETRIA = doc({
     codigo: "dosimetria",
     nome: "Controle de Dosimetria",
     controlado_por_profissional: true,
+    permite_multiplas_instancias: false,
   }),
   profissional: "Dr. João",
 });
@@ -112,6 +114,7 @@ const DOSIMETRIA_2 = doc({
     codigo: "dosimetria",
     nome: "Controle de Dosimetria",
     controlado_por_profissional: true,
+    permite_multiplas_instancias: false,
   }),
   profissional: "Dra. Maria",
 });

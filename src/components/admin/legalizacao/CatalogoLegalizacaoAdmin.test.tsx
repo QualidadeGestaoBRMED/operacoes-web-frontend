@@ -64,4 +64,17 @@ describe("CatalogoLegalizacaoAdmin (STC-415)", () => {
       "Cadastrar documento",
     );
   });
+
+  it("abre o formulário de cadastro em lote (STC-490)", async () => {
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(
+      await screen.findByRole("button", { name: /cadastrar em lote/i }),
+    );
+
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "Cadastrar documentos em lote",
+    );
+  });
 });

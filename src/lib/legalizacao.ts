@@ -4,6 +4,7 @@ import type {
   AlertaRegulatorio,
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
+  DocumentoUnidadeLotePayload,
   DocumentoUnidadePayload,
   EvidenciaRegulatoria,
   EvidenciaVigente,
@@ -67,6 +68,15 @@ export async function criarDocumentoLegalizacao(
   payload: DocumentoUnidadePayload,
 ): Promise<DocumentoUnidade> {
   const { data } = await api.post<DocumentoUnidade>(DOCUMENTOS_URL, payload);
+  return data;
+}
+
+// STC-489/STC-490: cria 1 RegraDocumento + N DocumentoUnidade numa
+// transação atômica -- resposta é a lista completa (uma por identificador).
+export async function criarDocumentosLegalizacaoEmLote(
+  payload: DocumentoUnidadeLotePayload,
+): Promise<DocumentoUnidade[]> {
+  const { data } = await api.post<DocumentoUnidade[]>(`${DOCUMENTOS_URL}lote/`, payload);
   return data;
 }
 
