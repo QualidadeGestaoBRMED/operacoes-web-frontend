@@ -940,3 +940,156 @@ describe("DetalheDocumentoModal -- título diferencia por profissional (STC-432)
     ).toBeInTheDocument();
   });
 });
+
+describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
+  it("'Editar' abre o formulário pré-preenchido com status/validade atuais, escondendo os botões de ação", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "regular", validade: "2026-12-01" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+
+    expect(screen.getByLabelText("Status")).toHaveTextContent("Regular");
+    expect(screen.getByLabelText("Validade")).toHaveValue("2026-12-01");
+    expect(
+      screen.queryByRole("button", { name: "Marcar como Não aplicável" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("salva o novo status/validade, mostra sucesso, fecha o formulário e revalida documento e histórico", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "em_andamento", validade: null }),
+    );
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "regular", validade: "2027-01-01" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    vi.mocked(buscarDocumentoLegalizacao).mockClear();
+    vi.mocked(listarHistoricoLegalizacao).mockClear();
+
+    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(await screen.findByRole("option", { name: "Regular" }));
+    await user.type(screen.getByLabelText("Validade"), "2027-01-01");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(55, {
+        status: "regular",
+        validade: "2027-01-01",
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith("Documento atualizado.");
+    expect(screen.queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+    // Mesmo achado de confirmarNaoAplicavel/reverterParaAplicavel -- sem
+    // revalidação explícita, o documento/histórico só atualizavam depois
+    // de fechar e reabrir o modal.
+    await waitFor(() => {
+      expect(buscarDocumentoLegalizacao).toHaveBeenCalled();
+      expect(listarHistoricoLegalizacao).toHaveBeenCalled();
+    });
+  });
+
+  it("bloqueia 'Vencido' sem validade no client, antes de chamar a API", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "regular", validade: "2026-12-01" }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(await screen.findByRole("option", { name: "Vencido" }));
+    // Limpa a validade pré-preenchida antes de tentar salvar sem ela.
+    await user.clear(screen.getByLabelText("Validade"));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Obrigatória para status 'Vencido'."),
+    ).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("'Cancelar' fecha o formulário sem chamar a API", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Marcar como Não aplicável" }),
+    ).toBeInTheDocument();
+  });
+
+  it("abrir 'Editar' fecha o formulário de 'Marcar como Não aplicável' se estiver aberto, e vice-versa", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Marcar como Não aplicável" }),
+    );
+    expect(screen.getByLabelText(/justificativa/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+
+    expect(screen.queryByLabelText(/justificativa/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
+  });
+});
+
+describe("DetalheDocumentoModal -- editar Antecedência do alerta (STC-502)", () => {
+  it("mostra 'Editar' ao lado da Antecedência quando o documento tem regra_aplicada", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    expect(screen.getByText("60 dias")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Editar antecedência do alerta" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não mostra 'Editar' na Antecedência quando o documento não tem regra_aplicada", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ regra_aplicada: null }),
+    );
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    expect(
+      screen.queryByRole("button", { name: "Editar antecedência do alerta" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clicar em 'Editar' na Antecedência abre 'Nova versão da regra' pré-preenchido com este documento", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar antecedência do alerta" }),
+    );
+
+    expect(await screen.findByText("Nova versão da regra")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Alvará de Funcionamento · Niterói/),
+    ).toBeInTheDocument();
+    // Antecedência atual (60) já vem preenchida -- mesmo comportamento já
+    // testado em FormNovaVersaoRegra.test.tsx, só confirmando a integração
+    // (documento certo chega no diálogo).
+    expect(screen.getByLabelText(/^Antecedência \(dias\)/)).toHaveValue(60);
+  });
+});

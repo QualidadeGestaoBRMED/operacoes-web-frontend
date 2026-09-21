@@ -6,10 +6,12 @@ import {
   Download,
   FileText,
   History as HistoryIcon,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DialogNovaVersao } from "@/components/admin/legalizacao/FormNovaVersaoRegra";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
 import {
   LABEL_STATUS_PROCESSO,
@@ -288,6 +291,18 @@ export function DetalheDocumentoModal({
   ] = useState(false);
   const [mostrandoConfirmarReversao, setMostrandoConfirmarReversao] =
     useState(false);
+  // STC-502 (pedido de cliente): editar status/validade direto no modal,
+  // no mesmo padrão de EditarDemandaSection.tsx (Gestão de Demandas).
+  // Mutuamente exclusivo com mostrandoJustificativa -- não faz sentido as
+  // duas formas abertas ao mesmo tempo (ver aoAbrirEdicao/setMostrandoJustificativa
+  // abaixo).
+  const [mostrandoEdicao, setMostrandoEdicao] = useState(false);
+  // STC-499/502: corrigir a Antecedência do alerta sempre cria uma nova
+  // versão de regra (design append-only, RegraDocumento nunca é editada
+  // in-place) -- mesmo diálogo já usado no catálogo (FormNovaVersaoRegra.tsx),
+  // pré-preenchido com o documento já em mãos.
+  const [mostrandoNovaVersaoRegra, setMostrandoNovaVersaoRegra] =
+    useState(false);
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -315,7 +330,18 @@ export function DetalheDocumentoModal({
     setMostrandoProcessoRenovacao(false);
     setMostrandoMovimentacaoProfissional(false);
     setMostrandoConfirmarReversao(false);
+    setMostrandoEdicao(false);
+    setMostrandoNovaVersaoRegra(false);
     onOpenChange(false);
+  }
+
+  function aoSalvarEdicao() {
+    setMostrandoEdicao(false);
+    void mutate().catch(() => {});
+    // Mesmo achado de confirmarNaoAplicavel/reverterParaAplicavel acima: a
+    // aba Histórico não invalida sozinha, sem isto o registro só aparecia
+    // depois de fechar e reabrir o modal.
+    void mutateHistorico().catch(() => {});
   }
 
   async function confirmarNaoAplicavel() {
@@ -543,22 +569,69 @@ export function DetalheDocumentoModal({
 
                   <div className="h-px bg-border" />
 
-                  <CampoMeta rotulo="Validade">
-                    <span
-                      className={cn(
-                        prazo.urgencia === "vencido" &&
-                          "font-bold text-red-600",
+                  {mostrandoEdicao ? (
+                    <EditarDocumentoSection
+                      documento={documento}
+                      ativo
+                      aoAbrir={() => {}}
+                      aoCancelar={() => setMostrandoEdicao(false)}
+                      aoSalvar={aoSalvarEdicao}
+                    />
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <CampoMeta rotulo="Validade">
+                        <span
+                          className={cn(
+                            prazo.urgencia === "vencido" &&
+                              "font-bold text-red-600",
+                          )}
+                        >
+                          {documento.validade
+                            ? formatarData(documento.validade)
+                            : "—"}
+                        </span>
+                      </CampoMeta>
+                      {/* Achado em análise própria: com o documento em Não
+                          aplicável/Unidade em encerramento (podeReverter),
+                          o Select do modo de edição parte de "Não iniciado"
+                          (fora de STATUS_EDITAVEIS) e o backend rejeita
+                          qualquer transição a partir daí que não seja via
+                          o botão "Reverter para aplicável" -- esconder
+                          evita um caminho sem saída. */}
+                      {!podeReverter && (
+                        <EditarDocumentoSection
+                          documento={documento}
+                          ativo={false}
+                          aoAbrir={() => {
+                            setMostrandoJustificativa(false);
+                            setJustificativa("");
+                            setMostrandoEdicao(true);
+                          }}
+                          aoCancelar={() => setMostrandoEdicao(false)}
+                          aoSalvar={aoSalvarEdicao}
+                        />
                       )}
-                    >
-                      {documento.validade
-                        ? formatarData(documento.validade)
-                        : "—"}
-                    </span>
-                  </CampoMeta>
+                    </div>
+                  )}
                   <CampoMeta rotulo="Antecedência do alerta">
                     {documento.regra_aplicada
                       ? `${documento.regra_aplicada.antecedencia_dias} dias`
                       : "—"}
+                    {/* STC-502: só faz sentido corrigir uma regra que já
+                        existe -- sem regra_aplicada não há o que editar
+                        (mesmo critério já usado em FormNovaVersaoRegra.tsx,
+                        "documento.regra_aplicada ? ... : 'nada a corrigir'"). */}
+                    {documento.regra_aplicada && (
+                      <button
+                        type="button"
+                        onClick={() => setMostrandoNovaVersaoRegra(true)}
+                        aria-label="Editar antecedência do alerta"
+                        className="ml-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
+                      >
+                        <Pencil className="size-3" />
+                        Editar
+                      </button>
+                    )}
                   </CampoMeta>
                   <CampoMeta rotulo="Criticidade">
                     {documento.regra_aplicada ? (
@@ -622,7 +695,7 @@ export function DetalheDocumentoModal({
                         </Button>
                       </div>
                     </div>
-                  ) : (
+                  ) : mostrandoEdicao ? null : (
                     <div className="flex flex-col gap-2">
                       {processoJaEmCurso && (
                         <Button
@@ -642,7 +715,10 @@ export function DetalheDocumentoModal({
                       {podeMarcarNaoAplicavel && (
                         <Button
                           variant="outline"
-                          onClick={() => setMostrandoJustificativa(true)}
+                          onClick={() => {
+                            setMostrandoEdicao(false);
+                            setMostrandoJustificativa(true);
+                          }}
                         >
                           Marcar como Não aplicável
                         </Button>
@@ -814,6 +890,17 @@ export function DetalheDocumentoModal({
         }}
         onEntradaConcluida={() => setMostrandoProcessoRenovacao(true)}
       />
+      {documento && (
+        <DialogNovaVersao
+          documento={documento}
+          open={mostrandoNovaVersaoRegra}
+          onOpenChange={setMostrandoNovaVersaoRegra}
+          onAtualizado={() => {
+            void mutate();
+            void mutateHistorico().catch(() => {});
+          }}
+        />
+      )}
       <ConfirmDialog
         open={mostrandoConfirmarReversao}
         onOpenChange={setMostrandoConfirmarReversao}
