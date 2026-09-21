@@ -23,10 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCriarTipoDocumento } from "@/hooks/useTiposDocumento";
+import {
+  useAtualizarTipoDocumento,
+  useCriarTipoDocumento,
+} from "@/hooks/useTiposDocumento";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import type { AreaResponsavelDocumento } from "@/types/legalizacao";
+import type {
+  AreaResponsavelDocumento,
+  TipoDocumentoRegulatorio,
+} from "@/types/legalizacao";
 
 // Espelha TipoDocumentoRegulatorio.AreaResponsavel (backend/legalizacao/
 // models.py) -- só 2 valores, sem hook/endpoint próprio (é um choices fixo,
@@ -41,37 +47,52 @@ const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
 // TipoDocumentoRegulatorio.codigo (SlugField, unique).
 const REGEX_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const schema = z.object({
-  nome: z.string().min(1, "Nome é obrigatório."),
-  codigo: z
-    .string()
-    .min(1, "Código é obrigatório.")
-    .regex(
-      REGEX_SLUG,
-      "Use só letras minúsculas, números e hífen (ex.: licenca-sanitaria).",
+// Achado em code review: em modo edição, "codigo" fica disabled mas
+// continua registrado no react-hook-form -- o valor pré-preenchido
+// (valoresDe) segue validado no submit mesmo assim. Tipos cadastrados
+// direto no banco/Django Admin (a própria razão desta issue existir) podem
+// ter código fora deste regex (maiúscula, underscore) -- confirmado: já
+// existem 3 assim no catálogo real. Sem schema condicional, abrir esse
+// tipo pra editar qualquer OUTRO campo (ex. o Nome, o pedido de verdade)
+// travava pra sempre num erro num campo que nem é editável na tela.
+// "codigo" trocado de fato é bloqueado no backend de qualquer forma
+// (TipoDocumentoRegulatorioSerializer.validate()), então validar o
+// formato aqui em modo edição não protege nada.
+function criarSchema(emEdicao: boolean) {
+  return z.object({
+    nome: z.string().min(1, "Nome é obrigatório."),
+    codigo: emEdicao
+      ? z.string().min(1, "Código é obrigatório.")
+      : z
+          .string()
+          .min(1, "Código é obrigatório.")
+          .regex(
+            REGEX_SLUG,
+            "Use só letras minúsculas, números e hífen (ex.: licenca-sanitaria).",
+          ),
+    categoria: z.enum(
+      [
+        "regularizacao",
+        "registros_tecnicos",
+        "capacitacao",
+        "infraestrutura",
+        "equipamentos",
+        "programas",
+        "residuos",
+      ],
+      { error: "Selecione a categoria." },
     ),
-  categoria: z.enum(
-    [
-      "regularizacao",
-      "registros_tecnicos",
-      "capacitacao",
-      "infraestrutura",
-      "equipamentos",
-      "programas",
-      "residuos",
-    ],
-    { error: "Selecione a categoria." },
-  ),
-  area_responsavel: z.enum(["legalizacao", "coordenacao"], {
-    error: "Selecione a área responsável.",
-  }),
-  exige_validade: z.boolean(),
-  exige_protocolo: z.boolean(),
-  exige_evidencia: z.boolean(),
-  permite_multiplas_instancias: z.boolean(),
-});
+    area_responsavel: z.enum(["legalizacao", "coordenacao"], {
+      error: "Selecione a área responsável.",
+    }),
+    exige_validade: z.boolean(),
+    exige_protocolo: z.boolean(),
+    exige_evidencia: z.boolean(),
+    permite_multiplas_instancias: z.boolean(),
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof criarSchema>>;
 
 // Espelha os defaults de TipoDocumentoRegulatorio (backend/legalizacao/
 // models.py): exige_validade/exige_evidencia nascem ligados, exige_protocolo
@@ -84,14 +105,41 @@ const valoresPadrao: Partial<FormValues> = {
   permite_multiplas_instancias: false,
 };
 
+// STC-501: mesmo diálogo cadastra (tipoDocumento ausente) e edita
+// (tipoDocumento presente) -- evita duplicar o formulário inteiro só pra
+// trocar POST por PATCH. `codigo` fica travado em modo edição: é usado
+// como chave fixa em código (CODIGOS_MOVIMENTACAO_PROFISSIONAL,
+// legalizacaoMatriz.ts) pra CNES/Dosimetria/etc. -- mudar o código de um
+// tipo já em uso quebraria esses comportamentos silenciosamente, e o
+// pedido real do cliente é sobre o Nome (capitalização inconsistente),
+// não o código interno.
+function valoresDe(tipo: TipoDocumentoRegulatorio): FormValues {
+  return {
+    nome: tipo.nome,
+    codigo: tipo.codigo,
+    categoria: tipo.categoria,
+    area_responsavel: tipo.area_responsavel,
+    exige_validade: tipo.exige_validade,
+    exige_protocolo: tipo.exige_protocolo,
+    exige_evidencia: tipo.exige_evidencia,
+    permite_multiplas_instancias: tipo.permite_multiplas_instancias,
+  };
+}
+
 export function FormNovoTipoDocumento({
   open,
   onOpenChange,
+  tipoDocumento,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Ausente/null: modo cadastro (padrão). Presente: modo edição.
+  tipoDocumento?: TipoDocumentoRegulatorio | null;
 }) {
-  const { criar, isLoading } = useCriarTipoDocumento();
+  const emEdicao = !!tipoDocumento;
+  const { criar, isLoading: criando } = useCriarTipoDocumento();
+  const { atualizar, isLoading: atualizando } = useAtualizarTipoDocumento();
+  const isLoading = emEdicao ? atualizando : criando;
 
   const {
     register,
@@ -100,18 +148,28 @@ export function FormNovoTipoDocumento({
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(criarSchema(emEdicao)),
     defaultValues: valoresPadrao,
   });
 
   useEffect(() => {
-    if (!open) reset(valoresPadrao);
-  }, [open, reset]);
+    if (!open) {
+      reset(valoresPadrao);
+    } else if (tipoDocumento) {
+      reset(valoresDe(tipoDocumento));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tipoDocumento?.id]);
 
   async function aoSubmeter(valores: FormValues) {
     try {
-      await criar(valores);
-      toast.success("Tipo de documento cadastrado.");
+      if (tipoDocumento) {
+        await atualizar({ id: tipoDocumento.id, payload: valores });
+        toast.success("Tipo de documento atualizado.");
+      } else {
+        await criar(valores);
+        toast.success("Tipo de documento cadastrado.");
+      }
       onOpenChange(false);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -122,7 +180,9 @@ export function FormNovoTipoDocumento({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] max-w-[min(30rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>Novo tipo de documento</DialogTitle>
+          <DialogTitle>
+            {emEdicao ? "Editar tipo de documento" : "Novo tipo de documento"}
+          </DialogTitle>
         </DialogHeader>
 
         <form
@@ -152,6 +212,15 @@ export function FormNovoTipoDocumento({
               </Label>
               <Input
                 id="td-codigo"
+                // Achado em code review: disabled tira o campo da ordem de
+                // tabulação -- quem navega por teclado/leitor de tela pula
+                // direto de "Nome" pra "Categoria", sem nunca focar "Código"
+                // nem ouvir o valor atual ou o texto explicando por que está
+                // travado. readOnly trava a edição sem remover o campo da
+                // navegação (mantém foco/leitura), mesmo efeito prático.
+                readOnly={emEdicao}
+                aria-readonly={emEdicao}
+                className={emEdicao ? "bg-muted text-muted-foreground" : undefined}
                 {...register("codigo")}
                 placeholder="Ex.: licenca-sanitaria"
               />
@@ -161,8 +230,9 @@ export function FormNovoTipoDocumento({
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Um código interno do sistema, só pra identificar esse tipo de
-                documento. Não aparece pra quem for usar o catálogo depois.
+                {emEdicao
+                  ? "Não pode ser alterado depois de criado -- é usado internamente pra reconhecer tipos como CNES/Dosimetria."
+                  : "Um código interno do sistema, só pra identificar esse tipo de documento. Não aparece pra quem for usar o catálogo depois."}
               </p>
             </div>
 
@@ -310,7 +380,13 @@ export function FormNovoTipoDocumento({
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Cadastrando..." : "Cadastrar tipo de documento"}
+              {emEdicao
+                ? isLoading
+                  ? "Salvando..."
+                  : "Salvar"
+                : isLoading
+                  ? "Cadastrando..."
+                  : "Cadastrar tipo de documento"}
             </Button>
           </DialogFooter>
         </form>

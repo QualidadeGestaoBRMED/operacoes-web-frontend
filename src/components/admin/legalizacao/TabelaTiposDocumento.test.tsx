@@ -10,6 +10,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import {
   atualizarTipoDocumento,
+  listarHistoricoTipoDocumento,
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 
@@ -107,5 +108,152 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     expect(
       screen.queryByText("Nenhum tipo de documento cadastrado ainda."),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("TabelaTiposDocumento -- editar tipo de documento (STC-501)", () => {
+  it("'Editar' abre o formulário pré-preenchido, com Código travado", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar Licença Sanitária" }),
+    );
+
+    expect(await screen.findByText("Editar tipo de documento")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^nome/i)).toHaveValue("Licença Sanitária");
+    expect(screen.getByLabelText(/^código/i)).toHaveValue("licenca-sanitaria");
+    // readOnly (não disabled): achado em code review -- mantém o campo na
+    // ordem de tabulação/leitura pra teclado e leitor de tela, só trava a
+    // edição.
+    expect(screen.getByLabelText(/^código/i)).toHaveAttribute("readonly");
+    expect(screen.getByLabelText(/^código/i)).not.toBeDisabled();
+  });
+
+  it("salva a edição via PATCH e mostra sucesso", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    vi.mocked(atualizarTipoDocumento).mockResolvedValue({
+      ...TIPO,
+      nome: "Licença Sanitária Municipal",
+    });
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar Licença Sanitária" }),
+    );
+    await screen.findByText("Editar tipo de documento");
+    const campoNome = screen.getByLabelText(/^nome/i);
+    await user.clear(campoNome);
+    await user.type(campoNome, "Licença Sanitária Municipal");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(atualizarTipoDocumento).toHaveBeenCalledWith(
+        TIPO.id,
+        expect.objectContaining({ nome: "Licença Sanitária Municipal" }),
+      );
+    });
+    expect(
+      screen.queryByText("Editar tipo de documento"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("edita outro campo normalmente mesmo quando o código já salvo foge do regex do form (achado em code review)", async () => {
+    // Tipos cadastrados direto no banco/Django Admin (a própria razão desta
+    // issue existir) podem ter código com underscore/maiúscula, fora do
+    // regex de slug do form -- sem schema condicional, o campo travado
+    // (disabled) ainda era validado no submit e travava a edição de
+    // QUALQUER campo, inclusive o Nome (o pedido real do cliente).
+    const tipoComCodigoLegado = { ...TIPO, codigo: "licenca_sanitaria" };
+    vi.mocked(listarTiposDocumento).mockResolvedValue([tipoComCodigoLegado]);
+    vi.mocked(atualizarTipoDocumento).mockResolvedValue({
+      ...tipoComCodigoLegado,
+      nome: "Licença Sanitária Municipal",
+    });
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar Licença Sanitária" }),
+    );
+    await screen.findByText("Editar tipo de documento");
+    const campoNome = screen.getByLabelText(/^nome/i);
+    await user.clear(campoNome);
+    await user.type(campoNome, "Licença Sanitária Municipal");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(atualizarTipoDocumento).toHaveBeenCalledWith(
+        tipoComCodigoLegado.id,
+        expect.objectContaining({ nome: "Licença Sanitária Municipal" }),
+      );
+    });
+    expect(
+      screen.queryByText(/letras minúsculas, números e hífen/i),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("TabelaTiposDocumento -- histórico de edição (STC-501)", () => {
+  it("'Histórico' abre o modal e lista as edições traduzidas", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    vi.mocked(listarHistoricoTipoDocumento).mockResolvedValue([
+      {
+        id: 1,
+        usuario: {
+          id: 9,
+          username: "admin",
+          email: "admin@grupobrmed.com.br",
+          first_name: "Admin",
+          last_name: "Q&G",
+          perfil: null,
+          unidade_id: null,
+          setor_id: null,
+          ativo: true,
+          ultimo_acesso: null,
+          foto_url: "",
+        },
+        campo: "nome",
+        valor_anterior: "licença sanitária",
+        valor_novo: "Licença Sanitária",
+        created_at: "2026-09-21T12:00:00Z",
+      },
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Ver histórico de Licença Sanitária" }),
+    );
+
+    expect(
+      await screen.findByText("Histórico de edições -- Licença Sanitária"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Admin Q&G")).toBeInTheDocument();
+    expect(screen.getByText("nome")).toBeInTheDocument();
+    expect(screen.getByText('"licença sanitária"')).toBeInTheDocument();
+    expect(screen.getByText('"Licença Sanitária"')).toBeInTheDocument();
+  });
+
+  it("mostra 'nenhuma edição registrada' quando o histórico está vazio", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    vi.mocked(listarHistoricoTipoDocumento).mockResolvedValue([]);
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Licença Sanitária");
+
+    await user.click(
+      screen.getByRole("button", { name: "Ver histórico de Licença Sanitária" }),
+    );
+
+    expect(
+      await screen.findByText("Nenhuma edição registrada ainda."),
+    ).toBeInTheDocument();
   });
 });

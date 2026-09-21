@@ -1,5 +1,6 @@
 import api from "./api";
 import type {
+  HistoricoTipoDocumento,
   RegraDocumento,
   RegraDocumentoPayload,
   TipoDocumentoRegulatorio,
@@ -38,6 +39,17 @@ export async function atualizarTipoDocumento(
   const { data } = await api.patch<TipoDocumentoRegulatorio>(
     `${TIPOS_DOCUMENTO_URL}${id}/`,
     payload,
+  );
+  return data;
+}
+
+// STC-500 (backend): histórico de auditoria de edição do catálogo, tabela
+// dedicada (não HistoricoRegulatorio, que é FK de DocumentoUnidade).
+export async function listarHistoricoTipoDocumento(
+  id: number,
+): Promise<HistoricoTipoDocumento[]> {
+  const { data } = await api.get<HistoricoTipoDocumento[]>(
+    `${TIPOS_DOCUMENTO_URL}${id}/historico/`,
   );
   return data;
 }

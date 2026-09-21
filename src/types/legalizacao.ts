@@ -114,6 +114,19 @@ export interface HistoricoRegulatorio {
   created_at: string;
 }
 
+// STC-500 (backend): mesmo shape de HistoricoRegulatorio, tabela dedicada
+// pro catálogo (TipoDocumentoRegulatorio não é FK de HistoricoRegulatorio
+// -- ver types/legalizacao.ts::TipoDocumentoRegulatorio). "campo" em vez
+// de "acao": nome do campo editado (ex. "nome", "categoria").
+export interface HistoricoTipoDocumento {
+  id: number;
+  usuario: Usuario | null;
+  campo: string;
+  valor_anterior: string;
+  valor_novo: string;
+  created_at: string;
+}
+
 export interface EvidenciaRegulatoria {
   id: number;
   usuario: Usuario;

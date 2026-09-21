@@ -26,6 +26,7 @@ import type {
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
 import { FormNovoTipoDocumento } from "./FormNovoTipoDocumento";
+import { HistoricoTipoDocumentoModal } from "./HistoricoTipoDocumentoModal";
 
 const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
   legalizacao: "Legalização",
@@ -66,6 +67,11 @@ export function TabelaTiposDocumento() {
   const [formAberto, setFormAberto] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>("todos");
+  // STC-501: mesmo diálogo de cadastro (FormNovoTipoDocumento) reaproveitado
+  // em modo edição quando tipoEditando não é null.
+  const [tipoEditando, setTipoEditando] =
+    useState<TipoDocumentoRegulatorio | null>(null);
+  const [tipoHistoricoId, setTipoHistoricoId] = useState<number | null>(null);
 
   const tiposFiltrados = tiposDocumento.filter((tipo) => {
     if (filtroCategoria !== "todas" && tipo.categoria !== filtroCategoria)
@@ -184,6 +190,7 @@ export function TabelaTiposDocumento() {
                 <th className="px-4 py-2.5">Área responsável</th>
                 <th className="px-4 py-2.5">Exigências</th>
                 <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -235,6 +242,26 @@ export function TabelaTiposDocumento() {
                       </Button>
                     </div>
                   </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Editar ${tipo.nome}`}
+                        onClick={() => setTipoEditando(tipo)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Ver histórico de ${tipo.nome}`}
+                        onClick={() => setTipoHistoricoId(tipo.id)}
+                      >
+                        Histórico
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -243,6 +270,18 @@ export function TabelaTiposDocumento() {
       )}
 
       <FormNovoTipoDocumento open={formAberto} onOpenChange={setFormAberto} />
+      <FormNovoTipoDocumento
+        open={tipoEditando !== null}
+        onOpenChange={(open) => !open && setTipoEditando(null)}
+        tipoDocumento={tipoEditando}
+      />
+      <HistoricoTipoDocumentoModal
+        tipoDocumentoId={tipoHistoricoId}
+        nome={
+          tiposDocumento.find((tipo) => tipo.id === tipoHistoricoId)?.nome ?? ""
+        }
+        onOpenChange={(open) => !open && setTipoHistoricoId(null)}
+      />
     </div>
   );
 }
