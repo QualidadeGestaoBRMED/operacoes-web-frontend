@@ -190,14 +190,9 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     expect(await screen.findByText("Carla Lima")).toBeInTheDocument();
   });
 
-  // STC-505 (achado no code review, 2ª rodada): jsdom não roda o motor de
-  // CSS de verdade, então não pega o achado original (overflow-x:auto
-  // recomputa overflow-y de "visible" pra "auto" mesmo sem a classe --
-  // verificado ao vivo com Playwright, ver comentário em
-  // GerenciarUsuarios.tsx). O que dá pra travar aqui é o mecanismo por trás
-  // da correção de verdade: sem flex-1 (shrink-0 no lugar), esta div não
-  // tem mais altura definida pela cadeia flex, então overflow:auto nunca
-  // acha o que cortar.
+  // STC-505 (achado no code review): nada garantia que o ramo mobile
+  // (ehMobile) continuasse sem altura travada -- ver GerenciarUsuarios.tsx
+  // pro racional completo (ehMobile ? undefined : {maxHeight}).
   it("no mobile, o container da tabela não trava a própria altura", async () => {
     vi.mocked(useMediaQuery).mockReturnValue(true);
     vi.mocked(listarUsuarios).mockResolvedValue([usuario()]);
@@ -210,8 +205,6 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     const container = tabela.parentElement;
     expect(container).not.toBeNull();
     expect(container).not.toHaveClass("overflow-y-auto");
-    expect(container).not.toHaveClass("flex-1");
-    expect(container).toHaveClass("shrink-0");
     expect(container?.style.maxHeight).toBe("");
   });
 });
