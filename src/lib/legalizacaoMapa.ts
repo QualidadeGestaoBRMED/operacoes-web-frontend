@@ -107,8 +107,8 @@ function estaEmAtencao(documento: DocumentoUnidade): boolean {
 // espírito de "Não aplicável" (nunca compete com um problema ativo, só
 // "vence" quando não sobra nenhum), mas continua com bucket/cor PRÓPRIA
 // (roxo, não reaproveita o verde de "regular") -- diferente de
-// nao_aplicavel, que conta como regular (mesmo raciocínio já usado na
-// coluna Criticidade da Lista, "sem problema, não precisa fazer nada").
+// nao_aplicavel, que conta como regular ("sem problema, não precisa fazer
+// nada").
 // nao_iniciado NÃO conta como regular -- achado no code review: sem um
 // bucket próprio, uma categoria onde nenhum documento foi sequer iniciado
 // renderizava ✓ "em dia" na célula, idêntico a uma categoria de verdade

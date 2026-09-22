@@ -220,7 +220,6 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Regular")).toBeInTheDocument();
     expect(screen.getByText("60 dias")).toBeInTheDocument();
-    expect(screen.getByText("Alta")).toBeInTheDocument();
   });
 
   it("mostra erro quando a busca do documento falha", async () => {

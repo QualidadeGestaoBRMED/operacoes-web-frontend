@@ -8,7 +8,6 @@ import {
 } from "./legalizacaoMatriz";
 import type {
   AlertaRegulatorio,
-  Criticidade,
   DocumentoUnidade,
   ResponsavelDocumento,
 } from "@/types/legalizacao";
@@ -191,25 +190,6 @@ function responsavelPrincipal(nome: string): ResponsavelDocumento[] {
   ];
 }
 
-function comCriticidade(criticidade: Criticidade): Partial<DocumentoUnidade> {
-  return {
-    regra_aplicada: {
-      id: 1,
-      tipo_documento: 1,
-      unidade: 1,
-      antecedencia_dias: 60,
-      periodicidade_meses: null,
-      janela_dia_inicio: null,
-      janela_dia_fim: null,
-      criticidade,
-      vigente_a_partir: "2026-01-01",
-      ativa: true,
-      gera_card_demanda: true,
-      created_at: "2026-01-01T00:00:00Z",
-    },
-  };
-}
-
 describe("ordenarDocumentos", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -325,24 +305,6 @@ describe("ordenarDocumentos", () => {
     ).toEqual([1, 2]);
   });
 
-  it("ordena por criticidade (alta > media > baixa) e joga sem-regra pro final nas duas direções", () => {
-    const lista = [
-      documento({ id: 1, ...comCriticidade("baixa") }),
-      documento({ id: 2, regra_aplicada: null }),
-      documento({ id: 3, ...comCriticidade("alta") }),
-    ];
-    expect(
-      ordenarDocumentos(lista, { campo: "criticidade", direcao: "asc" }).map(
-        (d) => d.id,
-      ),
-    ).toEqual([3, 1, 2]);
-    expect(
-      ordenarDocumentos(lista, { campo: "criticidade", direcao: "desc" }).map(
-        (d) => d.id,
-      ),
-    ).toEqual([1, 3, 2]);
-  });
-
   it("ordena por responsável pelo nome, e joga sem responsável pro final", () => {
     const lista = [
       documento({ id: 1, responsaveis: responsavelPrincipal("Zeca") }),
@@ -405,25 +367,6 @@ describe("agruparAlertasPorDocumento (STC-443)", () => {
 
     expect(grupos).toHaveLength(1);
     expect(grupos[0].totalAlertas).toBe(3);
-  });
-
-  it("criticidade do grupo é a mais alta entre os alertas, não a do primeiro", () => {
-    const grupos = agruparAlertasPorDocumento([
-      alerta({ id: 1, documento_unidade: documento({ id: 10 }), criticidade: "baixa" }),
-      alerta({ id: 2, documento_unidade: documento({ id: 10 }), criticidade: "alta" }),
-      alerta({ id: 3, documento_unidade: documento({ id: 10 }), criticidade: "media" }),
-    ]);
-
-    expect(grupos[0].criticidade).toBe("alta");
-  });
-
-  it("criticidade vazia (sem regra) não sobrescreve uma criticidade real já vista no grupo", () => {
-    const grupos = agruparAlertasPorDocumento([
-      alerta({ id: 1, documento_unidade: documento({ id: 10 }), criticidade: "media" }),
-      alerta({ id: 2, documento_unidade: documento({ id: 10 }), criticidade: "" }),
-    ]);
-
-    expect(grupos[0].criticidade).toBe("media");
   });
 
   it("data do grupo é a mais ANTIGA entre os alertas (há quanto tempo isso está pendente)", () => {

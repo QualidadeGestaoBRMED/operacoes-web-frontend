@@ -32,7 +32,6 @@ import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
-import { LABEL_CRITICIDADE } from "@/lib/legalizacaoMatriz";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 
 // "YYYY-MM-DD" (DateField do Django) formatado sem passar por Date -- mesmo
@@ -394,8 +393,7 @@ export function FormNovaVersaoRegra() {
                 Vigente desde{" "}
                 {formatarData(documento.regra_aplicada.vigente_a_partir)}, com{" "}
                 {documento.regra_aplicada.antecedencia_dias} dias de
-                antecedência e criticidade{" "}
-                {LABEL_CRITICIDADE[documento.regra_aplicada.criticidade]}.
+                antecedência.
               </div>
               <Button size="sm" onClick={() => setDialogAberto(true)}>
                 Criar nova versão
