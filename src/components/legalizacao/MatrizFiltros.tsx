@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -64,7 +65,16 @@ export function MatrizFiltros({
   onMudarCategoria,
   onLimparUrl,
 }: MatrizFiltrosProps) {
-  const { unidades } = useUnidades("padrao");
+  const { user, isCoordenacaoUnidade } = useAuth();
+  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  // STC-512: mesmo critério de BibliotecaDocumentos.tsx -- Coordenador só
+  // pode escolher a própria unidade no filtro. O backend já restringe o
+  // dado de qualquer forma (_documentos_visiveis_para), mas o Select
+  // oferecia livremente qualquer unidade da rede, sem indicar que a troca
+  // nunca traria resultado de outra unidade.
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
   const { usuarios } = useUsuarios();
   // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
   // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de
@@ -100,8 +110,14 @@ export function MatrizFiltros({
     );
   }, [catalogoDocumentos]);
 
+  // filtros.unidade não entra na contagem pro Coordenador (achado no
+  // review) -- MatrizConformidade.tsx força esse campo pra unidade dele
+  // incondicionalmente, nunca fica undefined pra esse perfil, então contar
+  // como "filtro ativo" deixava "Limpar filtros" sempre visível mesmo sem
+  // nenhuma escolha real, e clicar nele não limpava nada (o próprio efeito
+  // de força reescreve o valor de volta no render seguinte).
   const contagemFiltrosSelect = [
-    filtros.unidade,
+    isCoordenacaoUnidade ? undefined : filtros.unidade,
     filtros.tipo_documento,
     filtros.status,
     filtros.responsavel,
@@ -137,7 +153,15 @@ export function MatrizFiltros({
             <SelectValue placeholder="Unidade" />
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectItem value="todas">Todas as unidades</SelectItem>
+            {/* STC-512 (review): "Todas as unidades" continuava oferecida
+                mesmo pro Coordenador, deixando ele sair do filtro da
+                própria unidade -- o pedido original é "sem opção de
+                trocar". MatrizConformidade.tsx força filtros.unidade de
+                volta pra unidade dele mesmo se isso acontecer (URL editada
+                à mão, por exemplo), mas a opção nem devia aparecer. */}
+            {!isCoordenacaoUnidade && (
+              <SelectItem value="todas">Todas as unidades</SelectItem>
+            )}
             {unidades.map((unidade) => (
               <SelectItem key={unidade.id} value={String(unidade.id)}>
                 {unidade.nome}

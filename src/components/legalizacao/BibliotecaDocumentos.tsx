@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao, useEvidenciasVigentes } from "@/hooks/useDocumentosLegalizacao";
 import {
   limparCachePreviewEvidencia,
@@ -77,17 +78,42 @@ export function BibliotecaDocumentos() {
   >(null);
 
   const {
-    unidades,
+    user,
+    isLoading: carregandoSessao,
+    isCoordenacaoUnidade,
+  } = useAuth();
+  const {
+    unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
   } = useUnidades("padrao");
+  // STC-512: Coordenador só pode ver/selecionar a própria unidade -- o
+  // backend já restringe o dado (_documentos_visiveis_para,
+  // legalizacao/views.py) a Q(unidade_id=usuario.unidade_id), mas o Select
+  // aqui oferecia livremente qualquer unidade da rede, escondendo isso
+  // atrás de um "Nenhum documento cadastrado nesta unidade" ao trocar.
+  // Filtrar a lista na origem resolve os dois usos abaixo de uma vez só
+  // (fallback de auto-seleção e as opções do Select).
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
 
+  // carregandoSessao no guard (achado no review): isCoordenacaoUnidade nasce
+  // false enquanto a sessão carrega (useAuth.ts) -- sem esperar por ela, a
+  // 1ª unidade da REDE INTEIRA (não a do Coordenador) podia ser
+  // auto-selecionada e ter seus documentos buscados/exibidos por um
+  // instante, antes da sessão resolver e a 2ª correção abaixo consertar.
   useEffect(() => {
-    if (unidadeId !== undefined || carregandoUnidades || unidades.length === 0)
+    if (
+      unidadeId !== undefined ||
+      carregandoUnidades ||
+      carregandoSessao ||
+      unidades.length === 0
+    )
       return;
     setUnidadeId(unidades[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carregandoUnidades, unidades]);
+  }, [carregandoUnidades, carregandoSessao, unidades]);
 
   // Mesmo achado de code review de MatrizConformidade.tsx: um id de
   // unidade inválido/removida (link antigo, ou editado à mão na URL) não
@@ -115,8 +141,16 @@ export function BibliotecaDocumentos() {
   // validação acima (linhas 79-84) confirmar que ele existe de verdade --
   // se a unidade for inválida, a tela mostra "nenhum documento" por um
   // instante, com o filtro ruim ainda ativo, até o efeito corrigir.
+  //
+  // carregandoSessao entra aqui também (STC-512, review): um Coordenador
+  // chegando com ?unidade=<outra-unidade> na URL (link antigo, de antes
+  // desta correção) tem `unidadeId` já definido desde o 1º render -- se
+  // `unidades` (useUnidades) resolver ANTES da sessão, a 2ª validação acima
+  // ainda enxerga a lista SEM filtro (isCoordenacaoUnidade nasce false
+  // enquanto carrega, useAuth.ts) e não corrige nada, liberando a busca com
+  // a unidade errada até a sessão resolver e a lista filtrar de verdade.
   const aguardandoValidacaoDeUnidade =
-    unidadeId !== undefined && carregandoUnidades;
+    (unidadeId !== undefined && carregandoUnidades) || carregandoSessao;
   const {
     documentos,
     isLoading: carregandoDocumentos,
@@ -191,6 +225,18 @@ export function BibliotecaDocumentos() {
     return () => limparCachePreviewEvidencia();
   }, []);
 
+  // coordenadorSemUnidade (achado no review, mesmo critério de
+  // MatrizConformidade.tsx): Usuario.unidade_id é number|null -- um
+  // Coordenador sem unidade vinculada (conta mal configurada,
+  // GerenciarUsuarios.tsx não impede) faz `unidades` (filtrado acima)
+  // ficar vazio, igual ao caso "rede sem nenhuma unidade cadastrada"
+  // (semUnidadesCadastradas, abaixo). Sem distinguir os dois, a mesma
+  // mensagem "Nenhuma unidade cadastrada." aparecia pro Coordenador --
+  // diagnóstico errado (existem unidades na rede, só nenhuma vinculada à
+  // conta dele).
+  const coordenadorSemUnidade =
+    isCoordenacaoUnidade && !carregandoSessao && !user?.unidade_id;
+
   // Achado numa checagem de falhas críticas: sem isto, uma lista de
   // unidades vazia (zero unidades cadastradas) deixava `unidadeId`
   // indefinido pra sempre -- o efeito que escolhe a 1ª unidade nunca acha
@@ -199,9 +245,15 @@ export function BibliotecaDocumentos() {
   // selecionada" é um estado válido, "todas as unidades"), esta tela exige
   // uma unidade real por design.
   const semUnidadesCadastradas =
-    !carregandoUnidades && !erroUnidades && unidades.length === 0;
+    !coordenadorSemUnidade &&
+    !carregandoUnidades &&
+    !erroUnidades &&
+    unidades.length === 0;
   const carregandoUnidadeAtual =
-    unidadeId === undefined && !erroUnidades && !semUnidadesCadastradas;
+    unidadeId === undefined &&
+    !erroUnidades &&
+    !semUnidadesCadastradas &&
+    !coordenadorSemUnidade;
   const carregando =
     carregandoUnidadeAtual ||
     aguardandoValidacaoDeUnidade ||
@@ -262,6 +314,11 @@ export function BibliotecaDocumentos() {
           >
             {carregando ? (
               <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : coordenadorSemUnidade ? (
+              <p className="text-sm text-destructive">
+                Sua conta não está vinculada a nenhuma unidade -- contate o
+                administrador.
+              </p>
             ) : semUnidadesCadastradas ? (
               <p className="text-sm text-muted-foreground">
                 Nenhuma unidade cadastrada.
