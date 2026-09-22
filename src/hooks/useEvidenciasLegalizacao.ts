@@ -98,7 +98,19 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
 // BibliotecaDocumentos (única consumidora hoje). O cache é por sessão/aba de
 // propósito (module-level, nunca persistido em storage) -- ao sair da tela,
 // os blobs não servem pra mais nada.
+//
+// Limpa o cache do SWR de cada documento também (mesmo motivo do eviction em
+// registrarPreviewNoCache) -- o cache do SWR é global, sobrevive ao unmount
+// deste componente. Sem isto, voltar pra esta tela depois e reabrir um
+// documento já visto antes do unmount devolvia a Blob URL já revogada aqui
+// (revalidateIfStale: false não refaz o fetch sozinho), um preview quebrado
+// até alguma outra revalidação corrigir.
 export function limparCachePreviewEvidencia() {
-  for (const blobUrl of blobUrlsEmCache.values()) URL.revokeObjectURL(blobUrl);
+  for (const [documentoId, blobUrl] of blobUrlsEmCache) {
+    URL.revokeObjectURL(blobUrl);
+    void mutateGlobal([CHAVE_PREVIEW, documentoId], undefined, {
+      revalidate: false,
+    });
+  }
   blobUrlsEmCache.clear();
 }
