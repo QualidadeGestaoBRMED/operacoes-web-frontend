@@ -145,18 +145,11 @@ export function PermissoesAdmin() {
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo
   // antes do usuário ver qualquer linha da tabela.
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  // Achado no dogfooding mobile: o piso de "Perfil, unidade e setor" quase
-  // sempre sobra um pedaço menor que uma linha (não dá pra outra linha
-  // inteira ali). Em vez de deixar essa sobra parada, ela é repassada pra
-  // "Permissões individuais" -- só no mobile, onde o espaço é mais
-  // apertado e essa sobra faz diferença de verdade; no desktop cada seção
-  // continua decidindo a própria altura sozinha, sem esse acoplamento.
-  const [sobraPerfil, setSobraPerfil] = useState(0);
   const {
     refPai: refSecaoPermissoes,
     refTabela: refTabelaPermissoes,
     maxHeight: alturaTabelaPermissoes,
-  } = useAlturaSemLinhaCortada(ehMobile ? sobraPerfil : 0);
+  } = useAlturaSemLinhaCortada();
   const { permissoes, isLoading: carregandoPermissoes } = usePermissoes();
   const { usuarios } = useUsuarios();
   const { unidades } = useUnidades();
@@ -552,7 +545,6 @@ export function PermissoesAdmin() {
           <GerenciarUsuarios
             expandido={secaoExpandida === "usuarios"}
             onAlternarExpandir={() => alternarExpansao("usuarios")}
-            onSobraAltura={setSobraPerfil}
           />
         </div>
 

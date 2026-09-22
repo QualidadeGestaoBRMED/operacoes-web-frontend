@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -48,13 +48,9 @@ export function usuariosGerenciaveis(usuarios: Usuario[]): Usuario[] {
 export function GerenciarUsuarios({
   expandido,
   onAlternarExpandir,
-  onSobraAltura,
 }: {
   expandido: boolean;
   onAlternarExpandir: () => void;
-  // Opcional -- só o PermissoesAdmin em mobile repassa essa sobra pra
-  // "Permissões individuais" mostrar mais uma linha (ver useAlturaSemLinhaCortada).
-  onSobraAltura?: (px: number) => void;
 }) {
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
@@ -65,11 +61,7 @@ export function GerenciarUsuarios({
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem.
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  const { refPai, refTabela, maxHeight, sobra } = useAlturaSemLinhaCortada();
-
-  useEffect(() => {
-    onSobraAltura?.(sobra);
-  }, [sobra, onSobraAltura]);
+  const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
   const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
   const usuariosListados = usuariosGerenciaveis(usuarios);
