@@ -53,6 +53,21 @@ const blobUrlsEmCache = new Map<number, string>();
 // buscarPreviewEvidenciaVigente nem chega a criar o Blob se já desmontou.
 let telaAtiva = false;
 
+// Achado no review: reordena a chave pro fim do Map sem mexer no valor --
+// chamada tanto no fetch novo (registrarPreviewNoCache abaixo) quanto no
+// cache HIT (useEvidenciaVigentePreview, via effect em `data`). Sem isto no
+// segundo caso, reabrir um documento já cacheado nunca atualizava sua
+// posição no LRU (revalidateIfStale:false faz o SWR devolver o cache sem
+// chamar o fetcher, e só o fetcher reordenava) -- um documento recém-visto
+// podia ser evictado como se fosse o mais antigo, assim que a sessão abrisse
+// mais de TAMANHO_MAXIMO_CACHE_PREVIEW documentos distintos.
+function tocarPreviewNoCache(documentoId: number) {
+  const blobUrl = blobUrlsEmCache.get(documentoId);
+  if (blobUrl === undefined) return;
+  blobUrlsEmCache.delete(documentoId);
+  blobUrlsEmCache.set(documentoId, blobUrl);
+}
+
 function registrarPreviewNoCache(documentoId: number, blobUrl: string) {
   blobUrlsEmCache.delete(documentoId);
   blobUrlsEmCache.set(documentoId, blobUrl);
@@ -106,6 +121,13 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
       revalidateOnReconnect: false,
     },
   );
+
+  // Roda em todo cache HIT também (não só no fetch novo, já coberto dentro
+  // de buscarPreviewEvidenciaVigente) -- ver comentário de
+  // tocarPreviewNoCache acima.
+  useEffect(() => {
+    if (documentoId && data) tocarPreviewNoCache(documentoId);
+  }, [documentoId, data]);
 
   return {
     // #toolbar=0&navpanes=0&scrollbar=0 -- parâmetros que o visualizador de
