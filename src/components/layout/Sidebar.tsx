@@ -24,7 +24,7 @@ const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
 export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
-  const { isAdminQG, isAdminOps } = useAuth();
+  const { isAdminQG, isAdminOps, isCoordenacaoUnidade } = useAuth();
   // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
@@ -81,7 +81,22 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               href={modulo.rota as string}
               icon={modulo.icon}
               label={modulo.nome}
-              subitens={modulo.subitens}
+              // STC-514: Coordenador ganha acesso ao Catálogo de Legalização
+              // (Admin > Cadastro de documentos), mas só o bloco de
+              // Legalização faz sentido pra ele -- entra como 3º subitem
+              // aqui em vez de replicar o bloco "Administração" de baixo
+              // (que continua Admin-only, ver isAdminOps mais abaixo).
+              subitens={
+                modulo.codigo === "legalizacao" && isCoordenacaoUnidade
+                  ? [
+                      ...modulo.subitens,
+                      {
+                        label: "Catálogo de Legalização",
+                        rota: "/admin/permissoes",
+                      },
+                    ]
+                  : modulo.subitens
+              }
               pathname={pathname}
               onClick={onNavegar}
             />
@@ -111,7 +126,10 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
       {/* isAdminOps (nível <= Admin Operações) cobre os dois perfis que têm
           algum link aqui -- Admin Q&G é um caso particular dele (nível 1),
           então o wrapper (borda/espaçamento) usa só essa condição, e cada
-          link decide por conta própria se aparece. */}
+          link decide por conta própria se aparece. Coordenador (STC-514)
+          não entra aqui -- o acesso dele ao Catálogo de Legalização vive
+          dentro do submenu de Legalização, não neste bloco (ver
+          modulosAtivos.map acima). */}
       {isAdminOps && (
         <div className="mt-2 flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
           {/* STC-262: era texto fixo, sem função nenhuma e visível pra
@@ -215,16 +233,6 @@ function SidebarLinkExpansivel({
   onClick?: () => void;
 }) {
   const ativo = pathname.startsWith(href);
-  const [expandido, setExpandido] = useState(ativo);
-
-  // Auto-expande ao navegar pra dentro do módulo -- não colapsa sozinho ao
-  // sair (deixa como o usuário deixou), só o clique manual no chevron
-  // recolhe. Decisão registrada na issue: expandir sozinho quando uma rota
-  // filha já está ativa.
-  useEffect(() => {
-    if (ativo) setExpandido(true);
-  }, [ativo]);
-
   // Sub-rota ativa = o match de prefixo mais específico (mais longo) entre
   // os subitens -- "/modulos/legalizacao" (Matriz) é prefixo de
   // "/modulos/legalizacao/biblioteca" também, então não dá pra usar só
@@ -233,6 +241,20 @@ function SidebarLinkExpansivel({
   const subitemAtivo = [...subitens]
     .sort((a, b) => b.rota.length - a.rota.length)
     .find((sub) => pathname.startsWith(sub.rota));
+  const temSubitemAtivo = Boolean(subitemAtivo);
+  const [expandido, setExpandido] = useState(ativo || temSubitemAtivo);
+
+  // Auto-expande ao navegar pra dentro do módulo -- não colapsa sozinho ao
+  // sair (deixa como o usuário deixou), só o clique manual no chevron
+  // recolhe. Decisão registrada na issue: expandir sozinho quando uma rota
+  // filha já está ativa. temSubitemAtivo entra aqui também (STC-514): o
+  // Catálogo de Legalização (rota fora de /modulos/legalizacao, injetado
+  // como subitem pro Coordenador) não bate no `ativo` acima -- sem isto, um
+  // refresh direto em /admin/permissoes abria o submenu recolhido, com o
+  // item ativo escondido dentro dele.
+  useEffect(() => {
+    if (ativo || temSubitemAtivo) setExpandido(true);
+  }, [ativo, temSubitemAtivo]);
 
   return (
     <div>

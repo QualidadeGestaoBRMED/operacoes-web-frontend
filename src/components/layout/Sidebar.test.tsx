@@ -124,6 +124,23 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
     const link = screen.getByRole("link", { name: /admin operações/i });
     expect(link).toHaveAttribute("href", "/admin/permissoes");
   });
+
+  // STC-514: Coordenador (nível 3) não ganha este bloco -- o acesso dele ao
+  // Catálogo de Legalização vive dentro do submenu de Legalização (ver
+  // describe "submenu expansível de Legalização" mais abaixo), não aqui.
+  it("Coordenador não vê nenhum link deste bloco (Admin Q&G/Administração/Admin Operações)", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+    expect(screen.queryByText("Admin Operações")).not.toBeInTheDocument();
+  });
 });
 
 describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
@@ -267,5 +284,62 @@ describe("Sidebar -- submenu expansível de Legalização (STC-496)", () => {
       name: "Legalização",
     });
     expect(linkLegalizacao).toHaveAttribute("href", "/modulos/legalizacao");
+  });
+});
+
+describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do submenu de Legalização (STC-514)", () => {
+  beforeEach(() => {
+    vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "ativo" })]);
+  });
+
+  it("Coordenador vê Catálogo de Legalização como 3º subitem, apontando pra /admin/permissoes", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
+    expect(link).toHaveAttribute("href", "/admin/permissoes");
+  });
+
+  it("Admin/Setor (não Coordenador) não vê esse subitem extra em Legalização", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.queryByRole("link", { name: "Catálogo de Legalização" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // isCoordenacaoUnidade injeta um subitem cuja rota (/admin/permissoes)
+  // não é prefixo de href (/modulos/legalizacao) -- sem considerar
+  // subitemAtivo no auto-expand, um refresh direto nessa rota abria o
+  // submenu recolhido, escondendo o próprio item ativo lá dentro.
+  it("expande sozinho ao chegar direto em /admin/permissoes (subitem ativo, não a rota do módulo)", async () => {
+    vi.mocked(usePathname).mockReturnValue("/admin/permissoes");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("button", { name: "Recolher Legalização" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("link", { name: "Catálogo de Legalização" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });

@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useAtualizarDocumentoLegalizacao,
   useDocumentosLegalizacao,
@@ -277,11 +278,32 @@ export function DialogNovaVersao({
 }
 
 export function FormNovaVersaoRegra() {
-  const { unidades } = useUnidades("padrao");
+  const { user, isCoordenacaoUnidade } = useAuth();
+  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  // STC-514: mesmo critério de FormCadastrarDocumento.tsx -- Coordenador só
+  // pode corrigir regra da própria unidade.
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
   const { tiposDocumento } = useTiposDocumento();
   const [unidadeId, setUnidadeId] = useState<number | undefined>();
   const [tipoDocumentoId, setTipoDocumentoId] = useState<number | undefined>();
   const [dialogAberto, setDialogAberto] = useState(false);
+
+  // STC-514: campo de unidade travado na do Coordenador -- este componente
+  // fica sempre montado (CatalogoLegalizacaoAdmin usa `hidden`, não
+  // unmount), então não tem "open" pra depender -- só espera
+  // isCoordenacaoUnidade/user resolverem (nascem false/undefined enquanto a
+  // sessão carrega, useAuth.ts).
+  useEffect(() => {
+    if (
+      !isCoordenacaoUnidade ||
+      !user?.unidade_id ||
+      unidadeId === user.unidade_id
+    )
+      return;
+    setUnidadeId(user.unidade_id);
+  }, [isCoordenacaoUnidade, user?.unidade_id, unidadeId]);
 
   const { documentos, isLoading, carregandoPrimeiraVez, error, mensagemErro } =
     useDocumentosLegalizacao(

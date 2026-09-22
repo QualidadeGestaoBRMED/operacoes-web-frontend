@@ -7,8 +7,10 @@ import { CatalogoLegalizacaoAdmin } from "./CatalogoLegalizacaoAdmin";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/plataforma");
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { useAuth } from "@/hooks/useAuth";
 import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
@@ -26,6 +28,14 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+  vi.mocked(useAuth).mockReturnValue({
+    user: undefined,
+    perfil: undefined,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
 });
 
 describe("CatalogoLegalizacaoAdmin (STC-415)", () => {
