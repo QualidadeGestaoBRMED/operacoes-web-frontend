@@ -45,6 +45,33 @@ const UNIDADE: Unidade = {
   rede: "padrao",
 };
 
+// STC-510: qualquer codigo != "operacional" usa o campo Unidade (não Área
+// Responsável) -- ver ehOperacional em FormNovaDemanda.tsx.
+const TIPO_GESTAO_UNIDADES: TipoGestao = {
+  ...TIPO_GESTAO,
+  id: 2,
+  nome: "Unidades",
+  codigo: "unidades",
+  visibilidade_padrao: "unidade",
+};
+
+const TIPO_GESTAO_OPEX: TipoGestao = {
+  ...TIPO_GESTAO,
+  id: 3,
+  nome: "OPEX",
+  codigo: "opex",
+  visibilidade_padrao: "opex",
+};
+
+const UNIDADE_OPEX: Unidade = {
+  id: 2,
+  nome: "Aeroclínica Central",
+  codigo: "AER1",
+  cidade: "Rio de Janeiro",
+  ativa: true,
+  rede: "opex",
+};
+
 function renderForm(onOpenChange = vi.fn()) {
   render(
     <SWRConfig value={{ provider: () => new Map() }}>
@@ -167,5 +194,41 @@ describe("FormNovaDemanda", () => {
 
     expect(await screen.findByText("Título é obrigatório.")).toBeInTheDocument();
     expect(criarDemanda).not.toHaveBeenCalled();
+  });
+});
+
+describe("FormNovaDemanda -- Select de Unidade acompanha a rede do Tipo de Gestão (STC-510)", () => {
+  it("trocar pro tipo de gestão OPEX no formulário troca as unidades oferecidas no Select", async () => {
+    // Achado no code review: o formulário fica aberto enquanto o usuário
+    // troca de Tipo de gestão (diferente do Kanban, onde a aba já vem
+    // fixada) -- esse é o caminho com mais chance de regressão passar
+    // despercebido, então listarUnidades devolve listas DIFERENTES por
+    // rede (não a mesma lista pros dois), provando que o Select de
+    // verdade reflete a rede pedida, não só que o argumento certo foi
+    // passado.
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO,
+      TIPO_GESTAO_UNIDADES,
+      TIPO_GESTAO_OPEX,
+    ]);
+    vi.mocked(listarUnidades).mockImplementation((rede) =>
+      Promise.resolve(rede === "opex" ? [UNIDADE_OPEX] : [UNIDADE]),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(await screen.findByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(await screen.findByLabelText(/^unidade/i));
+    expect(await screen.findByRole("option", { name: "Niterói" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Aeroclínica Central" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "OPEX" }));
+    await user.click(await screen.findByLabelText(/^unidade/i));
+
+    expect(await screen.findByRole("option", { name: "Aeroclínica Central" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
   });
 });
