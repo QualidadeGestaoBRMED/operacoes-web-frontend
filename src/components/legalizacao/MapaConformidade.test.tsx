@@ -3,18 +3,19 @@ import { useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useUnidades } from "@/hooks/useUnidades";
+import type { Unidade } from "@/types";
 import { MapaConformidade } from "./MapaConformidade";
 
-// Foco estreito: só o redirect (mobile e, agora, Coordenação da Unidade,
-// STC-451) -- não é cobertura completa de MapaConformidade.tsx, os
-// componentes filhos/hooks de dados viram stubs triviais.
+// Foco estreito: redirect de mobile e, agora (STC-513), o filtro de
+// unidades da grade pra Coordenação da Unidade -- não é cobertura completa
+// de MapaConformidade.tsx, os componentes filhos/hooks de dados viram
+// stubs triviais.
 vi.mock("next/navigation", () => ({ useRouter: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
 
-vi.mock("@/hooks/useUnidades", () => ({
-  useUnidades: () => ({ unidades: [], isLoading: false, error: null }),
-}));
 vi.mock("@/hooks/useDocumentosLegalizacao", () => ({
   useDocumentosLegalizacao: () => ({
     documentos: [],
@@ -23,9 +24,20 @@ vi.mock("@/hooks/useDocumentosLegalizacao", () => ({
     mensagemErro: null,
   }),
 }));
-vi.mock("./MatrizMapaGrid", () => ({ MatrizMapaGrid: () => null }));
+// Stub mostra os nomes das unidades que chegaram na grade -- pra dar pra
+// verificar o filtro do Coordenador sem simular a grade inteira.
+vi.mock("./MatrizMapaGrid", () => ({
+  MatrizMapaGrid: ({ grade }: { grade?: { unidades: Unidade[] } }) => (
+    <div data-testid="unidades-da-grade">
+      {grade?.unidades.map((unidade) => unidade.nome).join(",")}
+    </div>
+  ),
+}));
 vi.mock("./ResumoCards", () => ({ ResumoCards: () => null }));
 vi.mock("./ToggleMapaLista", () => ({ ToggleMapaLista: () => <div data-testid="toggle-mapa" /> }));
+
+const NITEROI: Unidade = { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" };
+const VITORIA: Unidade = { id: 2, nome: "Vitória", codigo: "VIT", cidade: "Vitória", ativa: true, rede: "padrao" };
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -34,6 +46,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useRouter).mockReturnValue({ push, replace } as never);
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(useUnidades).mockReturnValue({
+    unidades: [NITEROI, VITORIA],
+    isLoading: false,
+    error: undefined,
+  });
   vi.mocked(useAuth).mockReturnValue({
     user: undefined,
     perfil: undefined,
@@ -44,17 +61,34 @@ beforeEach(() => {
   } as never);
 });
 
-describe("MapaConformidade -- redirect pra Lista (STC-451)", () => {
-  it("renderiza o Mapa normalmente fora de mobile e sem ser Coordenação da Unidade", () => {
+describe("MapaConformidade -- redirect de mobile", () => {
+  it("renderiza o Mapa normalmente fora de mobile", () => {
     render(<MapaConformidade />);
 
     expect(screen.getByTestId("toggle-mapa")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("redireciona pra Lista quando é Coordenação da Unidade, mesmo em desktop", async () => {
+  it("continua redirecionando em mobile, independente do perfil (comportamento já existente)", async () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+
+    render(<MapaConformidade />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/modulos/legalizacao"));
+  });
+});
+
+describe("MapaConformidade -- grade só com a própria unidade pra Coordenação (STC-513)", () => {
+  it("mostra todas as unidades da rede pra quem não é Coordenação da Unidade", () => {
+    render(<MapaConformidade />);
+
+    expect(screen.getByTestId("unidades-da-grade")).toHaveTextContent("Niterói,Vitória");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("Coordenação da Unidade não é mais redirecionada -- fica no Mapa, só com a própria unidade na grade", async () => {
     vi.mocked(useAuth).mockReturnValue({
-      user: undefined,
+      user: { unidade_id: VITORIA.id },
       perfil: { id: 1, nome: "Coordenação", nivel: 3 },
       isLoading: false,
       isAdminQG: false,
@@ -64,15 +98,31 @@ describe("MapaConformidade -- redirect pra Lista (STC-451)", () => {
 
     render(<MapaConformidade />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/modulos/legalizacao"));
-    expect(screen.queryByTestId("toggle-mapa")).not.toBeInTheDocument();
+    expect(screen.getByTestId("toggle-mapa")).toBeInTheDocument();
+    expect(screen.getByTestId("unidades-da-grade")).toHaveTextContent("Vitória");
+    expect(replace).not.toHaveBeenCalled();
   });
 
-  it("continua redirecionando em mobile, independente do perfil (comportamento já existente)", async () => {
-    vi.mocked(useMediaQuery).mockReturnValue(true);
+  // isCoordenacaoUnidade nasce false enquanto useSession ainda está
+  // "loading" (useAuth.ts) -- sem esperar por isso, a grade renderizava de
+  // vez com TODAS as unidades da rede pra depois, um instante depois,
+  // estreitar pra só a do usuário: reabria o mesmo vazamento visual que
+  // motivou esta issue (RJ Centro via de vez em quando dado de outra
+  // unidade), só que como flash de dado em vez de navegação de volta pra
+  // Lista.
+  it("não renderiza a grade completa enquanto a sessão ainda carrega, mesmo com unidades já disponíveis", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: true,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
 
     render(<MapaConformidade />);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/modulos/legalizacao"));
+    expect(screen.getByTestId("unidades-da-grade")).toHaveTextContent("");
+    expect(replace).not.toHaveBeenCalled();
   });
 });

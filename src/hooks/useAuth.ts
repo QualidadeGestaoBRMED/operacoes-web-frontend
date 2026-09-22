@@ -18,9 +18,9 @@ export function useAuth() {
     isAdminOps: nivel !== undefined && nivel <= NIVEL_ADMIN_OPERACOES,
     // Coordenação da Unidade (perfil nível 3) -- mesmo nível usado no RBAC
     // de backend (accounts.permissions.NIVEL_UNIDADE, legalizacao/views.py
-    // ::_documentos_visiveis_para). Usado pra decisão de produto (STC-451):
-    // ela só acompanha a própria unidade, então visões "panorama de toda a
-    // rede" (Mapa de Conformidade) não fazem sentido pra esse perfil.
+    // ::_documentos_visiveis_para). Usado em Legalização pra restringir
+    // telas de panorama da rede (Mapa/Biblioteca/Matriz) à própria unidade
+    // desse perfil, em vez de deixar ver a rede inteira.
     isCoordenacaoUnidade: nivel === NIVEL_UNIDADE,
   };
 }
