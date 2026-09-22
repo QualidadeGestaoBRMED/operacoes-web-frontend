@@ -2,11 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 
 import {
   atualizarTipoDocumento,
@@ -40,6 +42,7 @@ function renderTela() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(useMediaQuery).mockReturnValue(false);
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
@@ -108,6 +111,24 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     expect(
       screen.queryByText("Nenhum tipo de documento cadastrado ainda."),
     ).not.toBeInTheDocument();
+  });
+
+  // STC-505 (achado no code review): nada garantia que o ramo mobile
+  // (ehMobile) continuasse sem altura travada -- ver TabelaTiposDocumento.tsx
+  // pro racional completo (ehMobile ? undefined : {maxHeight}).
+  it("no mobile, o container da tabela não trava a própria altura", async () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+
+    renderTela();
+
+    const tabela = await screen.findByRole("table", {
+      name: "Tipos de documento",
+    });
+    const container = tabela.parentElement;
+    expect(container).not.toBeNull();
+    expect(container).not.toHaveClass("overflow-y-auto");
+    expect(container?.style.maxHeight).toBe("");
   });
 });
 

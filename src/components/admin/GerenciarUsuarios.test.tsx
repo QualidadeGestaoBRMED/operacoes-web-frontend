@@ -2,11 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
 import { GerenciarUsuarios } from "./GerenciarUsuarios";
 
 vi.mock("@/lib/plataforma");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 
 import {
   atualizarUsuario,
@@ -56,6 +58,7 @@ beforeEach(() => {
   vi.mocked(listarPerfis).mockResolvedValue([PERFIL_QG, PERFIL_OPS, PERFIL_UNIDADE, PERFIL_SETOR]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarSetores).mockResolvedValue([SETOR]);
+  vi.mocked(useMediaQuery).mockReturnValue(false);
 });
 
 describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
@@ -185,5 +188,23 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
 
     expect(await screen.findByText("Carla Lima")).toBeInTheDocument();
+  });
+
+  // STC-505 (achado no code review): nada garantia que o ramo mobile
+  // (ehMobile) continuasse sem altura travada -- ver GerenciarUsuarios.tsx
+  // pro racional completo (ehMobile ? undefined : {maxHeight}).
+  it("no mobile, o container da tabela não trava a própria altura", async () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario()]);
+
+    renderTela();
+
+    const tabela = await screen.findByRole("table", {
+      name: "Perfil, unidade e setor",
+    });
+    const container = tabela.parentElement;
+    expect(container).not.toBeNull();
+    expect(container).not.toHaveClass("overflow-y-auto");
+    expect(container?.style.maxHeight).toBe("");
   });
 });
