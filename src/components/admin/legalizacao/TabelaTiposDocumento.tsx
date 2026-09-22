@@ -185,7 +185,13 @@ export function TabelaTiposDocumento() {
           >
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-2.5">Nome</th>
+                {/* sticky left-0: achado testando no mobile (STC-505) -- 6
+                    colunas deixavam a tabela larga demais pra tela estreita,
+                    e rolar pro lado escondia o Nome junto com o resto, sem
+                    contexto de qual linha é qual. Mesmo tratamento aplicado
+                    em GerenciarUsuarios.tsx -- ver comentário lá pro
+                    racional completo do bg/z-index. */}
+                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Nome</th>
                 <th className="px-4 py-2.5">Categoria</th>
                 <th className="px-4 py-2.5">Área responsável</th>
                 <th className="px-4 py-2.5">Exigências</th>
@@ -199,7 +205,7 @@ export function TabelaTiposDocumento() {
                   key={tipo.id}
                   className="border-b border-border last:border-0"
                 >
-                  <td className="px-4 py-2.5 font-medium text-foreground">
+                  <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
                     {tipo.nome}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">

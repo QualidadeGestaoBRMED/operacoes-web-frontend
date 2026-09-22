@@ -7,7 +7,10 @@ import { CabecalhoApiDocs } from "@/components/api-docs/CabecalhoApiDocs";
 // conteúdo via seu <main> flex-1).
 export default function ApiDocsPage() {
   return (
-    <div className="flex h-screen flex-col">
+    // h-svh (não h-dvh): mesmo achado do AppShell.tsx (STC-505) -- svh evita
+    // o corte do 100vh sem reintroduzir o travamento de scroll que dvh causa
+    // (recalcula em tempo real durante o gesto).
+    <div className="flex h-svh flex-col">
       <CabecalhoApiDocs />
       <div className="min-h-0 flex-1">
         <ApiDocs />

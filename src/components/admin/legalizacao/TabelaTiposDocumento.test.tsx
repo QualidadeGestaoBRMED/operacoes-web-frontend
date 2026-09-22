@@ -2,11 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 
 import {
   atualizarTipoDocumento,
@@ -40,6 +42,7 @@ function renderTela() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(useMediaQuery).mockReturnValue(false);
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
@@ -108,6 +111,40 @@ describe("TabelaTiposDocumento (STC-415)", () => {
     expect(
       screen.queryByText("Nenhum tipo de documento cadastrado ainda."),
     ).not.toBeInTheDocument();
+  });
+
+  // STC-505 (achado no code review): nada garantia que o ramo mobile
+  // (ehMobile) continuasse sem altura travada -- ver TabelaTiposDocumento.tsx
+  // pro racional completo (ehMobile ? undefined : {maxHeight}).
+  it("no mobile, o container da tabela não trava a própria altura", async () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+
+    renderTela();
+
+    const tabela = await screen.findByRole("table", {
+      name: "Tipos de documento",
+    });
+    const container = tabela.parentElement;
+    expect(container).not.toBeNull();
+    expect(container).not.toHaveClass("overflow-y-auto");
+    expect(container?.style.maxHeight).toBe("");
+  });
+
+  // STC-505 (achado no code review, 3ª rodada): os testes anteriores só
+  // cobriam o efeito colateral (altura no mobile) -- nenhum cobria o fix
+  // central que a issue pediu de fato (perder o contexto de qual linha é
+  // qual ao rolar horizontalmente). sticky left-0 é o que resolve isso.
+  it("mantém a coluna 'Nome' fixa (sticky left-0) ao rolar a tabela horizontalmente", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+
+    renderTela();
+
+    const cabecalho = await screen.findByRole("columnheader", { name: "Nome" });
+    expect(cabecalho).toHaveClass("sticky", "left-0");
+
+    const celula = screen.getByRole("cell", { name: "Licença Sanitária" });
+    expect(celula).toHaveClass("sticky", "left-0");
   });
 });
 

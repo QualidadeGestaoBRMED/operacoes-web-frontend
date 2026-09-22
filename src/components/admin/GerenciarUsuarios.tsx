@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
-import { nomeExibicao } from "@/lib/utils";
+import { cn, nomeExibicao } from "@/lib/utils";
 import type { Usuario } from "@/types";
 
 // Espelha accounts/permissions.py (NIVEL_ADMIN_OPERACOES = 2). Regra do
@@ -48,13 +48,9 @@ export function usuariosGerenciaveis(usuarios: Usuario[]): Usuario[] {
 export function GerenciarUsuarios({
   expandido,
   onAlternarExpandir,
-  onSobraAltura,
 }: {
   expandido: boolean;
   onAlternarExpandir: () => void;
-  // Opcional -- só o PermissoesAdmin em mobile repassa essa sobra pra
-  // "Permissões individuais" mostrar mais uma linha (ver useAlturaSemLinhaCortada).
-  onSobraAltura?: (px: number) => void;
 }) {
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
@@ -65,11 +61,7 @@ export function GerenciarUsuarios({
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem.
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  const { refPai, refTabela, maxHeight, sobra } = useAlturaSemLinhaCortada();
-
-  useEffect(() => {
-    onSobraAltura?.(sobra);
-  }, [sobra, onSobraAltura]);
+  const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
   const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
   const usuariosListados = usuariosGerenciaveis(usuarios);
@@ -245,11 +237,27 @@ export function GerenciarUsuarios({
         /* min-w-0: mesmo achado de PermissoesAdmin -- sem isso, o
             min-w-[640px] da tabela abaixo vaza pro pai e força a coluna
             inteira mais larga que a viewport em telas estreitas, em vez de
-            só essa caixa rolar horizontalmente. */
+            só essa caixa rolar horizontalmente.
+
+            ehMobile ? undefined : {maxHeight} / !ehMobile && "overflow-y-auto":
+            achado testando em celular real (STC-505) -- diferente de
+            CatalogoLegalizacaoAdmin.tsx (que já tinha esse tratamento),
+            esta tabela travava a própria altura o tempo todo, mesmo no
+            mobile. Sem sobrar espaço suficiente na tela pra caber tabela +
+            "Permissões individuais" abaixo, e sem nenhum scroll de página
+            pra compensar, a rolagem simplesmente não tinha pra onde ir --
+            parecia travada. No mobile a tabela mostra tudo (sem altura
+            travada) e quem rola é a aba inteira (overflow-y-auto adicionado
+            no wrapper da aba, PermissoesAdmin.tsx); overflow-x-auto
+            continua sempre ligado -- é o que a coluna fixa (sticky left)
+            precisa pra rolar horizontalmente. */
         <div
           ref={refTabela}
-          style={{ maxHeight }}
-          className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border"
+          style={ehMobile ? undefined : { maxHeight }}
+          className={cn(
+            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+            !ehMobile && "overflow-y-auto",
+          )}
         >
           <table
             aria-label="Perfil, unidade e setor"
@@ -261,7 +269,18 @@ export function GerenciarUsuarios({
                 por baixo aparecerem por trás do header ao rolar. */}
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-2.5">Pessoa</th>
+                {/* sticky left-0 + z-20: achado testando no mobile (STC-505)
+                    -- tabela de 4 colunas ficava larga demais pra tela
+                    estreita, e rolar pro lado escondia "Pessoa" junto com o
+                    resto, tirando o contexto de qual linha é qual. Fixa só a
+                    coluna mais importante fora do scroll horizontal, mesmo
+                    espírito do sticky top já usado pro cabeçalho. bg-muted
+                    próprio (não herdado do <tr>): sem isso a célula fica
+                    transparente quando o resto da linha rola por baixo.
+                    z-20 (maior que o z-10 do <thead>): garante que o canto
+                    fixo nos dois eixos fique acima das outras células do
+                    cabeçalho, que só são fixas no eixo vertical. */}
+                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
                 <th className="px-4 py-2.5">Perfil</th>
                 <th className="px-4 py-2.5">Unidade</th>
                 <th className="px-4 py-2.5">Setor</th>
@@ -270,7 +289,10 @@ export function GerenciarUsuarios({
             <tbody>
               {usuariosFiltrados.map((usuario) => (
                 <tr key={usuario.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 font-medium text-foreground">
+                  {/* bg-background próprio: mesmo achado do cabeçalho acima
+                      -- sem isso, as outras colunas apareceriam por baixo
+                      desta ao rolar horizontalmente. */}
+                  <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
                     {nomeExibicao(usuario)}
                   </td>
                   <td className="px-4 py-2.5">

@@ -12,12 +12,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 vi.mock("@/lib/plataforma");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import {
@@ -123,6 +125,7 @@ beforeEach(() => {
   vi.mocked(listarPerfis).mockResolvedValue([]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+  vi.mocked(useMediaQuery).mockReturnValue(false);
 });
 
 describe("PermissoesAdmin (STC-266)", () => {
@@ -1178,5 +1181,52 @@ describe("PermissoesAdmin (STC-266)", () => {
     );
 
     expect(screen.getByLabelText("Unidade")).toHaveTextContent("Niterói");
+  });
+
+  // STC-505 (achado no code review): nada garantia que o ramo mobile
+  // (ehMobile) continuasse sem altura travada -- ver PermissoesAdmin.tsx pro
+  // racional completo (ehMobile ? undefined : {maxHeight}).
+  it("no mobile, o container de 'Permissões individuais' não trava a própria altura", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    const tabela = await screen.findByRole("table", {
+      name: /permissões individuais/i,
+    });
+    const container = tabela.parentElement;
+    expect(container).not.toBeNull();
+    expect(container).not.toHaveClass("overflow-y-auto");
+    expect(container?.style.maxHeight).toBe("");
+  });
+
+  // STC-505 (achado no code review, 3ª rodada): os testes anteriores só
+  // cobriam o efeito colateral (altura no mobile) -- nenhum cobria o fix
+  // central que a issue pediu de fato (perder o contexto de qual linha é
+  // qual ao rolar horizontalmente). sticky left-0 é o que resolve isso.
+  // Escopado à tabela: "Pessoa"/"Fernanda Lima" também existem na tabela de
+  // Perfil/Unidade/Setor, mesma página.
+  it("mantém a coluna 'Pessoa' fixa (sticky left-0) em 'Permissões individuais' ao rolar horizontalmente", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    const cabecalho = tabela.getByRole("columnheader", { name: "Pessoa" });
+    expect(cabecalho).toHaveClass("sticky", "left-0");
+
+    const celula = tabela.getByRole("cell", { name: "Fernanda Lima" });
+    expect(celula).toHaveClass("sticky", "left-0");
   });
 });
