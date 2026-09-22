@@ -36,7 +36,14 @@ const TIPO_GESTAO: TipoGestao = {
   ordem: 0,
 };
 
-const UNIDADE: Unidade = { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true };
+const UNIDADE: Unidade = {
+  id: 1,
+  nome: "Niterói",
+  codigo: "NIT",
+  cidade: "Niterói",
+  ativa: true,
+  rede: "padrao",
+};
 
 function renderForm(onOpenChange = vi.fn()) {
   render(

@@ -152,6 +152,10 @@ export function PermissoesAdmin() {
   } = useAlturaSemLinhaCortada();
   const { permissoes, isLoading: carregandoPermissoes } = usePermissoes();
   const { usuarios } = useUsuarios();
+  // Sem filtro de rede (STC-510) de propósito: só resolve o nome de
+  // qualquer unidade que uma permissão aponte (linha 302), nunca é um
+  // dropdown -- uma permissão pode apontar pra uma unidade OPEX, e o nome
+  // dela precisa continuar resolvendo normalmente aqui.
   const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();

@@ -112,7 +112,7 @@ export function FormCadastrarDocumentosEmLote({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { tiposDocumento } = useTiposDocumento();
   const { criar: criarLote, isLoading: salvando } = useCriarDocumentosLegalizacaoEmLote();
 

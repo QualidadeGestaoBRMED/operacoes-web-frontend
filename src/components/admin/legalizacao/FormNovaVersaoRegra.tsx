@@ -277,7 +277,7 @@ export function DialogNovaVersao({
 }
 
 export function FormNovaVersaoRegra() {
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { tiposDocumento } = useTiposDocumento();
   const [unidadeId, setUnidadeId] = useState<number | undefined>();
   const [tipoDocumentoId, setTipoDocumentoId] = useState<number | undefined>();

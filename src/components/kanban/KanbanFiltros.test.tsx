@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -189,5 +189,43 @@ describe("KanbanFiltros -- filtro Área Responsável", () => {
     expect(onMudarFiltros).toHaveBeenCalledWith(
       expect.objectContaining({ area_responsavel: undefined }),
     );
+  });
+});
+
+describe("KanbanFiltros -- filtro de Unidade (STC-510)", () => {
+  it("pede unidades da rede padrão, não misturando com as de Operações Especiais", async () => {
+    renderFiltros({});
+
+    expect(listarUnidades).toHaveBeenCalledWith("padrao");
+  });
+
+  // Achado testando ao vivo: a aba "OPEX" mostrava as filiais normais no
+  // filtro de Unidade -- useUnidades("padrao") estava fixo, sem acompanhar
+  // qual aba de Tipo Gestão está ativa.
+  it("aba OPEX ativa pede unidades da rede opex, não a padrão", async () => {
+    const TIPO_GESTAO_OPEX: TipoGestao = {
+      ...TIPO_GESTAO_OPERACIONAL,
+      id: 3,
+      nome: "OPEX",
+      codigo: "opex",
+      visibilidade_padrao: "opex",
+      ordem: 2,
+    };
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_OPERACIONAL,
+      TIPO_GESTAO_UNIDADES,
+      TIPO_GESTAO_OPEX,
+    ]);
+
+    renderFiltros({ tipo_gestao: TIPO_GESTAO_OPEX.id });
+
+    // "padrao" pode ser chamado numa 1ª renderização transitória (antes de
+    // tiposGestao carregar, tipoGestaoAtivo ainda é undefined) -- o que
+    // importa é que, assim que a aba ativa é conhecida, a chamada final é
+    // "opex", não "padrao".
+    await waitFor(() => {
+      const ultimaChamada = vi.mocked(listarUnidades).mock.calls.at(-1);
+      expect(ultimaChamada).toEqual(["opex"]);
+    });
   });
 });

@@ -25,7 +25,14 @@ const PERFIL_OPS: Perfil = { id: 2, nome: "Admin Operações", descricao: "", ni
 const PERFIL_UNIDADE: Perfil = { id: 3, nome: "Unidade", descricao: "", nivel: 3 };
 const PERFIL_SETOR: Perfil = { id: 4, nome: "Setor", descricao: "", nivel: 4 };
 
-const UNIDADE: Unidade = { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true };
+const UNIDADE: Unidade = {
+  id: 1,
+  nome: "Niterói",
+  codigo: "NIT",
+  cidade: "Niterói",
+  ativa: true,
+  rede: "padrao",
+};
 const SETOR: Setor = { id: 1, nome: "Financeiro", codigo: "FIN", modulo_id: null, ativo: true };
 
 function usuario(overrides: Partial<Usuario> = {}): Usuario {
@@ -153,7 +160,14 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
   });
 
   it("filtra por unidade", async () => {
-    const VITORIA: Unidade = { id: 2, nome: "Vitória", codigo: "VIT", cidade: "Vitória", ativa: true };
+    const VITORIA: Unidade = {
+      id: 2,
+      nome: "Vitória",
+      codigo: "VIT",
+      cidade: "Vitória",
+      ativa: true,
+      rede: "padrao",
+    };
     vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, VITORIA]);
     vi.mocked(listarUsuarios).mockResolvedValue([
       usuario({ id: 1, first_name: "Carla", unidade_id: UNIDADE.id }),

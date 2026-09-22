@@ -43,6 +43,7 @@ const UNIDADE: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+  rede: "padrao",
 };
 
 const USUARIO: Usuario = {

@@ -64,7 +64,7 @@ export function MatrizFiltros({
   onMudarCategoria,
   onLimparUrl,
 }: MatrizFiltrosProps) {
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { usuarios } = useUsuarios();
   // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
   // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de

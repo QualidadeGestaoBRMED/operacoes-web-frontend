@@ -25,6 +25,7 @@ const UNIDADE: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+  rede: "padrao",
 };
 
 function tipo(

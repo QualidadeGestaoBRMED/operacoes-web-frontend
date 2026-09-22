@@ -87,7 +87,14 @@ describe("DetalheCard — Pills de área responsável", () => {
 
   it("mostra a unidade num Pill só quando não há área responsável", () => {
     renderizar(true, {
-      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      unidade: {
+        id: 1,
+        nome: "Niterói",
+        codigo: "NIT",
+        cidade: "Niterói",
+        ativa: true,
+        rede: "padrao",
+      },
       area_responsavel: [],
     });
 

@@ -53,6 +53,7 @@ const UNIDADE_NITEROI: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+  rede: "padrao",
 };
 
 const MODULO_GESTAO_DEMANDAS: Modulo = {

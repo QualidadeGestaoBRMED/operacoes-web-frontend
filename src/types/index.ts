@@ -29,12 +29,18 @@ export interface UsuarioPayload {
   setor_id?: number | null;
 }
 
+// STC-509 (backend): rede normal (filiais/clínicas) vs. Operações
+// Especiais (aeroclínicas etc.) -- mesma Unidade estrutural, só uma
+// dimensão a mais pra decidir qual é elegível pra qual cargo/tela.
+export type Rede = "padrao" | "opex";
+
 export interface Unidade {
   id: number;
   nome: string;
   codigo: string;
   cidade: string;
   ativa: boolean;
+  rede: Rede;
 }
 
 export interface Setor {
@@ -65,7 +71,7 @@ export interface Modulo {
   recursos_permissao: RecursoPermissao[];
 }
 
-export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos";
+export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos" | "opex";
 
 export interface TipoGestao {
   id: number;

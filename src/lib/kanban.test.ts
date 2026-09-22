@@ -13,7 +13,14 @@ import {
 describe("rotuloUnidadeOuResponsavel", () => {
   it("mostra a unidade quando não há área responsável", () => {
     const demanda = criarDemanda({
-      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      unidade: {
+        id: 1,
+        nome: "Niterói",
+        codigo: "NIT",
+        cidade: "Niterói",
+        ativa: true,
+        rede: "padrao",
+      },
       area_responsavel: [],
     });
     expect(rotuloUnidadeOuResponsavel(demanda)).toBe("Niterói");

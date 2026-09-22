@@ -54,7 +54,7 @@ export function GerenciarUsuarios({
 }) {
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { setores } = useSetores();
   const { atualizar } = useAtualizarUsuario();
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects

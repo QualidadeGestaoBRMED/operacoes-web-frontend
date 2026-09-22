@@ -96,7 +96,6 @@ export function FormNovaDemanda({
   // escolher de novo algo que já estava implícito na tela de origem.
   tipoGestaoInicial?: number;
 }) {
-  const { unidades } = useUnidades();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
@@ -142,6 +141,13 @@ export function FormNovaDemanda({
   );
   const moduloSelecionado = tipoGestaoSelecionado?.modulo;
   const ehOperacional = tipoGestaoSelecionado?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
+  // STC-510 (mesmo achado de KanbanFiltros.tsx): o Select de Unidade
+  // precisa acompanhar a rede do tipo de gestão selecionado NO FORMULÁRIO
+  // (não só o da aba de origem) -- o usuário pode trocar de tipo de gestão
+  // sem fechar o modal.
+  const { unidades } = useUnidades(
+    tipoGestaoSelecionado?.visibilidade_padrao === "opex" ? "opex" : "padrao",
+  );
 
   async function aoSubmeter(valores: FormValuesSaida) {
     // "unidade" e "area_responsavel" são mutuamente exclusivos -- qual dos

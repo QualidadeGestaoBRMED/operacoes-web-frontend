@@ -54,7 +54,7 @@ export function MapaConformidade() {
     unidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades();
+  } = useUnidades("padrao");
 
   const carregando = carregandoPrimeiraVez || carregandoUnidades;
   const error = erroDocumentos ?? erroUnidades;
