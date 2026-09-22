@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,12 +34,22 @@ vi.mock("@/hooks/useAlturaSemLinhaCortada", () => ({
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
-// Stub mostra o filtros.unidade recebido -- pra dar pra verificar a
-// pré-seleção forçada pro Coordenador (STC-512, review) sem simular o
-// componente inteiro de filtros.
+// Stub mostra o filtros.unidade recebido e expõe um botão que chama
+// onMudarFiltros({}) -- pra dar pra verificar a pré-seleção forçada pro
+// Coordenador (STC-512, review) e o clique em "Limpar filtros" (STC-512,
+// 2ª rodada de review) sem simular o componente inteiro de filtros.
 vi.mock("./MatrizFiltros", () => ({
-  MatrizFiltros: ({ filtros }: { filtros: { unidade?: number } }) => (
-    <div data-testid="unidade-filtro">{filtros.unidade ?? "todas"}</div>
+  MatrizFiltros: ({
+    filtros,
+    onMudarFiltros,
+  }: {
+    filtros: { unidade?: number };
+    onMudarFiltros: (filtros: Record<string, never>) => void;
+  }) => (
+    <div>
+      <div data-testid="unidade-filtro">{filtros.unidade ?? "todas"}</div>
+      <button onClick={() => onMudarFiltros({})}>Limpar filtros</button>
+    </div>
   ),
 }));
 vi.mock("./MatrizTable", () => ({ MatrizTable: () => null }));
@@ -195,5 +206,33 @@ describe("MatrizConformidade -- Coordenador só filtra a própria unidade, sem o
 
     const [, opcoes] = vi.mocked(useDocumentosLegalizacao).mock.calls[0];
     expect(opcoes).toMatchObject({ desabilitado: true });
+  });
+
+  // Achado na 2ª rodada de review: "Limpar filtros" (MatrizFiltros.tsx)
+  // chama onMudarFiltros({}), zerando filtros.unidade por um render antes
+  // do efeito de força (linhas 117-122) corrigir de volta -- sem pausar
+  // também esse caso, a busca disparava sem filtro de unidade nenhum
+  // nesse intervalo.
+  it("clicar em 'Limpar filtros' nunca chega a buscar documentos sem o filtro de unidade forçado", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: VITORIA.id },
+      perfil: { id: 1, nome: "Coordenação", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+
+    render(<MatrizConformidade />);
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+
+    expect(screen.getByTestId("unidade-filtro")).toHaveTextContent(String(VITORIA.id));
+    for (const [filtros, opcoes] of vi.mocked(useDocumentosLegalizacao).mock
+      .calls) {
+      if ((filtros as { unidade?: number } | undefined)?.unidade !== VITORIA.id) {
+        expect(opcoes).toMatchObject({ desabilitado: true });
+      }
+    }
   });
 });

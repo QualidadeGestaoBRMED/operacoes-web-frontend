@@ -135,8 +135,22 @@ export function MatrizConformidade() {
   // 1ª busca podia sair sem filtro de unidade nenhum pro Coordenador --
   // mostrando a tabela inteira da rede por um instante, até a sessão
   // resolver e o efeito acima forçar a unidade dele.
+  //
+  // aguardandoForcarUnidadeDoCoordenador (2ª rodada de review): sessão já
+  // carregada não bastava -- "Limpar filtros" (MatrizFiltros.tsx) chama
+  // onMudarFiltros({}), zerando filtros.unidade por um render inteiro antes
+  // do efeito acima corrigir de volta. Sem pausar também esse caso, a busca
+  // disparava sem filtro nenhum nesse intervalo -- mesmo sintoma do guard
+  // de carregandoSessao, só que disparado por uma ação do usuário em vez de
+  // timing de sessão.
+  const aguardandoForcarUnidadeDoCoordenador =
+    isCoordenacaoUnidade &&
+    user?.unidade_id !== undefined &&
+    filtros.unidade !== user.unidade_id;
   const aguardandoValidacaoDeUnidade =
-    (Boolean(filtros.unidade) && carregandoUnidades) || carregandoSessao;
+    (Boolean(filtros.unidade) && carregandoUnidades) ||
+    carregandoSessao ||
+    aguardandoForcarUnidadeDoCoordenador;
   const {
     documentos,
     carregandoPrimeiraVez,
