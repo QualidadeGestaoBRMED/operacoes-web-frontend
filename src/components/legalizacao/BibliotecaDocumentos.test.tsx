@@ -389,6 +389,182 @@ describe("BibliotecaDocumentos (STC-416)", () => {
   });
 });
 
+describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de documento e voltar (STC-511)", () => {
+  it("reabrir um documento já visto não refaz o download do PDF", async () => {
+    const docA = documento({ id: 10, tipo_documento: tipo() });
+    const docB = documento({
+      id: 11,
+      tipo_documento: tipo({
+        id: 2,
+        codigo: "licenca-sanitaria",
+        nome: "Licença Sanitária",
+      }),
+      evidencia_vigente: 200,
+    });
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([docA, docB]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([
+      evidencia({ documento_unidade: 10, nome_original: "alvara.pdf" }),
+      evidencia({
+        documento_unidade: 11,
+        nome_original: "licenca.pdf",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+
+    const botaoA = await screen.findByRole("button", {
+      name: "Alvará de Funcionamento",
+    });
+    await user.click(botaoA);
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await user.click(botaoA); // fecha
+    await user.click(
+      screen.getByRole("button", { name: "Licença Sanitária" }),
+    );
+    await screen.findByTitle("Pré-visualização de licenca.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole("button", { name: "Licença Sanitária" })); // fecha
+    await user.click(botaoA); // reabre A, já visto antes
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+
+    // Nenhum fetch a mais -- o preview de A veio do cache.
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  // Achado numa checagem de falhas críticas: sem o guard de telaAtiva
+  // (useEvidenciasLegalizacao.ts), um download que termina DEPOIS do
+  // unmount da Biblioteca criava uma Blob URL que ninguém nunca revogava
+  // (limparCachePreviewEvidencia já tinha rodado e não sabia dessa
+  // chegando atrasada) -- um vazamento de memória real, ainda que raro
+  // (só ocorre se o usuário navegar pra fora antes do PDF terminar de
+  // baixar).
+  it("não cria Blob URL se a Biblioteca desmontar antes do download do PDF terminar", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    let resolverFetch: ((resposta: Response) => void) | undefined;
+    global.fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolverFetch = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    const { unmount } = renderTela();
+
+    const botao = await screen.findByRole("button", {
+      name: "Alvará de Funcionamento",
+    });
+    await user.click(botao);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    unmount();
+    resolverFetch?.({
+      ok: true,
+      blob: () =>
+        Promise.resolve(new Blob(["%PDF-fake"], { type: "application/pdf" })),
+    } as Response);
+    // Deixa a cadeia de promises do fetcher (resposta.blob() -> ...) rodar.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  // Achado no review: revalidateIfStale:false também deixava um ERRO
+  // "grudado" no cache -- fechar/reabrir o mesmo documento continuava
+  // mostrando o mesmo erro sem tentar de novo. "Tentar novamente" força
+  // uma nova tentativa explícita.
+  it("'Tentar novamente' refaz o fetch depois de um erro de preview", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: () =>
+          Promise.resolve(new Blob(["%PDF-fake"], { type: "application/pdf" })),
+      } as Response);
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Alvará de Funcionamento" }),
+    );
+    expect(
+      await screen.findByText("Não foi possível carregar a pré-visualização."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  // Achado no review: reabrir um documento (cache HIT, sem fetch novo --
+  // revalidateIfStale:false) não reordenava a posição dele no LRU, só o
+  // fetch novo fazia isso. Um documento recém-revisitado podia ser
+  // evictado como se fosse o mais antigo assim que a sessão abrisse mais
+  // de TAMANHO_MAXIMO_CACHE_PREVIEW (8) documentos distintos.
+  it("reabrir um documento cacheado conta como uso recente pro LRU (não é evictado por engano)", async () => {
+    const docs = Array.from({ length: 9 }, (_, i) =>
+      documento({
+        id: i + 1,
+        tipo_documento: tipo({
+          id: i + 1,
+          codigo: `tipo-${i + 1}`,
+          nome: `Documento ${i + 1}`,
+        }),
+      }),
+    );
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue(docs);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue(
+      docs.map((d) => evidencia({ documento_unidade: d.id, nome_original: `doc${d.id}.pdf` })),
+    );
+    const idPorBlob = new Map<Blob, number>();
+    global.fetch = vi.fn(async (url: unknown) => {
+      const id = Number(/documento=(\d+)/.exec(String(url))?.[1]);
+      const blob = new Blob([`doc-${id}`], { type: "application/pdf" });
+      idPorBlob.set(blob, id);
+      return { ok: true, blob: () => Promise.resolve(blob) } as Response;
+    });
+    global.URL.createObjectURL = vi.fn(
+      (blob: Blob) => `blob:doc-${idPorBlob.get(blob)}`,
+    );
+    const user = userEvent.setup();
+    renderTela();
+
+    // Abre e fecha os documentos 1..8, enchendo o LRU até o limite.
+    for (const d of docs.slice(0, 8)) {
+      const botao = await screen.findByRole("button", { name: `Documento ${d.id}` });
+      await user.click(botao);
+      await screen.findByTitle(`Pré-visualização de doc${d.id}.pdf`);
+      await user.click(botao); // fecha
+    }
+    expect(global.fetch).toHaveBeenCalledTimes(8);
+
+    // Reabre o documento 1 (cache hit -- sem fetch novo) antes de abrir um
+    // 9º documento inédito.
+    const botao1 = screen.getByRole("button", { name: "Documento 1" });
+    await user.click(botao1);
+    await screen.findByTitle("Pré-visualização de doc1.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(8);
+    await user.click(botao1); // fecha
+
+    // Documento 9, inédito -- dispara o 9º fetch e evictа 1 entrada do LRU.
+    await user.click(screen.getByRole("button", { name: "Documento 9" }));
+    await screen.findByTitle("Pré-visualização de doc9.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(9);
+
+    // Documento 2 (não o 1, que foi recém-revisitado) é o menos
+    // recentemente usado agora -- é ele que devia ser evictado/revogado.
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:doc-2");
+    expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:doc-1");
+  });
+});
+
 describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-512)", () => {
   it("cai direto pra própria unidade, não pra 1ª da lista", async () => {
     vi.mocked(useAuth).mockReturnValue({

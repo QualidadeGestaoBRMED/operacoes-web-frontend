@@ -13,6 +13,10 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao, useEvidenciasVigentes } from "@/hooks/useDocumentosLegalizacao";
+import {
+  limparCachePreviewEvidencia,
+  useEvidenciaVigentePreview,
+} from "@/hooks/useEvidenciasLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
@@ -205,57 +209,21 @@ export function BibliotecaDocumentos() {
   // leitura -- nunca aceita uma URL do cliente pra evitar SSRF, rebusca a
   // evidência vigente direto do backend pelo id do documento) e montando
   // uma Blob URL local pro <iframe>, que nenhum dos três se aplica.
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [carregandoPreview, setCarregandoPreview] = useState(false);
-  const [erroPreview, setErroPreview] = useState<string | null>(null);
+  // STC-511: antes, reabrir um documento já visto refazia o download
+  // inteiro do PDF do zero (a Blob URL era revogada a cada troca de
+  // documento, mesmo já tendo acabado de baixar). Cache em memória
+  // (useEvidenciaVigentePreview, chaveado por documentoId) resolve isso --
+  // ver comentário completo em useEvidenciasLegalizacao.ts.
+  const { previewUrl, carregandoPreview, erroPreview, tentarNovamente } =
+    useEvidenciaVigentePreview(documentoSelecionadoId);
 
+  // Só no unmount de verdade (deps vazias) -- os blobs cacheados servem
+  // durante toda a visita à tela, não só enquanto um documento específico
+  // está selecionado (é justamente o que resolve o re-download ao trocar de
+  // documento e voltar). Ao sair da Biblioteca, não servem mais pra nada.
   useEffect(() => {
-    // Só documentoSelecionadoId na dependência (não evidenciaSelecionada) --
-    // achado testando: os itens de `evidencias` ganham referência nova a
-    // cada poll de 60s (useEvidenciasVigentes), mesmo sem o conteúdo mudar;
-    // dependendo do objeto inteiro, o preview refazia o fetch/Blob URL a
-    // cada poll, piscando a pré-visualização à toa. O próprio proxy
-    // reconfirma que a evidência vigente existe (RBAC incluído), não
-    // precisa ser checado nesta ponta de novo.
-    if (!documentoSelecionadoId) {
-      setPreviewUrl(null);
-      setErroPreview(null);
-      return;
-    }
-    let cancelado = false;
-    let urlLocal: string | null = null;
-    setCarregandoPreview(true);
-    setErroPreview(null);
-    fetch(`/api/media/evidencia-vigente?documento=${documentoSelecionadoId}`)
-      .then((resposta) => {
-        if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-        return resposta.blob();
-      })
-      .then((blob) => {
-        if (cancelado) return;
-        urlLocal = URL.createObjectURL(blob);
-        // #toolbar=0&navpanes=0&scrollbar=0 -- parâmetros que o visualizador
-        // de PDF nativo do Chrome lê da fragment da URL (mesmo padrão usado
-        // no prontuai, front-end/app/checagem/page.tsx). Sem isto, a barra
-        // dele (baixar/imprimir/"⋮") aparecia por cima do documento,
-        // duplicando o botão "Baixar PDF" do rodapé e destoando do resto da
-        // tela.
-        setPreviewUrl(`${urlLocal}#toolbar=0&navpanes=0&scrollbar=0`);
-      })
-      .catch(() => {
-        if (!cancelado) setErroPreview("Não foi possível carregar a pré-visualização.");
-      })
-      .finally(() => {
-        if (!cancelado) setCarregandoPreview(false);
-      });
-    // Revoga a Blob URL anterior ao trocar de documento ou fechar o painel
-    // -- sem isto, cada documento aberto vazava um Blob na memória do
-    // navegador, nunca liberado.
-    return () => {
-      cancelado = true;
-      if (urlLocal) URL.revokeObjectURL(urlLocal);
-    };
-  }, [documentoSelecionadoId]);
+    return () => limparCachePreviewEvidencia();
+  }, []);
 
   // coordenadorSemUnidade (achado no review, mesmo critério de
   // MatrizConformidade.tsx): Usuario.unidade_id é number|null -- um
@@ -548,9 +516,12 @@ export function BibliotecaDocumentos() {
                 {carregandoPreview ? (
                   <p className="text-sm text-muted-foreground">Carregando...</p>
                 ) : erroPreview ? (
-                  <p className="px-5 text-center text-sm text-destructive">
-                    {erroPreview}
-                  </p>
+                  <div className="flex flex-col items-center gap-2 px-5 text-center">
+                    <p className="text-sm text-destructive">{erroPreview}</p>
+                    <Button variant="outline" size="sm" onClick={tentarNovamente}>
+                      Tentar novamente
+                    </Button>
+                  </div>
                 ) : (
                   previewUrl && (
                     <iframe
