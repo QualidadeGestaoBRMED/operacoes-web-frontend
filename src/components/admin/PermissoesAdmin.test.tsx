@@ -154,6 +154,27 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  // STC-514: Coordenador ganha acesso, mas só ao Catálogo de Legalização.
+  it("Coordenador não é redirecionado, mas só vê o Catálogo de Legalização (sem Select de seção, sem Usuários/Permissões)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Seção")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("table", { name: /permissões individuais/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+  });
+
   it("lista permissões existentes com nome resolvido e status", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,

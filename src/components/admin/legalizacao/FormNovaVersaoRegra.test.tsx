@@ -12,8 +12,10 @@ import { FormNovaVersaoRegra } from "./FormNovaVersaoRegra";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/plataforma");
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { useAuth } from "@/hooks/useAuth";
 import {
   listarDocumentosLegalizacao,
   atualizarDocumentoLegalizacao,
@@ -106,6 +108,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+  vi.mocked(useAuth).mockReturnValue({
+    user: undefined,
+    perfil: undefined,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
 });
 
 describe("FormNovaVersaoRegra (STC-415)", () => {
@@ -378,6 +388,41 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Criar nova versão" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("FormNovaVersaoRegra -- Coordenador só corrige regra da própria unidade (STC-514)", () => {
+  const OUTRA_UNIDADE: Unidade = {
+    id: 2,
+    nome: "Vitória",
+    codigo: "VIT",
+    cidade: "Vitória",
+    ativa: true,
+    rede: "padrao",
+  };
+
+  it("unidade já vem pré-selecionada, sem oferecer outras da rede", async () => {
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: UNIDADE.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+
+    renderComponente();
+
+    expect(
+      await screen.findByRole("combobox", { name: "Unidade" }),
+    ).toHaveTextContent(UNIDADE.nome);
+
+    await user.click(screen.getByLabelText("Unidade"));
+    expect(
+      screen.queryByRole("option", { name: OUTRA_UNIDADE.nome }),
     ).not.toBeInTheDocument();
   });
 });

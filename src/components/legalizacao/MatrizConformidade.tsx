@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
-import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -237,7 +236,7 @@ export function MatrizConformidade() {
 
   return (
     <div ref={refPai} className="flex h-full min-h-0 flex-col">
-      <ToggleMapaLista ativo="lista" linkBiblioteca mostrarMapa={!isCoordenacaoUnidade} />
+      <ToggleMapaLista ativo="lista" linkBiblioteca />
       <MatrizFiltros
         filtros={filtros}
         onMudarFiltros={setFiltros}

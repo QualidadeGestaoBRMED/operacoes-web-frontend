@@ -8,11 +8,10 @@ import { useUnidades } from "@/hooks/useUnidades";
 import type { Unidade } from "@/types";
 import { MatrizConformidade } from "./MatrizConformidade";
 
-// Foco estreito: resincronização de documentoAbertoId <- URL (STC-443), o
-// toggle do Mapa por perfil (STC-451) e, agora, o filtro de unidade forçado
-// pro Coordenador (STC-512) -- não é cobertura completa de
-// MatrizConformidade.tsx, os componentes filhos/hooks de dados viram stubs
-// triviais.
+// Foco estreito: resincronização de documentoAbertoId <- URL (STC-443) e o
+// filtro de unidade forçado pro Coordenador (STC-512) -- não é cobertura
+// completa de MatrizConformidade.tsx, os componentes filhos/hooks de dados
+// viram stubs triviais.
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
   usePathname: () => "/modulos/legalizacao",
@@ -53,13 +52,7 @@ vi.mock("./MatrizFiltros", () => ({
   ),
 }));
 vi.mock("./MatrizTable", () => ({ MatrizTable: () => null }));
-// Stub mostra mostrarMapa recebido (STC-451) -- pra dar pra verificar sem
-// simular o segmented control inteiro.
-vi.mock("./ToggleMapaLista", () => ({
-  ToggleMapaLista: ({ mostrarMapa }: { mostrarMapa?: boolean }) => (
-    <div data-testid="mostra-mapa">{String(mostrarMapa)}</div>
-  ),
-}));
+vi.mock("./ToggleMapaLista", () => ({ ToggleMapaLista: () => null }));
 // Stub só mostra o documentoId recebido, pra dar pra verificar sem simular
 // o modal inteiro (que tem sua própria busca de dados).
 vi.mock("./DetalheDocumentoModal", () => ({
@@ -122,29 +115,6 @@ describe("MatrizConformidade -- resincronização de documentoAbertoId (STC-443)
     rerender(<MatrizConformidade />);
 
     expect(screen.getByTestId("documento-aberto")).toHaveTextContent("99");
-  });
-});
-
-describe("MatrizConformidade -- Mapa escondido pra Coordenação da Unidade (STC-451)", () => {
-  it("mostra o Mapa pra quem não é Coordenação da Unidade", () => {
-    render(<MatrizConformidade />);
-
-    expect(screen.getByTestId("mostra-mapa")).toHaveTextContent("true");
-  });
-
-  it("esconde o Mapa pra Coordenação da Unidade -- ela só acompanha a própria unidade", () => {
-    vi.mocked(useAuth).mockReturnValue({
-      user: undefined,
-      perfil: { id: 1, nome: "Coordenação", nivel: 3 },
-      isLoading: false,
-      isAdminQG: false,
-      isAdminOps: false,
-      isCoordenacaoUnidade: true,
-    } as never);
-
-    render(<MatrizConformidade />);
-
-    expect(screen.getByTestId("mostra-mapa")).toHaveTextContent("false");
   });
 });
 

@@ -139,7 +139,15 @@ function prioridadeStatus(permissao: {
 
 export function PermissoesAdmin() {
   const router = useRouter();
-  const { isAdminOps, isLoading: carregandoAuth } = useAuth();
+  const { isAdminOps, isCoordenacaoUnidade, isLoading: carregandoAuth } =
+    useAuth();
+  // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
+  // Legalização -- Usuários/Permissões individuais continuam Admin-only.
+  // Mutuamente exclusivo com isAdminOps na prática (níveis diferentes),
+  // mas checado explícito mesmo assim: se algum dia alguém acumular os
+  // dois papéis, Admin Ops deve prevalecer (acesso completo).
+  const apenasCatalogo = isCoordenacaoUnidade && !isAdminOps;
+  const podeAcessar = isAdminOps || isCoordenacaoUnidade;
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo
@@ -273,12 +281,16 @@ export function PermissoesAdmin() {
   // resolver, e sem essa checagem um Admin Operações de verdade seria
   // redirecionado por engano no primeiro render.
   useEffect(() => {
-    if (!carregandoAuth && !isAdminOps) {
+    if (!carregandoAuth && !podeAcessar) {
       router.replace("/modulos/gestao-demandas");
     }
-  }, [carregandoAuth, isAdminOps, router]);
+  }, [carregandoAuth, podeAcessar, router]);
 
-  if (carregandoAuth || !isAdminOps) return null;
+  if (carregandoAuth || !podeAcessar) return null;
+
+  // Coordenador só tem 1 aba de verdade (Catálogo) -- nem faz sentido
+  // deixar `aba` (useState acima, nasce "usuarios") valer pra ele.
+  const abaEfetiva: Aba = apenasCatalogo ? "catalogo-legalizacao" : aba;
 
   function nomeUsuario(usuarioId: number) {
     const usuario = usuarios.find((candidato) => candidato.id === usuarioId);
@@ -476,25 +488,30 @@ export function PermissoesAdmin() {
         <div className="flex items-center gap-2.5">
           <ShieldCheck className="size-5 shrink-0 text-secondary" />
           <h1 className="text-lg font-semibold text-foreground">
-            Administração
+            {apenasCatalogo ? ROTULO_ABA["catalogo-legalizacao"] : "Administração"}
           </h1>
         </div>
 
-        <Select value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
-          <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(ROTULO_ABA) as Aba[]).map((valor) => (
-              <SelectItem key={valor} value={valor}>
-                {ROTULO_ABA[valor]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Sem Select nenhum pro Coordenador -- só 1 aba (Catálogo de
+            Legalização) faz parte do acesso dele, não tem entre o quê
+            escolher. */}
+        {!apenasCatalogo && (
+          <Select value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
+            <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ROTULO_ABA) as Aba[]).map((valor) => (
+                <SelectItem key={valor} value={valor}>
+                  {ROTULO_ABA[valor]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      <CatalogoLegalizacaoAdmin hidden={aba !== "catalogo-legalizacao"} />
+      <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
 
       {/* Cada seção reparte a altura disponível proporcional a quantas
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
@@ -529,258 +546,262 @@ export function PermissoesAdmin() {
           aba pra herdar esse conteúdo "solto", não haveria como alcançar o
           que não coubesse na tela. Desktop mantém sm:overflow-visible (cada
           tabela rola por conta própria, como já documentado acima). */}
-      <div
-        hidden={aba !== "usuarios"}
-        className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
-      >
+      {/* Usuários/Permissões individuais continuam Admin-only (STC-514) --
+          nunca renderiza pro Coordenador, não só escondido via `hidden`. */}
+      {!apenasCatalogo && (
         <div
-          data-testid="secao-usuarios"
-          className={cn(
-            "flex min-h-[20rem] min-w-0 flex-col",
-            secaoExpandida === "permissoes" ? "hidden" : "flex-1",
-          )}
-          style={{ flexGrow: pesoUsuarios }}
+          hidden={aba !== "usuarios"}
+          className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
         >
-          {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario
-              (acessos extras pontuais). Faltava a parte "estrutural" --
-              Perfil/Unidade/Setor da pessoa -- que hoje só existia no
-              Django Admin, mesmo o backend (UsuarioViewSet) já aceitando
-              Admin Operações editar isso via API. */}
-          <GerenciarUsuarios
-            expandido={secaoExpandida === "usuarios"}
-            onAlternarExpandir={() => alternarExpansao("usuarios")}
-          />
-        </div>
-
-        {secaoExpandida === null && <div className="h-px shrink-0 bg-border" />}
-
-        <div
-          ref={refSecaoPermissoes}
-          data-testid="secao-permissoes"
-          className={cn(
-            "flex min-h-[20rem] min-w-0 flex-col",
-            secaoExpandida === "usuarios" ? "hidden" : "flex-1",
-          )}
-          style={{ flexGrow: pesoPermissoes }}
-        >
-          <div className="pb-2">
-            <h2 className="text-base font-semibold text-foreground">
-              Permissões individuais
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Acesso extra a um recurso específico -- temporário ou não -- ex.:
-              cobertura de férias entre unidades.
-            </p>
+          <div
+            data-testid="secao-usuarios"
+            className={cn(
+              "flex min-h-[20rem] min-w-0 flex-col",
+              secaoExpandida === "permissoes" ? "hidden" : "flex-1",
+            )}
+            style={{ flexGrow: pesoUsuarios }}
+          >
+            {/* STC-266 (extensão): a tela nasceu só com PermissaoUsuario
+                (acessos extras pontuais). Faltava a parte "estrutural" --
+                Perfil/Unidade/Setor da pessoa -- que hoje só existia no
+                Django Admin, mesmo o backend (UsuarioViewSet) já aceitando
+                Admin Operações editar isso via API. */}
+            <GerenciarUsuarios
+              expandido={secaoExpandida === "usuarios"}
+              onAlternarExpandir={() => alternarExpansao("usuarios")}
+            />
           </div>
 
-          {/* Achado no dogfooding: filtros e botões numa linha só (não
-              cabeçalho+botões numa linha e filtros noutra) -- mesmo
-              critério do KanbanFiltros (o "Nova Demanda" mora na própria
-              linha dos filtros, não no cabeçalho da página) e economiza
-              uma linha inteira de altura, principalmente em mobile. */}
-          <div className="flex flex-wrap items-center gap-2 pb-3">
-            {!carregandoPermissoes &&
-              permissoesOrdenadas.length > 0 &&
-              (ehMobile ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="relative shrink-0"
-                    >
-                      <ListFilter className="size-4" />
-                      <span className="sr-only">Filtros</span>
-                      {contagemFiltrosPermissoes > 0 && (
-                        <Badge
-                          variant="secondary"
-                          className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
-                        >
-                          {contagemFiltrosPermissoes}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="flex flex-col gap-2">
-                    {camposDeFiltroPermissoes()}
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                camposDeFiltroPermissoes()
-              ))}
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button onClick={() => setFormAberto(true)}>
-                <Plus className="size-4" />
-                Nova permissão
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => alternarExpansao("permissoes")}
-                aria-label={
-                  secaoExpandida === "permissoes"
-                    ? "Recolher Permissões individuais"
-                    : "Expandir Permissões individuais"
-                }
-              >
-                {secaoExpandida === "permissoes" ? (
-                  <Minimize2 className="size-4" />
-                ) : (
-                  <Maximize2 className="size-4" />
-                )}
-              </Button>
+          {secaoExpandida === null && <div className="h-px shrink-0 bg-border" />}
+
+          <div
+            ref={refSecaoPermissoes}
+            data-testid="secao-permissoes"
+            className={cn(
+              "flex min-h-[20rem] min-w-0 flex-col",
+              secaoExpandida === "usuarios" ? "hidden" : "flex-1",
+            )}
+            style={{ flexGrow: pesoPermissoes }}
+          >
+            <div className="pb-2">
+              <h2 className="text-base font-semibold text-foreground">
+                Permissões individuais
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Acesso extra a um recurso específico -- temporário ou não -- ex.:
+                cobertura de férias entre unidades.
+              </p>
             </div>
-          </div>
 
-          {carregandoPermissoes ? (
-            <p className="text-sm text-muted-foreground">Carregando...</p>
-          ) : permissoesOrdenadas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma permissão concedida ainda.
-            </p>
-          ) : permissoesFiltradas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma permissão encontrada com esses filtros.
-            </p>
-          ) : (
-            // ehMobile ? undefined : {...} / !ehMobile && "overflow-y-auto":
-            // mesmo achado de GerenciarUsuarios.tsx (STC-505) -- sem isso, a
-            // tabela travava a própria altura mesmo no mobile, sem sobrar
-            // espaço nem scroll de página pra compensar.
-            <div
-              ref={refTabelaPermissoes}
-              style={ehMobile ? undefined : { maxHeight: alturaTabelaPermissoes }}
-              className={cn(
-                "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
-                !ehMobile && "overflow-y-auto",
-              )}
-            >
-              <table
-                aria-label="Permissões individuais"
-                className="w-full min-w-[720px] text-left text-sm"
-              >
-                {/* sticky: achado no dogfooding (pedido testando com muitas
-                    permissões) -- sem isso, rolar a tabela escondia os
-                    rótulos das colunas junto com as linhas. bg-muted sólido
-                    (não /40): um header sticky translúcido deixaria as
-                    linhas por baixo aparecerem por trás dele ao rolar. */}
-                <thead className="sticky top-0 z-10">
-                  <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    {/* sticky left-0: achado testando no mobile (STC-505) --
-                        8 colunas (a mais densa das 3 tabelas de admin)
-                        deixavam a tela cheia de scroll horizontal sem
-                        contexto de qual linha é qual. Mesmo tratamento de
-                        GerenciarUsuarios.tsx/TabelaTiposDocumento.tsx -- ver
-                        comentário lá pro racional completo do bg/z-index. */}
-                    <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
-                    <th className="px-4 py-2.5">Recurso</th>
-                    <th className="px-4 py-2.5">Concedido</th>
-                    <th className="px-4 py-2.5">Ação</th>
-                    <th className="px-4 py-2.5">Escopo</th>
-                    <th className="px-4 py-2.5">Período</th>
-                    <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {permissoesFiltradas.map((permissao) => {
-                    const status = statusPermissao(permissao);
-                    return (
-                      <tr
-                        key={permissao.id}
-                        className="border-b border-border last:border-0"
+            {/* Achado no dogfooding: filtros e botões numa linha só (não
+                cabeçalho+botões numa linha e filtros noutra) -- mesmo
+                critério do KanbanFiltros (o "Nova Demanda" mora na própria
+                linha dos filtros, não no cabeçalho da página) e economiza
+                uma linha inteira de altura, principalmente em mobile. */}
+            <div className="flex flex-wrap items-center gap-2 pb-3">
+              {!carregandoPermissoes &&
+                permissoesOrdenadas.length > 0 &&
+                (ehMobile ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="relative shrink-0"
                       >
-                        <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
-                          {nomeUsuario(permissao.usuario)}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">
-                          {rotuloRecurso(permissao.recurso)}
-                        </td>
-                        {/* Achado no dogfooding: faltava rastro de quem
-                            concedeu e quando -- só o período de validade não
-                            basta pra auditoria ("quem deu esse acesso pra
-                            ela?"). */}
-                        <td className="px-4 py-2.5 text-muted-foreground">
-                          <div>{nomeUsuario(permissao.concedido_por)}</div>
-                          <div className="text-xs">
-                            {formatarDataHora(permissao.created_at)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {ROTULO_ACAO[permissao.acao]}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {ROTULO_ESCOPO[permissao.escopo_tipo]}
-                          {permissao.escopo_tipo !== "global" &&
-                            permissao.escopo_tipo !== "proprio" && (
-                              <span className="text-muted-foreground">
-                                {" -- "}
-                                {nomeEscopo(permissao)}
-                              </span>
-                            )}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">
-                          {permissao.data_fim
-                            ? `${formatarData(permissao.data_inicio)} até ${formatarData(permissao.data_fim)}`
-                            : `A partir de ${formatarData(permissao.data_inicio)}`}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <Badge variant={status.variante}>
-                            {status.rotulo}
+                        <ListFilter className="size-4" />
+                        <span className="sr-only">Filtros</span>
+                        {contagemFiltrosPermissoes > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="absolute -top-1.5 -right-1.5 size-4 justify-center rounded-full p-0 text-[10px]"
+                          >
+                            {contagemFiltrosPermissoes}
                           </Badge>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="flex justify-end gap-1.5">
-                            {/* Achado no dogfooding: permissao.ativo sozinho
-                                também é true pra "Expirada" (a data que
-                                passou, não o campo ativo) -- Revogar não faz
-                                sentido nenhum ali, já não vale de qualquer
-                                jeito. Só aparece pro que ainda está de pé
-                                (Ativa/Agendada). */}
-                            {(status.rotulo === "Ativa" ||
-                              status.rotulo === "Agendada") && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => setParaRevogar(permissao)}
-                              >
-                                Revogar
-                              </Button>
-                            )}
-                            {(status.rotulo === "Revogada" ||
-                              status.rotulo === "Expirada") && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                // Cor puxa pro verde do badge "Ativa" (--chart-3)
-                                // -- achado no dogfooding: Revogar/Reativar com
-                                // a mesma cor cinza + nomes parecidos confundia
-                                // visualmente qual botão fazia o quê.
-                                className="border-chart-3/40 text-chart-3 hover:bg-chart-3/10 hover:text-chart-3"
-                                onClick={() =>
-                                  // Sem data de fim, religa o mesmo registro
-                                  // direto -- com data de fim, as datas velhas
-                                  // não servem mais, abre o formulário
-                                  // pré-preenchido pra um período novo.
-                                  permissao.data_fim
-                                    ? setRenovando(permissao)
-                                    : setParaReativar(permissao)
-                                }
-                              >
-                                Reativar
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="flex flex-col gap-2">
+                      {camposDeFiltroPermissoes()}
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  camposDeFiltroPermissoes()
+                ))}
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <Button onClick={() => setFormAberto(true)}>
+                  <Plus className="size-4" />
+                  Nova permissão
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => alternarExpansao("permissoes")}
+                  aria-label={
+                    secaoExpandida === "permissoes"
+                      ? "Recolher Permissões individuais"
+                      : "Expandir Permissões individuais"
+                  }
+                >
+                  {secaoExpandida === "permissoes" ? (
+                    <Minimize2 className="size-4" />
+                  ) : (
+                    <Maximize2 className="size-4" />
+                  )}
+                </Button>
+              </div>
             </div>
-          )}
+
+            {carregandoPermissoes ? (
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            ) : permissoesOrdenadas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma permissão concedida ainda.
+              </p>
+            ) : permissoesFiltradas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma permissão encontrada com esses filtros.
+              </p>
+            ) : (
+              // ehMobile ? undefined : {...} / !ehMobile && "overflow-y-auto":
+              // mesmo achado de GerenciarUsuarios.tsx (STC-505) -- sem isso, a
+              // tabela travava a própria altura mesmo no mobile, sem sobrar
+              // espaço nem scroll de página pra compensar.
+              <div
+                ref={refTabelaPermissoes}
+                style={ehMobile ? undefined : { maxHeight: alturaTabelaPermissoes }}
+                className={cn(
+                  "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+                  !ehMobile && "overflow-y-auto",
+                )}
+              >
+                <table
+                  aria-label="Permissões individuais"
+                  className="w-full min-w-[720px] text-left text-sm"
+                >
+                  {/* sticky: achado no dogfooding (pedido testando com muitas
+                      permissões) -- sem isso, rolar a tabela escondia os
+                      rótulos das colunas junto com as linhas. bg-muted sólido
+                      (não /40): um header sticky translúcido deixaria as
+                      linhas por baixo aparecerem por trás dele ao rolar. */}
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      {/* sticky left-0: achado testando no mobile (STC-505) --
+                          8 colunas (a mais densa das 3 tabelas de admin)
+                          deixavam a tela cheia de scroll horizontal sem
+                          contexto de qual linha é qual. Mesmo tratamento de
+                          GerenciarUsuarios.tsx/TabelaTiposDocumento.tsx -- ver
+                          comentário lá pro racional completo do bg/z-index. */}
+                      <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
+                      <th className="px-4 py-2.5">Recurso</th>
+                      <th className="px-4 py-2.5">Concedido</th>
+                      <th className="px-4 py-2.5">Ação</th>
+                      <th className="px-4 py-2.5">Escopo</th>
+                      <th className="px-4 py-2.5">Período</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {permissoesFiltradas.map((permissao) => {
+                      const status = statusPermissao(permissao);
+                      return (
+                        <tr
+                          key={permissao.id}
+                          className="border-b border-border last:border-0"
+                        >
+                          <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
+                            {nomeUsuario(permissao.usuario)}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground">
+                            {rotuloRecurso(permissao.recurso)}
+                          </td>
+                          {/* Achado no dogfooding: faltava rastro de quem
+                              concedeu e quando -- só o período de validade não
+                              basta pra auditoria ("quem deu esse acesso pra
+                              ela?"). */}
+                          <td className="px-4 py-2.5 text-muted-foreground">
+                            <div>{nomeUsuario(permissao.concedido_por)}</div>
+                            <div className="text-xs">
+                              {formatarDataHora(permissao.created_at)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {ROTULO_ACAO[permissao.acao]}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {ROTULO_ESCOPO[permissao.escopo_tipo]}
+                            {permissao.escopo_tipo !== "global" &&
+                              permissao.escopo_tipo !== "proprio" && (
+                                <span className="text-muted-foreground">
+                                  {" -- "}
+                                  {nomeEscopo(permissao)}
+                                </span>
+                              )}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground">
+                            {permissao.data_fim
+                              ? `${formatarData(permissao.data_inicio)} até ${formatarData(permissao.data_fim)}`
+                              : `A partir de ${formatarData(permissao.data_inicio)}`}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Badge variant={status.variante}>
+                              {status.rotulo}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              {/* Achado no dogfooding: permissao.ativo sozinho
+                                  também é true pra "Expirada" (a data que
+                                  passou, não o campo ativo) -- Revogar não faz
+                                  sentido nenhum ali, já não vale de qualquer
+                                  jeito. Só aparece pro que ainda está de pé
+                                  (Ativa/Agendada). */}
+                              {(status.rotulo === "Ativa" ||
+                                status.rotulo === "Agendada") && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => setParaRevogar(permissao)}
+                                >
+                                  Revogar
+                                </Button>
+                              )}
+                              {(status.rotulo === "Revogada" ||
+                                status.rotulo === "Expirada") && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  // Cor puxa pro verde do badge "Ativa" (--chart-3)
+                                  // -- achado no dogfooding: Revogar/Reativar com
+                                  // a mesma cor cinza + nomes parecidos confundia
+                                  // visualmente qual botão fazia o quê.
+                                  className="border-chart-3/40 text-chart-3 hover:bg-chart-3/10 hover:text-chart-3"
+                                  onClick={() =>
+                                    // Sem data de fim, religa o mesmo registro
+                                    // direto -- com data de fim, as datas velhas
+                                    // não servem mais, abre o formulário
+                                    // pré-preenchido pra um período novo.
+                                    permissao.data_fim
+                                      ? setRenovando(permissao)
+                                      : setParaReativar(permissao)
+                                  }
+                                >
+                                  Reativar
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <FormNovaPermissao
         open={formAberto || renovando !== null}

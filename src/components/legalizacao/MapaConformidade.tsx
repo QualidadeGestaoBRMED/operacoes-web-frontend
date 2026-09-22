@@ -21,23 +21,12 @@ export function MapaConformidade() {
   // não só esconde o link no toggle -- cobre também quem chega direto por
   // um link salvo/compartilhado em mobile.
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  // STC-451: Coordenação da Unidade só acompanha a própria unidade -- o
-  // Mapa é o panorama da rede inteira (sem filtro nenhum, ver comentário
-  // abaixo), não faz sentido pra esse perfil. ToggleMapaLista já esconde o
-  // link (MatrizConformidade.tsx), isto é a defesa em profundidade pra
-  // quem chega direto por um link salvo/compartilhado -- mesmo raciocínio
-  // do redirect de mobile logo acima, só que por perfil em vez de largura
-  // de tela.
-  const { isCoordenacaoUnidade } = useAuth();
-  const redireciona = ehMobile || isCoordenacaoUnidade;
+  const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
+  const redireciona = ehMobile;
   useEffect(() => {
     if (redireciona) router.replace("/modulos/legalizacao");
   }, [redireciona, router]);
 
-  // Sem filtro nenhum de propósito -- o Mapa é o panorama da rede inteira,
-  // igual ResumoCards/MatrizMapaGrid precisam ver todas as unidades pra
-  // calcular a grade e o resumo por conta própria (agregação client-side,
-  // ver lib/legalizacaoMapa.ts).
   const {
     documentos,
     carregandoPrimeiraVez,
@@ -51,12 +40,26 @@ export function MapaConformidade() {
   // documentos). Duas fontes de dado, os dois erros precisam derrubar a
   // tela igual.
   const {
-    unidades,
+    unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
   } = useUnidades("padrao");
+  // STC-513: Coordenação da Unidade só acompanha a própria unidade -- em vez
+  // de redirecionar pra fora do Mapa (STC-451, revertido por pedido da
+  // Solicitante), a grade passa a conter só a unidade dele. Filtrar aqui
+  // resolve ResumoCards/MatrizMapaGrid de uma vez só, já que os dois
+  // derivam genericamente da grade (mesmo padrão da STC-512 em
+  // BibliotecaDocumentos.tsx/MatrizFiltros.tsx).
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
 
-  const carregando = carregandoPrimeiraVez || carregandoUnidades;
+  // carregandoSessao entra aqui (não só carregandoPrimeiraVez/carregandoUnidades):
+  // isCoordenacaoUnidade nasce false enquanto a sessão carrega (useAuth.ts),
+  // então sem isso a grade podia renderizar de vez com TODAS as unidades da
+  // rede -- pra depois, um instante depois, estreitar pra só a do usuário --
+  // reabrindo o mesmo vazamento visual que motivou esta issue.
+  const carregando = carregandoPrimeiraVez || carregandoUnidades || carregandoSessao;
   const error = erroDocumentos ?? erroUnidades;
   const mensagemDeErro =
     mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null);

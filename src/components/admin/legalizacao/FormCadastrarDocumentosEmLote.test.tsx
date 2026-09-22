@@ -10,8 +10,10 @@ import { FormCadastrarDocumentosEmLote } from "./FormCadastrarDocumentosEmLote";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/plataforma");
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { useAuth } from "@/hooks/useAuth";
 import {
   atualizarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
@@ -131,6 +133,14 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO_EQUIPAMENTO, TIPO_COMUM]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+  vi.mocked(useAuth).mockReturnValue({
+    user: undefined,
+    perfil: undefined,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
 });
 
 describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
@@ -537,5 +547,40 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(screen.getByText("Anexar evidências (opcional)")).toBeInTheDocument();
+  });
+});
+
+describe("FormCadastrarDocumentosEmLote -- Coordenador só cadastra na própria unidade (STC-514)", () => {
+  const OUTRA_UNIDADE: Unidade = {
+    id: 2,
+    nome: "Vitória",
+    codigo: "VIT",
+    cidade: "Vitória",
+    ativa: true,
+    rede: "padrao",
+  };
+
+  it("unidade já vem pré-selecionada, sem oferecer outras da rede (senão 403 no submit)", async () => {
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: UNIDADE.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+
+    renderForm();
+
+    expect(
+      await screen.findByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(UNIDADE.nome);
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    expect(
+      screen.queryByRole("option", { name: OUTRA_UNIDADE.nome }),
+    ).not.toBeInTheDocument();
   });
 });
