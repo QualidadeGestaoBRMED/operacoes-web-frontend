@@ -207,4 +207,20 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     expect(container).not.toHaveClass("overflow-y-auto");
     expect(container?.style.maxHeight).toBe("");
   });
+
+  // STC-505 (achado no code review, 3ª rodada): os testes anteriores só
+  // cobriam o efeito colateral (altura no mobile) -- nenhum cobria o fix
+  // central que a issue pediu de fato (perder o contexto de qual linha é
+  // qual ao rolar horizontalmente). sticky left-0 é o que resolve isso.
+  it("mantém a coluna 'Pessoa' fixa (sticky left-0) ao rolar a tabela horizontalmente", async () => {
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario()]);
+
+    renderTela();
+
+    const cabecalho = await screen.findByRole("columnheader", { name: "Pessoa" });
+    expect(cabecalho).toHaveClass("sticky", "left-0");
+
+    const celula = screen.getByRole("cell", { name: "Fernanda Lima" });
+    expect(celula).toHaveClass("sticky", "left-0");
+  });
 });

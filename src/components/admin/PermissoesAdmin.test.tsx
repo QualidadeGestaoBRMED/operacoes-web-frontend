@@ -1204,4 +1204,29 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(container).not.toHaveClass("overflow-y-auto");
     expect(container?.style.maxHeight).toBe("");
   });
+
+  // STC-505 (achado no code review, 3ª rodada): os testes anteriores só
+  // cobriam o efeito colateral (altura no mobile) -- nenhum cobria o fix
+  // central que a issue pediu de fato (perder o contexto de qual linha é
+  // qual ao rolar horizontalmente). sticky left-0 é o que resolve isso.
+  // Escopado à tabela: "Pessoa"/"Fernanda Lima" também existem na tabela de
+  // Perfil/Unidade/Setor, mesma página.
+  it("mantém a coluna 'Pessoa' fixa (sticky left-0) em 'Permissões individuais' ao rolar horizontalmente", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([permissaoBase()]);
+
+    renderTela();
+
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    const cabecalho = tabela.getByRole("columnheader", { name: "Pessoa" });
+    expect(cabecalho).toHaveClass("sticky", "left-0");
+
+    const celula = tabela.getByRole("cell", { name: "Fernanda Lima" });
+    expect(celula).toHaveClass("sticky", "left-0");
+  });
 });
