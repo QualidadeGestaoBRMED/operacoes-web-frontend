@@ -137,8 +137,16 @@ export function BibliotecaDocumentos() {
   // validação acima (linhas 79-84) confirmar que ele existe de verdade --
   // se a unidade for inválida, a tela mostra "nenhum documento" por um
   // instante, com o filtro ruim ainda ativo, até o efeito corrigir.
+  //
+  // carregandoSessao entra aqui também (STC-512, review): um Coordenador
+  // chegando com ?unidade=<outra-unidade> na URL (link antigo, de antes
+  // desta correção) tem `unidadeId` já definido desde o 1º render -- se
+  // `unidades` (useUnidades) resolver ANTES da sessão, a 2ª validação acima
+  // ainda enxerga a lista SEM filtro (isCoordenacaoUnidade nasce false
+  // enquanto carrega, useAuth.ts) e não corrige nada, liberando a busca com
+  // a unidade errada até a sessão resolver e a lista filtrar de verdade.
   const aguardandoValidacaoDeUnidade =
-    unidadeId !== undefined && carregandoUnidades;
+    (unidadeId !== undefined && carregandoUnidades) || carregandoSessao;
   const {
     documentos,
     isLoading: carregandoDocumentos,

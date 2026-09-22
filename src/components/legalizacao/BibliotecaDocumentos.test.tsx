@@ -449,4 +449,29 @@ describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-51
     await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
     expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
   });
+
+  // Achado numa 3ª rodada de review: diferente do teste acima (URL sem
+  // unidade nenhuma), aqui a URL já chega com ?unidade=<outra> -- unidadeId
+  // nasce definido desde o 1º render, sem esperar a sessão. Se a lista de
+  // unidades resolvesse antes da sessão, a 2ª validação (linhas 114-124)
+  // via essa unidade "existir" na lista ainda não filtrada e não corrigia
+  // nada, liberando a busca com a unidade errada até a sessão resolver.
+  it("não busca documentos com a unidade da URL antes da sessão carregar, mesmo que ela exista na rede", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(
+      new URLSearchParams({ unidade: String(NITEROI.id) }) as never,
+    );
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: true,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
 });

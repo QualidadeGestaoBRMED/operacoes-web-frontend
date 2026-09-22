@@ -143,14 +143,33 @@ export function MatrizConformidade() {
   // disparava sem filtro nenhum nesse intervalo -- mesmo sintoma do guard
   // de carregandoSessao, só que disparado por uma ação do usuário em vez de
   // timing de sessão.
+  //
+  // Boolean(user?.unidade_id) (3ª rodada de review, não "!== undefined"):
+  // Usuario.unidade_id é number|null -- um Coordenador sem unidade
+  // vinculada (conta mal configurada, GerenciarUsuarios.tsx não impede)
+  // tem unidade_id null, e null !== undefined também é true. Com a
+  // checagem antiga, essa flag ficava travada em true pra sempre (o efeito
+  // de força acima também nunca seta filtros.unidade pra esse caso, então
+  // a divergência nunca se resolve) -- aguardandoValidacaoDeUnidade abaixo
+  // desabilitava a busca permanentemente, e a tela ficava presa num
+  // skeleton de carregamento sem nenhuma saída, silenciosamente.
   const aguardandoForcarUnidadeDoCoordenador =
     isCoordenacaoUnidade &&
-    user?.unidade_id !== undefined &&
-    filtros.unidade !== user.unidade_id;
+    Boolean(user?.unidade_id) &&
+    filtros.unidade !== user?.unidade_id;
+  // coordenadorSemUnidade: cobre esse mesmo caso (unidade_id null/undefined
+  // com a sessão já resolvida) como um estado de ERRO explícito, não um
+  // 3º tipo de "aguardando" -- sem isso, a busca simplesmente seguiria sem
+  // filtro nenhum de unidade, mostrando a rede inteira pra uma conta
+  // quebrada (o oposto do que esta issue pede). Mantém a busca pausada
+  // (abaixo) e troca o skeleton mudo por uma mensagem acionável.
+  const coordenadorSemUnidade =
+    isCoordenacaoUnidade && !carregandoSessao && !user?.unidade_id;
   const aguardandoValidacaoDeUnidade =
     (Boolean(filtros.unidade) && carregandoUnidades) ||
     carregandoSessao ||
-    aguardandoForcarUnidadeDoCoordenador;
+    aguardandoForcarUnidadeDoCoordenador ||
+    coordenadorSemUnidade;
   const {
     documentos,
     carregandoPrimeiraVez,
@@ -160,9 +179,15 @@ export function MatrizConformidade() {
     desabilitado: aguardandoValidacaoDeUnidade,
   });
 
-  const error = erroDocumentos ?? erroUnidades;
-  const mensagemDeErro =
-    mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null);
+  const error =
+    erroDocumentos ??
+    erroUnidades ??
+    (coordenadorSemUnidade
+      ? new Error("Coordenador sem unidade vinculada")
+      : undefined);
+  const mensagemDeErro = coordenadorSemUnidade
+    ? "Sua conta não está vinculada a nenhuma unidade -- contate o administrador."
+    : (mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null));
 
   // Mesmo hook/padrão da tela de Administração (GerenciarUsuarios.tsx):
   // trava a altura da área rolável num múltiplo exato de linhas inteiras

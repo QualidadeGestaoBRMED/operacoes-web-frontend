@@ -235,4 +235,29 @@ describe("MatrizConformidade -- Coordenador só filtra a própria unidade, sem o
       }
     }
   });
+
+  // Achado numa 3ª rodada de review: Usuario.unidade_id é number|null --
+  // uma conta de Coordenador sem unidade vinculada (mal configurada, nada
+  // no frontend impede) travava a busca desabilitada pra sempre (nenhum
+  // efeito nunca corrige a divergência), e a tela ficava presa num
+  // skeleton de carregamento sem nenhuma saída visível.
+  it("Coordenador sem unidade vinculada (unidade_id null) mostra erro em vez de travar carregando pra sempre", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: null },
+      perfil: { id: 1, nome: "Coordenação", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+
+    render(<MatrizConformidade />);
+
+    expect(
+      screen.getByText(/não está vinculada a nenhuma unidade/i),
+    ).toBeInTheDocument();
+    for (const [, opcoes] of vi.mocked(useDocumentosLegalizacao).mock.calls) {
+      expect(opcoes).toMatchObject({ desabilitado: true });
+    }
+  });
 });
