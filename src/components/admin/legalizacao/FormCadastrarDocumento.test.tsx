@@ -32,6 +32,7 @@ const UNIDADE: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+  rede: "padrao",
 };
 
 const TIPO: TipoDocumentoRegulatorio = {
@@ -147,6 +148,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       codigo: "VIT",
       cidade: "Vitória",
       ativa: true,
+      rede: "padrao",
     };
     vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
     const user = userEvent.setup();

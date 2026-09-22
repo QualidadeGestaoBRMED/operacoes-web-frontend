@@ -160,7 +160,7 @@ export function FormCadastrarDocumento({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { tiposDocumento } = useTiposDocumento();
   const { criar: criarRegra } = useCriarRegraDocumento();
   const { criar: criarDocumento } = useCriarDocumentoLegalizacao();

@@ -72,7 +72,14 @@ describe("DemandaCard -- badges de área responsável", () => {
 
   it("mostra a unidade quando não há área responsável", () => {
     const demanda = criarDemanda({
-      unidade: { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true },
+      unidade: {
+        id: 1,
+        nome: "Niterói",
+        codigo: "NIT",
+        cidade: "Niterói",
+        ativa: true,
+        rede: "padrao",
+      },
       area_responsavel: [],
     });
     render(<DemandaCard demanda={demanda} onClick={vi.fn()} />);

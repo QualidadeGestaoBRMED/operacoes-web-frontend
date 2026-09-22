@@ -45,7 +45,6 @@ interface KanbanFiltrosProps {
 }
 
 export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: KanbanFiltrosProps) {
-  const { unidades } = useUnidades();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   const { usuarios } = useUsuarios();
@@ -58,6 +57,12 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // como fallback só pro instante antes da aba padrão ser aplicada na URL.
   const tipoGestaoAtivo = tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao);
   const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
+  // STC-510 (achado testando ao vivo): o filtro de Unidade tem que
+  // acompanhar a rede da aba de Tipo Gestão ativa -- sem isso, a aba
+  // "OPEX" mostrava as filiais normais no filtro (rede errada, fixa em
+  // "padrao" incondicional), mesmo elas nunca aparecendo de verdade nas
+  // demandas daquela aba.
+  const { unidades } = useUnidades(tipoGestaoAtivo?.visibilidade_padrao === "opex" ? "opex" : "padrao");
   const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
   const { setores } = useSetores(moduloAtivo);
   // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de

@@ -5,6 +5,7 @@ import type {
   Perfil,
   PermissaoUsuario,
   PermissaoUsuarioPayload,
+  Rede,
   RespostaPaginada,
   Setor,
   Unidade,
@@ -12,8 +13,15 @@ import type {
   UsuarioPayload,
 } from "@/types";
 
-export async function listarUnidades(): Promise<Unidade[]> {
-  const { data } = await api.get<Unidade[]>("/plataforma/unidades/");
+// rede opcional (STC-510): sem ela, devolve unidades de qualquer rede --
+// só PermissoesAdmin.tsx usa esse fallback hoje (lookup de nome de
+// qualquer unidade que uma permissão aponte, inclusive OPEX). Toda tela
+// que lista/filtra unidade pra escolher pede rede="padrao" explicitamente,
+// pra não misturar unidades de Operações Especiais nela.
+export async function listarUnidades(rede?: Rede): Promise<Unidade[]> {
+  const { data } = await api.get<Unidade[]>("/plataforma/unidades/", {
+    params: rede ? { rede } : undefined,
+  });
   return data;
 }
 

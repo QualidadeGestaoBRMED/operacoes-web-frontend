@@ -101,7 +101,7 @@ export function MatrizConformidade() {
     unidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades();
+  } = useUnidades("padrao");
   useEffect(() => {
     if (carregandoUnidades || erroUnidades || !filtros.unidade) return;
     const existe = unidades.some((unidade) => unidade.id === filtros.unidade);

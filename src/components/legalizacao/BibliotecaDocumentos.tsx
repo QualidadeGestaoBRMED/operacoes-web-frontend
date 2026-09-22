@@ -76,7 +76,7 @@ export function BibliotecaDocumentos() {
     unidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades();
+  } = useUnidades("padrao");
 
   useEffect(() => {
     if (unidadeId !== undefined || carregandoUnidades || unidades.length === 0)

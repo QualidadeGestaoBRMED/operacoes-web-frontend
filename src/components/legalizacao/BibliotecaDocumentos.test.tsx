@@ -37,6 +37,7 @@ const NITEROI: Unidade = {
   codigo: "NIT",
   cidade: "Niterói",
   ativa: true,
+  rede: "padrao",
 };
 
 const VITORIA: Unidade = {
@@ -45,6 +46,7 @@ const VITORIA: Unidade = {
   codigo: "VIT",
   cidade: "Vitória",
   ativa: true,
+  rede: "padrao",
 };
 
 function tipo(overrides: Partial<TipoDocumentoRegulatorio> = {}): TipoDocumentoRegulatorio {

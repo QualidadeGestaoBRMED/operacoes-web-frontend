@@ -38,6 +38,7 @@ function documento(
       codigo: "niteroi",
       cidade: "Niterói",
       ativa: true,
+      rede: "padrao",
     },
     status: "regular",
     justificativa_excecao: "",
@@ -204,11 +205,11 @@ describe("ordenarDocumentos", () => {
     const lista = [
       documento({
         id: 1,
-        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true },
+        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true, rede: "padrao" },
       }),
       documento({
         id: 2,
-        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true },
+        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true, rede: "padrao" },
       }),
     ];
     expect(ordenarDocumentos(lista, null)).toEqual(lista);
@@ -218,11 +219,11 @@ describe("ordenarDocumentos", () => {
     const lista = [
       documento({
         id: 1,
-        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true },
+        unidade: { id: 1, nome: "Z", codigo: "z", cidade: "Z", ativa: true, rede: "padrao" },
       }),
       documento({
         id: 2,
-        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true },
+        unidade: { id: 2, nome: "A", codigo: "a", cidade: "A", ativa: true, rede: "padrao" },
       }),
     ];
     const original = [...lista];
@@ -240,6 +241,7 @@ describe("ordenarDocumentos", () => {
           codigo: "v",
           cidade: "V",
           ativa: true,
+          rede: "padrao",
         },
       }),
       documento({
@@ -250,6 +252,7 @@ describe("ordenarDocumentos", () => {
           codigo: "n",
           cidade: "N",
           ativa: true,
+          rede: "padrao",
         },
       }),
     ];

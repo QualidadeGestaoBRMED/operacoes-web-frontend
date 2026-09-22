@@ -126,7 +126,7 @@ export function FormNovaPermissao({
   valoresIniciais?: Partial<FormValuesEntrada>;
 }) {
   const { usuarios } = useUsuarios();
-  const { unidades } = useUnidades();
+  const { unidades } = useUnidades("padrao");
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
   // catalogoCarregando/catalogoComErro: mesma chave SWR de

@@ -8,7 +8,7 @@ import type { DocumentoUnidade } from "@/types/legalizacao";
 import type { Unidade } from "@/types";
 
 function unidade(id: number, nome: string): Unidade {
-  return { id, nome, codigo: nome.toLowerCase(), cidade: nome, ativa: true };
+  return { id, nome, codigo: nome.toLowerCase(), cidade: nome, ativa: true, rede: "padrao" };
 }
 
 function documento(
