@@ -423,4 +423,42 @@ describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de docu
     // Nenhum fetch a mais -- o preview de A veio do cache.
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
+
+  // Achado numa checagem de falhas críticas: sem o guard de telaAtiva
+  // (useEvidenciasLegalizacao.ts), um download que termina DEPOIS do
+  // unmount da Biblioteca criava uma Blob URL que ninguém nunca revogava
+  // (limparCachePreviewEvidencia já tinha rodado e não sabia dessa
+  // chegando atrasada) -- um vazamento de memória real, ainda que raro
+  // (só ocorre se o usuário navegar pra fora antes do PDF terminar de
+  // baixar).
+  it("não cria Blob URL se a Biblioteca desmontar antes do download do PDF terminar", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    let resolverFetch: ((resposta: Response) => void) | undefined;
+    global.fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolverFetch = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    const { unmount } = renderTela();
+
+    const botao = await screen.findByRole("button", {
+      name: "Alvará de Funcionamento",
+    });
+    await user.click(botao);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    unmount();
+    resolverFetch?.({
+      ok: true,
+      blob: () =>
+        Promise.resolve(new Blob(["%PDF-fake"], { type: "application/pdf" })),
+    } as Response);
+    // Deixa a cadeia de promises do fetcher (resposta.blob() -> ...) rodar.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+  });
 });

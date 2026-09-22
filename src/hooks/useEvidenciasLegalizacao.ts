@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import useSWR, { mutate as mutateGlobal } from "swr";
 import { listarEvidenciasLegalizacao } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -42,6 +43,16 @@ const CHAVE_PREVIEW = "evidencia-vigente-preview";
 const TAMANHO_MAXIMO_CACHE_PREVIEW = 8;
 const blobUrlsEmCache = new Map<number, string>();
 
+// Achado numa checagem de falhas críticas: abrir um documento e navegar pra
+// fora da Biblioteca ANTES do fetch (rebaixar o PDF inteiro do R2) terminar
+// deixava o download completar em segundo plano depois de
+// limparCachePreviewEvidencia() já ter rodado no unmount -- o Blob criado
+// nesse momento nunca era revogado (fica órfão até uma eventual futura
+// visita a esta tela desmontar de novo, ou pro resto da aba se o usuário
+// não voltar). telaAtiva rastreia se a Biblioteca está montada agora;
+// buscarPreviewEvidenciaVigente nem chega a criar o Blob se já desmontou.
+let telaAtiva = false;
+
 function registrarPreviewNoCache(documentoId: number, blobUrl: string) {
   blobUrlsEmCache.delete(documentoId);
   blobUrlsEmCache.set(documentoId, blobUrl);
@@ -64,12 +75,28 @@ async function buscarPreviewEvidenciaVigente(documentoId: number) {
   );
   if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
   const blob = await resposta.blob();
+  // telaAtiva checado ANTES de criar a Blob URL -- se a Biblioteca já
+  // desmontou enquanto o download rodava, nem cria o objeto (nada a
+  // revogar depois) e rejeita em vez de resolver, pra não deixar essa
+  // Blob URL "boa" presa no cache do SWR como se fosse válida (próxima
+  // visita refaz o fetch do zero, mesmo custo de antes desta issue pra
+  // esse caso raro).
+  if (!telaAtiva) throw new Error("Biblioteca de Documentos desmontada");
   const blobUrl = URL.createObjectURL(blob);
   registrarPreviewNoCache(documentoId, blobUrl);
   return blobUrl;
 }
 
 export function useEvidenciaVigentePreview(documentoId: number | null) {
+  // Roda uma vez por mount/unmount de BibliotecaDocumentos (este hook é
+  // chamado incondicionalmente lá, não só quando um documento está
+  // selecionado) -- não precisa de cleanup própria aqui: quem marca
+  // telaAtiva de volta pra false é limparCachePreviewEvidencia(), já
+  // chamado explicitamente no unmount do componente.
+  useEffect(() => {
+    telaAtiva = true;
+  }, []);
+
   const { data, error, isLoading } = useSWR<string>(
     documentoId ? [CHAVE_PREVIEW, documentoId] : null,
     () => buscarPreviewEvidenciaVigente(documentoId as number),
@@ -106,6 +133,7 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
 // (revalidateIfStale: false não refaz o fetch sozinho), um preview quebrado
 // até alguma outra revalidação corrigir.
 export function limparCachePreviewEvidencia() {
+  telaAtiva = false;
   for (const [documentoId, blobUrl] of blobUrlsEmCache) {
     URL.revokeObjectURL(blobUrl);
     void mutateGlobal([CHAVE_PREVIEW, documentoId], undefined, {
