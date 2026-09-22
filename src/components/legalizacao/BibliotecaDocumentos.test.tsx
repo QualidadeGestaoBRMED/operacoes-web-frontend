@@ -23,7 +23,9 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/plataforma");
 vi.mock("@/lib/legalizacao");
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
+import { useAuth } from "@/hooks/useAuth";
 import { listarUnidades } from "@/lib/plataforma";
 import {
   listarDocumentosLegalizacao,
@@ -112,6 +114,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useRouter).mockReturnValue({ replace: substituirUrl, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
+  vi.mocked(useAuth).mockReturnValue({
+    user: undefined,
+    perfil: undefined,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
   vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
   vi.mocked(listarUnidades).mockResolvedValue([NITEROI, VITORIA]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
@@ -376,5 +386,118 @@ describe("BibliotecaDocumentos (STC-416)", () => {
 
     expect(await screen.findByText("Nenhuma unidade cadastrada.")).toBeInTheDocument();
     expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+  });
+});
+
+describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-512)", () => {
+  it("cai direto pra própria unidade, não pra 1ª da lista", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: VITORIA.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    // NITEROI vem primeiro na lista (mesma ordem de todos os outros
+    // testes) -- sem o filtro, o fallback de auto-seleção escolheria ela
+    // em vez da unidade real do Coordenador.
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+
+    renderTela();
+
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({ unidade: VITORIA.id });
+    });
+  });
+
+  it("Select de unidade só oferece a própria, não as outras da rede", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: VITORIA.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByLabelText("Unidade"));
+
+    expect(await screen.findByRole("option", { name: "Vitória" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+  });
+
+  // Achado no review: isCoordenacaoUnidade nasce false enquanto a sessão
+  // carrega (useAuth.ts) -- sem esperar por ela, o auto-select podia
+  // escolher a 1ª unidade da REDE INTEIRA (Niterói, aqui) e chegar a buscar
+  // os documentos dela antes da sessão resolver e corrigir pra própria
+  // unidade do Coordenador.
+  it("não busca documentos antes da sessão carregar, mesmo com as unidades já disponíveis", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: true,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
+
+  // Achado numa 3ª rodada de review: diferente do teste acima (URL sem
+  // unidade nenhuma), aqui a URL já chega com ?unidade=<outra> -- unidadeId
+  // nasce definido desde o 1º render, sem esperar a sessão. Se a lista de
+  // unidades resolvesse antes da sessão, a 2ª validação (linhas 114-124)
+  // via essa unidade "existir" na lista ainda não filtrada e não corrigia
+  // nada, liberando a busca com a unidade errada até a sessão resolver.
+  it("não busca documentos com a unidade da URL antes da sessão carregar, mesmo que ela exista na rede", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(
+      new URLSearchParams({ unidade: String(NITEROI.id) }) as never,
+    );
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: true,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
+
+  // Achado numa 4ª rodada de review: Usuario.unidade_id é number|null -- um
+  // Coordenador sem unidade vinculada (conta mal configurada) faz o filtro
+  // de `unidades` ficar vazio, igual ao caso "rede sem nenhuma unidade
+  // cadastrada". Sem distinguir os dois, mostrava "Nenhuma unidade
+  // cadastrada." -- diagnóstico errado (existem unidades, só nenhuma
+  // vinculada à conta dele).
+  it("Coordenador sem unidade vinculada (unidade_id null) mostra mensagem específica, não 'Nenhuma unidade cadastrada'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: null },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+
+    renderTela();
+
+    expect(
+      await screen.findByText(/não está vinculada a nenhuma unidade/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Nenhuma unidade cadastrada.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
   });
 });

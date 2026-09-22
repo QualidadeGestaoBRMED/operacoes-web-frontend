@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -49,6 +50,7 @@ export function MatrizConformidade() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
@@ -106,6 +108,19 @@ export function MatrizConformidade() {
     if (!existe) setFiltros((atual) => ({ ...atual, unidade: undefined }));
   }, [carregandoUnidades, erroUnidades, unidades, filtros.unidade]);
 
+  // STC-512 (review): Coordenador não pode nem ver a opção de sair da
+  // própria unidade -- força de volta sempre que divergir (URL editada à
+  // mão, ou o próprio valor inicial lido dela). Só passa a valer depois que
+  // a sessão resolve (isCoordenacaoUnidade nasce false enquanto carrega,
+  // useAuth.ts) -- daí o guard duplo mais abaixo em aguardandoValidacaoDeUnidade,
+  // que pausa a busca de documentos até aqui decidir.
+  useEffect(() => {
+    const unidadeDoUsuario = user?.unidade_id;
+    if (!isCoordenacaoUnidade || !unidadeDoUsuario) return;
+    if (filtros.unidade === unidadeDoUsuario) return;
+    setFiltros((atual) => ({ ...atual, unidade: unidadeDoUsuario }));
+  }, [isCoordenacaoUnidade, user?.unidade_id, filtros.unidade]);
+
   // Achado no code review: sem pausar, a 1ª busca de /documentos/ já saía
   // com o `unidade` ainda não validado (useEffect acima só roda DEPOIS do
   // 1º render, e só corrige depois que unidades carrega) -- se a resposta
@@ -114,8 +129,47 @@ export function MatrizConformidade() {
   // ruim ainda ativo, até o efeito corrigir e disparar a busca certa. Pausa
   // só enquanto HÁ um filtro de unidade E ele ainda não foi validado --
   // sem `unidade` nenhum, não tem o que esperar.
+  //
+  // carregandoSessao entra aqui também (STC-512, review): isCoordenacaoUnidade
+  // nasce false enquanto a sessão carrega (useAuth.ts), então sem isso a
+  // 1ª busca podia sair sem filtro de unidade nenhum pro Coordenador --
+  // mostrando a tabela inteira da rede por um instante, até a sessão
+  // resolver e o efeito acima forçar a unidade dele.
+  //
+  // aguardandoForcarUnidadeDoCoordenador (2ª rodada de review): sessão já
+  // carregada não bastava -- "Limpar filtros" (MatrizFiltros.tsx) chama
+  // onMudarFiltros({}), zerando filtros.unidade por um render inteiro antes
+  // do efeito acima corrigir de volta. Sem pausar também esse caso, a busca
+  // disparava sem filtro nenhum nesse intervalo -- mesmo sintoma do guard
+  // de carregandoSessao, só que disparado por uma ação do usuário em vez de
+  // timing de sessão.
+  //
+  // Boolean(user?.unidade_id) (3ª rodada de review, não "!== undefined"):
+  // Usuario.unidade_id é number|null -- um Coordenador sem unidade
+  // vinculada (conta mal configurada, GerenciarUsuarios.tsx não impede)
+  // tem unidade_id null, e null !== undefined também é true. Com a
+  // checagem antiga, essa flag ficava travada em true pra sempre (o efeito
+  // de força acima também nunca seta filtros.unidade pra esse caso, então
+  // a divergência nunca se resolve) -- aguardandoValidacaoDeUnidade abaixo
+  // desabilitava a busca permanentemente, e a tela ficava presa num
+  // skeleton de carregamento sem nenhuma saída, silenciosamente.
+  const aguardandoForcarUnidadeDoCoordenador =
+    isCoordenacaoUnidade &&
+    Boolean(user?.unidade_id) &&
+    filtros.unidade !== user?.unidade_id;
+  // coordenadorSemUnidade: cobre esse mesmo caso (unidade_id null/undefined
+  // com a sessão já resolvida) como um estado de ERRO explícito, não um
+  // 3º tipo de "aguardando" -- sem isso, a busca simplesmente seguiria sem
+  // filtro nenhum de unidade, mostrando a rede inteira pra uma conta
+  // quebrada (o oposto do que esta issue pede). Mantém a busca pausada
+  // (abaixo) e troca o skeleton mudo por uma mensagem acionável.
+  const coordenadorSemUnidade =
+    isCoordenacaoUnidade && !carregandoSessao && !user?.unidade_id;
   const aguardandoValidacaoDeUnidade =
-    Boolean(filtros.unidade) && carregandoUnidades;
+    (Boolean(filtros.unidade) && carregandoUnidades) ||
+    carregandoSessao ||
+    aguardandoForcarUnidadeDoCoordenador ||
+    coordenadorSemUnidade;
   const {
     documentos,
     carregandoPrimeiraVez,
@@ -125,9 +179,15 @@ export function MatrizConformidade() {
     desabilitado: aguardandoValidacaoDeUnidade,
   });
 
-  const error = erroDocumentos ?? erroUnidades;
-  const mensagemDeErro =
-    mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null);
+  const error =
+    erroDocumentos ??
+    erroUnidades ??
+    (coordenadorSemUnidade
+      ? new Error("Coordenador sem unidade vinculada")
+      : undefined);
+  const mensagemDeErro = coordenadorSemUnidade
+    ? "Sua conta não está vinculada a nenhuma unidade -- contate o administrador."
+    : (mensagemErro ?? (erroUnidades ? extrairMensagemErro(erroUnidades) : null));
 
   // Mesmo hook/padrão da tela de Administração (GerenciarUsuarios.tsx):
   // trava a altura da área rolável num múltiplo exato de linhas inteiras
