@@ -461,4 +461,35 @@ describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de docu
 
     expect(global.URL.createObjectURL).not.toHaveBeenCalled();
   });
+
+  // Achado no review: revalidateIfStale:false também deixava um ERRO
+  // "grudado" no cache -- fechar/reabrir o mesmo documento continuava
+  // mostrando o mesmo erro sem tentar de novo. "Tentar novamente" força
+  // uma nova tentativa explícita.
+  it("'Tentar novamente' refaz o fetch depois de um erro de preview", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: () =>
+          Promise.resolve(new Blob(["%PDF-fake"], { type: "application/pdf" })),
+      } as Response);
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Alvará de Funcionamento" }),
+    );
+    expect(
+      await screen.findByText("Não foi possível carregar a pré-visualização."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
 });

@@ -97,7 +97,7 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
     telaAtiva = true;
   }, []);
 
-  const { data, error, isLoading } = useSWR<string>(
+  const { data, error, isLoading, mutate } = useSWR<string>(
     documentoId ? [CHAVE_PREVIEW, documentoId] : null,
     () => buscarPreviewEvidenciaVigente(documentoId as number),
     {
@@ -118,6 +118,14 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
     previewUrl: data ? `${data}#toolbar=0&navpanes=0&scrollbar=0` : null,
     carregandoPreview: isLoading,
     erroPreview: error ? "Não foi possível carregar a pré-visualização." : null,
+    // STC-511 (review): revalidateIfStale:false (acima) também deixa um
+    // ERRO "grudado" no cache -- fechar e reabrir o mesmo documento, mesmo
+    // saindo da Biblioteca e voltando, continuaria mostrando o mesmo erro
+    // sem tentar de novo. Expõe o mutate() do SWR pra BibliotecaDocumentos.tsx
+    // oferecer um "Tentar novamente" explícito, em vez de revalidar sozinho
+    // ao reabrir (que arriscaria mascarar uma falha real como se fosse só
+    // demora, sem o usuário saber que algo deu errado antes).
+    tentarNovamente: () => void mutate(),
   };
 }
 

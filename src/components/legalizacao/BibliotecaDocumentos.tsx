@@ -180,7 +180,7 @@ export function BibliotecaDocumentos() {
   // documento, mesmo já tendo acabado de baixar). Cache em memória
   // (useEvidenciaVigentePreview, chaveado por documentoId) resolve isso --
   // ver comentário completo em useEvidenciasLegalizacao.ts.
-  const { previewUrl, carregandoPreview, erroPreview } =
+  const { previewUrl, carregandoPreview, erroPreview, tentarNovamente } =
     useEvidenciaVigentePreview(documentoSelecionadoId);
 
   // Só no unmount de verdade (deps vazias) -- os blobs cacheados servem
@@ -459,9 +459,12 @@ export function BibliotecaDocumentos() {
                 {carregandoPreview ? (
                   <p className="text-sm text-muted-foreground">Carregando...</p>
                 ) : erroPreview ? (
-                  <p className="px-5 text-center text-sm text-destructive">
-                    {erroPreview}
-                  </p>
+                  <div className="flex flex-col items-center gap-2 px-5 text-center">
+                    <p className="text-sm text-destructive">{erroPreview}</p>
+                    <Button variant="outline" size="sm" onClick={tentarNovamente}>
+                      Tentar novamente
+                    </Button>
+                  </div>
                 ) : (
                   previewUrl && (
                     <iframe
