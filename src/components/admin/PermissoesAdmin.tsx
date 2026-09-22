@@ -522,10 +522,19 @@ export function PermissoesAdmin() {
           "vaza" pro pai (mesmo bug do min-height:auto que motivou o
           min-h-0 acima, só que no eixo horizontal) e empurra a coluna
           inteira mais larga que a viewport -- o cabeçalho quebra
-          palavra-por-palavra e a página ganha scroll horizontal fantasma. */}
+          palavra-por-palavra e a página ganha scroll horizontal fantasma.
+
+          overflow-y-auto sm:overflow-visible: achado testando em celular
+          real (STC-505) -- faltava aqui o mesmo fallback que
+          CatalogoLegalizacaoAdmin.tsx já tinha. No mobile, as duas tabelas
+          abaixo abrem mão da própria altura travada (ver GerenciarUsuarios.tsx/
+          o bloco de Permissões individuais) -- sem um scroll no nível da
+          aba pra herdar esse conteúdo "solto", não haveria como alcançar o
+          que não coubesse na tela. Desktop mantém sm:overflow-visible (cada
+          tabela rola por conta própria, como já documentado acima). */}
       <div
         hidden={aba !== "usuarios"}
-        className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7"
+        className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
       >
         <div
           data-testid="secao-usuarios"
@@ -638,10 +647,17 @@ export function PermissoesAdmin() {
               Nenhuma permissão encontrada com esses filtros.
             </p>
           ) : (
+            // ehMobile ? undefined : {...} / !ehMobile && "overflow-y-auto":
+            // mesmo achado de GerenciarUsuarios.tsx (STC-505) -- sem isso, a
+            // tabela travava a própria altura mesmo no mobile, sem sobrar
+            // espaço nem scroll de página pra compensar.
             <div
               ref={refTabelaPermissoes}
-              style={{ maxHeight: alturaTabelaPermissoes }}
-              className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border"
+              style={ehMobile ? undefined : { maxHeight: alturaTabelaPermissoes }}
+              className={cn(
+                "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+                !ehMobile && "overflow-y-auto",
+              )}
             >
               <table
                 aria-label="Permissões individuais"
@@ -654,7 +670,13 @@ export function PermissoesAdmin() {
                     linhas por baixo aparecerem por trás dele ao rolar. */}
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    <th className="px-4 py-2.5">Pessoa</th>
+                    {/* sticky left-0: achado testando no mobile (STC-505) --
+                        8 colunas (a mais densa das 3 tabelas de admin)
+                        deixavam a tela cheia de scroll horizontal sem
+                        contexto de qual linha é qual. Mesmo tratamento de
+                        GerenciarUsuarios.tsx/TabelaTiposDocumento.tsx -- ver
+                        comentário lá pro racional completo do bg/z-index. */}
+                    <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
                     <th className="px-4 py-2.5">Recurso</th>
                     <th className="px-4 py-2.5">Concedido</th>
                     <th className="px-4 py-2.5">Ação</th>
@@ -672,7 +694,7 @@ export function PermissoesAdmin() {
                         key={permissao.id}
                         className="border-b border-border last:border-0"
                       >
-                        <td className="px-4 py-2.5 font-medium text-foreground">
+                        <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
                           {nomeUsuario(permissao.usuario)}
                         </td>
                         <td className="px-4 py-2.5 text-muted-foreground">

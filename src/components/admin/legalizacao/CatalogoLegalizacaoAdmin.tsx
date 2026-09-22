@@ -36,7 +36,16 @@ export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
       hidden={hidden}
       className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
     >
-      <div className="min-h-[20rem] min-w-0 flex-1">
+      {/* min-h-[26rem] (não 20rem): achado testando em celular real
+          (STC-505) -- 320px só cabia cabeçalho + 1 linha antes de precisar
+          rolar dentro da própria tabela, apertado demais pra bater o olho
+          rápido em mais de um tipo de documento. 416px cabe 2 linhas
+          completas (mesmo critério de piso do resto da tela -- ver
+          min-h-[20rem] do PermissoesAdmin.tsx, também calibrado à mão
+          olhando o resultado real). O scroll continua sendo da tabela em
+          si (overflow-x-auto força overflow-y junto, de propósito -- é o
+          que permite ver o resto das linhas), não da aba inteira. */}
+      <div className="min-h-[26rem] min-w-0 flex-1">
         <TabelaTiposDocumento />
       </div>
 

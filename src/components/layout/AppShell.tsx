@@ -69,7 +69,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // bg-sidebar preenche o vão dos cantos arredondados do main -- sem
     // isso o recorte não aparece, já que por trás dele o body já é claro
     // igual ao main (mesma cor, sem contraste pra revelar a curva).
-    <div className="flex h-screen bg-sidebar">
+    // h-svh (não h-screen/100vh nem h-dvh): achado testando em celular real
+    // (Android, STC-505) -- 100vh não desconta a barra de navegação do
+    // sistema (gestos/3 botões), cortando a parte de baixo do conteúdo,
+    // inacessível mesmo rolando. 100dvh corrigia o corte mas quebrava a
+    // rolagem em si -- ela recalcula a altura EM TEMPO REAL conforme a
+    // barra de endereço do Chrome esconde/aparece durante o gesto, e isso
+    // briga com o overflow-y-auto interno (main, abaixo), travando o
+    // scroll no meio do caminho. 100svh ("small viewport height") sempre
+    // assume a barra aberta -- valor estável, nunca recalcula durante o
+    // gesto, e por ser a MENOR altura possível nunca fica maior que a área
+    // de fato visível (resolve o corte sem reintroduzir o travamento).
+    <div className="flex h-svh bg-sidebar">
       {ehMobile ? (
         <>
           {/* Backdrop: só existe (e só bloqueia clique/toque) com o menu
