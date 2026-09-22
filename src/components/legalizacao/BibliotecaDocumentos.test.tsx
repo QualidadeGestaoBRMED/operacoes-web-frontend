@@ -378,3 +378,49 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
   });
 });
+
+describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de documento e voltar (STC-511)", () => {
+  it("reabrir um documento já visto não refaz o download do PDF", async () => {
+    const docA = documento({ id: 10, tipo_documento: tipo() });
+    const docB = documento({
+      id: 11,
+      tipo_documento: tipo({
+        id: 2,
+        codigo: "licenca-sanitaria",
+        nome: "Licença Sanitária",
+      }),
+      evidencia_vigente: 200,
+    });
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([docA, docB]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([
+      evidencia({ documento_unidade: 10, nome_original: "alvara.pdf" }),
+      evidencia({
+        documento_unidade: 11,
+        nome_original: "licenca.pdf",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+
+    const botaoA = await screen.findByRole("button", {
+      name: "Alvará de Funcionamento",
+    });
+    await user.click(botaoA);
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await user.click(botaoA); // fecha
+    await user.click(
+      screen.getByRole("button", { name: "Licença Sanitária" }),
+    );
+    await screen.findByTitle("Pré-visualização de licenca.pdf");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    await user.click(screen.getByRole("button", { name: "Licença Sanitária" })); // fecha
+    await user.click(botaoA); // reabre A, já visto antes
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+
+    // Nenhum fetch a mais -- o preview de A veio do cache.
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+});
