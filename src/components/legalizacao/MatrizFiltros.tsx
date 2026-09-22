@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -64,7 +65,16 @@ export function MatrizFiltros({
   onMudarCategoria,
   onLimparUrl,
 }: MatrizFiltrosProps) {
-  const { unidades } = useUnidades("padrao");
+  const { user, isCoordenacaoUnidade } = useAuth();
+  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  // STC-512: mesmo critério de BibliotecaDocumentos.tsx -- Coordenador só
+  // pode escolher a própria unidade no filtro. O backend já restringe o
+  // dado de qualquer forma (_documentos_visiveis_para), mas o Select
+  // oferecia livremente qualquer unidade da rede, sem indicar que a troca
+  // nunca traria resultado de outra unidade.
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
   const { usuarios } = useUsuarios();
   // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
   // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de

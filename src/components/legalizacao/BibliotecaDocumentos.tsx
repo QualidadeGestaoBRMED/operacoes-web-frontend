@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao, useEvidenciasVigentes } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -72,11 +73,22 @@ export function BibliotecaDocumentos() {
     number | null
   >(null);
 
+  const { user, isCoordenacaoUnidade } = useAuth();
   const {
-    unidades,
+    unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
   } = useUnidades("padrao");
+  // STC-512: Coordenador só pode ver/selecionar a própria unidade -- o
+  // backend já restringe o dado (_documentos_visiveis_para,
+  // legalizacao/views.py) a Q(unidade_id=usuario.unidade_id), mas o Select
+  // aqui oferecia livremente qualquer unidade da rede, escondendo isso
+  // atrás de um "Nenhum documento cadastrado nesta unidade" ao trocar.
+  // Filtrar a lista na origem resolve os dois usos abaixo de uma vez só
+  // (fallback de auto-seleção e as opções do Select).
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
 
   useEffect(() => {
     if (unidadeId !== undefined || carregandoUnidades || unidades.length === 0)

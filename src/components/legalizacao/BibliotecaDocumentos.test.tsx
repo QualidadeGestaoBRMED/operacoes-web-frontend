@@ -23,7 +23,9 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/plataforma");
 vi.mock("@/lib/legalizacao");
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
+import { useAuth } from "@/hooks/useAuth";
 import { listarUnidades } from "@/lib/plataforma";
 import {
   listarDocumentosLegalizacao,
@@ -112,6 +114,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useRouter).mockReturnValue({ replace: substituirUrl, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
+  vi.mocked(useAuth).mockReturnValue({
+    user: undefined,
+    perfil: undefined,
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
   vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
   vi.mocked(listarUnidades).mockResolvedValue([NITEROI, VITORIA]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
@@ -376,5 +386,46 @@ describe("BibliotecaDocumentos (STC-416)", () => {
 
     expect(await screen.findByText("Nenhuma unidade cadastrada.")).toBeInTheDocument();
     expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+  });
+});
+
+describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-512)", () => {
+  it("cai direto pra própria unidade, não pra 1ª da lista", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: VITORIA.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    // NITEROI vem primeiro na lista (mesma ordem de todos os outros
+    // testes) -- sem o filtro, o fallback de auto-seleção escolheria ela
+    // em vez da unidade real do Coordenador.
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+
+    renderTela();
+
+    await waitFor(() => {
+      expect(listarDocumentosLegalizacao).toHaveBeenCalledWith({ unidade: VITORIA.id });
+    });
+  });
+
+  it("Select de unidade só oferece a própria, não as outras da rede", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: VITORIA.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByLabelText("Unidade"));
+
+    expect(await screen.findByRole("option", { name: "Vitória" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
   });
 });
