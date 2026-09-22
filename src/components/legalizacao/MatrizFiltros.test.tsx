@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import type { Unidade } from "@/types";
+import type { DocumentoUnidadeFiltros } from "@/types/legalizacao";
 import { MatrizFiltros } from "./MatrizFiltros";
 
 // Foco estreito (STC-512): só o filtro de Unidade respeitando
@@ -37,10 +38,10 @@ const VITORIA: Unidade = {
   rede: "padrao",
 };
 
-function renderFiltros() {
+function renderFiltros(filtros: DocumentoUnidadeFiltros = {}) {
   return render(
     <MatrizFiltros
-      filtros={{}}
+      filtros={filtros}
       onMudarFiltros={vi.fn()}
       busca=""
       onMudarBusca={vi.fn()}
@@ -100,5 +101,51 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
     expect(
       screen.queryByRole("option", { name: "Todas as unidades" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("MatrizFiltros -- 'Limpar filtros' não conta a unidade forçada do Coordenador (STC-512, review)", () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: NITEROI.id },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+  });
+
+  it("não mostra 'Limpar filtros' pro Coordenador quando só a unidade (forçada) está preenchida", () => {
+    renderFiltros({ unidade: NITEROI.id });
+
+    expect(
+      screen.queryByRole("button", { name: /limpar filtros/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mostra 'Limpar filtros' pro Coordenador quando ele escolhe um filtro de verdade (ex. Status)", () => {
+    renderFiltros({ unidade: NITEROI.id, status: "vencido" });
+
+    expect(
+      screen.getByRole("button", { name: /limpar filtros/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("Admin/Setor continua vendo 'Limpar filtros' normalmente ao escolher uma unidade", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as never);
+
+    renderFiltros({ unidade: NITEROI.id });
+
+    expect(
+      screen.getByRole("button", { name: /limpar filtros/i }),
+    ).toBeInTheDocument();
   });
 });

@@ -110,8 +110,14 @@ export function MatrizFiltros({
     );
   }, [catalogoDocumentos]);
 
+  // filtros.unidade não entra na contagem pro Coordenador (achado no
+  // review) -- MatrizConformidade.tsx força esse campo pra unidade dele
+  // incondicionalmente, nunca fica undefined pra esse perfil, então contar
+  // como "filtro ativo" deixava "Limpar filtros" sempre visível mesmo sem
+  // nenhuma escolha real, e clicar nele não limpava nada (o próprio efeito
+  // de força reescreve o valor de volta no render seguinte).
   const contagemFiltrosSelect = [
-    filtros.unidade,
+    isCoordenacaoUnidade ? undefined : filtros.unidade,
     filtros.tipo_documento,
     filtros.status,
     filtros.responsavel,
