@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-512)", () => {
-  it("Admin/Setor vê todas as unidades no filtro", async () => {
+  it("Admin/Setor vê todas as unidades no filtro, incluindo 'Todas as unidades'", async () => {
     vi.mocked(useAuth).mockReturnValue({
       user: undefined,
       perfil: undefined,
@@ -76,9 +76,10 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
 
     expect(await screen.findByRole("option", { name: "Niterói" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Vitória" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Todas as unidades" })).toBeInTheDocument();
   });
 
-  it("Coordenador só vê a própria unidade no filtro, não as outras da rede", async () => {
+  it("Coordenador só vê a própria unidade no filtro, não as outras da rede nem 'Todas as unidades'", async () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { unidade_id: NITEROI.id },
       perfil: { id: 3, nome: "Unidade", nivel: 3 },
@@ -94,5 +95,10 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
 
     expect(await screen.findByRole("option", { name: "Niterói" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Vitória" })).not.toBeInTheDocument();
+    // STC-512 (review): a opção de sair do filtro da própria unidade não
+    // pode nem aparecer -- "sem opção de trocar" era o pedido original.
+    expect(
+      screen.queryByRole("option", { name: "Todas as unidades" }),
+    ).not.toBeInTheDocument();
   });
 });

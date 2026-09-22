@@ -428,4 +428,25 @@ describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-51
     expect(await screen.findByRole("option", { name: "Vitória" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
   });
+
+  // Achado no review: isCoordenacaoUnidade nasce false enquanto a sessão
+  // carrega (useAuth.ts) -- sem esperar por ela, o auto-select podia
+  // escolher a 1ª unidade da REDE INTEIRA (Niterói, aqui) e chegar a buscar
+  // os documentos dela antes da sessão resolver e corrigir pra própria
+  // unidade do Coordenador.
+  it("não busca documentos antes da sessão carregar, mesmo com as unidades já disponíveis", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      perfil: undefined,
+      isLoading: true,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
 });

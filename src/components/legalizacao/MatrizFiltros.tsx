@@ -147,7 +147,15 @@ export function MatrizFiltros({
             <SelectValue placeholder="Unidade" />
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectItem value="todas">Todas as unidades</SelectItem>
+            {/* STC-512 (review): "Todas as unidades" continuava oferecida
+                mesmo pro Coordenador, deixando ele sair do filtro da
+                própria unidade -- o pedido original é "sem opção de
+                trocar". MatrizConformidade.tsx força filtros.unidade de
+                volta pra unidade dele mesmo se isso acontecer (URL editada
+                à mão, por exemplo), mas a opção nem devia aparecer. */}
+            {!isCoordenacaoUnidade && (
+              <SelectItem value="todas">Todas as unidades</SelectItem>
+            )}
             {unidades.map((unidade) => (
               <SelectItem key={unidade.id} value={String(unidade.id)}>
                 {unidade.nome}

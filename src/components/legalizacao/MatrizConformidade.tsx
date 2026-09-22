@@ -50,7 +50,7 @@ export function MatrizConformidade() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { isCoordenacaoUnidade } = useAuth();
+  const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
     unidade: numeroDaUrl(searchParams.get("unidade")),
   }));
@@ -108,6 +108,19 @@ export function MatrizConformidade() {
     if (!existe) setFiltros((atual) => ({ ...atual, unidade: undefined }));
   }, [carregandoUnidades, erroUnidades, unidades, filtros.unidade]);
 
+  // STC-512 (review): Coordenador não pode nem ver a opção de sair da
+  // própria unidade -- força de volta sempre que divergir (URL editada à
+  // mão, ou o próprio valor inicial lido dela). Só passa a valer depois que
+  // a sessão resolve (isCoordenacaoUnidade nasce false enquanto carrega,
+  // useAuth.ts) -- daí o guard duplo mais abaixo em aguardandoValidacaoDeUnidade,
+  // que pausa a busca de documentos até aqui decidir.
+  useEffect(() => {
+    const unidadeDoUsuario = user?.unidade_id;
+    if (!isCoordenacaoUnidade || !unidadeDoUsuario) return;
+    if (filtros.unidade === unidadeDoUsuario) return;
+    setFiltros((atual) => ({ ...atual, unidade: unidadeDoUsuario }));
+  }, [isCoordenacaoUnidade, user?.unidade_id, filtros.unidade]);
+
   // Achado no code review: sem pausar, a 1ª busca de /documentos/ já saía
   // com o `unidade` ainda não validado (useEffect acima só roda DEPOIS do
   // 1º render, e só corrige depois que unidades carrega) -- se a resposta
@@ -116,8 +129,14 @@ export function MatrizConformidade() {
   // ruim ainda ativo, até o efeito corrigir e disparar a busca certa. Pausa
   // só enquanto HÁ um filtro de unidade E ele ainda não foi validado --
   // sem `unidade` nenhum, não tem o que esperar.
+  //
+  // carregandoSessao entra aqui também (STC-512, review): isCoordenacaoUnidade
+  // nasce false enquanto a sessão carrega (useAuth.ts), então sem isso a
+  // 1ª busca podia sair sem filtro de unidade nenhum pro Coordenador --
+  // mostrando a tabela inteira da rede por um instante, até a sessão
+  // resolver e o efeito acima forçar a unidade dele.
   const aguardandoValidacaoDeUnidade =
-    Boolean(filtros.unidade) && carregandoUnidades;
+    (Boolean(filtros.unidade) && carregandoUnidades) || carregandoSessao;
   const {
     documentos,
     carregandoPrimeiraVez,

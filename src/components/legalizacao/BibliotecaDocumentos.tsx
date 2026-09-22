@@ -73,7 +73,11 @@ export function BibliotecaDocumentos() {
     number | null
   >(null);
 
-  const { user, isCoordenacaoUnidade } = useAuth();
+  const {
+    user,
+    isLoading: carregandoSessao,
+    isCoordenacaoUnidade,
+  } = useAuth();
   const {
     unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
@@ -90,12 +94,22 @@ export function BibliotecaDocumentos() {
     ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
     : todasAsUnidades;
 
+  // carregandoSessao no guard (achado no review): isCoordenacaoUnidade nasce
+  // false enquanto a sessão carrega (useAuth.ts) -- sem esperar por ela, a
+  // 1ª unidade da REDE INTEIRA (não a do Coordenador) podia ser
+  // auto-selecionada e ter seus documentos buscados/exibidos por um
+  // instante, antes da sessão resolver e a 2ª correção abaixo consertar.
   useEffect(() => {
-    if (unidadeId !== undefined || carregandoUnidades || unidades.length === 0)
+    if (
+      unidadeId !== undefined ||
+      carregandoUnidades ||
+      carregandoSessao ||
+      unidades.length === 0
+    )
       return;
     setUnidadeId(unidades[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carregandoUnidades, unidades]);
+  }, [carregandoUnidades, carregandoSessao, unidades]);
 
   // Mesmo achado de code review de MatrizConformidade.tsx: um id de
   // unidade inválido/removida (link antigo, ou editado à mão na URL) não
