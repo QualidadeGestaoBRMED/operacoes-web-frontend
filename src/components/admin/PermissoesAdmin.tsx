@@ -639,15 +639,19 @@ export function PermissoesAdmin() {
               Nenhuma permissão encontrada com esses filtros.
             </p>
           ) : (
-            // ehMobile ? undefined : {...} / !ehMobile && "overflow-y-auto":
-            // mesmo achado de GerenciarUsuarios.tsx (STC-505) -- sem isso, a
-            // tabela travava a própria altura mesmo no mobile, sem sobrar
-            // espaço nem scroll de página pra compensar.
+            // ehMobile ? undefined : {...} / shrink-0 (não flex-1) no
+            // mobile: mesmo achado de GerenciarUsuarios.tsx (STC-505, ver
+            // comentário lá pro racional completo -- overflow-y-visible
+            // sozinho não basta, overflow-x:auto recomputa pra auto de
+            // qualquer forma) -- sem isso, a tabela travava a própria altura
+            // mesmo no mobile, sem sobrar espaço nem scroll de página pra
+            // compensar.
             <div
               ref={refTabelaPermissoes}
               style={ehMobile ? undefined : { maxHeight: alturaTabelaPermissoes }}
               className={cn(
-                "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+                "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 overflow-x-auto rounded-lg border border-border",
+                ehMobile ? "shrink-0" : "flex-1",
                 !ehMobile && "overflow-y-auto",
               )}
             >

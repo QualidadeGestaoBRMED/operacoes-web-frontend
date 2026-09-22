@@ -255,7 +255,22 @@ export function GerenciarUsuarios({
           ref={refTabela}
           style={ehMobile ? undefined : { maxHeight }}
           className={cn(
-            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-x-auto rounded-lg border border-border",
+            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 overflow-x-auto rounded-lg border border-border",
+            // shrink-0 (não flex-1) no mobile: achado no code review
+            // (STC-505) -- por especificação do CSS (Overflow Module Level 3
+            // §3.3), overflow-x:auto sozinho recomputa overflow-y de
+            // "visible" pra "auto", MESMO com overflow-y-visible explícito
+            // (testado e confirmado ao vivo -- não bastou). Com flex-1 essa
+            // div ainda tinha altura definida pela cadeia flex (h-full do
+            // pai), então virava scroll container vertical implícito de
+            // qualquer forma, cortando a tabela dentro dela mesma com listas
+            // maiores -- o scroll da aba (o fallback) nunca era acionado. A
+            // correção de verdade é não deixar a div ter altura definida
+            // nenhuma no mobile: shrink-0 = altura intrínseca (cresce pro
+            // tamanho do conteúdo), overflow:auto vira inofensivo porque
+            // nunca sobra conteúdo pra cortar. Verificado com Playwright
+            // injetando 30 linhas extras.
+            ehMobile ? "shrink-0" : "flex-1",
             !ehMobile && "overflow-y-auto",
           )}
         >
