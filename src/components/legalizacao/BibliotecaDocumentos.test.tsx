@@ -474,4 +474,30 @@ describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-51
     await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
     expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
   });
+
+  // Achado numa 4ª rodada de review: Usuario.unidade_id é number|null -- um
+  // Coordenador sem unidade vinculada (conta mal configurada) faz o filtro
+  // de `unidades` ficar vazio, igual ao caso "rede sem nenhuma unidade
+  // cadastrada". Sem distinguir os dois, mostrava "Nenhuma unidade
+  // cadastrada." -- diagnóstico errado (existem unidades, só nenhuma
+  // vinculada à conta dele).
+  it("Coordenador sem unidade vinculada (unidade_id null) mostra mensagem específica, não 'Nenhuma unidade cadastrada'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: null },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+
+    renderTela();
+
+    expect(
+      await screen.findByText(/não está vinculada a nenhuma unidade/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Nenhuma unidade cadastrada.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+    expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
 });
