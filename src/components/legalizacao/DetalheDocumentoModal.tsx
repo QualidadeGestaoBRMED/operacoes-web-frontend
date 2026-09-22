@@ -39,10 +39,8 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
 import {
   CODIGOS_MOVIMENTACAO_PROFISSIONAL,
-  COR_CRITICIDADE_ALTA,
   COR_STATUS_BADGE,
   LABEL_CATEGORIA,
-  LABEL_CRITICIDADE,
   LABEL_STATUS,
   prazoDocumento,
   responsavelPrincipal,
@@ -633,27 +631,6 @@ export function DetalheDocumentoModal({
                       </button>
                     )}
                   </CampoMeta>
-                  <CampoMeta rotulo="Criticidade">
-                    {documento.regra_aplicada ? (
-                      <span
-                        className={cn(
-                          "rounded-sm border px-2 py-0.5 text-[12.5px] font-semibold",
-                          documento.regra_aplicada.criticidade === "alta"
-                            ? COR_CRITICIDADE_ALTA
-                            : "border-border bg-muted text-foreground",
-                        )}
-                      >
-                        {
-                          LABEL_CRITICIDADE[
-                            documento.regra_aplicada.criticidade
-                          ]
-                        }
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </CampoMeta>
-
                   <div className="h-px bg-border" />
 
                   {mostrandoJustificativa ? (

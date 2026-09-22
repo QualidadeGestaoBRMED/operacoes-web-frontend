@@ -24,7 +24,6 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import {
   LABEL_CATEGORIA,
-  LABEL_CRITICIDADE,
   LABEL_STATUS,
   ORDEM_CATEGORIA,
   ORDEM_STATUS,
@@ -32,12 +31,9 @@ import {
 import { nomeExibicao } from "@/lib/utils";
 import type {
   CategoriaDocumento,
-  Criticidade,
   DocumentoUnidadeFiltros,
   StatusDocumento,
 } from "@/types/legalizacao";
-
-const CRITICIDADES: Criticidade[] = ["alta", "media", "baixa"];
 
 interface MatrizFiltrosProps {
   filtros: DocumentoUnidadeFiltros;
@@ -109,7 +105,6 @@ export function MatrizFiltros({
     filtros.tipo_documento,
     filtros.status,
     filtros.responsavel,
-    filtros.criticidade,
     filtros.prazo_ate,
     categoria,
   ].filter(Boolean).length;
@@ -276,33 +271,6 @@ export function MatrizFiltros({
             {usuarios.map((usuario) => (
               <SelectItem key={usuario.id} value={String(usuario.id)}>
                 {nomeExibicao(usuario)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filtros.criticidade ?? "todas"}
-          onValueChange={(valor) =>
-            onMudarFiltros({
-              ...filtros,
-              criticidade:
-                valor === "todas" ? undefined : (valor as Criticidade),
-            })
-          }
-        >
-          <SelectTrigger
-            size="sm"
-            className="h-8 w-full sm:w-auto"
-            aria-label="Criticidade"
-          >
-            <SelectValue placeholder="Criticidade" />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            <SelectItem value="todas">Todas as criticidades</SelectItem>
-            {CRITICIDADES.map((criticidade) => (
-              <SelectItem key={criticidade} value={criticidade}>
-                {LABEL_CRITICIDADE[criticidade]}
               </SelectItem>
             ))}
           </SelectContent>

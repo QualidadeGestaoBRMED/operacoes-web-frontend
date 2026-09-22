@@ -165,7 +165,7 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     ).toBeInTheDocument();
   });
 
-  it("1 documento pendente: contagem no singular, mostra documento/unidade/criticidade", async () => {
+  it("1 documento pendente: contagem no singular, mostra documento/unidade", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([alerta()]);
 
     renderModal();
@@ -173,7 +173,6 @@ describe("AlertaPersistenteModal (STC-443)", () => {
     expect(await screen.findByText("1 documento regulatório pendente")).toBeInTheDocument();
     expect(screen.getByText("Alvará de Funcionamento")).toBeInTheDocument();
     expect(screen.getByText(/Niterói/)).toBeInTheDocument();
-    expect(screen.getByText("Alta")).toBeInTheDocument();
   });
 
   it("vários documentos pendentes: contagem no plural, 1 linha por documento", async () => {
@@ -191,24 +190,16 @@ describe("AlertaPersistenteModal (STC-443)", () => {
   // AlertaRegulatorio pendente ao mesmo tempo (ex. imediato de movimentação
   // profissional + de ciclo da varredura diária) -- contar/listar por
   // ALERTA fazia o mesmo documento aparecer 2x na lista.
-  it("mesmo documento com 2 alertas pendentes: 1 linha só, criticidade mais alta, data mais antiga", async () => {
+  it("mesmo documento com 2 alertas pendentes: 1 linha só, data mais antiga", async () => {
     vi.mocked(listarAlertasPendentes).mockResolvedValue([
-      alertaDoDocumento(1, 10, {
-        criticidade: "baixa",
-        data_geracao: "2026-09-15T12:00:00Z",
-      }),
-      alertaDoDocumento(2, 10, {
-        criticidade: "alta",
-        data_geracao: "2026-09-10T12:00:00Z",
-      }),
+      alertaDoDocumento(1, 10, { data_geracao: "2026-09-15T12:00:00Z" }),
+      alertaDoDocumento(2, 10, { data_geracao: "2026-09-10T12:00:00Z" }),
     ]);
 
     renderModal();
 
     expect(await screen.findByText("1 documento regulatório pendente")).toBeInTheDocument();
     expect(screen.getAllByText("Alvará de Funcionamento")).toHaveLength(1);
-    expect(screen.getByText("Alta")).toBeInTheDocument();
-    expect(screen.queryByText("Baixa")).not.toBeInTheDocument();
     expect(screen.getByText(/· 2 alertas/)).toBeInTheDocument();
   });
 

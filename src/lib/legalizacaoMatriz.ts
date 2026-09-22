@@ -7,7 +7,6 @@ import { nomeExibicao } from "./utils";
 import type {
   AlertaRegulatorio,
   CategoriaDocumento,
-  Criticidade,
   DocumentoUnidade,
   ResponsavelDocumento,
   StatusDocumento,
@@ -106,18 +105,6 @@ export const ORDEM_STATUS: StatusDocumento[] = [
   "unidade_encerramento",
 ];
 
-export const LABEL_CRITICIDADE: Record<Criticidade, string> = {
-  baixa: "Baixa",
-  media: "Média",
-  alta: "Alta",
-};
-
-// Só "alta" ganha destaque de cor (mesmo espírito do mockup) -- média/baixa
-// ficam com a mesma tag neutra usada pra "sem criticidade" (regra_aplicada
-// nulo), pra não competir visualmente com o badge de status, que já é a
-// informação principal da linha.
-export const COR_CRITICIDADE_ALTA = "border-red-200 bg-red-100 text-red-700";
-
 // STC-443: um mesmo documento pode ter mais de um AlertaRegulatorio pendente
 // ao mesmo tempo (ex.: um imediato de movimentação profissional + um de
 // ciclo da varredura diária, os dois legítimos enquanto o documento não é
@@ -131,7 +118,6 @@ export interface AlertaAgrupado {
   documentoId: number;
   tipoDocumentoNome: string;
   unidadeNome: string;
-  criticidade: Criticidade | "";
   dataMaisAntiga: string;
   totalAlertas: number;
 }
@@ -147,23 +133,14 @@ export function agruparAlertasPorDocumento(alertas: AlertaRegulatorio[]): Alerta
 
   return Array.from(porDocumento.values()).map((grupo) => {
     const [primeiro, ...resto] = grupo;
-    let criticidadeMaisAlta = primeiro.criticidade;
     let dataMaisAntiga = primeiro.data_geracao;
     for (const alerta of resto) {
-      if (
-        alerta.criticidade &&
-        (!criticidadeMaisAlta ||
-          ORDEM_CRITICIDADE[alerta.criticidade] < ORDEM_CRITICIDADE[criticidadeMaisAlta])
-      ) {
-        criticidadeMaisAlta = alerta.criticidade;
-      }
       if (alerta.data_geracao < dataMaisAntiga) dataMaisAntiga = alerta.data_geracao;
     }
     return {
       documentoId: primeiro.documento_unidade.id,
       tipoDocumentoNome: primeiro.documento_unidade.tipo_documento.nome,
       unidadeNome: primeiro.documento_unidade.unidade.nome,
-      criticidade: criticidadeMaisAlta,
       dataMaisAntiga,
       totalAlertas: grupo.length,
     };
@@ -224,27 +201,17 @@ export function prazoDocumento(documento: DocumentoUnidade): {
   };
 }
 
-export type CampoOrdenavel =
-  "unidade" | "documento" | "status" | "responsavel" | "criticidade" | "prazo";
+export type CampoOrdenavel = "unidade" | "documento" | "status" | "responsavel" | "prazo";
 
 // Reexportado com o nome que os componentes já usavam (MatrizTable.tsx,
 // MatrizConformidade.tsx) -- a extração pro motor genérico (lib/ordenacao.ts)
 // não muda a API pública deste módulo.
 export type Ordenacao = OrdenacaoGenerica<CampoOrdenavel>;
 
-// Exportado -- STC-443 (AlertaPersistenteModal) reaproveita a mesma ordem
-// pra escolher a criticidade mais alta entre vários alertas do mesmo
-// documento, em vez de duplicar o mapeamento.
-export const ORDEM_CRITICIDADE: Record<Criticidade, number> = {
-  alta: 0,
-  media: 1,
-  baixa: 2,
-};
-
 // Cada campo extrai uma chave comparável (string/number) ou null quando o
-// documento não tem valor pra esse campo (sem responsável, sem criticidade,
-// sem prazo) -- null sempre vai pro final, nas duas direções (ver
-// ordenarPor() em lib/ordenacao.ts).
+// documento não tem valor pra esse campo (sem responsável, sem prazo) --
+// null sempre vai pro final, nas duas direções (ver ordenarPor() em
+// lib/ordenacao.ts).
 const CHAVES: ExtratoresDeChave<DocumentoUnidade, CampoOrdenavel> = {
   unidade: (d) => d.unidade.nome,
   documento: (d) => d.tipo_documento.nome,
@@ -259,10 +226,6 @@ const CHAVES: ExtratoresDeChave<DocumentoUnidade, CampoOrdenavel> = {
   responsavel: (d) => {
     const principal = responsavelPrincipal(d);
     return principal ? nomeExibicao(principal.usuario) : null;
-  },
-  criticidade: (d) => {
-    const criticidade = d.regra_aplicada?.criticidade;
-    return criticidade ? ORDEM_CRITICIDADE[criticidade] : null;
   },
   prazo: (d) => diasParaPrazo(d),
 };

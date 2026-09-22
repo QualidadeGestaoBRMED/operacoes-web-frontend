@@ -13,8 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAlertasPendentes } from "@/hooks/useAlertasPendentes";
-import { agruparAlertasPorDocumento, LABEL_CRITICIDADE, numeroDaUrl } from "@/lib/legalizacaoMatriz";
-import { cn, formatarTempoRelativo } from "@/lib/utils";
+import { agruparAlertasPorDocumento, numeroDaUrl } from "@/lib/legalizacaoMatriz";
+import { formatarTempoRelativo } from "@/lib/utils";
 
 // STC-443 (RN22, MP002): "o alerta permanece visível na plataforma até a
 // resolução" -- STC-373 só cobriu o aviso avulso e dispensável (sino do
@@ -180,8 +180,8 @@ export function AlertaPersistenteModal() {
         {...{ [ATRIBUTO_PROPRIO]: "" }}
         // sm:max-w-2xl (não o max-w-lg padrão do Dialog) -- pedido do Tech
         // Lead depois de ver o modal em uso real (Gestão de Demandas):
-        // ficava estreito pra uma lista com criticidade + "· N alertas" ao
-        // lado do nome do documento, texto cortando com facilidade. Um 1º
+        // ficava estreito pra uma lista com "· N alertas" ao lado do nome
+        // do documento, texto cortando com facilidade. Um 1º
         // aumento pra sm:max-w-xl passou despercebido (diferença pequena
         // demais, 512px -> 576px) -- pulando direto pra 2xl (672px). gap-6
         // (não o gap-4 padrão) e o conteúdo de cada linha (abaixo) maiores --
@@ -240,18 +240,6 @@ export function AlertaPersistenteModal() {
                   {grupo.totalAlertas > 1 && ` · ${grupo.totalAlertas} alertas`}
                 </p>
               </div>
-              {grupo.criticidade && (
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide uppercase",
-                    grupo.criticidade === "alta"
-                      ? "border-red-200 bg-red-100 text-red-700"
-                      : "border-border bg-muted text-muted-foreground",
-                  )}
-                >
-                  {LABEL_CRITICIDADE[grupo.criticidade]}
-                </span>
-              )}
             </button>
           ))}
         </div>

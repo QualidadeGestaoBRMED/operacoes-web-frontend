@@ -2,9 +2,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, FileX2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import {
-  COR_CRITICIDADE_ALTA,
   COR_STATUS_BADGE,
-  LABEL_CRITICIDADE,
   LABEL_CATEGORIA,
   LABEL_STATUS,
   responsavelPrincipal,
@@ -37,15 +35,17 @@ interface MatrizTableProps {
 // as linhas fazia a tabela inteira "encolher" e as colunas mudarem de
 // largura a cada filtro/busca. Somam 100%.
 const COLUNAS: { rotulo: string; largura: string; campo: CampoOrdenavel }[] = [
-  { rotulo: "Unidade", largura: "w-[12%]", campo: "unidade" },
-  { rotulo: "Documento", largura: "w-[24%]", campo: "documento" },
+  { rotulo: "Unidade", largura: "w-[14%]", campo: "unidade" },
+  { rotulo: "Documento", largura: "w-[26%]", campo: "documento" },
   // 22% (era 16%) -- "Unidade em encerramento" é o rótulo mais longo dos 7
   // status e não cabia na largura antiga, vazando visualmente por cima da
   // coluna Responsável (achado testando em viewport de celular).
-  { rotulo: "Status", largura: "w-[22%]", campo: "status" },
-  { rotulo: "Responsável", largura: "w-[18%]", campo: "responsavel" },
-  { rotulo: "Criticidade", largura: "w-[10%]", campo: "criticidade" },
-  { rotulo: "Prazo", largura: "w-[14%]", campo: "prazo" },
+  { rotulo: "Status", largura: "w-[24%]", campo: "status" },
+  { rotulo: "Responsável", largura: "w-[20%]", campo: "responsavel" },
+  // Larguras redistribuídas (STC-508): coluna "Criticidade" (10%) removida,
+  // os outros 10 pontos somados de volta nas 5 colunas restantes (+2 cada)
+  // pra continuar somando 100%.
+  { rotulo: "Prazo", largura: "w-[16%]", campo: "prazo" },
 ];
 
 function LegendaStatus() {
@@ -282,26 +282,6 @@ export function MatrizTable({
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <ResponsavelCelula documento={documento} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {documento.regra_aplicada ? (
-                          <span
-                            className={cn(
-                              "rounded-sm border px-2 py-0.5 text-[11px] font-semibold",
-                              documento.regra_aplicada.criticidade === "alta"
-                                ? COR_CRITICIDADE_ALTA
-                                : "border-border bg-muted text-foreground",
-                            )}
-                          >
-                            {
-                              LABEL_CRITICIDADE[
-                                documento.regra_aplicada.criticidade
-                              ]
-                            }
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
                       </td>
                       {/* truncate: achado no code review -- sem isso, um
                           documento vencido há muitos dias ("vencido há 1826
