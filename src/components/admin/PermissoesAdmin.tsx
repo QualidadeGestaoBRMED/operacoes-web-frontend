@@ -511,7 +511,28 @@ export function PermissoesAdmin({
             Legalização) faz parte do acesso dele, não tem entre o quê
             escolher. */}
         {!apenasCatalogo && (
-          <Select value={aba} onValueChange={(valor) => setAba(valor as Aba)}>
+          <Select
+            value={aba}
+            onValueChange={(valor) => {
+              const novaAba = valor as Aba;
+              setAba(novaAba);
+              // STC-519 (achado em revisão de falhas críticas): sem isto, o
+              // conteúdo troca (setAba) mas a URL fica parada em qualquer
+              // rota que o usuário chegou -- a sidebar destaca o subitem
+              // "Catálogo de Legalização" a partir do PATHNAME
+              // (Sidebar.tsx), não do state interno deste componente, então
+              // trocar de Seção sem navegar deixava o destaque da sidebar
+              // divergindo do que estava de fato na tela. replace (não
+              // push): é uma troca de aba, não uma navegação de verdade --
+              // não deveria empilhar no histórico do back-button a cada
+              // clique no Select.
+              router.replace(
+                novaAba === "catalogo-legalizacao"
+                  ? "/admin/permissoes/catalogo-legalizacao"
+                  : "/admin/permissoes",
+              );
+            }}
+          >
             <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
               <SelectValue />
             </SelectTrigger>

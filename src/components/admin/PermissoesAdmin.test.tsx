@@ -217,6 +217,37 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(await screen.findByLabelText("Seção")).toHaveTextContent("Usuários");
   });
 
+  // STC-519 (achado em revisão de falhas críticas): trocar a Seção pelo
+  // Select troca o conteúdo (setAba), mas sem navegar a URL ficava parada
+  // -- a sidebar (componente separado, destaca pelo pathname) continuava
+  // marcando "Catálogo de Legalização" como página atual mesmo com
+  // Usuários na tela. router.replace() mantém a URL sincronizada com o
+  // que está de fato exibido.
+  it("trocar a Seção pelo Select navega de verdade (mantém a URL sincronizada com o conteúdo)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela("catalogo-legalizacao");
+    await screen.findByRole("heading", { name: "Tipos de documento" });
+
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Usuários" }));
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes");
+
+    replace.mockClear();
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
+    );
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes/catalogo-legalizacao");
+  });
+
   it("lista permissões existentes com nome resolvido e status", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
