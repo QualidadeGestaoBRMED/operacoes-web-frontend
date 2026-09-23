@@ -25,13 +25,16 @@ vi.mock("@/hooks/useAuth", () => ({
 }));
 
 import {
+  adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarProcessoRenovacao,
+  listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
   listarHistoricoLegalizacao,
   listarProcessosRenovacao,
+  removerResponsavelLegalizacao,
   reverterDocumentoLegalizacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
@@ -54,6 +57,20 @@ const USUARIO: Usuario = {
   last_name: "Legalização",
   perfil: null,
   unidade_id: null,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+  foto_url: "",
+};
+
+const OUTRO_USUARIO: Usuario = {
+  id: 11,
+  username: "ana.souza",
+  email: "ana.souza@grupobrmed.com.br",
+  first_name: "Ana",
+  last_name: "Souza",
+  perfil: null,
+  unidade_id: UNIDADE.id,
   setor_id: null,
   ativo: true,
   ultimo_acesso: null,
@@ -1091,5 +1108,202 @@ describe("DetalheDocumentoModal -- editar Antecedência do alerta (STC-502)", ()
     // testado em FormNovaVersaoRegra.test.tsx, só confirmando a integração
     // (documento certo chega no diálogo).
     expect(screen.getByLabelText(/^Antecedência \(dias\)/)).toHaveValue(60);
+  });
+});
+
+describe("DetalheDocumentoModal -- editar Responsável Operacional (STC-518)", () => {
+  it("mostra todos os responsáveis, não só o principal", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({
+        responsaveis: [
+          { id: 1, usuario: USUARIO, principal: true, created_at: "2026-01-01T00:00:00Z" },
+          {
+            id: 2,
+            usuario: OUTRO_USUARIO,
+            principal: false,
+            created_at: "2026-01-02T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    expect(screen.getByText("Time Legalização")).toBeInTheDocument();
+    expect(screen.getByText("Ana Souza")).toBeInTheDocument();
+  });
+
+  it("'Editar' abre o modo de edição, mostrando os já atribuídos e o gatilho de adicionar", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Concluir" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /remover responsável time legalização/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "+ Adicionar responsável" }),
+    ).toBeInTheDocument();
+  });
+
+  it("adiciona um segundo responsável (POST com principal: false, já existe um principal)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao)
+      .mockResolvedValueOnce(documento())
+      .mockResolvedValueOnce(
+        documento({
+          responsaveis: [
+            { id: 1, usuario: USUARIO, principal: true, created_at: "2026-01-01T00:00:00Z" },
+            {
+              id: 2,
+              usuario: OUTRO_USUARIO,
+              principal: false,
+              created_at: "2026-01-02T00:00:00Z",
+            },
+          ],
+        }),
+      );
+    vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([OUTRO_USUARIO]);
+    vi.mocked(adicionarResponsavelLegalizacao).mockResolvedValue({
+      id: 2,
+      usuario: OUTRO_USUARIO,
+      principal: false,
+      created_at: "2026-01-02T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "+ Adicionar responsável" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Ana Souza" }));
+
+    await waitFor(() => {
+      expect(adicionarResponsavelLegalizacao).toHaveBeenCalledWith(55, {
+        usuario_id: OUTRO_USUARIO.id,
+        principal: false,
+      });
+    });
+    expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+  });
+
+  it("adiciona o primeiro responsável de um documento sem nenhum (POST com principal: true)", async () => {
+    vi.mocked(buscarDocumentoLegalizacao)
+      .mockResolvedValueOnce(documento({ responsaveis: [] }))
+      .mockResolvedValueOnce(
+        documento({
+          responsaveis: [
+            { id: 3, usuario: OUTRO_USUARIO, principal: true, created_at: "2026-01-03T00:00:00Z" },
+          ],
+        }),
+      );
+    vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([OUTRO_USUARIO]);
+    vi.mocked(adicionarResponsavelLegalizacao).mockResolvedValue({
+      id: 3,
+      usuario: OUTRO_USUARIO,
+      principal: true,
+      created_at: "2026-01-03T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    expect(screen.getByText("Sem responsável")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "+ Adicionar responsável" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Ana Souza" }));
+
+    await waitFor(() => {
+      expect(adicionarResponsavelLegalizacao).toHaveBeenCalledWith(55, {
+        usuario_id: OUTRO_USUARIO.id,
+        principal: true,
+      });
+    });
+  });
+
+  it("remove um responsável mantendo o outro", async () => {
+    vi.mocked(buscarDocumentoLegalizacao)
+      .mockResolvedValueOnce(
+        documento({
+          responsaveis: [
+            { id: 1, usuario: USUARIO, principal: true, created_at: "2026-01-01T00:00:00Z" },
+            {
+              id: 2,
+              usuario: OUTRO_USUARIO,
+              principal: false,
+              created_at: "2026-01-02T00:00:00Z",
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(documento());
+    vi.mocked(removerResponsavelLegalizacao).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /remover responsável ana souza/i }),
+    );
+
+    await waitFor(() => {
+      expect(removerResponsavelLegalizacao).toHaveBeenCalledWith(55, OUTRO_USUARIO.id);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Time Legalização")).toBeInTheDocument();
+  });
+
+  it("mostra erro claro (não quebra) quando a remoção falha, ex. único responsável principal", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const erroApi = Object.assign(new Error("Bad Request"), {
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: {
+          usuario_id: [
+            "Não é possível remover o único responsável principal. Atribua outro principal antes de remover este.",
+          ],
+        },
+      },
+    });
+    vi.mocked(removerResponsavelLegalizacao).mockRejectedValue(erroApi);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /remover responsável time legalização/i }),
+    );
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Não é possível remover o único responsável principal. Atribua outro principal antes de remover este.",
+      );
+    });
+    // Não sumiu da tela -- a remoção falhou de verdade, a UI reflete o
+    // estado real (ainda responsável), não um estado otimista que já teria
+    // tirado o chip antes da confirmação do backend.
+    expect(screen.getByText("Time Legalização")).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import {
   FileText,
   History as HistoryIcon,
   Pencil,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,8 +32,11 @@ import {
   ProcessoRenovacaoModal,
 } from "./ProcessoRenovacaoModal";
 import {
+  useAdicionarResponsavelLegalizacao,
   useAtualizarDocumentoLegalizacao,
+  useCandidatosResponsaveis,
   useDocumentoLegalizacao,
+  useRemoverResponsavelLegalizacao,
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
@@ -43,7 +49,6 @@ import {
   LABEL_CATEGORIA,
   LABEL_STATUS,
   prazoDocumento,
-  responsavelPrincipal,
 } from "@/lib/legalizacaoMatriz";
 import {
   cn,
@@ -301,6 +306,18 @@ export function DetalheDocumentoModal({
   // pré-preenchido com o documento já em mãos.
   const [mostrandoNovaVersaoRegra, setMostrandoNovaVersaoRegra] =
     useState(false);
+  // STC-518: editar responsável operacional de um documento já cadastrado
+  // -- cada marcar/desmarcar já persiste na hora (POST/DELETE), sem
+  // Salvar/Cancelar (diferente de mostrandoEdicao acima) porque o endpoint
+  // já é atômico por usuário, não um PATCH em lote.
+  const [mostrandoEdicaoResponsaveis, setMostrandoEdicaoResponsaveis] =
+    useState(false);
+  const [buscaResponsavel, setBuscaResponsavel] = useState("");
+  // Trava só o botão do usuário em questão (add ou remove), não o card
+  // inteiro -- evita duplo-clique na mesma linha sem travar as outras.
+  const [processandoResponsavelId, setProcessandoResponsavelId] = useState<
+    number | null
+  >(null);
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -320,6 +337,24 @@ export function DetalheDocumentoModal({
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
     useReverterDocumentoLegalizacao();
+  const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
+    documentoId ?? 0,
+  );
+  const { remover: removerResponsavel } = useRemoverResponsavelLegalizacao(
+    documentoId ?? 0,
+  );
+  // Só busca candidatos quando a edição está de fato aberta -- não faz
+  // sentido gastar a chamada toda vez que o modal abre se ninguém for
+  // mexer em responsável.
+  const {
+    candidatos: candidatosResponsavel,
+    isLoading: carregandoCandidatos,
+    mensagemErro: erroCandidatos,
+    tentarNovamente: tentarNovamenteCandidatos,
+  } = useCandidatosResponsaveis(
+    mostrandoEdicaoResponsaveis ? documento?.unidade.id : undefined,
+    mostrandoEdicaoResponsaveis ? documento?.tipo_documento.id : undefined,
+  );
 
   function fechar() {
     setMostrandoJustificativa(false);
@@ -330,6 +365,8 @@ export function DetalheDocumentoModal({
     setMostrandoConfirmarReversao(false);
     setMostrandoEdicao(false);
     setMostrandoNovaVersaoRegra(false);
+    setMostrandoEdicaoResponsaveis(false);
+    setBuscaResponsavel("");
     onOpenChange(false);
   }
 
@@ -340,6 +377,43 @@ export function DetalheDocumentoModal({
     // aba Histórico não invalida sozinha, sem isto o registro só aparecia
     // depois de fechar e reabrir o modal.
     void mutateHistorico().catch(() => {});
+  }
+
+  // STC-518. `principal`: só True quando este é o 1º responsável de
+  // verdade -- um 2º+ com principal implícito (True é o default do model)
+  // colide com a constraint de "só 1 principal por documento" no backend
+  // e vira 400. Trava só este usuário (processandoResponsavelId) durante
+  // a chamada, e revalida o documento em si (não só a lista) porque é o
+  // que a sidebar deste modal lê.
+  async function aoAdicionarResponsavel(usuarioId: number) {
+    if (!documento) return;
+    setProcessandoResponsavelId(usuarioId);
+    try {
+      await adicionarResponsavel({
+        usuario_id: usuarioId,
+        principal: documento.responsaveis.length === 0,
+      });
+      await mutate();
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setProcessandoResponsavelId(null);
+    }
+  }
+
+  async function aoRemoverResponsavel(usuarioId: number) {
+    setProcessandoResponsavelId(usuarioId);
+    try {
+      await removerResponsavel(usuarioId);
+      await mutate();
+    } catch (erro) {
+      // Ex.: "Não é possível remover o único responsável principal" --
+      // erro real e esperado (backend), não um bug -- mensagem já vem
+      // legível de extrairMensagemErro.
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setProcessandoResponsavelId(null);
+    }
   }
 
   async function confirmarNaoAplicavel() {
@@ -389,7 +463,19 @@ export function DetalheDocumentoModal({
   }
 
   const prazo = documento ? prazoDocumento(documento) : null;
-  const responsavel = documento ? responsavelPrincipal(documento) : undefined;
+  // STC-518: mostra TODOS os responsáveis (antes só o principal, via
+  // responsavelPrincipal() -- ver histórico do arquivo) -- múltiplos
+  // responsáveis é possível desde a STC-516, e a edição abaixo precisa
+  // deles todos pra remover qualquer um, não só o principal.
+  const idsResponsaveis = documento
+    ? documento.responsaveis.map((r) => r.usuario.id)
+    : [];
+  const candidatosParaAdicionar = candidatosResponsavel.filter(
+    (usuario) => !idsResponsaveis.includes(usuario.id),
+  );
+  const candidatosFiltrados = candidatosParaAdicionar.filter((usuario) =>
+    nomeExibicao(usuario).toLowerCase().includes(buscaResponsavel.trim().toLowerCase()),
+  );
   // documento.evidencia_vigente (não evidencia.vigente) é a fonte de
   // verdade -- é o mesmo FK denormalizado que a Matriz de Conformidade usa
   // pra listar a evidência atual sem N+1 (legalizacao/models.py, backend),
@@ -550,20 +636,137 @@ export function DetalheDocumentoModal({
                       }
                     </Pill>
                   </CampoMeta>
-                  <CampoMeta rotulo="Responsável operacional">
-                    {responsavel ? (
-                      <>
-                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                          {iniciaisDe(nomeExibicao(responsavel.usuario))}
+                  {mostrandoEdicaoResponsaveis ? (
+                    <div className="flex flex-col gap-1.5 rounded-md border border-border p-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+                          Responsável operacional
                         </span>
-                        {nomeExibicao(responsavel.usuario)}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        Sem responsável
-                      </span>
-                    )}
-                  </CampoMeta>
+                        <button
+                          type="button"
+                          onClick={() => setMostrandoEdicaoResponsaveis(false)}
+                          className="text-[12.5px] font-medium text-secondary hover:underline"
+                        >
+                          Concluir
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {documento.responsaveis.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">
+                            Sem responsável
+                          </span>
+                        ) : (
+                          documento.responsaveis.map((resp) => (
+                            <span
+                              key={resp.id}
+                              className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
+                            >
+                              {nomeExibicao(resp.usuario)}
+                              {resp.principal && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  (principal)
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => void aoRemoverResponsavel(resp.usuario.id)}
+                                disabled={processandoResponsavelId === resp.usuario.id}
+                                aria-label={`Remover responsável ${nomeExibicao(resp.usuario)}`}
+                                className="opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      <Popover
+                        onOpenChange={(aberto) => {
+                          if (!aberto) setBuscaResponsavel("");
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex h-8 w-full items-center justify-center gap-1 rounded-md border border-dashed border-input text-xs font-medium text-muted-foreground hover:border-secondary hover:text-secondary"
+                          >
+                            + Adicionar responsável
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-72 p-1.5">
+                          <Input
+                            value={buscaResponsavel}
+                            onChange={(evento) => setBuscaResponsavel(evento.target.value)}
+                            placeholder="Buscar por nome..."
+                            className="mb-1.5 h-7 text-xs"
+                            autoFocus
+                          />
+                          <div className="scrollbar-discreta max-h-48 overflow-y-auto">
+                            {carregandoCandidatos ? (
+                              <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                                Carregando...
+                              </p>
+                            ) : erroCandidatos ? (
+                              <div className="flex flex-col items-start gap-1 px-2 py-1.5">
+                                <p className="text-xs text-destructive">{erroCandidatos}</p>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={tentarNovamenteCandidatos}
+                                >
+                                  Tentar novamente
+                                </Button>
+                              </div>
+                            ) : candidatosFiltrados.length === 0 ? (
+                              <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                                Nenhum candidato disponível pra unidade/tipo deste documento.
+                              </p>
+                            ) : (
+                              candidatosFiltrados.map((usuario) => (
+                                <button
+                                  key={usuario.id}
+                                  type="button"
+                                  onClick={() => void aoAdicionarResponsavel(usuario.id)}
+                                  disabled={processandoResponsavelId === usuario.id}
+                                  className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {nomeExibicao(usuario)}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  ) : (
+                    <CampoMeta rotulo="Responsável operacional">
+                      <div className="flex flex-1 flex-wrap items-center gap-1.5">
+                        {documento.responsaveis.length === 0 ? (
+                          <span className="text-muted-foreground">Sem responsável</span>
+                        ) : (
+                          documento.responsaveis.map((resp) => (
+                            <span key={resp.id} className="flex items-center gap-1">
+                              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
+                                {iniciaisDe(nomeExibicao(resp.usuario))}
+                              </span>
+                              {nomeExibicao(resp.usuario)}
+                            </span>
+                          ))
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setMostrandoEdicaoResponsaveis(true)}
+                          aria-label="Editar responsável operacional"
+                          className="ml-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
+                        >
+                          <Pencil className="size-3" />
+                          Editar
+                        </button>
+                      </div>
+                    </CampoMeta>
+                  )}
 
                   <div className="h-px bg-border" />
 
