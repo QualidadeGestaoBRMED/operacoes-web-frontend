@@ -8,6 +8,7 @@ import {
   criarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
   enviarEvidenciaLegalizacao,
+  listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasVigentes,
   reverterDocumentoLegalizacao,
@@ -182,6 +183,30 @@ export function useReverterDocumentoLegalizacao() {
   return {
     reverter: trigger,
     isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// STC-516/STC-517: candidatos a responsável operacional -- reage a
+// unidade/tipo_documento escolhidos no formulário (mesmo padrão de chave
+// composta de useEvidenciasVigentes acima). Desabilitado (chave null) até
+// os dois estarem escolhidos -- não faz sentido perguntar candidatos sem
+// unidade+tipo, e o próprio endpoint exige os dois.
+export function useCandidatosResponsaveis(
+  unidadeId: number | undefined,
+  tipoDocumentoId: number | undefined,
+) {
+  const { data, error, isLoading } = useSWR(
+    unidadeId && tipoDocumentoId
+      ? ["candidatos-responsaveis", unidadeId, tipoDocumentoId]
+      : null,
+    () => listarCandidatosResponsaveis(unidadeId as number, tipoDocumentoId as number),
+  );
+
+  return {
+    candidatos: data ?? [],
+    isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
   };

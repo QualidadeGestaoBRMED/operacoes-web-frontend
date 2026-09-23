@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Loader2, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { SeletorResponsaveis } from "@/components/admin/legalizacao/SeletorResponsaveis";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -82,6 +83,10 @@ const schema = z
     janela_dia_fim: numeroDiaOpcional,
     identificadores_texto: z.string(),
     gera_card_demanda: z.boolean(),
+    // STC-516/STC-517: 1 seleção só, vale pra todos os documentos do lote.
+    responsaveis: z
+      .array(z.number())
+      .min(1, "Selecione pelo menos 1 responsável."),
   })
   .refine((v) => parseIdentificadores(v.identificadores_texto).length > 0, {
     message: "Informe ao menos um identificador (um por linha).",
@@ -104,6 +109,7 @@ type FormValuesSaida = z.output<typeof schema>;
 const valoresPadrao: Partial<FormValuesEntrada> = {
   identificadores_texto: "",
   gera_card_demanda: true,
+  responsaveis: [],
 };
 
 export function FormCadastrarDocumentosEmLote({
@@ -217,6 +223,9 @@ export function FormCadastrarDocumentosEmLote({
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
     setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+    // STC-517: candidatos a responsável dependem de unidade+tipo -- mesmo
+    // motivo de FormCadastrarDocumento.tsx.
+    setValue("responsaveis", []);
   }
 
   // STC-514: seletor de unidade travado na do Coordenador -- sem opção de
@@ -253,6 +262,7 @@ export function FormCadastrarDocumentosEmLote({
         criticidade: "alta",
         gera_card_demanda: valores.gera_card_demanda,
         identificadores,
+        responsaveis: valores.responsaveis,
       });
       toast.success(`${documentos.length} documento(s) cadastrado(s).`);
       // Passo 2 -- evidência é por instância (cada balança tem seu próprio
@@ -475,6 +485,32 @@ export function FormCadastrarDocumentosEmLote({
                   documento acima.
                 </p>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Responsável(is) <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="responsaveis"
+                render={({ field }) => (
+                  <SeletorResponsaveis
+                    unidadeId={unidadeSelecionada}
+                    tipoDocumentoId={tipoDocumentoSelecionado}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              {errors.responsaveis && (
+                <p className="text-xs text-destructive">
+                  {errors.responsaveis.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Vale para todos os documentos deste lote.
+              </p>
             </div>
 
             <div className="space-y-1.5 pt-1">

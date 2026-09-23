@@ -6,7 +6,7 @@ import type {
   DocumentoUnidade,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
-import type { Unidade } from "@/types";
+import type { Unidade, Usuario } from "@/types";
 import { FormCadastrarDocumento } from "./FormCadastrarDocumento";
 
 vi.mock("@/lib/legalizacaoCatalogo");
@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   enviarEvidenciaLegalizacao,
   criarDocumentoLegalizacao,
+  listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
 import {
@@ -69,6 +70,20 @@ const TIPO_DOSIMETRIA: TipoDocumentoRegulatorio = {
   created_at: "2026-01-01T00:00:00Z",
 };
 
+const USUARIO_CANDIDATO: Usuario = {
+  id: 5,
+  username: "ana.souza",
+  email: "ana.souza@grupobrmed.com.br",
+  first_name: "Ana",
+  last_name: "Souza",
+  perfil: null,
+  unidade_id: UNIDADE.id,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+  foto_url: "",
+};
+
 function documentoCriado(
   overrides: Partial<DocumentoUnidade> = {},
 ): DocumentoUnidade {
@@ -97,6 +112,21 @@ function renderForm(onOpenChange = vi.fn()) {
   );
 }
 
+// STC-517: abre o popover do seletor de responsável e marca o único
+// candidato mockado -- getByRole("checkbox", {name}) funciona porque o
+// texto do <label> vira o nome acessível do Checkbox (mesmo padrão já
+// usado em PermissoesAdmin.test.tsx).
+async function selecionarResponsavel(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await user.click(
+    screen.getByRole("button", { name: /selecionar responsável/i }),
+  );
+  await user.click(
+    await screen.findByRole("checkbox", { name: "Ana Souza" }),
+  );
+}
+
 async function selecionarUnidadeETipo(
   user: ReturnType<typeof userEvent.setup>,
 ) {
@@ -106,6 +136,7 @@ async function selecionarUnidadeETipo(
   await user.click(
     await screen.findByRole("option", { name: "Licença Sanitária" }),
   );
+  await selecionarResponsavel(user);
 }
 
 beforeEach(() => {
@@ -113,6 +144,7 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+  vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([USUARIO_CANDIDATO]);
   vi.mocked(useAuth).mockReturnValue({
     user: undefined,
     perfil: undefined,
@@ -248,6 +280,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
         unidade: UNIDADE.id,
         status: "nao_aplicavel",
         justificativa_excecao: "Unidade não tem raio-x.",
+        responsaveis: [USUARIO_CANDIDATO.id],
       });
     });
     expect(criarRegraDocumento).not.toHaveBeenCalled();
@@ -671,6 +704,78 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  describe("Responsável operacional obrigatório (STC-517)", () => {
+    it("não deixa submeter sem nenhum responsável selecionado", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Em andamento" }),
+      );
+      await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
+      await user.type(screen.getByLabelText(/antecedência/i), "60");
+
+      await user.click(
+        screen.getByRole("button", { name: /cadastrar documento/i }),
+      );
+
+      expect(
+        await screen.findByText("Selecione pelo menos 1 responsável."),
+      ).toBeInTheDocument();
+      expect(criarRegraDocumento).not.toHaveBeenCalled();
+      expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+    });
+
+    it("candidatos do seletor refletem a unidade e o tipo de documento escolhidos", async () => {
+      const responsavelDoSetorApoio: Usuario = {
+        ...USUARIO_CANDIDATO,
+        id: 8,
+        first_name: "Bruno",
+        last_name: "Lima",
+        unidade_id: null,
+        setor_id: 4,
+      };
+      vi.mocked(listarCandidatosResponsaveis).mockImplementation(
+        async (unidade, tipoDocumento) =>
+          unidade === UNIDADE.id && tipoDocumento === TIPO.id
+            ? [USUARIO_CANDIDATO, responsavelDoSetorApoio]
+            : [],
+      );
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+
+      await waitFor(() => {
+        expect(listarCandidatosResponsaveis).toHaveBeenCalledWith(
+          UNIDADE.id,
+          TIPO.id,
+        );
+      });
+      await user.click(
+        screen.getByRole("button", { name: /selecionar responsável/i }),
+      );
+      expect(
+        await screen.findByRole("checkbox", { name: "Ana Souza" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("checkbox", { name: "Bruno Lima" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("Dosimetria -- tipo controlado por profissional (STC-432)", () => {
     async function preencherCamposObrigatorios(
       user: ReturnType<typeof userEvent.setup>,
@@ -804,6 +909,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(
         await screen.findByRole("option", { name: "Em andamento" }),
       );
+      await selecionarResponsavel(user);
 
       expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
       expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
@@ -845,6 +951,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
       await user.type(screen.getByLabelText(/profissional/i), "Dr. João");
       await preencherCamposObrigatorios(user);
+      await selecionarResponsavel(user);
 
       await user.click(
         screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -1014,6 +1121,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
       await user.type(screen.getByLabelText(/profissional/i), "  Dr. João  ");
       await preencherCamposObrigatorios(user);
+      await selecionarResponsavel(user);
 
       await user.click(
         screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -1066,6 +1174,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
       await user.type(screen.getByLabelText(/profissional/i), "  Dr. João  ");
       await preencherCamposObrigatorios(user);
+      await selecionarResponsavel(user);
 
       await user.click(
         screen.getByRole("button", { name: /cadastrar documento/i }),
