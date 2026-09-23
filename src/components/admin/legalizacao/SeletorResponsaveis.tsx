@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -17,17 +18,27 @@ import { nomeExibicao } from "@/lib/utils";
 // FormCadastrarDocumentosEmLote.tsx -- os dois precisam do mesmo campo
 // obrigatório reagindo à unidade/tipo escolhidos.
 export function SeletorResponsaveis({
+  id,
   unidadeId,
   tipoDocumentoId,
   value,
   onChange,
 }: {
+  // STC-517 (achado em code review): id do gatilho, pra cada formulário
+  // poder apontar o próprio <Label htmlFor> pra cá -- sem isso, o rótulo
+  // "Responsável(is)" não tinha associação programática com o controle
+  // (clique no label não focava o botão, leitor de tela não anunciava o
+  // rótulo ao focar).
+  id: string;
   unidadeId: number | undefined;
   tipoDocumentoId: number | undefined;
   value: number[];
   onChange: (ids: number[]) => void;
 }) {
-  const { candidatos, isLoading } = useCandidatosResponsaveis(unidadeId, tipoDocumentoId);
+  const { candidatos, isLoading, mensagemErro, tentarNovamente } = useCandidatosResponsaveis(
+    unidadeId,
+    tipoDocumentoId,
+  );
   const [busca, setBusca] = useState("");
 
   const selecionados = candidatos.filter((usuario) => value.includes(usuario.id));
@@ -70,6 +81,7 @@ export function SeletorResponsaveis({
       >
         <PopoverTrigger asChild>
           <button
+            id={id}
             type="button"
             disabled={!habilitado}
             title={
@@ -93,6 +105,18 @@ export function SeletorResponsaveis({
           <div className="scrollbar-discreta max-h-48 overflow-y-auto">
             {isLoading ? (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">Carregando...</p>
+            ) : mensagemErro ? (
+              // STC-517 (achado em code review): sem distinguir erro de
+              // "ninguém elegível", a mesma tela vazia aparecia nos dois
+              // casos -- o campo é obrigatório, então uma falha de rede
+              // aqui travava o formulário inteiro sem explicação nem jeito
+              // de tentar de novo.
+              <div className="flex flex-col items-start gap-1 px-2 py-1.5">
+                <p className="text-xs text-destructive">{mensagemErro}</p>
+                <Button variant="outline" size="xs" onClick={tentarNovamente}>
+                  Tentar novamente
+                </Button>
+              </div>
             ) : candidatosFiltrados.length === 0 ? (
               <p className="px-2 py-1.5 text-xs text-muted-foreground">
                 Nenhum candidato encontrado para esta unidade/tipo de documento.

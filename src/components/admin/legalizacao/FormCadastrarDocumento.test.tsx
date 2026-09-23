@@ -120,7 +120,7 @@ async function selecionarResponsavel(
   user: ReturnType<typeof userEvent.setup>,
 ) {
   await user.click(
-    screen.getByRole("button", { name: /selecionar responsável/i }),
+    screen.getByRole("button", { name: /responsável\(is\)/i }),
   );
   await user.click(
     await screen.findByRole("checkbox", { name: "Ana Souza" }),
@@ -765,7 +765,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
         );
       });
       await user.click(
-        screen.getByRole("button", { name: /selecionar responsável/i }),
+        screen.getByRole("button", { name: /responsável\(is\)/i }),
       );
       expect(
         await screen.findByRole("checkbox", { name: "Ana Souza" }),
@@ -773,6 +773,57 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       expect(
         screen.getByRole("checkbox", { name: "Bruno Lima" }),
       ).toBeInTheDocument();
+    });
+
+    it("mostra erro (não 'nenhum candidato') e permite tentar de novo quando a busca falha", async () => {
+      // STC-517 (achado em code review): sem isso, uma falha de rede/permissão
+      // na busca de candidatos aparecia como "nenhum candidato encontrado" --
+      // indistinguível de a unidade realmente não ter ninguém elegível, num
+      // campo obrigatório que travava o formulário sem explicação.
+      vi.mocked(listarCandidatosResponsaveis)
+        .mockRejectedValueOnce(new Error("Falha de rede."))
+        .mockResolvedValueOnce([USUARIO_CANDIDATO]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: /responsável\(is\)/i }),
+      );
+
+      expect(
+        await screen.findByText(
+          "Não foi possível completar a operação. Tente novamente.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/nenhum candidato encontrado/i),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /tentar novamente/i }));
+
+      expect(
+        await screen.findByRole("checkbox", { name: "Ana Souza" }),
+      ).toBeInTheDocument();
+    });
+
+    it("o rótulo 'Responsável(is)' está associado ao controle (getByLabelText encontra o gatilho)", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await user.click(screen.getByLabelText(/^unidade/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói" }));
+      await user.click(screen.getByLabelText(/tipo de documento/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Licença Sanitária" }),
+      );
+
+      expect(screen.getByLabelText(/^responsável\(is\)/i)).toBeInTheDocument();
     });
   });
 

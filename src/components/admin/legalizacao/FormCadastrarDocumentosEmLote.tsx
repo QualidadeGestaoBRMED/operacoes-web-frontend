@@ -488,7 +488,7 @@ export function FormCadastrarDocumentosEmLote({
             </div>
 
             <div className="space-y-1.5">
-              <Label>
+              <Label htmlFor="cel-responsaveis">
                 Responsável(is) <span className="text-destructive">*</span>
               </Label>
               <Controller
@@ -496,6 +496,7 @@ export function FormCadastrarDocumentosEmLote({
                 name="responsaveis"
                 render={({ field }) => (
                   <SeletorResponsaveis
+                    id="cel-responsaveis"
                     unidadeId={unidadeSelecionada}
                     tipoDocumentoId={tipoDocumentoSelecionado}
                     value={field.value ?? []}

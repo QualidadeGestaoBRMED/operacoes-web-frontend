@@ -197,7 +197,7 @@ export function useCandidatosResponsaveis(
   unidadeId: number | undefined,
   tipoDocumentoId: number | undefined,
 ) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     unidadeId && tipoDocumentoId
       ? ["candidatos-responsaveis", unidadeId, tipoDocumentoId]
       : null,
@@ -209,6 +209,7 @@ export function useCandidatosResponsaveis(
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    tentarNovamente: () => void mutate(),
   };
 }
 

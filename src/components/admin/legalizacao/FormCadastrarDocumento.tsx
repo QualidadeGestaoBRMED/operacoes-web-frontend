@@ -628,7 +628,7 @@ export function FormCadastrarDocumento({
             </div>
 
             <div className="space-y-1.5">
-              <Label>
+              <Label htmlFor="cd-responsaveis">
                 Responsável(is) <span className="text-destructive">*</span>
               </Label>
               <Controller
@@ -636,6 +636,7 @@ export function FormCadastrarDocumento({
                 name="responsaveis"
                 render={({ field }) => (
                   <SeletorResponsaveis
+                    id="cd-responsaveis"
                     unidadeId={unidadeSelecionada}
                     tipoDocumentoId={tipoDocumentoSelecionado}
                     value={field.value ?? []}
