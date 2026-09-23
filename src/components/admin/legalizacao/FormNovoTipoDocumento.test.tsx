@@ -301,4 +301,48 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       expect(screen.getAllByText("TI").length).toBeGreaterThan(0);
     });
   });
+
+  it("não apaga edições em andamento quando o fetch de setores resolve depois do diálogo já aberto (achado em code review, STC-526)", async () => {
+    // FormNovoTipoDocumento fica sempre montado em TabelaTiposDocumento.tsx
+    // -- o fetch de useSetores() começa assim que a tela carrega, não
+    // quando o diálogo abre. Simula "Editar" clicado antes desse fetch
+    // resolver: o efeito roda 2x pro mesmo tipoDocumento (setores=[]
+    // primeiro, depois a lista real).
+    let resolverSetores: (setores: Setor[]) => void = () => {};
+    vi.mocked(listarSetores).mockReturnValue(
+      new Promise((resolve) => {
+        resolverSetores = resolve;
+      }),
+    );
+    const tipo: TipoDocumentoRegulatorio = {
+      id: 6,
+      codigo: "pcmso",
+      nome: "PCMSO",
+      categoria: "programas",
+      area_responsavel: "legalizacao",
+      setor_apoio: "TI",
+      exige_validade: true,
+      exige_protocolo: false,
+      exige_evidencia: true,
+      controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
+      ativo: true,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    const user = userEvent.setup();
+    renderForm(vi.fn(), tipo);
+
+    await user.clear(screen.getByLabelText(/^nome/i));
+    await user.type(screen.getByLabelText(/^nome/i), "PCMSO Alterado");
+
+    resolverSetores([SETOR_TI]);
+
+    // Confirma que o segundo reset (disparado por setores.length mudar de
+    // 0 pra 1) realmente aconteceu -- Setor de apoio só aparece depois dele.
+    await waitFor(() => {
+      expect(screen.getAllByText("TI").length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByLabelText(/^nome/i)).toHaveValue("PCMSO Alterado");
+  });
 });

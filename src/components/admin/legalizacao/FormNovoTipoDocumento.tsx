@@ -181,7 +181,14 @@ export function FormNovoTipoDocumento({
     if (!open) {
       reset(valoresPadrao);
     } else if (tipoDocumento) {
-      reset(valoresDe(tipoDocumento, setores));
+      // keepDirtyValues: este formulário fica montado (só `hidden`/fechado)
+      // em TabelaTiposDocumento.tsx -- o fetch de useSetores() começa
+      // assim que a tela carrega, não quando o diálogo abre. Se "Editar"
+      // for clicado antes desse fetch resolver, este reset roda 2x pro
+      // mesmo tipoDocumento (setores=[] primeiro, depois a lista real) --
+      // sem keepDirtyValues, o segundo reset apagaria qualquer campo que o
+      // usuário já tivesse editado nessa janela (achado em code review).
+      reset(valoresDe(tipoDocumento, setores), { keepDirtyValues: true });
     }
     // Achado em code review (STC-526): dependia de `setores` (o array
     // inteiro) -- useSetores() devolve `data ?? []`, que cria uma
