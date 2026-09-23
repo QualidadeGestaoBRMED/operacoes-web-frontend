@@ -303,8 +303,9 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
 
     await screen.findByRole("link", { name: "Matriz de Conformidade" });
     const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
-    // STC-519: href leva a aba já pré-selecionada (PermissoesAdmin.tsx lê
-    // ?aba=) -- rota (sem query) continua sendo o que decide "ativo".
+    // STC-519: rota própria (não /admin/permissoes com query string) --
+    // PermissoesAdmin.tsx recebe abaInicial="catalogo-legalizacao" via
+    // prop, a partir de qual page.tsx renderizou o componente.
     expect(link).toHaveAttribute("href", "/admin/permissoes/catalogo-legalizacao");
   });
 
