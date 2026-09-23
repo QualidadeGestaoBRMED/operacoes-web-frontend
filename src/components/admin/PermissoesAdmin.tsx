@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
   ListFilter,
@@ -137,10 +137,9 @@ function prioridadeStatus(permissao: {
   );
 }
 
-export function PermissoesAdmin({
-  abaInicial,
-}: { abaInicial?: Aba } = {}) {
+export function PermissoesAdmin() {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAdminOps, isCoordenacaoUnidade, isLoading: carregandoAuth } =
     useAuth();
   // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
@@ -196,19 +195,24 @@ export function PermissoesAdmin({
   // existia -- mesmo padrão de troca de conteúdo por state (não TabsContent)
   // já usado em TipoGestaoTabs.tsx.
   //
-  // STC-519: abaInicial vem de qual PÁGINA renderizou este componente --
-  // /admin/permissoes (padrão, abaInicial ausente) ou
-  // /admin/permissoes/catalogo-legalizacao (abaInicial="catalogo-legalizacao",
-  // o atalho novo da sidebar pra Admin). Rota própria (não ?aba=query na
-  // mesma rota, tentativa original) de propósito -- achado em revisão de
-  // falhas críticas: query string não dava pro Sidebar (pathname.startsWith(),
+  // STC-519: aba é DERIVADA do pathname (rota própria pra cada uma --
+  // /admin/permissoes vs. /admin/permissoes/catalogo-legalizacao -- ver
+  // layout.tsx deste diretório de rota), não um useState com valor inicial
+  // fixo. Duas rodadas de revisão de falhas críticas levaram até aqui:
+  // (1) query string (?aba=) não dava pro Sidebar (pathname.startsWith(),
   // sem olhar query) distinguir este atalho do link "Administração" (mesmo
   // pathname bare), destacando "Catálogo de Legalização" como ativo mesmo
-  // com Usuários na tela; e trocar de link sem reload reaproveitava a
-  // mesma instância deste componente, deixando a aba presa no valor
-  // anterior. Rota de verdade resolve os dois -- pathname já distingue
-  // sozinho, e o Next.js remonta ao navegar entre rotas diferentes.
-  const [aba, setAba] = useState<Aba>(abaInicial ?? "usuarios");
+  // com Usuários na tela; (2) rota própria + abaInicial via prop resolvia
+  // isso, mas cada navegação entre as duas rotas remontava o componente
+  // inteiro (page.tsx diferente) -- perdendo filtros/seção expandida/
+  // diálogos abertos ao trocar de aba pelo Select "Seção" (que já navega,
+  // ver onValueChange abaixo). A saída: PermissoesAdmin passa a ser
+  // renderizado pelo layout.tsx (persiste entre as duas rotas, nunca
+  // desmonta) em vez de cada page.tsx, e lê o pathname direto -- sem
+  // remount nenhum, e sem `useState`/prop pra manter sincronizado.
+  const aba: Aba = pathname.endsWith("/catalogo-legalizacao")
+    ? "catalogo-legalizacao"
+    : "usuarios";
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
@@ -514,20 +518,16 @@ export function PermissoesAdmin({
           <Select
             value={aba}
             onValueChange={(valor) => {
-              const novaAba = valor as Aba;
-              setAba(novaAba);
-              // STC-519 (achado em revisão de falhas críticas): sem isto, o
-              // conteúdo troca (setAba) mas a URL fica parada em qualquer
-              // rota que o usuário chegou -- a sidebar destaca o subitem
-              // "Catálogo de Legalização" a partir do PATHNAME
-              // (Sidebar.tsx), não do state interno deste componente, então
-              // trocar de Seção sem navegar deixava o destaque da sidebar
-              // divergindo do que estava de fato na tela. replace (não
-              // push): é uma troca de aba, não uma navegação de verdade --
-              // não deveria empilhar no histórico do back-button a cada
-              // clique no Select.
+              // STC-519: aba é derivada do pathname (ver comentário acima),
+              // então só navegar já basta -- sem remount (PermissoesAdmin
+              // vive no layout.tsx, não em cada page.tsx), a sidebar e o
+              // conteúdo desta tela atualizam juntos a partir do mesmo
+              // pathname, sem perder nenhum outro state (filtros, seção
+              // expandida, diálogos abertos). replace (não push): é troca
+              // de aba, não deveria empilhar no histórico do back-button a
+              // cada clique no Select.
               router.replace(
-                novaAba === "catalogo-legalizacao"
+                valor === "catalogo-legalizacao"
                   ? "/admin/permissoes/catalogo-legalizacao"
                   : "/admin/permissoes",
               );
