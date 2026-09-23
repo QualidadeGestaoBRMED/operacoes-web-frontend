@@ -23,6 +23,7 @@ import {
 } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
+import { hojeISO } from "@/lib/utils";
 
 const UNIDADE: Unidade = {
   id: 1,
@@ -151,8 +152,8 @@ async function preencherCamposComuns(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("option", { name: "Niterói" }));
   await user.click(screen.getByLabelText(/tipo de documento/i));
   await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
-  await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-  await user.type(screen.getByLabelText(/antecedência/i), "30");
+  await user.clear(screen.getByLabelText(/início dos alertas/i));
+  await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
   await selecionarResponsavel(user);
 }
 
@@ -173,6 +174,50 @@ beforeEach(() => {
 });
 
 describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
+  it("Antecedência vem travada em 60, e 'Data de início dos alertas' pré-preenchida com hoje (STC-523)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText(/tipo de documento/i));
+    await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
+
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
+    expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(hojeISO());
+    expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
+  });
+
+  it("recalcula 'Data de início dos alertas' ao abrir, não só na montagem (achado em code review, STC-523)", () => {
+    // CatalogoLegalizacaoAdmin.tsx nunca desmonta este formulário (fica
+    // `hidden` entre trocas de aba) -- sem recalcular no open, uma aba
+    // deixada aberta de um dia pro outro, sem nunca ter aberto este diálogo
+    // antes, mostraria a data de ontem na primeira abertura.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-03T12:00:00"));
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumentosEmLote open={false} onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    // Passa pro dia seguinte sem o diálogo nunca ter sido aberto.
+    vi.setSystemTime(new Date("2026-09-04T09:00:00"));
+    rerender(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumentosEmLote open onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
+      "2026-09-04",
+    );
+
+    vi.useRealTimers();
+  });
+
   it("só lista tipos com permite_multiplas_instancias no select de tipo", async () => {
     const user = userEvent.setup();
     renderForm();
@@ -209,7 +254,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
         tipo_documento: TIPO_EQUIPAMENTO.id,
         unidade: UNIDADE.id,
         vigente_a_partir: "2026-01-01",
-        antecedencia_dias: 30,
+        antecedencia_dias: 60,
         janela_dia_inicio: null,
         janela_dia_fim: null,
         criticidade: "alta",
@@ -486,9 +531,9 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("2026-03-01");
+      expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue("2026-03-01");
     });
-    expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+    expect(screen.getByLabelText(/início dos alertas/i)).toBeDisabled();
     expect(screen.getByLabelText(/antecedência/i)).toHaveValue(45);
     expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
     expect(
@@ -516,19 +561,22 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("2026-03-01");
+      expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue("2026-03-01");
     });
 
-    // Troca pra um tipo sem regra cadastrada nesta unidade -- os campos
-    // precisam ficar editáveis E vazios, nunca com o valor do tipo anterior.
+    // Troca pra um tipo sem regra cadastrada nesta unidade -- "Data de
+    // início dos alertas" precisa ficar editável de novo (voltando pro
+    // default de hoje), nunca com o valor do tipo anterior. STC-523:
+    // "Antecedência" continua sempre desabilitada (fixa em 60), reaproveitando
+    // regra ou não -- só o valor precisa deixar de ser o do tipo anterior.
     await user.click(screen.getByLabelText(/tipo de documento/i));
     await user.click(await screen.findByRole("option", { name: "Calibração de Termômetro" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/vigente a partir/i)).not.toBeDisabled();
+      expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
     });
-    expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("");
-    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(null);
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(hojeISO());
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
   });
 
   it("trava o botão de cadastrar enquanto ainda verifica se existe regra pra esta unidade+tipo (evita corrida que descartaria os valores digitados)", async () => {
@@ -588,8 +636,8 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       await user.click(await screen.findByRole("option", { name: "Niterói" }));
       await user.click(screen.getByLabelText(/tipo de documento/i));
       await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
-      await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-      await user.type(screen.getByLabelText(/antecedência/i), "30");
+      await user.clear(screen.getByLabelText(/início dos alertas/i));
+      await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
       await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
 
       await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));

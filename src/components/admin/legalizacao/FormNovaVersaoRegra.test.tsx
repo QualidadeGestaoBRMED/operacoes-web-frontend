@@ -227,8 +227,7 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
       within(dialog).getByLabelText(/vigente a partir/i),
       "2026-06-01",
     );
-    await user.clear(within(dialog).getByLabelText(/antecedência/i));
-    await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
+    // STC-523: antecedência travada em 60, não editável -- nada pra digitar.
 
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
@@ -240,7 +239,7 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
         expect.objectContaining({
           tipo_documento: TIPO.id,
           unidade: UNIDADE.id,
-          antecedencia_dias: 45,
+          antecedencia_dias: 60,
           criticidade: "alta",
           vigente_a_partir: "2026-06-01",
           periodicidade_meses: null,
@@ -297,8 +296,7 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
       within(dialog).getByLabelText(/vigente a partir/i),
       "2026-06-01",
     );
-    await user.clear(within(dialog).getByLabelText(/antecedência/i));
-    await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
+    // STC-523: antecedência travada em 60, não editável -- nada pra digitar.
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
     );
@@ -342,8 +340,7 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
       within(dialog).getByLabelText(/vigente a partir/i),
       "2026-06-01",
     );
-    await user.clear(within(dialog).getByLabelText(/antecedência/i));
-    await user.type(within(dialog).getByLabelText(/antecedência/i), "45");
+    // STC-523: antecedência travada em 60, não editável -- nada pra digitar.
     await user.click(
       within(dialog).getByRole("button", { name: "Criar nova versão" }),
     );

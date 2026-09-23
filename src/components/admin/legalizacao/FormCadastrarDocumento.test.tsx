@@ -28,6 +28,7 @@ import {
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
+import { hojeISO } from "@/lib/utils";
 
 const UNIDADE: Unidade = {
   id: 1,
@@ -156,6 +157,47 @@ beforeEach(() => {
 });
 
 describe("FormCadastrarDocumento (STC-415)", () => {
+  it("Antecedência vem travada em 60, e 'Data de início dos alertas' pré-preenchida com hoje (STC-523)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
+    expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(hojeISO());
+    expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
+  });
+
+  it("recalcula 'Data de início dos alertas' ao abrir, não só na montagem (achado em code review, STC-523)", () => {
+    // CatalogoLegalizacaoAdmin.tsx nunca desmonta este formulário (fica
+    // `hidden` entre trocas de aba) -- sem recalcular no open, uma aba
+    // deixada aberta de um dia pro outro, sem nunca ter aberto este diálogo
+    // antes, mostraria a data de ontem na primeira abertura.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-03T12:00:00"));
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumento open={false} onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    // Passa pro dia seguinte sem o diálogo nunca ter sido aberto.
+    vi.setSystemTime(new Date("2026-09-04T09:00:00"));
+    rerender(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumento open onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
+      "2026-09-04",
+    );
+
+    vi.useRealTimers();
+  });
+
   it("não lista um tipo que a unidade escolhida já tem cadastrado", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
       documentoCriado(),
@@ -225,8 +267,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -294,8 +336,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await selecionarUnidadeETipo(user);
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "30");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -331,8 +373,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
     await user.type(screen.getByLabelText(/validade/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "30");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -373,8 +415,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -469,8 +511,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -536,8 +578,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     await user.click(
       screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -578,8 +620,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -671,8 +713,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await user.click(
       await screen.findByRole("option", { name: "Em andamento" }),
     );
-    await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-    await user.type(screen.getByLabelText(/antecedência/i), "60");
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
     const arquivo = new File(["conteudo"], "alvara.pdf", {
       type: "application/pdf",
@@ -719,8 +761,8 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(
         await screen.findByRole("option", { name: "Em andamento" }),
       );
-      await user.type(screen.getByLabelText(/vigente a partir/i), "2026-01-01");
-      await user.type(screen.getByLabelText(/antecedência/i), "60");
+      await user.clear(screen.getByLabelText(/início dos alertas/i));
+      await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
 
       await user.click(
         screen.getByRole("button", { name: /cadastrar documento/i }),
@@ -849,11 +891,11 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(
         await screen.findByRole("option", { name: "Em andamento" }),
       );
+      await user.clear(screen.getByLabelText(/início dos alertas/i));
       await user.type(
-        screen.getByLabelText(/vigente a partir/i),
+        screen.getByLabelText(/início dos alertas/i),
         "2026-01-01",
       );
-      await user.type(screen.getByLabelText(/antecedência/i), "60");
     }
 
     it("campo Profissional só aparece pra tipo controlado por profissional", async () => {
@@ -976,7 +1018,10 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       );
       await selecionarResponsavel(user);
 
-      expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+      expect(screen.getByLabelText(/início dos alertas/i)).toBeDisabled();
+      // STC-523: antecedência agora está sempre desabilitada (fixa em 60),
+      // reaproveitando regra ou não -- não é mais um sinal específico de
+      // reaproveitamento.
       expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
 
       await user.click(
@@ -1095,11 +1140,11 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       await user.click(await screen.findByRole("option", { name: "Dosimetria" }));
 
       // Regra reaproveitada: campos vêm preenchidos e travados.
-      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue(
+      expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
         "2026-01-01",
       );
       expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
-      expect(screen.getByLabelText(/vigente a partir/i)).toBeDisabled();
+      expect(screen.getByLabelText(/início dos alertas/i)).toBeDisabled();
 
       await user.click(screen.getByLabelText(/tipo de documento/i));
       await user.click(
@@ -1109,9 +1154,14 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       // Achado no code review automático: sem limpar, estes campos ficavam
       // editáveis de novo mas com os valores da regra de Dosimetria, prontos
       // pra ir no submit como se fossem da regra nova de Licença Sanitária.
-      expect(screen.getByLabelText(/vigente a partir/i)).not.toBeDisabled();
-      expect(screen.getByLabelText(/vigente a partir/i)).toHaveValue("");
-      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(null);
+      // STC-523: "limpar" hoje volta pros defaults do formulário (hoje/60),
+      // não mais undefined -- os dois campos são fixos/pré-preenchidos por
+      // padrão.
+      expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
+      expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
+        hojeISO(),
+      );
+      expect(screen.getByLabelText(/antecedência/i)).toHaveValue(60);
     });
 
     it("trocar de tipo limpa status/validade preenchidos antes (STC-488, achado em avaliação de uso)", async () => {
