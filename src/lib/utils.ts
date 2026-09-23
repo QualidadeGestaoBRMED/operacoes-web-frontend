@@ -64,6 +64,20 @@ export function formatarTempoRelativo(iso: string) {
   return formatarDataHora(iso);
 }
 
+// Pro pré-preenchimento de campos <input type="date"> com a data de hoje
+// (STC-523) -- não usar `new Date().toISOString().slice(0, 10)`: toISOString
+// converte pra UTC antes de fatiar, então entre 21h e 23h59 no horário de
+// Brasília (UTC-3) já é o dia seguinte em UTC, pré-preenchendo com amanhã.
+// Monta a partir dos componentes locais (getFullYear/Month/Date) em vez de
+// converter fuso.
+export function hojeISO() {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoje.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 export function formatarTamanhoArquivo(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

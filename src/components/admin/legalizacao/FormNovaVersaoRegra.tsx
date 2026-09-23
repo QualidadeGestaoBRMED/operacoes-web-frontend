@@ -35,6 +35,11 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 
+// STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
+// (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
+// vez de input editável; exceção só via Django Admin, direto no banco.
+const ANTECEDENCIA_PADRAO_DIAS = 60;
+
 // "YYYY-MM-DD" (DateField do Django) formatado sem passar por Date -- mesmo
 // motivo/mesma duplicação já aceita em PermissoesAdmin.tsx::formatarData
 // (new Date("2026-03-05") interpreta como UTC meia-noite, que em fusos a
@@ -107,7 +112,11 @@ export function DialogNovaVersao({
   useEffect(() => {
     if (open && regraAtual) {
       reset({
-        antecedencia_dias: regraAtual.antecedencia_dias,
+        // STC-523: padronizado em 60 pra toda a rede (decisão de negócio)
+        // -- deixa de reaproveitar o valor da regra atual (que pode ser
+        // legado, de antes desta padronização). Exceção só via Django
+        // Admin, direto no banco.
+        antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS,
         janela_dia_inicio: regraAtual.janela_dia_inicio ?? undefined,
         janela_dia_fim: regraAtual.janela_dia_fim ?? undefined,
         gera_card_demanda: regraAtual.gera_card_demanda,
@@ -204,13 +213,15 @@ export function DialogNovaVersao({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="nv-antecedencia">
-                Antecedência (dias) <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="nv-antecedencia">Antecedência (dias)</Label>
+              {/* STC-523: padronizado em 60 pra toda a rede (decisão de
+              negócio) -- deixou de ser um input editável. Exceção só via
+              Django Admin, direto no banco. */}
               <Input
                 id="nv-antecedencia"
                 type="number"
                 min={0}
+                disabled
                 {...register("antecedencia_dias")}
               />
               {errors.antecedencia_dias && (

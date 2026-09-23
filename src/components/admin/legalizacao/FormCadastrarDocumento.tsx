@@ -42,7 +42,13 @@ import {
 } from "@/lib/legalizacao";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
+import { hojeISO } from "@/lib/utils";
 import type { StatusDocumento } from "@/types/legalizacao";
+
+// STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
+// (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
+// vez de input editável; exceção só via Django Admin, direto no banco.
+const ANTECEDENCIA_PADRAO_DIAS = 60;
 
 // Exclui Não aplicável (é o toggle abaixo, não uma opção deste select) e
 // Unidade em encerramento (fora do escopo desta issue -- ação de nível
@@ -155,11 +161,19 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
 type FormValuesEntrada = z.input<ReturnType<typeof criarSchema>>;
 type FormValuesSaida = z.output<ReturnType<typeof criarSchema>>;
 
-const valoresPadrao: Partial<FormValuesEntrada> = {
-  nao_aplicavel: false,
-  gera_card_demanda: true,
-  responsaveis: [],
-};
+// Função, não objeto estático (STC-523): "vigente_a_partir" precisa
+// refletir o dia em que o formulário É ABERTO, não o dia em que o módulo
+// carregou no navegador -- uma aba deixada aberta de um dia pro outro
+// congelaria "hoje" errado se isto fosse calculado uma vez só.
+function criarValoresPadrao(): Partial<FormValuesEntrada> {
+  return {
+    nao_aplicavel: false,
+    gera_card_demanda: true,
+    responsaveis: [],
+    vigente_a_partir: hojeISO(),
+    antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS,
+  };
+}
 
 export function FormCadastrarDocumento({
   open,
@@ -217,12 +231,12 @@ export function FormCadastrarDocumento({
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
-    defaultValues: valoresPadrao,
+    defaultValues: criarValoresPadrao(),
   });
 
   useEffect(() => {
     if (!open) {
-      reset(valoresPadrao);
+      reset(criarValoresPadrao());
       setArquivo(null);
       setDocumentoCriado(null);
     }
@@ -309,11 +323,15 @@ export function FormCadastrarDocumento({
   // valores da regra anterior ficavam visíveis e editáveis, prontos pra ir
   // no submit como se fossem da regra nova.
   function limparCamposDeRegra() {
-    setValue("vigente_a_partir", undefined);
-    setValue("antecedencia_dias", undefined);
+    // STC-523: volta pros mesmos defaults do formulário recém-aberto (hoje
+    // e 60), não mais undefined -- os dois campos são fixos/pré-preenchidos
+    // por padrão, deixar de reaproveitar uma regra existente não deveria
+    // esvaziá-los.
+    setValue("vigente_a_partir", hojeISO());
+    setValue("antecedencia_dias", ANTECEDENCIA_PADRAO_DIAS);
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
-    setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+    setValue("gera_card_demanda", true);
     // STC-488 (achado em avaliação de uso): esta função limpava só os
     // campos de regra -- status/validade/justificativa_excecao/nao_aplicavel
     // sobreviviam silenciosamente à troca de unidade/tipo. Um documento
@@ -323,7 +341,7 @@ export function FormCadastrarDocumento({
     setValue("status", undefined);
     setValue("validade", undefined);
     setValue("justificativa_excecao", undefined);
-    setValue("nao_aplicavel", valoresPadrao.nao_aplicavel ?? false);
+    setValue("nao_aplicavel", false);
     // STC-517: candidatos a responsável dependem de unidade+tipo -- um
     // responsável válido pra combinação anterior pode não ser candidato
     // pra nova (outra unidade, ou outro setor de apoio).
@@ -781,7 +799,7 @@ export function FormCadastrarDocumento({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="cd-vigente">
-                      Vigente a partir{" "}
+                      Data de início dos alertas{" "}
                       <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -798,15 +816,15 @@ export function FormCadastrarDocumento({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="cd-antecedencia">
-                      Antecedência (dias){" "}
-                      <span className="text-destructive">*</span>
-                    </Label>
+                    <Label htmlFor="cd-antecedencia">Antecedência (dias)</Label>
+                    {/* STC-523: padronizado em 60 pra toda a rede (decisão de
+                    negócio) -- deixou de ser um input editável. Exceção só
+                    via Django Admin, direto no banco. */}
                     <Input
                       id="cd-antecedencia"
                       type="number"
                       min={0}
-                      disabled={!!regraExistenteParaTipo}
+                      disabled
                       {...register("antecedencia_dias")}
                     />
                     {errors.antecedencia_dias && (

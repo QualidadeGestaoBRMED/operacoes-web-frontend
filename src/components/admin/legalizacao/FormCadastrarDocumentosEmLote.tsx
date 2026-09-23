@@ -36,10 +36,16 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { atualizarDocumentoLegalizacao, enviarEvidenciaLegalizacao } from "@/lib/legalizacao";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
+import { hojeISO } from "@/lib/utils";
 import type { DocumentoUnidade, StatusDocumento } from "@/types/legalizacao";
 
 type StatusEnvio = "enviando" | "enviado" | "erro";
 type StatusSalvamento = "salvando" | "salvo" | "erro";
+
+// STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
+// (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
+// vez de input editável; exceção só via Django Admin, direto no banco.
+const ANTECEDENCIA_PADRAO_DIAS = 60;
 
 // Mesma lista de FormCadastrarDocumento.tsx (sem Não aplicável/Unidade em
 // encerramento, que não fazem sentido pra um cadastro em lote de
@@ -106,11 +112,18 @@ const schema = z
 type FormValuesEntrada = z.input<typeof schema>;
 type FormValuesSaida = z.output<typeof schema>;
 
-const valoresPadrao: Partial<FormValuesEntrada> = {
-  identificadores_texto: "",
-  gera_card_demanda: true,
-  responsaveis: [],
-};
+// Função, não objeto estático (STC-523): "vigente_a_partir" precisa
+// refletir o dia em que o formulário É ABERTO, não o dia em que o módulo
+// carregou no navegador -- mesmo raciocínio de FormCadastrarDocumento.tsx.
+function criarValoresPadrao(): Partial<FormValuesEntrada> {
+  return {
+    identificadores_texto: "",
+    gera_card_demanda: true,
+    responsaveis: [],
+    vigente_a_partir: hojeISO(),
+    antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS,
+  };
+}
 
 export function FormCadastrarDocumentosEmLote({
   open,
@@ -175,7 +188,7 @@ export function FormCadastrarDocumentosEmLote({
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(schema),
-    defaultValues: valoresPadrao,
+    defaultValues: criarValoresPadrao(),
   });
 
   const unidadeSelecionada = watch("unidade") as number | undefined;
@@ -218,11 +231,15 @@ export function FormCadastrarDocumentosEmLote({
   // no submit como se fossem da regra nova. Mesmo padrão de
   // FormCadastrarDocumento.tsx (limparCamposDeRegra).
   function limparCamposDeRegra() {
-    setValue("vigente_a_partir", "");
-    setValue("antecedencia_dias", "");
+    // STC-523: volta pros mesmos defaults do formulário recém-aberto (hoje e
+    // 60), não mais vazio -- os dois campos são fixos/pré-preenchidos por
+    // padrão, deixar de reaproveitar uma regra existente não deveria
+    // esvaziá-los.
+    setValue("vigente_a_partir", hojeISO());
+    setValue("antecedencia_dias", ANTECEDENCIA_PADRAO_DIAS);
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
-    setValue("gera_card_demanda", valoresPadrao.gera_card_demanda ?? true);
+    setValue("gera_card_demanda", true);
     // STC-517: candidatos a responsável dependem de unidade+tipo -- mesmo
     // motivo de FormCadastrarDocumento.tsx.
     setValue("responsaveis", []);
@@ -231,14 +248,14 @@ export function FormCadastrarDocumentosEmLote({
   // STC-514: seletor de unidade travado na do Coordenador -- sem opção de
   // escolher outra (senão 403 no submit, o backend só permite escrever na
   // própria). Depende de `open` pra reaplicar toda vez que o form reabre
-  // (fechar() reseta `unidade` pra undefined via reset(valoresPadrao)).
+  // (fechar() reseta `unidade` pra undefined via reset(criarValoresPadrao())).
   useEffect(() => {
     if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
     setValue("unidade", user.unidade_id);
   }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
 
   function fechar() {
-    reset(valoresPadrao);
+    reset(criarValoresPadrao());
     setDocumentosCriados(null);
     setStatusEnvio({});
     setStatusPorItem({});
@@ -528,7 +545,8 @@ export function FormCadastrarDocumentosEmLote({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="cel-vigente">
-                  Vigente a partir <span className="text-destructive">*</span>
+                  Data de início dos alertas{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="cel-vigente"
@@ -543,14 +561,15 @@ export function FormCadastrarDocumentosEmLote({
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cel-antecedencia">
-                  Antecedência (dias) <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="cel-antecedencia">Antecedência (dias)</Label>
+                {/* STC-523: padronizado em 60 pra toda a rede (decisão de
+                negócio) -- deixou de ser um input editável. Exceção só via
+                Django Admin, direto no banco. */}
                 <Input
                   id="cel-antecedencia"
                   type="number"
                   min={0}
-                  disabled={!!regraExistente}
+                  disabled
                   {...register("antecedencia_dias")}
                 />
                 {errors.antecedencia_dias && (
