@@ -54,6 +54,30 @@ export async function listarHistoricoTipoDocumento(
   return data;
 }
 
+// STC-527: filtro já existia no backend (RegraDocumentoViewSet.
+// filterset_fields), sem consumidor no frontend até esta issue -- usado
+// pra detectar/reaproveitar uma regra já existente (órfã ou não) antes de
+// tentar criar outra igual, ver FormCadastrarDocumento.tsx.
+//
+// Sem filtro por `ativa` de propósito (achado em análise própria de falhas
+// críticas): a UniqueConstraint (tipo_documento, unidade, vigente_a_partir)
+// do backend não olha pra esse campo -- uma regra órfã desativada (ex.:
+// alguém tentou "limpar" o lixo via Django Admin marcando ativa=False em
+// vez de excluir) ainda colidiria na criação e reproduziria o mesmo erro
+// técnico que esta issue existe pra resolver. RegraDocumento.regra_efetiva()
+// (models.py) confirma que reaproveitar uma regra inativa aqui é seguro:
+// regra_aplicada é usado incondicionalmente pela varredura diária, o
+// filtro `ativa=True` só entra no fallback quando o campo está vazio.
+export async function listarRegras(filtros: {
+  tipo_documento: number;
+  unidade: number;
+}): Promise<RegraDocumento[]> {
+  const { data } = await api.get<RegraDocumento[]>(REGRAS_URL, {
+    params: filtros,
+  });
+  return data;
+}
+
 // RegraDocumento é append-only depois do primeiro alerta gerado (ver
 // legalizacao/models.py::RegraDocumento.save() no backend) -- só existe
 // criação aqui, nunca update. "Nova versão" (corrigir uma regra existente) é

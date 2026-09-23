@@ -25,6 +25,7 @@ import {
 import {
   criarRegraDocumento,
   excluirRegraDocumento,
+  listarRegras,
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
@@ -146,6 +147,7 @@ beforeEach(() => {
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
   vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([USUARIO_CANDIDATO]);
+  vi.mocked(listarRegras).mockResolvedValue([]);
   vi.mocked(useAuth).mockReturnValue({
     user: undefined,
     perfil: undefined,
@@ -993,6 +995,9 @@ describe("FormCadastrarDocumento (STC-415)", () => {
           regra_aplicada: regraExistente,
         }),
       ]);
+      // STC-527: detecção/pré-preenchimento da tela agora consulta regra
+      // direto (useRegrasDocumento), não mais só através do documento acima.
+      vi.mocked(listarRegras).mockResolvedValue([regraExistente]);
       vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
         documentoCriado({
           tipo_documento: TIPO_DOSIMETRIA,
@@ -1131,6 +1136,14 @@ describe("FormCadastrarDocumento (STC-415)", () => {
           regra_aplicada: regraExistente,
         }),
       ]);
+      // STC-527: detecção/pré-preenchimento da tela agora consulta regra
+      // direto (useRegrasDocumento), não mais só através do documento acima
+      // -- discrimina por tipo_documento (não um mockResolvedValue cego),
+      // porque este teste troca de tipo mais abaixo e precisa que a regra
+      // de Dosimetria não "vaze" pra Licença Sanitária.
+      vi.mocked(listarRegras).mockImplementation(async (filtros) =>
+        filtros.tipo_documento === TIPO_DOSIMETRIA.id ? [regraExistente] : [],
+      );
       const user = userEvent.setup();
       renderForm();
 
