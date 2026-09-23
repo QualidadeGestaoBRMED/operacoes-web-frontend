@@ -25,6 +25,10 @@ Ver `.env.example`. Resumo:
 
 Login só funciona com conta `@grupobrmed.com.br`.
 
+### Login local sem Google OAuth
+
+Em `NODE_ENV=development`, `GET /api/dev-login?email=...` loga como um usuário já existente no banco de dev (sem senha, sem passar pelo Google) — útil pra testar pelo IP da rede local, onde o Google Console recusa IP cru como redirect URI. Precisa ser acessado por navegação direta (digitar a URL/favorito), não um link de outra origem. Não existe fora de desenvolvimento (404) e o backend também recusa (`settings.DEBUG`).
+
 ## Comandos
 
 ```bash
