@@ -189,6 +189,35 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
   });
 
+  it("recalcula 'Data de início dos alertas' ao abrir, não só na montagem (achado em code review, STC-523)", () => {
+    // CatalogoLegalizacaoAdmin.tsx nunca desmonta este formulário (fica
+    // `hidden` entre trocas de aba) -- sem recalcular no open, uma aba
+    // deixada aberta de um dia pro outro, sem nunca ter aberto este diálogo
+    // antes, mostraria a data de ontem na primeira abertura.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-03T12:00:00"));
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumentosEmLote open={false} onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    // Passa pro dia seguinte sem o diálogo nunca ter sido aberto.
+    vi.setSystemTime(new Date("2026-09-04T09:00:00"));
+    rerender(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <FormCadastrarDocumentosEmLote open onOpenChange={onOpenChange} />
+      </SWRConfig>,
+    );
+
+    expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
+      "2026-09-04",
+    );
+
+    vi.useRealTimers();
+  });
+
   it("só lista tipos com permite_multiplas_instancias no select de tipo", async () => {
     const user = userEvent.setup();
     renderForm();

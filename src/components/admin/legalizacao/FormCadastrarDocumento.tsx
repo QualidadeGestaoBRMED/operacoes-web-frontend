@@ -234,12 +234,25 @@ export function FormCadastrarDocumento({
     defaultValues: criarValoresPadrao(),
   });
 
+  // STC-523 (achado em code review): reseta em QUALQUER troca de `open`, não
+  // só ao fechar -- `CatalogoLegalizacaoAdmin.tsx` nunca desmonta este
+  // formulário (fica `hidden` entre trocas de aba), então sem isso
+  // `criarValoresPadrao()` só recalculava "hoje" na montagem inicial da
+  // página e no fechamento anterior. Uma aba deixada aberta de um dia pro
+  // outro, sem nunca ter aberto/fechado este diálogo antes, mostraria "Data
+  // de início dos alertas" pré-preenchida com o dia de ontem na primeira
+  // abertura.
+  //
+  // Efeito DECLARADO ANTES do de baixo (STC-514) de propósito: os dois
+  // rodam no mesmo commit quando `open` vira true, na ordem em que aparecem
+  // no componente -- reset() aqui limpa `unidade` (não faz parte de
+  // criarValoresPadrao()) antes do efeito de baixo preenchê-la pro
+  // Coordenador; na ordem inversa, este reset() apagaria o valor que o
+  // outro acabou de definir.
   useEffect(() => {
-    if (!open) {
-      reset(criarValoresPadrao());
-      setArquivo(null);
-      setDocumentoCriado(null);
-    }
+    reset(criarValoresPadrao());
+    setArquivo(null);
+    setDocumentoCriado(null);
   }, [open, reset]);
 
   // STC-514: seletor de unidade travado na do Coordenador -- sem opção de
