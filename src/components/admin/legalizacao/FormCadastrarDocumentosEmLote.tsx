@@ -38,6 +38,12 @@ import { atualizarDocumentoLegalizacao, enviarEvidenciaLegalizacao } from "@/lib
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import type { DocumentoUnidade, StatusDocumento } from "@/types/legalizacao";
 
+// STC-524: status que pressupõem documento em mãos -- exigem evidência
+// anexada no passo 2 antes de "Concluir" liberar. Os demais (não iniciado,
+// em andamento, vencido) continuam sem exigir nada, comportamento já
+// existente.
+const STATUS_EXIGE_EVIDENCIA = new Set<StatusDocumento>(["regular", "protocolado"]);
+
 type StatusEnvio = "enviando" | "enviado" | "erro";
 type StatusSalvamento = "salvando" | "salvo" | "erro";
 
@@ -326,6 +332,17 @@ export function FormCadastrarDocumentosEmLote({
   }
 
   if (documentosCriados) {
+    // STC-524: bloqueia "Concluir" enquanto sobrar algum item "Regular"/
+    // "Protocolado" sem evidência anexada -- os outros 3 status continuam
+    // liberando normalmente.
+    const algumItemSemAnexoObrigatorio = documentosCriados.some((documento) => {
+      const statusDoItem = statusPorItem[documento.id] ?? "";
+      return (
+        STATUS_EXIGE_EVIDENCIA.has(statusDoItem as StatusDocumento) &&
+        statusEnvio[documento.id] !== "enviado"
+      );
+    });
+
     return (
       <Dialog open={open} onOpenChange={(valor) => !valor && fechar()}>
         <DialogContent
@@ -340,54 +357,75 @@ export function FormCadastrarDocumentosEmLote({
           onEscapeKeyDown={(evento) => evento.preventDefault()}
         >
           <DialogHeader className="border-b border-border px-6 py-4">
-            <DialogTitle>Anexar evidências (opcional)</DialogTitle>
+            <DialogTitle>Anexar evidências</DialogTitle>
           </DialogHeader>
 
           <div className="scrollbar-discreta flex-1 space-y-3 overflow-y-auto px-6 py-5">
             <p className="text-sm text-muted-foreground">
-              Status, validade e evidência são por item -- cada equipamento
-              pode ter sua própria data de calibração e certificado. Tudo
-              opcional aqui: dá pra completar depois, um por um, na Matriz de
-              Conformidade.
+              Status e validade são por item -- cada equipamento pode ter sua
+              própria data de calibração. Evidência é opcional pros status
+              &quot;Não iniciado&quot;/&quot;Em andamento&quot;/&quot;Vencido&quot;
+              -- dá pra completar depois, um por um, na Matriz de
+              Conformidade. Já pra &quot;Regular&quot; e
+              &quot;Protocolado&quot;, o anexo é obrigatório antes de
+              concluir.
             </p>
-            {documentosCriados.map((documento) => (
-              <div
-                key={documento.id}
-                className="space-y-2 rounded-lg border border-border px-3 py-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {documento.profissional}
-                  </span>
-                  <LinhaEvidencia
+            {documentosCriados.map((documento) => {
+              // STC-524: "Regular"/"Protocolado" pressupõem documento em
+              // mãos -- só esses dois exigem evidência antes de liberar
+              // "Concluir". Os outros 3 status continuam opcionais, como já
+              // era pra todo mundo antes desta issue.
+              const statusDoItem = statusPorItem[documento.id] ?? "";
+              const faltaAnexoObrigatorio =
+                STATUS_EXIGE_EVIDENCIA.has(statusDoItem as StatusDocumento) &&
+                statusEnvio[documento.id] !== "enviado";
+              return (
+                <div
+                  key={documento.id}
+                  className="space-y-2 rounded-lg border border-border px-3 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {documento.profissional}
+                    </span>
+                    <LinhaEvidencia
+                      identificador={documento.profissional}
+                      status={statusEnvio[documento.id]}
+                      onSelecionar={(arquivo) =>
+                        void enviarEvidenciaDoItem(documento.id, arquivo)
+                      }
+                    />
+                  </div>
+                  <LinhaStatusValidade
+                    documentoId={documento.id}
                     identificador={documento.profissional}
-                    status={statusEnvio[documento.id]}
-                    onSelecionar={(arquivo) =>
-                      void enviarEvidenciaDoItem(documento.id, arquivo)
+                    status={statusDoItem}
+                    validade={validadePorItem[documento.id] ?? ""}
+                    statusSalvamento={statusSalvamento[documento.id]}
+                    erro={erroSalvamento[documento.id]}
+                    onStatusChange={(valor) =>
+                      setStatusPorItem((s) => ({ ...s, [documento.id]: valor }))
                     }
+                    onValidadeChange={(valor) =>
+                      setValidadePorItem((v) => ({ ...v, [documento.id]: valor }))
+                    }
+                    onSalvar={() => void salvarStatusEValidade(documento.id)}
                   />
+                  {faltaAnexoObrigatorio && (
+                    <p className="text-xs text-destructive">
+                      Anexo obrigatório pra status &quot;
+                      {LABEL_STATUS[statusDoItem as StatusDocumento]}&quot;.
+                    </p>
+                  )}
                 </div>
-                <LinhaStatusValidade
-                  documentoId={documento.id}
-                  identificador={documento.profissional}
-                  status={statusPorItem[documento.id] ?? ""}
-                  validade={validadePorItem[documento.id] ?? ""}
-                  statusSalvamento={statusSalvamento[documento.id]}
-                  erro={erroSalvamento[documento.id]}
-                  onStatusChange={(valor) =>
-                    setStatusPorItem((s) => ({ ...s, [documento.id]: valor }))
-                  }
-                  onValidadeChange={(valor) =>
-                    setValidadePorItem((v) => ({ ...v, [documento.id]: valor }))
-                  }
-                  onSalvar={() => void salvarStatusEValidade(documento.id)}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <DialogFooter className="border-t border-border px-6 py-4">
-            <Button onClick={fechar}>Concluir</Button>
+            <Button onClick={fechar} disabled={algumItemSemAnexoObrigatorio}>
+              Concluir
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

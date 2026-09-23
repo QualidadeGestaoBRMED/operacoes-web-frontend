@@ -222,7 +222,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     // STC-490 (achado do usuário): evidência é por instância, não
     // compartilhada -- o diálogo não fecha sozinho, abre um passo 2.
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(await screen.findByText("Anexar evidências (opcional)")).toBeInTheDocument();
+    expect(await screen.findByText("Anexar evidências")).toBeInTheDocument();
     expect(screen.getByText("Balança 01")).toBeInTheDocument();
     expect(screen.getByText("Balança 02")).toBeInTheDocument();
     expect(screen.getByText("Balança 03")).toBeInTheDocument();
@@ -243,7 +243,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
 
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     expect(document.activeElement).not.toBe(document.body);
     expect(document.activeElement).toHaveAttribute("role", "dialog");
@@ -344,7 +344,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       "Balança 01\nBalança 02",
     );
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     // Dialog do Radix renderiza em portal (document.body), fora do
     // `container` que render() devolve -- document.querySelectorAll pega
@@ -384,7 +384,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       "Balança 01\nBalança 02",
     );
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     expect(
       screen.getByRole("button", { name: "Anexar evidência para Balança 01" }),
@@ -409,7 +409,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     await user.click(screen.getByRole("button", { name: "Concluir" }));
 
@@ -426,7 +426,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
@@ -446,6 +446,70 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(await screen.findByText("Salvo")).toBeInTheDocument();
   });
 
+  describe("Anexo obrigatório pra status Regular/Protocolado (STC-524)", () => {
+    it("bloqueia 'Concluir' quando um item está 'Regular' sem evidência anexada", async () => {
+      vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+        documentoCriado(),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await preencherCamposComuns(user);
+      await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+      await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+      await screen.findByText("Anexar evidências");
+
+      const botaoConcluir = screen.getByRole("button", { name: "Concluir" });
+      expect(botaoConcluir).not.toBeDisabled();
+
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Regular" }));
+
+      expect(botaoConcluir).toBeDisabled();
+      expect(
+        screen.getByText('Anexo obrigatório pra status "Regular".'),
+      ).toBeInTheDocument();
+
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      const certificado = new File(["x"], "cert.pdf", { type: "application/pdf" });
+      await user.upload(inputArquivo, certificado);
+
+      await waitFor(() => {
+        expect(botaoConcluir).not.toBeDisabled();
+      });
+      expect(
+        screen.queryByText('Anexo obrigatório pra status "Regular".'),
+      ).not.toBeInTheDocument();
+    });
+
+    it("bloqueia 'Concluir' pra 'Protocolado' sem evidência, mas não pros demais status", async () => {
+      vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+        documentoCriado(),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await preencherCamposComuns(user);
+      await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+      await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+      await screen.findByText("Anexar evidências");
+
+      const botaoConcluir = screen.getByRole("button", { name: "Concluir" });
+
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Protocolado" }));
+      expect(botaoConcluir).toBeDisabled();
+
+      // Trocar pra um status que não exige documento em mãos libera de novo,
+      // mesmo sem anexo -- comportamento já existente, preservado.
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Em andamento" }));
+      expect(botaoConcluir).not.toBeDisabled();
+    });
+  });
+
   it("bloqueia 'Vencido' sem validade no client, antes de chamar a API", async () => {
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     const user = userEvent.setup();
@@ -454,7 +518,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
@@ -571,12 +635,12 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
-    await screen.findByText("Anexar evidências (opcional)");
+    await screen.findByText("Anexar evidências");
 
     await user.keyboard("{Escape}");
 
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(screen.getByText("Anexar evidências (opcional)")).toBeInTheDocument();
+    expect(screen.getByText("Anexar evidências")).toBeInTheDocument();
   });
 
   describe("Responsável operacional obrigatório (STC-517)", () => {
