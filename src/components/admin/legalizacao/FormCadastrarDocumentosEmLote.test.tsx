@@ -685,6 +685,16 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
       expect(screen.getByLabelText(/^responsável\(is\)/i)).toBeInTheDocument();
     });
+
+    it("explica por texto visível (não só title) por que o gatilho está desabilitado antes de escolher unidade/tipo", async () => {
+      renderForm();
+
+      const gatilho = screen.getByRole("button", { name: /responsável\(is\)/i });
+      expect(gatilho).toHaveTextContent(
+        "Escolha a unidade e o tipo de documento primeiro",
+      );
+      expect(gatilho).toBeDisabled();
+    });
   });
 });
 

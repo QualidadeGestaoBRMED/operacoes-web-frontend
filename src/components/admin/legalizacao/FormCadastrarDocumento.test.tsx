@@ -825,6 +825,20 @@ describe("FormCadastrarDocumento (STC-415)", () => {
 
       expect(screen.getByLabelText(/^responsável\(is\)/i)).toBeInTheDocument();
     });
+
+    it("explica por texto visível (não só title) por que o gatilho está desabilitado antes de escolher unidade/tipo", async () => {
+      // STC-517 (achado em code review): title não é lido de forma
+      // confiável por leitor de tela em botão, e um botão disabled sai da
+      // ordem de tabulação -- mesmo padrão já usado no Select de "Tipo de
+      // documento" (placeholder visível "Escolha a unidade primeiro").
+      renderForm();
+
+      const gatilho = screen.getByRole("button", { name: /responsável\(is\)/i });
+      expect(gatilho).toHaveTextContent(
+        "Escolha a unidade e o tipo de documento primeiro",
+      );
+      expect(gatilho).toBeDisabled();
+    });
   });
 
   describe("Dosimetria -- tipo controlado por profissional (STC-432)", () => {

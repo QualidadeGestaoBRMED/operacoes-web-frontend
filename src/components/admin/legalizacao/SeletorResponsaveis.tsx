@@ -84,14 +84,13 @@ export function SeletorResponsaveis({
             id={id}
             type="button"
             disabled={!habilitado}
-            title={
-              habilitado ? undefined : "Selecione a unidade e o tipo de documento primeiro."
-            }
             className="flex h-9 w-full items-center rounded-md border border-input bg-transparent px-3 text-sm text-muted-foreground hover:border-secondary hover:text-secondary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-input disabled:hover:text-muted-foreground"
           >
-            {selecionados.length > 0
-              ? `${selecionados.length} selecionado(s) -- adicionar/remover`
-              : "Selecionar responsável(is)..."}
+            {!habilitado
+              ? "Escolha a unidade e o tipo de documento primeiro"
+              : selecionados.length > 0
+                ? `${selecionados.length} selecionado(s) -- adicionar/remover`
+                : "Selecionar responsável(is)..."}
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-1.5">
