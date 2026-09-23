@@ -7,14 +7,8 @@ import type { Modulo, PermissaoUsuario, Unidade, Usuario } from "@/types";
 import { PermissoesAdmin } from "./PermissoesAdmin";
 
 const replace = vi.fn();
-// STC-519: PermissoesAdmin passou a ler ?aba= via useSearchParams() --
-// vi.fn() (não uma função fixa) pra testes específicos poderem sobrescrever
-// com mockReturnValue quando precisarem simular o atalho da sidebar vindo
-// com query string.
-const useSearchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
-  useSearchParams: () => useSearchParamsMock(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
@@ -114,17 +108,20 @@ function permissaoBase(
   };
 }
 
-function renderTela() {
+// STC-519: abaInicial (opcional) espelha o que a rota
+// /admin/permissoes/catalogo-legalizacao passa pra este componente --
+// testes que simulam o atalho da sidebar passam isso em vez de mockar
+// query string.
+function renderTela(abaInicial?: "usuarios" | "catalogo-legalizacao") {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
-      <PermissoesAdmin />
+      <PermissoesAdmin abaInicial={abaInicial} />
     </SWRConfig>,
   );
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  useSearchParamsMock.mockReturnValue(new URLSearchParams());
   vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
   vi.mocked(listarSetores).mockResolvedValue([]);
@@ -182,20 +179,19 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
   });
 
-  // STC-519: atalho "Catálogo de Legalização" na sidebar pra Admin navega
-  // com ?aba=catalogo-legalizacao -- sem isso, Admin caía sempre na aba
-  // "Usuários" (só o Coordenador tinha a aba forçada, via apenasCatalogo).
-  it("Admin com ?aba=catalogo-legalizacao na URL abre direto no Catálogo de Legalização", async () => {
-    useSearchParamsMock.mockReturnValue(
-      new URLSearchParams("aba=catalogo-legalizacao"),
-    );
+  // STC-519: atalho "Catálogo de Legalização" na sidebar pra Admin leva pra
+  // /admin/permissoes/catalogo-legalizacao (rota própria, ver page.tsx),
+  // que passa abaInicial="catalogo-legalizacao" -- sem isso, Admin caía
+  // sempre na aba "Usuários" (só o Coordenador tinha a aba forçada, via
+  // apenasCatalogo).
+  it("Admin com abaInicial='catalogo-legalizacao' abre direto no Catálogo de Legalização", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
 
-    renderTela();
+    renderTela("catalogo-legalizacao");
 
     // Admin sempre vê "Administração" como título da página (diferente do
     // Coordenador, apenasCatalogo troca esse h1) -- o que muda é o Select
@@ -209,7 +205,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     ).toBeInTheDocument();
   });
 
-  it("Admin sem ?aba= na URL continua abrindo na aba 'Usuários' por padrão", async () => {
+  it("Admin sem abaInicial (rota /admin/permissoes padrão) continua abrindo na aba 'Usuários'", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminOps: true,
       isCoordenacaoUnidade: false,

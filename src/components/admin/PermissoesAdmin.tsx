@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ChevronDownIcon,
   ListFilter,
@@ -137,9 +137,10 @@ function prioridadeStatus(permissao: {
   );
 }
 
-export function PermissoesAdmin() {
+export function PermissoesAdmin({
+  abaInicial,
+}: { abaInicial?: Aba } = {}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isAdminOps, isCoordenacaoUnidade, isLoading: carregandoAuth } =
     useAuth();
   // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
@@ -195,24 +196,19 @@ export function PermissoesAdmin() {
   // existia -- mesmo padrão de troca de conteúdo por state (não TabsContent)
   // já usado em TipoGestaoTabs.tsx.
   //
-  // STC-519: o atalho "Catálogo de Legalização" na sidebar (Admin) navega
-  // pra cá com ?aba=catalogo-legalizacao -- sem ler isso, o link levava pro
-  // destino certo mas sempre caía na aba "Usuários" por padrão pra Admin
-  // (só o Coordenador tinha a aba forçada, via apenasCatalogo abaixo), um
-  // link com esse nome que não abria o que prometia.
-  const [aba, setAba] = useState<Aba>(() =>
-    searchParams.get("aba") === "catalogo-legalizacao"
-      ? "catalogo-legalizacao"
-      : "usuarios",
-  );
-  // Sincroniza se a query mudar SEM remontar o componente -- ex. clicar no
-  // atalho da sidebar de novo enquanto já está nesta página (Next.js pode
-  // reaproveitar a instância em vez de remontar, já que é a mesma rota).
-  useEffect(() => {
-    if (searchParams.get("aba") === "catalogo-legalizacao") {
-      setAba("catalogo-legalizacao");
-    }
-  }, [searchParams]);
+  // STC-519: abaInicial vem de qual PÁGINA renderizou este componente --
+  // /admin/permissoes (padrão, abaInicial ausente) ou
+  // /admin/permissoes/catalogo-legalizacao (abaInicial="catalogo-legalizacao",
+  // o atalho novo da sidebar pra Admin). Rota própria (não ?aba=query na
+  // mesma rota, tentativa original) de propósito -- achado em revisão de
+  // falhas críticas: query string não dava pro Sidebar (pathname.startsWith(),
+  // sem olhar query) distinguir este atalho do link "Administração" (mesmo
+  // pathname bare), destacando "Catálogo de Legalização" como ativo mesmo
+  // com Usuários na tela; e trocar de link sem reload reaproveitava a
+  // mesma instância deste componente, deixando a aba presa no valor
+  // anterior. Rota de verdade resolve os dois -- pathname já distingue
+  // sozinho, e o Next.js remonta ao navegar entre rotas diferentes.
+  const [aba, setAba] = useState<Aba>(abaInicial ?? "usuarios");
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
