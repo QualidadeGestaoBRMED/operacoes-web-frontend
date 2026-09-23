@@ -140,15 +140,22 @@ function prioridadeStatus(permissao: {
 export function PermissoesAdmin() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAdminOps, isCoordenacaoUnidade, isLoading: carregandoAuth } =
-    useAuth();
+  const {
+    isAdminOps,
+    isCoordenacaoUnidade,
+    isSetorLeg,
+    isLoading: carregandoAuth,
+  } = useAuth();
   // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
   // Legalização -- Usuários/Permissões individuais continuam Admin-only.
+  // STC-521: Setor de Legalização (nível 4, setor.codigo === "LEG") ganha o
+  // mesmo acesso restrito, pelo mesmo motivo -- já pode escrever no catálogo
+  // pela API (PodeEscreverCatalogoLegalizacao), faltava só o caminho na tela.
   // Mutuamente exclusivo com isAdminOps na prática (níveis diferentes),
   // mas checado explícito mesmo assim: se algum dia alguém acumular os
   // dois papéis, Admin Ops deve prevalecer (acesso completo).
-  const apenasCatalogo = isCoordenacaoUnidade && !isAdminOps;
-  const podeAcessar = isAdminOps || isCoordenacaoUnidade;
+  const apenasCatalogo = (isCoordenacaoUnidade || isSetorLeg) && !isAdminOps;
+  const podeAcessar = isAdminOps || isCoordenacaoUnidade || isSetorLeg;
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo

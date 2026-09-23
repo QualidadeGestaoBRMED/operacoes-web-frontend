@@ -208,6 +208,48 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
   });
 
+  // STC-521: Setor de Legalização (nível 4, setor.codigo === "LEG") ganha o
+  // mesmo acesso restrito que o Coordenador já tinha -- mesmo motivo (já
+  // pode escrever no catálogo pela API, faltava o caminho na tela).
+  it("Setor de Legalização não é redirecionado, mas só vê o Catálogo de Legalização (sem Select de seção, sem Usuários/Permissões)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+      isSetorLeg: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Seção")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("table", { name: /permissões individuais/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+  });
+
+  // STC-521: nível 4 sozinho não basta -- existem outros setores no mesmo
+  // nível (RH etc.). Só isSetorLeg (nível + setor.codigo === "LEG") libera
+  // acesso; qualquer outro setor de nível 4 continua sem nenhum.
+  it("usuário de nível Setor mas de outro setor (não Legalização) continua sem acesso", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+      isSetorLeg: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/modulos/gestao-demandas");
+    });
+  });
+
   // STC-519: /admin/permissoes/catalogo-legalizacao (rota própria, ver
   // layout.tsx) -- PermissoesAdmin lê o pathname direto (usePathname()),
   // não um prop, pra saber que deve abrir no Catálogo. Sem isso, Admin
