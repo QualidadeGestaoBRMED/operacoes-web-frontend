@@ -287,7 +287,7 @@ describe("Sidebar -- submenu expansível de Legalização (STC-496)", () => {
   });
 });
 
-describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do submenu de Legalização (STC-514)", () => {
+describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legalização (STC-514/STC-519)", () => {
   beforeEach(() => {
     vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "ativo" })]);
   });
@@ -303,13 +303,49 @@ describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do su
 
     await screen.findByRole("link", { name: "Matriz de Conformidade" });
     const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
-    expect(link).toHaveAttribute("href", "/admin/permissoes");
+    // STC-519: rota própria (não /admin/permissoes com query string) --
+    // PermissoesAdmin.tsx recebe abaInicial="catalogo-legalizacao" via
+    // prop, a partir de qual page.tsx renderizou o componente.
+    expect(link).toHaveAttribute("href", "/admin/permissoes/catalogo-legalizacao");
   });
 
-  it("Admin/Setor (não Coordenador) não vê esse subitem extra em Legalização", async () => {
+  // STC-519: Admin (QG/Operações) já podia acessar o mesmo catálogo pelo
+  // bloco "Administração" de baixo, só sem esse atalho direto -- passa a
+  // ganhar o mesmo subitem que o Coordenador já tinha.
+  it("Admin Operações também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminQG: false,
       isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
+    expect(link).toHaveAttribute("href", "/admin/permissoes/catalogo-legalizacao");
+  });
+
+  it("Admin Q&G também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: true,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("link", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+  });
+
+  it("Setor (nem Admin nem Coordenador) não vê esse subitem extra em Legalização", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
     } as ReturnType<typeof useAuth>);
 
     renderSidebar();
@@ -320,12 +356,15 @@ describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do su
     ).not.toBeInTheDocument();
   });
 
-  // isCoordenacaoUnidade injeta um subitem cuja rota (/admin/permissoes)
-  // não é prefixo de href (/modulos/legalizacao) -- sem considerar
-  // subitemAtivo no auto-expand, um refresh direto nessa rota abria o
-  // submenu recolhido, escondendo o próprio item ativo lá dentro.
-  it("expande sozinho ao chegar direto em /admin/permissoes (subitem ativo, não a rota do módulo)", async () => {
-    vi.mocked(usePathname).mockReturnValue("/admin/permissoes");
+  // isCoordenacaoUnidade injeta um subitem cuja rota
+  // (/admin/permissoes/catalogo-legalizacao) não é prefixo de href
+  // (/modulos/legalizacao) -- sem considerar subitemAtivo no auto-expand,
+  // um refresh direto nessa rota abria o submenu recolhido, escondendo o
+  // próprio item ativo lá dentro.
+  it("expande sozinho ao chegar direto em /admin/permissoes/catalogo-legalizacao (subitem ativo, não a rota do módulo)", async () => {
+    vi.mocked(usePathname).mockReturnValue(
+      "/admin/permissoes/catalogo-legalizacao",
+    );
     vi.mocked(useAuth).mockReturnValue({
       isAdminQG: false,
       isAdminOps: false,
@@ -341,5 +380,31 @@ describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do su
     expect(
       screen.getByRole("link", { name: "Catálogo de Legalização" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  // STC-519 (achado em revisão de falhas críticas): antes de existir uma
+  // rota própria pro atalho, "Catálogo de Legalização" e o link
+  // "Administração" (bloco de baixo, Admin) compartilhavam o mesmo
+  // pathname bare (/admin/permissoes) -- pathname.startsWith() não olha
+  // querystring, então visitar /admin/permissoes por "Administração"
+  // (mostrando Usuários) destacava/expandia "Catálogo de Legalização" como
+  // se fosse a página ativa, rótulo errado pro que estava na tela.
+  it("NÃO destaca 'Catálogo de Legalização' quando o pathname é só /admin/permissoes (link 'Administração', não o atalho)", async () => {
+    vi.mocked(usePathname).mockReturnValue("/admin/permissoes");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("button", { name: "Expandir Legalização" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.getByRole("link", { name: "Catálogo de Legalização" }),
+    ).not.toHaveAttribute("aria-current", "page");
   });
 });

@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
@@ -6,9 +7,34 @@ import { formatarDataHora } from "@/lib/utils";
 import type { Modulo, PermissaoUsuario, Unidade, Usuario } from "@/types";
 import { PermissoesAdmin } from "./PermissoesAdmin";
 
-const replace = vi.fn();
+// STC-519: PermissoesAdmin agora lê usePathname() direto (não mais um prop
+// abaInicial) -- pra não precisar de rerender() manual em todo teste que já
+// existia (vários assumem que trocar de Seção pelo Select já reflete na
+// tela na mesma interação, síncrono), o mock precisa ser reativo de
+// verdade, não só uma função pura lendo uma variável -- useSyncExternalStore
+// com um pub-sub mínimo imita o próprio mecanismo que o usePathname() real
+// do Next.js usa por baixo. Nomes com prefixo "mock" de propósito -- é o
+// que o Vitest exige pra permitir referenciar essas variáveis de dentro de
+// um vi.mock hoisted.
+let mockPathnameValor = "/admin/permissoes";
+const mockPathnameOuvintes = new Set<() => void>();
+function mockSetPathname(novoValor: string) {
+  mockPathnameValor = novoValor;
+  mockPathnameOuvintes.forEach((ouvinte) => ouvinte());
+}
+const replace = vi.fn((url: string) => {
+  mockSetPathname(url);
+});
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
+  usePathname: () =>
+    useSyncExternalStore(
+      (aoMudar) => {
+        mockPathnameOuvintes.add(aoMudar);
+        return () => mockPathnameOuvintes.delete(aoMudar);
+      },
+      () => mockPathnameValor,
+    ),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
@@ -108,6 +134,9 @@ function permissaoBase(
   };
 }
 
+// STC-519: aba vem do pathname -- testes que simulam o atalho da
+// sidebar/rota do Catálogo chamam mockSetPathname() antes de renderTela(),
+// em vez de passar prop ou mockar query string.
 function renderTela() {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
@@ -118,6 +147,10 @@ function renderTela() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockSetPathname("/admin/permissoes");
+  replace.mockImplementation((url: string) => {
+    mockSetPathname(url);
+  });
   vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
   vi.mocked(listarSetores).mockResolvedValue([]);
@@ -173,6 +206,117 @@ describe("PermissoesAdmin (STC-266)", () => {
       screen.queryByRole("table", { name: /permissões individuais/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+  });
+
+  // STC-519: /admin/permissoes/catalogo-legalizacao (rota própria, ver
+  // layout.tsx) -- PermissoesAdmin lê o pathname direto (usePathname()),
+  // não um prop, pra saber que deve abrir no Catálogo. Sem isso, Admin
+  // caía sempre na aba "Usuários" (só o Coordenador tinha a aba forçada,
+  // via apenasCatalogo).
+  it("na rota /admin/permissoes/catalogo-legalizacao, abre direto no Catálogo de Legalização", async () => {
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    // Admin sempre vê "Administração" como título da página (diferente do
+    // Coordenador, apenasCatalogo troca esse h1) -- o que muda é o Select
+    // "Seção" já vir com "Catálogo de Legalização" selecionado, mostrando
+    // o conteúdo do catálogo (ex. "Tipos de documento") em vez de "Usuários".
+    expect(
+      await screen.findByLabelText("Seção"),
+    ).toHaveTextContent("Catálogo de Legalização");
+    expect(
+      await screen.findByRole("heading", { name: "Tipos de documento" }),
+    ).toBeInTheDocument();
+  });
+
+  it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Usuários");
+  });
+
+  // STC-519 (achado em revisão de falhas críticas): trocar a Seção pelo
+  // Select troca o conteúdo, mas sem navegar a URL ficava parada -- a
+  // sidebar (componente separado, destaca pelo pathname) continuava
+  // marcando "Catálogo de Legalização" como página atual mesmo com
+  // Usuários na tela. router.replace() mantém a URL sincronizada com o
+  // que está de fato exibido.
+  it("trocar a Seção pelo Select navega de verdade (mantém a URL sincronizada com o conteúdo)", async () => {
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await screen.findByRole("heading", { name: "Tipos de documento" });
+
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Usuários" }));
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes");
+
+    replace.mockClear();
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
+    );
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes/catalogo-legalizacao");
+  });
+
+  // STC-519 (achado em 3ª rodada de revisão de falhas críticas): a correção
+  // anterior (rota própria por aba) resolvia o destaque da sidebar, mas
+  // navegar entre /admin/permissoes e .../catalogo-legalizacao remontava
+  // PermissoesAdmin inteiro (cada rota tinha seu próprio page.tsx),
+  // perdendo filtros/seção expandida/diálogos abertos a cada troca de
+  // Seção. PermissoesAdmin passou a viver no layout.tsx (persiste entre as
+  // duas rotas, nunca remonta) -- este teste prova que o achado foi
+  // corrigido: um estado local (seção "Permissões individuais" expandida)
+  // sobrevive a ida e volta entre as duas abas.
+  it("trocar de aba pelo Select preserva outro state local (ex. seção expandida) -- não remonta o componente", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await screen.findByLabelText("Seção");
+    await user.click(
+      screen.getByRole("button", { name: "Expandir Permissões individuais" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Recolher Permissões individuais" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(
+      await screen.findByRole("option", { name: "Catálogo de Legalização" }),
+    );
+    await screen.findByRole("heading", { name: "Tipos de documento" });
+
+    await user.click(screen.getByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Usuários" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Recolher Permissões individuais" }),
+    ).toBeInTheDocument();
   });
 
   it("lista permissões existentes com nome resolvido e status", async () => {
