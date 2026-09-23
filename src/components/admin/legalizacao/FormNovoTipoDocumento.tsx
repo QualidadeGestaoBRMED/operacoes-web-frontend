@@ -27,12 +27,18 @@ import {
   useAtualizarTipoDocumento,
   useCriarTipoDocumento,
 } from "@/hooks/useTiposDocumento";
+import { useSetores } from "@/hooks/useSetores";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import type { Setor } from "@/types";
 import type {
   AreaResponsavelDocumento,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
+
+// Mesmo sentinel de GerenciarUsuarios.tsx (SEM_VALOR) -- Radix Select não
+// aceita value="" pra representar "nenhum".
+const SEM_SETOR = "nenhum";
 
 // Espelha TipoDocumentoRegulatorio.AreaResponsavel (backend/legalizacao/
 // models.py) -- só 2 valores, sem hook/endpoint próprio (é um choices fixo,
@@ -89,20 +95,28 @@ function criarSchema(emEdicao: boolean) {
     exige_protocolo: z.boolean(),
     exige_evidencia: z.boolean(),
     permite_multiplas_instancias: z.boolean(),
+    // STC-526: "nenhum" (sentinel do Select) vira null -- optional/nullable
+    // no backend (TipoDocumentoRegulatorioSerializer.setor_apoio_id).
+    setor_apoio_id: z.preprocess(
+      (valor) => (valor === SEM_SETOR ? null : valor),
+      z.coerce.number().int().positive().nullable(),
+    ),
   });
 }
 
-type FormValues = z.infer<ReturnType<typeof criarSchema>>;
+type FormValuesEntrada = z.input<ReturnType<typeof criarSchema>>;
+type FormValuesSaida = z.output<ReturnType<typeof criarSchema>>;
 
 // Espelha os defaults de TipoDocumentoRegulatorio (backend/legalizacao/
 // models.py): exige_validade/exige_evidencia nascem ligados, exige_protocolo
 // nasce desligado -- maioria dos ~31 itens do catálogo seed segue esse
 // padrão (licença/alvará tem validade e evidência, protocolo é exceção).
-const valoresPadrao: Partial<FormValues> = {
+const valoresPadrao: Partial<FormValuesEntrada> = {
   exige_validade: true,
   exige_protocolo: false,
   exige_evidencia: true,
   permite_multiplas_instancias: false,
+  setor_apoio_id: SEM_SETOR,
 };
 
 // STC-501: mesmo diálogo cadastra (tipoDocumento ausente) e edita
@@ -113,7 +127,16 @@ const valoresPadrao: Partial<FormValues> = {
 // tipo já em uso quebraria esses comportamentos silenciosamente, e o
 // pedido real do cliente é sobre o Nome (capitalização inconsistente),
 // não o código interno.
-function valoresDe(tipo: TipoDocumentoRegulatorio): FormValues {
+// setores em vez de setor_apoio_id: TipoDocumentoRegulatorioSerializer só
+// expõe `setor_apoio` (nome, read-only) -- setor_apoio_id é write-only
+// (sem consumidor até esta issue). Casar pelo nome contra a lista de
+// setores (useSetores) é o jeito de pré-preencher o Select sem precisar
+// de nenhuma mudança no backend.
+function valoresDe(
+  tipo: TipoDocumentoRegulatorio,
+  setores: Setor[],
+): FormValuesEntrada {
+  const setorApoio = setores.find((setor) => setor.nome === tipo.setor_apoio);
   return {
     nome: tipo.nome,
     codigo: tipo.codigo,
@@ -123,6 +146,7 @@ function valoresDe(tipo: TipoDocumentoRegulatorio): FormValues {
     exige_protocolo: tipo.exige_protocolo,
     exige_evidencia: tipo.exige_evidencia,
     permite_multiplas_instancias: tipo.permite_multiplas_instancias,
+    setor_apoio_id: setorApoio ? String(setorApoio.id) : SEM_SETOR,
   };
 }
 
@@ -140,6 +164,7 @@ export function FormNovoTipoDocumento({
   const { criar, isLoading: criando } = useCriarTipoDocumento();
   const { atualizar, isLoading: atualizando } = useAtualizarTipoDocumento();
   const isLoading = emEdicao ? atualizando : criando;
+  const { setores } = useSetores();
 
   const {
     register,
@@ -147,7 +172,7 @@ export function FormNovoTipoDocumento({
     control,
     reset,
     formState: { errors },
-  } = useForm<FormValues>({
+  } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(criarSchema(emEdicao)),
     defaultValues: valoresPadrao,
   });
@@ -156,12 +181,21 @@ export function FormNovoTipoDocumento({
     if (!open) {
       reset(valoresPadrao);
     } else if (tipoDocumento) {
-      reset(valoresDe(tipoDocumento));
+      reset(valoresDe(tipoDocumento, setores));
     }
+    // Achado em code review (STC-526): dependia de `setores` (o array
+    // inteiro) -- useSetores() devolve `data ?? []`, que cria uma
+    // referência NOVA a cada render enquanto `data` ainda está undefined
+    // (SWR carregando). Combinado com o reset() acima disparando
+    // re-render, virava um loop de resets a cada render até o fetch
+    // resolver (risco real: sessão em que Setores nunca foi buscado antes,
+    // ex. abrir "Editar" direto nesta tela sem nunca ter passado por
+    // PermissoesAdmin). `.length` é estável durante o carregamento (0 em
+    // todo render) e só muda de fato quando a lista real chega.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tipoDocumento?.id]);
+  }, [open, tipoDocumento?.id, setores.length]);
 
-  async function aoSubmeter(valores: FormValues) {
+  async function aoSubmeter(valores: FormValuesSaida) {
     try {
       if (tipoDocumento) {
         await atualizar({ id: tipoDocumento.id, payload: valores });
@@ -296,6 +330,37 @@ export function FormNovoTipoDocumento({
                   {errors.area_responsavel.message}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="td-setor-apoio">Setor de apoio</Label>
+              <Controller
+                control={control}
+                name="setor_apoio_id"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ? String(field.value) : SEM_SETOR}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="td-setor-apoio" className="w-full">
+                      <SelectValue placeholder="Nenhum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SEM_SETOR}>Nenhum</SelectItem>
+                      {setores.map((setor) => (
+                        <SelectItem key={setor.id} value={String(setor.id)}>
+                          {setor.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Além da unidade, pessoas deste setor também poderão ser
+                escolhidas como Responsável Operacional nos documentos deste
+                tipo.
+              </p>
             </div>
 
             <div className="space-y-2.5">
