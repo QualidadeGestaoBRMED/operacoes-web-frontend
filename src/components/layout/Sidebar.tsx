@@ -84,10 +84,15 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               // STC-514: Coordenador ganha acesso ao Catálogo de Legalização
               // (Admin > Cadastro de documentos), mas só o bloco de
               // Legalização faz sentido pra ele -- entra como 3º subitem
-              // aqui em vez de replicar o bloco "Administração" de baixo
-              // (que continua Admin-only, ver isAdminOps mais abaixo).
+              // aqui em vez de replicar o bloco "Administração" de baixo.
+              // STC-519: Admin (QG/Operações) já podia acessar o mesmo
+              // catálogo pelo bloco "Administração" de baixo (isAdminOps),
+              // só sem esse rótulo/atalho direto -- passa a ganhar o mesmo
+              // 3º subitem que o Coordenador já tinha, em vez de precisar
+              // entrar em "Administração" e escolher a seção no select.
               subitens={
-                modulo.codigo === "legalizacao" && isCoordenacaoUnidade
+                modulo.codigo === "legalizacao" &&
+                (isCoordenacaoUnidade || isAdminOps)
                   ? [
                       ...modulo.subitens,
                       {
@@ -126,10 +131,12 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
       {/* isAdminOps (nível <= Admin Operações) cobre os dois perfis que têm
           algum link aqui -- Admin Q&G é um caso particular dele (nível 1),
           então o wrapper (borda/espaçamento) usa só essa condição, e cada
-          link decide por conta própria se aparece. Coordenador (STC-514)
-          não entra aqui -- o acesso dele ao Catálogo de Legalização vive
-          dentro do submenu de Legalização, não neste bloco (ver
-          modulosAtivos.map acima). */}
+          link decide por conta própria se aparece. Coordenador (STC-514) e,
+          desde a STC-519, Admin também -- não entram aqui: o acesso deles
+          ao Catálogo de Legalização vive dentro do submenu de Legalização,
+          não neste bloco (ver modulosAtivos.map acima). O link
+          "Administração"/"Admin Operações" abaixo continua existindo (leva
+          pra tela inteira, não só o Catálogo). */}
       {isAdminOps && (
         <div className="mt-2 flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
           {/* STC-262: era texto fixo, sem função nenhuma e visível pra

@@ -287,7 +287,7 @@ describe("Sidebar -- submenu expansível de Legalização (STC-496)", () => {
   });
 });
 
-describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do submenu de Legalização (STC-514)", () => {
+describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legalização (STC-514/STC-519)", () => {
   beforeEach(() => {
     vi.mocked(listarModulos).mockResolvedValue([modulo({ status: "ativo" })]);
   });
@@ -306,10 +306,43 @@ describe("Sidebar -- Coordenador ganha 'Catálogo de Legalização' dentro do su
     expect(link).toHaveAttribute("href", "/admin/permissoes");
   });
 
-  it("Admin/Setor (não Coordenador) não vê esse subitem extra em Legalização", async () => {
+  // STC-519: Admin (QG/Operações) já podia acessar o mesmo catálogo pelo
+  // bloco "Administração" de baixo, só sem esse atalho direto -- passa a
+  // ganhar o mesmo subitem que o Coordenador já tinha.
+  it("Admin Operações também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminQG: false,
       isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
+    expect(link).toHaveAttribute("href", "/admin/permissoes");
+  });
+
+  it("Admin Q&G também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: true,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(
+      screen.getByRole("link", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+  });
+
+  it("Setor (nem Admin nem Coordenador) não vê esse subitem extra em Legalização", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
     } as ReturnType<typeof useAuth>);
 
     renderSidebar();
