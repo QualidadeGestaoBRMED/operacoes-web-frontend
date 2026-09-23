@@ -1,5 +1,5 @@
 import api from "./api";
-import type { RespostaPaginada } from "@/types";
+import type { RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
   DocumentoUnidade,
@@ -77,6 +77,20 @@ export async function criarDocumentosLegalizacaoEmLote(
   payload: DocumentoUnidadeLotePayload,
 ): Promise<DocumentoUnidade[]> {
   const { data } = await api.post<DocumentoUnidade[]>(`${DOCUMENTOS_URL}lote/`, payload);
+  return data;
+}
+
+// STC-516/STC-517: candidatos a responsável operacional = usuários da
+// unidade OU do setor de apoio do tipo de documento (união, calculada no
+// backend) -- popula o multi-select de FormCadastrarDocumento.tsx/
+// FormCadastrarDocumentosEmLote.tsx.
+export async function listarCandidatosResponsaveis(
+  unidade: number,
+  tipoDocumento: number,
+): Promise<Usuario[]> {
+  const { data } = await api.get<Usuario[]>(`${DOCUMENTOS_URL}candidatos-responsaveis/`, {
+    params: { unidade, tipo_documento: tipoDocumento },
+  });
   return data;
 }
 

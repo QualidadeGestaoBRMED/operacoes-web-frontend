@@ -217,6 +217,11 @@ export interface DocumentoUnidadePayload {
   // FormCadastrarDocumentosEmLote.tsx) -- backend só pula a máquina de
   // estados de status com este flag explícito, nunca automaticamente.
   definindo_status_inicial?: boolean;
+  // STC-516/STC-517: obrigatório só na CRIAÇÃO (não em PATCH -- backend
+  // ignora o campo em update, ver DocumentoUnidadeWriteSerializer.update())
+  // -- por isso opcional aqui, já que este tipo também é usado pra
+  // atualizarDocumentoLegalizacao() (Partial<DocumentoUnidadePayload>).
+  responsaveis?: number[];
 }
 
 // Payload de POST documentos/lote/ (STC-489/STC-490) -- cria 1
@@ -236,6 +241,9 @@ export interface DocumentoUnidadeLotePayload {
   criticidade: Criticidade;
   gera_card_demanda?: boolean;
   identificadores: string[];
+  // STC-516/STC-517: obrigatório -- 1 seleção só, vale pra todos os
+  // documentos do lote (não por identificador).
+  responsaveis: number[];
 }
 
 export type StatusProcessoRenovacao =

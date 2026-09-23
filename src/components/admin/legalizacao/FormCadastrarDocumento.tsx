@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { SeletorResponsaveis } from "@/components/admin/legalizacao/SeletorResponsaveis";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -95,6 +96,11 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
       janela_dia_inicio: numeroDiaOpcional,
       janela_dia_fim: numeroDiaOpcional,
       gera_card_demanda: z.boolean(),
+      // STC-516/STC-517: obrigatório mesmo no caminho "Não aplicável" -- o
+      // backend exige responsaveis em toda criação, sem exceção por status.
+      responsaveis: z
+        .array(z.number())
+        .min(1, "Selecione pelo menos 1 responsável."),
     })
     // Espelha DocumentoUnidadeWriteSerializer.validate() (backend) -- ver
     // legalizacao/serializers.py: os 4 campos abaixo só são exigidos quando
@@ -152,6 +158,7 @@ type FormValuesSaida = z.output<ReturnType<typeof criarSchema>>;
 const valoresPadrao: Partial<FormValuesEntrada> = {
   nao_aplicavel: false,
   gera_card_demanda: true,
+  responsaveis: [],
 };
 
 export function FormCadastrarDocumento({
@@ -317,6 +324,10 @@ export function FormCadastrarDocumento({
     setValue("validade", undefined);
     setValue("justificativa_excecao", undefined);
     setValue("nao_aplicavel", valoresPadrao.nao_aplicavel ?? false);
+    // STC-517: candidatos a responsável dependem de unidade+tipo -- um
+    // responsável válido pra combinação anterior pode não ser candidato
+    // pra nova (outra unidade, ou outro setor de apoio).
+    setValue("responsaveis", []);
   }
 
   // Extraído do fluxo principal -- também usado quando o usuário clica
@@ -405,6 +416,7 @@ export function FormCadastrarDocumento({
           unidade: valores.unidade,
           status: "nao_aplicavel",
           justificativa_excecao: valores.justificativa_excecao,
+          responsaveis: valores.responsaveis,
           ...(tipoControladoPorProfissional && {
             profissional: profissionalTrimado,
           }),
@@ -447,6 +459,7 @@ export function FormCadastrarDocumento({
             status: valores.status as StatusDocumento,
             validade: valores.validade || null,
             regra_aplicada: regra.id,
+            responsaveis: valores.responsaveis,
             ...(tipoControladoPorProfissional && {
               profissional: profissionalTrimado,
             }),
@@ -610,6 +623,30 @@ export function FormCadastrarDocumento({
                 <p className="text-xs text-muted-foreground">
                   Todos os tipos de documento ativos já foram cadastrados para
                   esta unidade.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cd-responsaveis">
+                Responsável(is) <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="responsaveis"
+                render={({ field }) => (
+                  <SeletorResponsaveis
+                    id="cd-responsaveis"
+                    unidadeId={unidadeSelecionada}
+                    tipoDocumentoId={tipoDocumentoSelecionado}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              {errors.responsaveis && (
+                <p className="text-xs text-destructive">
+                  {errors.responsaveis.message}
                 </p>
               )}
             </div>
