@@ -7,8 +7,14 @@ import type { Modulo, PermissaoUsuario, Unidade, Usuario } from "@/types";
 import { PermissoesAdmin } from "./PermissoesAdmin";
 
 const replace = vi.fn();
+// STC-519: PermissoesAdmin passou a ler ?aba= via useSearchParams() --
+// vi.fn() (não uma função fixa) pra testes específicos poderem sobrescrever
+// com mockReturnValue quando precisarem simular o atalho da sidebar vindo
+// com query string.
+const useSearchParamsMock = vi.fn(() => new URLSearchParams());
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
+  useSearchParams: () => useSearchParamsMock(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
@@ -118,6 +124,7 @@ function renderTela() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  useSearchParamsMock.mockReturnValue(new URLSearchParams());
   vi.mocked(listarUsuarios).mockResolvedValue([USUARIO, ADMIN_CONCEDENTE]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
   vi.mocked(listarSetores).mockResolvedValue([]);
@@ -173,6 +180,45 @@ describe("PermissoesAdmin (STC-266)", () => {
       screen.queryByRole("table", { name: /permissões individuais/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+  });
+
+  // STC-519: atalho "Catálogo de Legalização" na sidebar pra Admin navega
+  // com ?aba=catalogo-legalizacao -- sem isso, Admin caía sempre na aba
+  // "Usuários" (só o Coordenador tinha a aba forçada, via apenasCatalogo).
+  it("Admin com ?aba=catalogo-legalizacao na URL abre direto no Catálogo de Legalização", async () => {
+    useSearchParamsMock.mockReturnValue(
+      new URLSearchParams("aba=catalogo-legalizacao"),
+    );
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    // Admin sempre vê "Administração" como título da página (diferente do
+    // Coordenador, apenasCatalogo troca esse h1) -- o que muda é o Select
+    // "Seção" já vir com "Catálogo de Legalização" selecionado, mostrando
+    // o conteúdo do catálogo (ex. "Tipos de documento") em vez de "Usuários".
+    expect(
+      await screen.findByLabelText("Seção"),
+    ).toHaveTextContent("Catálogo de Legalização");
+    expect(
+      await screen.findByRole("heading", { name: "Tipos de documento" }),
+    ).toBeInTheDocument();
+  });
+
+  it("Admin sem ?aba= na URL continua abrindo na aba 'Usuários' por padrão", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Usuários");
   });
 
   it("lista permissões existentes com nome resolvido e status", async () => {

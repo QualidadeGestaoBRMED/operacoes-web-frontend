@@ -303,7 +303,9 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
 
     await screen.findByRole("link", { name: "Matriz de Conformidade" });
     const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
-    expect(link).toHaveAttribute("href", "/admin/permissoes");
+    // STC-519: href leva a aba já pré-selecionada (PermissoesAdmin.tsx lê
+    // ?aba=) -- rota (sem query) continua sendo o que decide "ativo".
+    expect(link).toHaveAttribute("href", "/admin/permissoes?aba=catalogo-legalizacao");
   });
 
   // STC-519: Admin (QG/Operações) já podia acessar o mesmo catálogo pelo
@@ -320,7 +322,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
 
     await screen.findByRole("link", { name: "Matriz de Conformidade" });
     const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
-    expect(link).toHaveAttribute("href", "/admin/permissoes");
+    expect(link).toHaveAttribute("href", "/admin/permissoes?aba=catalogo-legalizacao");
   });
 
   it("Admin Q&G também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {

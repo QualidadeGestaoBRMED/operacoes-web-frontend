@@ -97,7 +97,18 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
                       ...modulo.subitens,
                       {
                         label: "Catálogo de Legalização",
+                        // rota (sem query) é o que decide "está ativo" --
+                        // pathname (usePathname()) nunca inclui query
+                        // string, então comparar com ela incluída nunca
+                        // bateria. href (com query) é só pra navegação --
+                        // ver PermissoesAdmin.tsx (STC-519): sem
+                        // ?aba=catalogo-legalizacao, Admin caía sempre na
+                        // aba "Usuários" (só o Coordenador tinha a aba
+                        // forçada via apenasCatalogo), um link chamado
+                        // "Catálogo de Legalização" que não abria o
+                        // Catálogo de Legalização.
                         rota: "/admin/permissoes",
+                        href: "/admin/permissoes?aba=catalogo-legalizacao",
                       },
                     ]
                   : modulo.subitens
@@ -235,7 +246,10 @@ function SidebarLinkExpansivel({
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  subitens: { label: string; rota: string }[];
+  // href opcional (STC-519): quando presente, é pra onde o Link de fato
+  // navega (pode ter query string) -- rota continua sendo o que decide
+  // "está ativo" (comparado com pathname, que nunca tem query).
+  subitens: { label: string; rota: string; href?: string }[];
   pathname: string;
   onClick?: () => void;
 }) {
@@ -310,7 +324,7 @@ function SidebarLinkExpansivel({
             {subitens.map((subitem) => (
               <Link
                 key={subitem.rota}
-                href={subitem.rota}
+                href={subitem.href ?? subitem.rota}
                 onClick={onClick}
                 aria-current={subitemAtivo?.rota === subitem.rota ? "page" : undefined}
                 className={cn(

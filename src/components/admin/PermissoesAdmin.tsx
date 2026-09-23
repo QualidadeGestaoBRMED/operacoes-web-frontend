@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDownIcon,
   ListFilter,
@@ -139,6 +139,7 @@ function prioridadeStatus(permissao: {
 
 export function PermissoesAdmin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAdminOps, isCoordenacaoUnidade, isLoading: carregandoAuth } =
     useAuth();
   // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
@@ -193,7 +194,25 @@ export function PermissoesAdmin() {
   // STC-415: aba nova ("Catálogo de Legalização") ao lado do conteúdo que já
   // existia -- mesmo padrão de troca de conteúdo por state (não TabsContent)
   // já usado em TipoGestaoTabs.tsx.
-  const [aba, setAba] = useState<Aba>("usuarios");
+  //
+  // STC-519: o atalho "Catálogo de Legalização" na sidebar (Admin) navega
+  // pra cá com ?aba=catalogo-legalizacao -- sem ler isso, o link levava pro
+  // destino certo mas sempre caía na aba "Usuários" por padrão pra Admin
+  // (só o Coordenador tinha a aba forçada, via apenasCatalogo abaixo), um
+  // link com esse nome que não abria o que prometia.
+  const [aba, setAba] = useState<Aba>(() =>
+    searchParams.get("aba") === "catalogo-legalizacao"
+      ? "catalogo-legalizacao"
+      : "usuarios",
+  );
+  // Sincroniza se a query mudar SEM remontar o componente -- ex. clicar no
+  // atalho da sidebar de novo enquanto já está nesta página (Next.js pode
+  // reaproveitar a instância em vez de remontar, já que é a mesma rota).
+  useEffect(() => {
+    if (searchParams.get("aba") === "catalogo-legalizacao") {
+      setAba("catalogo-legalizacao");
+    }
+  }, [searchParams]);
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
