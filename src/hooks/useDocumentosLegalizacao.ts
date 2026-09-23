@@ -3,6 +3,7 @@
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import {
+  adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
@@ -11,6 +12,7 @@ import {
   listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasVigentes,
+  removerResponsavelLegalizacao,
   reverterDocumentoLegalizacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -21,6 +23,7 @@ import type {
   DocumentoUnidadeLotePayload,
   DocumentoUnidadePayload,
   EvidenciaVigente,
+  ResponsavelDocumentoPayload,
 } from "@/types/legalizacao";
 
 // Chave raiz usada por toda variação de filtro de useDocumentosLegalizacao
@@ -224,6 +227,45 @@ export function useEnviarEvidenciaLegalizacao(documentoId: number) {
 
   return {
     enviar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// STC-518: editar responsável de um documento já cadastrado
+// (DetalheDocumentoModal.tsx) -- endpoint já existia no backend, sem
+// cliente/hook no frontend. Só invalida a lista aqui (mesmo padrão dos
+// outros hooks de mutação deste arquivo); quem chama (o modal) já mantém
+// seu próprio `mutate()` do documento específico via useDocumentoLegalizacao.
+export function useAdicionarResponsavelLegalizacao(documentoId: number) {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    ["documento-legalizacao", documentoId, "responsaveis", "adicionar"],
+    (_chave, { arg }: { arg: ResponsavelDocumentoPayload }) =>
+      adicionarResponsavelLegalizacao(documentoId, arg),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    adicionar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+export function useRemoverResponsavelLegalizacao(documentoId: number) {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    ["documento-legalizacao", documentoId, "responsaveis", "remover"],
+    (_chave, { arg }: { arg: number }) =>
+      removerResponsavelLegalizacao(documentoId, arg),
+    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+  );
+
+  return {
+    remover: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

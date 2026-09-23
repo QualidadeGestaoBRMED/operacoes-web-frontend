@@ -69,6 +69,14 @@ export interface ResponsavelDocumento {
   created_at: string;
 }
 
+// STC-518: payload de POST /documentos/{id}/responsaveis/ (endpoint já
+// existia no backend, sem cliente no frontend até aqui) -- DELETE usa só
+// o usuario_id, sem tipo próprio.
+export interface ResponsavelDocumentoPayload {
+  usuario_id: number;
+  principal?: boolean;
+}
+
 export type StatusDocumento =
   | "regular"
   | "nao_aplicavel"

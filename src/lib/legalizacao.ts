@@ -13,6 +13,8 @@ import type {
   ProcessoRenovacao,
   ProcessoRenovacaoAtualizacaoPayload,
   ProcessoRenovacaoPayload,
+  ResponsavelDocumento,
+  ResponsavelDocumentoPayload,
 } from "@/types/legalizacao";
 
 const MODULO_URL = "/modulos/legalizacao/";
@@ -92,6 +94,35 @@ export async function listarCandidatosResponsaveis(
     params: { unidade, tipo_documento: tipoDocumento },
   });
   return data;
+}
+
+// STC-518: endpoint já existia no backend (POST/DELETE
+// documentos/{id}/responsaveis/) desde antes da STC-516, sem cliente no
+// frontend até aqui -- só usado via API direta. `principal` default do
+// model é True; quem chama decide explicitamente (documento sem nenhum
+// responsável ainda -> True, senão False, pra não colidir com
+// uniq_responsavel_principal_por_documento).
+export async function adicionarResponsavelLegalizacao(
+  documentoId: number,
+  payload: ResponsavelDocumentoPayload,
+): Promise<ResponsavelDocumento> {
+  const { data } = await api.post<ResponsavelDocumento>(
+    `${DOCUMENTOS_URL}${documentoId}/responsaveis/`,
+    payload,
+  );
+  return data;
+}
+
+// DELETE com corpo -- diferente do padrão REST usual (id na URL), mas é
+// assim que o endpoint já existia no backend (usuario_id vem no body, não
+// dá pra mudar sem quebrar contrato).
+export async function removerResponsavelLegalizacao(
+  documentoId: number,
+  usuarioId: number,
+): Promise<void> {
+  await api.delete(`${DOCUMENTOS_URL}${documentoId}/responsaveis/`, {
+    data: { usuario_id: usuarioId },
+  });
 }
 
 // Usado hoje só pra recolocar `regra_aplicada` depois de uma nova versão de
