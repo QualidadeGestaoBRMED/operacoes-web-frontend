@@ -431,6 +431,13 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
     await user.type(screen.getByLabelText(/^validade/i), "2026-12-31");
+    // STC-524: "Regular" agora exige evidência anexada antes de salvar.
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const certificado = new File(["x"], "cert.pdf", { type: "application/pdf" });
+    await user.upload(inputArquivo, certificado);
+    await screen.findByText("Enviado");
     await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
 
     await waitFor(() => {
@@ -507,6 +514,45 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       await user.click(screen.getByLabelText(/status inicial/i));
       await user.click(await screen.findByRole("option", { name: "Em andamento" }));
       expect(botaoConcluir).not.toBeDisabled();
+    });
+
+    it("bloqueia 'Salvar status e validade' pra 'Regular' sem evidência -- achado em análise própria: bloquear só 'Concluir' não impede persistir o status sem anexo", async () => {
+      vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+        documentoCriado(),
+      ]);
+      const user = userEvent.setup();
+      renderForm();
+
+      await preencherCamposComuns(user);
+      await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+      await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+      await screen.findByText("Anexar evidências");
+
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Regular" }));
+      await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
+
+      expect(
+        await screen.findByText('Anexe a evidência antes de salvar como "Regular".'),
+      ).toBeInTheDocument();
+      expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+
+      // Anexando a evidência, o mesmo clique passa a salvar normalmente.
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      const certificado = new File(["x"], "cert.pdf", { type: "application/pdf" });
+      await user.upload(inputArquivo, certificado);
+      await screen.findByText("Enviado");
+      await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
+
+      await waitFor(() => {
+        expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
+          status: "regular",
+          validade: null,
+          definindo_status_inicial: true,
+        });
+      });
     });
   });
 

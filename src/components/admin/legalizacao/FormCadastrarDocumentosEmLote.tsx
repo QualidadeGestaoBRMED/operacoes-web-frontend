@@ -298,6 +298,25 @@ export function FormCadastrarDocumentosEmLote({
       }));
       return;
     }
+    // STC-524 (achado em análise própria de falhas críticas): o bloqueio de
+    // "Concluir" (abaixo, no fim do componente) impede só FECHAR o diálogo
+    // sem evidência -- mas quem de fato grava o status no backend é este
+    // PATCH, não "Concluir". Sem esta checagem aqui, dava pra clicar
+    // "Salvar status e validade" com "Regular"/"Protocolado" escolhido e
+    // nenhuma evidência anexada: o documento já ficava persistido sem
+    // evidência (justo o que esta issue existe pra evitar), e só depois
+    // disso "Concluir" continuava travado -- proteção tarde demais, o dado
+    // ruim já tinha sido salvo.
+    if (
+      STATUS_EXIGE_EVIDENCIA.has(status) &&
+      statusEnvio[documentoId] !== "enviado"
+    ) {
+      setErroSalvamento((e) => ({
+        ...e,
+        [documentoId]: `Anexe a evidência antes de salvar como "${LABEL_STATUS[status]}".`,
+      }));
+      return;
+    }
     setErroSalvamento((e) => ({ ...e, [documentoId]: "" }));
     setStatusSalvamento((s) => ({ ...s, [documentoId]: "salvando" }));
     try {
