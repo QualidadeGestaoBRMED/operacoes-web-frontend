@@ -14,6 +14,10 @@ export interface Usuario {
   perfil: Perfil | null;
   unidade_id: number | null;
   setor_id: number | null;
+  // Opcional (não required): campo novo (STC-520), muitos fixtures de teste
+  // pelo código constroem Usuario sem ele -- ausência equivale a null pra
+  // quem consome (ex. useAuth.isSetorLeg checa session?.user?.setor?.codigo).
+  setor?: Setor | null;
   ativo: boolean;
   ultimo_acesso: string | null;
   foto_url: string;

@@ -341,11 +341,29 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
     ).toBeInTheDocument();
   });
 
-  it("Setor (nem Admin nem Coordenador) não vê esse subitem extra em Legalização", async () => {
+  // STC-521: Setor de Legalização ganha o mesmo atalho que Coordenador/Admin
+  // já tinham, mesmo motivo -- já pode escrever no catálogo pela API.
+  it("Setor de Legalização também vê Catálogo de Legalização como subitem em Legalização (STC-521)", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: false,
+      isSetorLeg: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    const link = screen.getByRole("link", { name: "Catálogo de Legalização" });
+    expect(link).toHaveAttribute("href", "/admin/permissoes/catalogo-legalizacao");
+  });
+
+  it("outro setor de nível Setor (não Legalização) não vê esse subitem extra em Legalização", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+      isSetorLeg: false,
     } as ReturnType<typeof useAuth>);
 
     renderSidebar();

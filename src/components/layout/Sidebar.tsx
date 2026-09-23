@@ -24,7 +24,7 @@ const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
 export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
-  const { isAdminQG, isAdminOps, isCoordenacaoUnidade } = useAuth();
+  const { isAdminQG, isAdminOps, isCoordenacaoUnidade, isSetorLeg } = useAuth();
   // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
@@ -90,6 +90,9 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               // só sem esse rótulo/atalho direto -- passa a ganhar o mesmo
               // 3º subitem que o Coordenador já tinha, em vez de precisar
               // entrar em "Administração" e escolher a seção no select.
+              // STC-521: Setor de Legalização (isSetorLeg) ganha o mesmo
+              // atalho, mesmo motivo do Coordenador -- já pode escrever no
+              // catálogo pela API, faltava só o caminho até a tela.
               // Rota PRÓPRIA (/admin/permissoes/catalogo-legalizacao, não
               // /admin/permissoes com query string -- achado em revisão de
               // falhas críticas): sem isso, pathname.startsWith() (usado
@@ -101,7 +104,7 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               // instância de PermissoesAdmin reaproveitada pelo Next.js).
               subitens={
                 modulo.codigo === "legalizacao" &&
-                (isCoordenacaoUnidade || isAdminOps)
+                (isCoordenacaoUnidade || isAdminOps || isSetorLeg)
                   ? [
                       ...modulo.subitens,
                       {
