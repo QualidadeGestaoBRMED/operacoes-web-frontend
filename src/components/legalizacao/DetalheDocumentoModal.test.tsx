@@ -77,6 +77,20 @@ const OUTRO_USUARIO: Usuario = {
   foto_url: "",
 };
 
+const TERCEIRO_USUARIO: Usuario = {
+  id: 12,
+  username: "bruno.lima",
+  email: "bruno.lima@grupobrmed.com.br",
+  first_name: "Bruno",
+  last_name: "Lima",
+  perfil: null,
+  unidade_id: UNIDADE.id,
+  setor_id: null,
+  ativo: true,
+  ultimo_acesso: null,
+  foto_url: "",
+};
+
 function tipo(
   overrides: Partial<TipoDocumentoRegulatorio> = {},
 ): TipoDocumentoRegulatorio {
@@ -1231,6 +1245,57 @@ describe("DetalheDocumentoModal -- editar Responsável Operacional (STC-518)", (
         usuario_id: OUTRO_USUARIO.id,
         principal: true,
       });
+    });
+  });
+
+  it("trava os outros candidatos enquanto uma adição está em voo, num documento sem responsável (achado em revisão de falhas críticas)", async () => {
+    // Sem isso: documento com 0 responsáveis, clicar rápido em 2
+    // candidatos diferentes antes do 1º mutate() resolver -- os dois
+    // liam documento.responsaveis.length === 0 (ainda não atualizado) e
+    // mandavam principal: true, colidindo com a constraint de único
+    // principal no backend (400 confuso em vez do fluxo normal).
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ responsaveis: [] }),
+    );
+    vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([
+      OUTRO_USUARIO,
+      TERCEIRO_USUARIO,
+    ]);
+    let resolverAdicao!: (valor: {
+      id: number;
+      usuario: Usuario;
+      principal: boolean;
+      created_at: string;
+    }) => void;
+    vi.mocked(adicionarResponsavelLegalizacao).mockReturnValue(
+      new Promise((resolve) => {
+        resolverAdicao = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar responsável operacional" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "+ Adicionar responsável" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Ana Souza" }));
+
+    // A chamada pra "Ana Souza" ainda não resolveu -- "Bruno Lima" (outro
+    // candidato) precisa estar travado, não só o botão da própria Ana.
+    expect(screen.getByRole("button", { name: "Bruno Lima" })).toBeDisabled();
+
+    resolverAdicao({
+      id: 4,
+      usuario: OUTRO_USUARIO,
+      principal: true,
+      created_at: "2026-01-04T00:00:00Z",
+    });
+    await waitFor(() => {
+      expect(adicionarResponsavelLegalizacao).toHaveBeenCalledTimes(1);
     });
   });
 

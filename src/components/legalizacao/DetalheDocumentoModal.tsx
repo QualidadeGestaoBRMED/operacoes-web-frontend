@@ -313,8 +313,14 @@ export function DetalheDocumentoModal({
   const [mostrandoEdicaoResponsaveis, setMostrandoEdicaoResponsaveis] =
     useState(false);
   const [buscaResponsavel, setBuscaResponsavel] = useState("");
-  // Trava só o botão do usuário em questão (add ou remove), não o card
-  // inteiro -- evita duplo-clique na mesma linha sem travar as outras.
+  // Guarda o id sendo processado só pra saber QUAL chip mostrar como
+  // "removendo" (opacidade) -- mas o disabled de TODOS os botões de
+  // adicionar/remover é `processandoResponsavelId !== null` (achado em
+  // revisão de falhas críticas: travar só o botão do mesmo usuário
+  // deixava clicar em OUTRO candidato antes do 1º `mutate()` resolver;
+  // com 0 responsáveis ainda, os dois liam `documento.responsaveis.
+  // length === 0` desatualizado e mandavam `principal: true` ao mesmo
+  // tempo, colidindo com a constraint de único principal no backend).
   const [processandoResponsavelId, setProcessandoResponsavelId] = useState<
     number | null
   >(null);
@@ -671,7 +677,15 @@ export function DetalheDocumentoModal({
                               <button
                                 type="button"
                                 onClick={() => void aoRemoverResponsavel(resp.usuario.id)}
-                                disabled={processandoResponsavelId === resp.usuario.id}
+                                // STC-518 (achado em revisão de falhas críticas):
+                                // trava TODOS os botões (não só o deste usuário)
+                                // enquanto qualquer adição/remoção está em voo --
+                                // sem isso, dois cliques rápidos em candidatos
+                                // diferentes (documento com 0 responsáveis) liam
+                                // `documento.responsaveis.length === 0` desatualizado
+                                // nos dois e mandavam `principal: true` duas
+                                // vezes, colidindo com a constraint do backend.
+                                disabled={processandoResponsavelId !== null}
                                 aria-label={`Remover responsável ${nomeExibicao(resp.usuario)}`}
                                 className="opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
                               >
@@ -729,7 +743,7 @@ export function DetalheDocumentoModal({
                                   key={usuario.id}
                                   type="button"
                                   onClick={() => void aoAdicionarResponsavel(usuario.id)}
-                                  disabled={processandoResponsavelId === usuario.id}
+                                  disabled={processandoResponsavelId !== null}
                                   className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   {nomeExibicao(usuario)}
