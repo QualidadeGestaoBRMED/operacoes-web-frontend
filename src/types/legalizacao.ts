@@ -186,7 +186,9 @@ export interface TipoDocumentoRegulatorioPayload {
   nome: string;
   categoria: CategoriaDocumento;
   area_responsavel: AreaResponsavelDocumento;
-  setor_apoio?: string;
+  // STC-526: nome do setor_apoio.setor_apoio_id (write-only no backend) --
+  // ver TipoDocumentoRegulatorioSerializer.
+  setor_apoio_id?: number | null;
   exige_validade: boolean;
   exige_protocolo: boolean;
   exige_evidencia: boolean;

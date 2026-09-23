@@ -2,23 +2,46 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
+import type { Setor } from "@/types";
 import { FormNovoTipoDocumento } from "./FormNovoTipoDocumento";
 
 vi.mock("@/lib/legalizacaoCatalogo");
+vi.mock("@/lib/plataforma");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-import { criarTipoDocumento } from "@/lib/legalizacaoCatalogo";
+import {
+  atualizarTipoDocumento,
+  criarTipoDocumento,
+} from "@/lib/legalizacaoCatalogo";
+import { listarSetores } from "@/lib/plataforma";
 
-function renderForm(onOpenChange = vi.fn()) {
+const SETOR_TI: Setor = {
+  id: 11,
+  nome: "TI",
+  codigo: "TI",
+  modulo_id: null,
+  ativo: true,
+};
+
+function renderForm(
+  onOpenChange = vi.fn(),
+  tipoDocumento?: TipoDocumentoRegulatorio | null,
+) {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
-      <FormNovoTipoDocumento open onOpenChange={onOpenChange} />
+      <FormNovoTipoDocumento
+        open
+        onOpenChange={onOpenChange}
+        tipoDocumento={tipoDocumento}
+      />
     </SWRConfig>,
   );
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(listarSetores).mockResolvedValue([SETOR_TI]);
 });
 
 describe("FormNovoTipoDocumento (STC-415)", () => {
@@ -105,6 +128,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
         exige_protocolo: false,
         exige_evidencia: true,
         permite_multiplas_instancias: false,
+        setor_apoio_id: null,
       });
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -206,5 +230,119 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
         "controlado_por_profissional",
       );
     });
+  });
+
+  it("envia o setor de apoio escolhido (STC-526)", async () => {
+    vi.mocked(criarTipoDocumento).mockResolvedValue({
+      id: 4,
+      codigo: "pcmso",
+      nome: "PCMSO",
+      categoria: "programas",
+      area_responsavel: "legalizacao",
+      setor_apoio: "TI",
+      exige_validade: true,
+      exige_protocolo: false,
+      exige_evidencia: true,
+      controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
+      ativo: true,
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText(/^nome/i), "PCMSO");
+    await user.type(screen.getByLabelText(/^código/i), "pcmso");
+    await user.click(screen.getByLabelText(/categoria/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Programas obrigatórios" }),
+    );
+    await user.click(screen.getByLabelText(/área responsável/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Legalização" }),
+    );
+    await user.click(screen.getByLabelText(/setor de apoio/i));
+    await user.click(await screen.findByRole("option", { name: "TI" }));
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar tipo de documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarTipoDocumento).toHaveBeenCalledWith(
+        expect.objectContaining({ setor_apoio_id: SETOR_TI.id }),
+      );
+    });
+  });
+
+  it("pré-preenche o setor de apoio ao editar um tipo que já tem um configurado (STC-526)", async () => {
+    const tipo: TipoDocumentoRegulatorio = {
+      id: 5,
+      codigo: "pcmso",
+      nome: "PCMSO",
+      categoria: "programas",
+      area_responsavel: "legalizacao",
+      setor_apoio: "TI",
+      exige_validade: true,
+      exige_protocolo: false,
+      exige_evidencia: true,
+      controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
+      ativo: true,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    vi.mocked(atualizarTipoDocumento).mockResolvedValue(tipo);
+    renderForm(vi.fn(), tipo);
+
+    // getAllByText: o próprio Radix Select espelha o valor também num
+    // <select> nativo escondido (mesmo achado documentado em
+    // PermissoesAdmin.test.tsx) -- 2 elementos com o mesmo texto.
+    await waitFor(() => {
+      expect(screen.getAllByText("TI").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("não apaga edições em andamento quando o fetch de setores resolve depois do diálogo já aberto (achado em code review, STC-526)", async () => {
+    // FormNovoTipoDocumento fica sempre montado em TabelaTiposDocumento.tsx
+    // -- o fetch de useSetores() começa assim que a tela carrega, não
+    // quando o diálogo abre. Simula "Editar" clicado antes desse fetch
+    // resolver: o efeito roda 2x pro mesmo tipoDocumento (setores=[]
+    // primeiro, depois a lista real).
+    let resolverSetores: (setores: Setor[]) => void = () => {};
+    vi.mocked(listarSetores).mockReturnValue(
+      new Promise((resolve) => {
+        resolverSetores = resolve;
+      }),
+    );
+    const tipo: TipoDocumentoRegulatorio = {
+      id: 6,
+      codigo: "pcmso",
+      nome: "PCMSO",
+      categoria: "programas",
+      area_responsavel: "legalizacao",
+      setor_apoio: "TI",
+      exige_validade: true,
+      exige_protocolo: false,
+      exige_evidencia: true,
+      controlado_por_profissional: false,
+      permite_multiplas_instancias: false,
+      ativo: true,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    const user = userEvent.setup();
+    renderForm(vi.fn(), tipo);
+
+    await user.clear(screen.getByLabelText(/^nome/i));
+    await user.type(screen.getByLabelText(/^nome/i), "PCMSO Alterado");
+
+    resolverSetores([SETOR_TI]);
+
+    // Confirma que o segundo reset (disparado por setores.length mudar de
+    // 0 pra 1) realmente aconteceu -- Setor de apoio só aparece depois dele.
+    await waitFor(() => {
+      expect(screen.getAllByText("TI").length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByLabelText(/^nome/i)).toHaveValue("PCMSO Alterado");
   });
 });
