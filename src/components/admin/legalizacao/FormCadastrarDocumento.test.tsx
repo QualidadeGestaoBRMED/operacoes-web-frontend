@@ -25,6 +25,7 @@ import {
 import {
   criarRegraDocumento,
   excluirRegraDocumento,
+  listarRegras,
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 import { listarUnidades } from "@/lib/plataforma";
@@ -146,6 +147,7 @@ beforeEach(() => {
   vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
   vi.mocked(listarCandidatosResponsaveis).mockResolvedValue([USUARIO_CANDIDATO]);
+  vi.mocked(listarRegras).mockResolvedValue([]);
   vi.mocked(useAuth).mockReturnValue({
     user: undefined,
     perfil: undefined,
@@ -445,6 +447,69 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       );
     });
     expect(enviarEvidenciaLegalizacao).not.toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("reaproveita uma regra órfã (sem documento nenhum) em vez de tentar criar outra igual, pra um tipo comum (achado em code review, STC-527)", async () => {
+    // Cenário real relatado por uma usuária (Nova Iguaçu): uma tentativa
+    // anterior (dela ou de outra pessoa) criou a regra com sucesso mas a
+    // criação do documento falhou logo depois, deixando uma regra órfã --
+    // sem nenhum DocumentoUnidade apontando pra ela, então invisível pro
+    // cheque de duplicidade (listarDocumentosLegalizacao, que segue vazio).
+    // Tipo COMUM de propósito (não controlado_por_profissional) -- os
+    // testes de reaproveitamento já existentes ficam todos dentro do
+    // describe de Dosimetria, que já funcionava antes desta issue
+    // (STC-432); esse aqui é o caminho novo que STC-527 adiciona.
+    const regraOrfa = {
+      id: 77,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 60,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "alta" as const,
+      vigente_a_partir: "2026-01-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    vi.mocked(listarRegras).mockResolvedValue([regraOrfa]);
+    vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await selecionarUnidadeETipo(user);
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Em andamento" }),
+    );
+
+    // Regra órfã detectada ao vivo (mesmo comportamento de Dosimetria,
+    // agora generalizado por STC-527) -- campo já vem pré-preenchido com o
+    // valor da regra reaproveitada e travado, nada pra editar aqui.
+    await waitFor(() => {
+      expect(screen.getByLabelText(/início dos alertas/i)).toHaveValue(
+        "2026-01-01",
+      );
+    });
+    expect(screen.getByLabelText(/início dos alertas/i)).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: /cadastrar documento/i }),
+    );
+
+    await waitFor(() => {
+      expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo_documento: TIPO.id,
+          unidade: UNIDADE.id,
+          regra_aplicada: 77,
+        }),
+      );
+    });
+    expect(criarRegraDocumento).not.toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -993,6 +1058,9 @@ describe("FormCadastrarDocumento (STC-415)", () => {
           regra_aplicada: regraExistente,
         }),
       ]);
+      // STC-527: detecção/pré-preenchimento da tela agora consulta regra
+      // direto (useRegrasDocumento), não mais só através do documento acima.
+      vi.mocked(listarRegras).mockResolvedValue([regraExistente]);
       vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
         documentoCriado({
           tipo_documento: TIPO_DOSIMETRIA,
@@ -1131,6 +1199,14 @@ describe("FormCadastrarDocumento (STC-415)", () => {
           regra_aplicada: regraExistente,
         }),
       ]);
+      // STC-527: detecção/pré-preenchimento da tela agora consulta regra
+      // direto (useRegrasDocumento), não mais só através do documento acima
+      // -- discrimina por tipo_documento (não um mockResolvedValue cego),
+      // porque este teste troca de tipo mais abaixo e precisa que a regra
+      // de Dosimetria não "vaze" pra Licença Sanitária.
+      vi.mocked(listarRegras).mockImplementation(async (filtros) =>
+        filtros.tipo_documento === TIPO_DOSIMETRIA.id ? [regraExistente] : [],
+      );
       const user = userEvent.setup();
       renderForm();
 

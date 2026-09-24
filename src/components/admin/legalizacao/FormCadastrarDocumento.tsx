@@ -32,7 +32,10 @@ import {
   useCriarDocumentoLegalizacao,
   useDocumentosLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
-import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
+import {
+  useCriarRegraDocumento,
+  useRegrasDocumento,
+} from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -40,7 +43,7 @@ import {
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
-import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
+import { excluirRegraDocumento, listarRegras } from "@/lib/legalizacaoCatalogo";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import { hojeISO } from "@/lib/utils";
 import type { StatusDocumento } from "@/types/legalizacao";
@@ -300,18 +303,24 @@ export function FormCadastrarDocumento({
 
   // STC-432 (achado em análise própria de falhas críticas): pra um 2º+
   // profissional do mesmo tipo controlado_por_profissional nesta unidade, a
-  // regra é reaproveitada em aoSubmeter (RegraDocumento não varia por
-  // profissional) -- sem isto, o formulário continuava pedindo/mostrando os
-  // campos de regra como se fossem criar uma regra nova, e qualquer valor
-  // digitado ali era descartado em silêncio no submit, sem nenhum aviso.
-  const regraExistenteParaTipo =
-    tipoSelecionado?.controlado_por_profissional && tipoDocumentoSelecionado
-      ? (documentosDaUnidade.find(
-          (doc) =>
-            doc.tipo_documento.id === tipoDocumentoSelecionado &&
-            doc.regra_aplicada,
-        )?.regra_aplicada ?? null)
-      : null;
+  // regra é reaproveitada (RegraDocumento não varia por profissional) --
+  // sem isto, o formulário continuava pedindo/mostrando os campos de regra
+  // como se fossem criar uma regra nova, e qualquer valor digitado ali era
+  // descartado em silêncio no submit, sem nenhum aviso.
+  //
+  // STC-527: generalizado pra TODO tipo, não só controlado_por_profissional
+  // -- consulta a regra direto (useRegrasDocumento), não mais só através de
+  // um documento já existente. Isso cobre também o caso de uma regra órfã
+  // (criada numa tentativa anterior que falhou no passo seguinte, sem
+  // documento nenhum apontando pra ela): antes, ela ficava invisível aqui
+  // (nenhum documento pra achar) e uma tentativa nova tentava criar outra
+  // regra igual, esbarrando na UniqueConstraint (tipo_documento, unidade,
+  // vigente_a_partir) do backend.
+  const { regraMaisRecente } = useRegrasDocumento(
+    unidadeSelecionada,
+    tipoDocumentoSelecionado,
+  );
+  const regraExistenteParaTipo = regraMaisRecente;
 
   useEffect(() => {
     if (!regraExistenteParaTipo) return;
@@ -459,9 +468,31 @@ export function FormCadastrarDocumento({
         // (outro profissional), reaproveita em vez de criar outra, que
         // colidiria com a UniqueConstraint (tipo_documento, unidade,
         // vigente_a_partir) no backend.
-        const regraExistente = existentes.find(
-          (documento) => documento.regra_aplicada,
-        )?.regra_aplicada;
+        //
+        // STC-527: `existentes` só enxerga regra através de documento --
+        // fica cego pra uma regra órfã (criada numa tentativa anterior que
+        // falhou no passo seguinte, sem nenhum documento apontando pra
+        // ela). Fallback busca a regra direto (mesma consulta fresca de
+        // `existentes` acima, não o valor de render usado só pra
+        // pré-preencher a tela) quando o achado por documento vier vazio.
+        //
+        // Achado em code review: pra tipo comum (não controlado_por_
+        // profissional), `existentes` já vem vazio na tentativa normal
+        // (única) de cadastro -- o próprio dropdown de tipo (tiposDisponiveis)
+        // e o cheque de duplicado acima já impedem outro documento do mesmo
+        // tipo+unidade. Ou seja, esse fallback roda em quase todo cadastro
+        // de tipo comum, não só no caso raro de regra órfã -- 1 GET a mais
+        // por cadastro, aceito como custo de nunca deixar passar uma regra
+        // já existente sem checar.
+        const regraExistente =
+          existentes.find((documento) => documento.regra_aplicada)
+            ?.regra_aplicada ??
+          (
+            await listarRegras({
+              unidade: valores.unidade,
+              tipo_documento: valores.tipo_documento,
+            })
+          )[0];
         // 1) Regra própria da unidade (ou reaproveitada) -- 2) documento,
         // com a regra aplicada -- 3) evidência, se anexada. Único fluxo, no
         // máximo 3 chamadas em sequência (não existe endpoint combinado no
@@ -804,7 +835,7 @@ export function FormCadastrarDocumento({
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {regraExistenteParaTipo
-                      ? "Este tipo é controlado por profissional e já tem uma regra cadastrada nesta unidade (reaproveitada de outro profissional) -- os campos abaixo só mostram os valores já em vigor, não editáveis aqui."
+                      ? "Já existe uma regra cadastrada para esta unidade e este tipo de documento -- os campos abaixo só mostram os valores já em vigor, não editáveis aqui."
                       : "Os valores abaixo valem só para esta unidade e este tipo de documento. Cada unidade tem seu próprio prazo, mesmo sendo o mesmo tipo de documento."}
                   </p>
                 </div>
