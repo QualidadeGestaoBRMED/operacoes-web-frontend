@@ -474,8 +474,16 @@ export function FormCadastrarDocumento({
         // falhou no passo seguinte, sem nenhum documento apontando pra
         // ela). Fallback busca a regra direto (mesma consulta fresca de
         // `existentes` acima, não o valor de render usado só pra
-        // pré-preencher a tela) só quando o achado por documento vier vazio
-        // -- evita uma chamada extra no caminho comum.
+        // pré-preencher a tela) quando o achado por documento vier vazio.
+        //
+        // Achado em code review: pra tipo comum (não controlado_por_
+        // profissional), `existentes` já vem vazio na tentativa normal
+        // (única) de cadastro -- o próprio dropdown de tipo (tiposDisponiveis)
+        // e o cheque de duplicado acima já impedem outro documento do mesmo
+        // tipo+unidade. Ou seja, esse fallback roda em quase todo cadastro
+        // de tipo comum, não só no caso raro de regra órfã -- 1 GET a mais
+        // por cadastro, aceito como custo de nunca deixar passar uma regra
+        // já existente sem checar.
         const regraExistente =
           existentes.find((documento) => documento.regra_aplicada)
             ?.regra_aplicada ??
