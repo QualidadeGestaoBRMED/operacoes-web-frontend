@@ -511,6 +511,37 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
 - Testado manualmente em ambiente local (login como Setor LEG via dev-login, `PLANEJAMENTO.md` §7.12): atalho aparece na sidebar, catálogo abre restrito, e o modal de alerta persistente (P4.11/STC-443) mostra corretamente só os documentos onde Legalização é a área responsável -- comportamento já existente (`_alertas_visiveis_para`, backend), confirmado contra dados reais nesta verificação.
 - Testes novos cobrindo: Setor LEG vê o Catálogo (só ele, sem Usuários/Permissões) e o atalho na sidebar; um usuário nível 4 de outro setor (não LEG) continua sem acesso nenhum.
 
+### P4.27 Antecedência fixa em 60 dias e "Data de início dos alertas" pré-preenchida (STC-523) — sem mockup próprio
+
+**Status:** ✅ Implementado e mergeado em `main` (PR #66). Decisão de negócio da reunião de 23/09/2026: antecedência de alerta padronizada em 60 dias pra toda a rede -- campo passa a `disabled` nos 3 formulários que o usam (`FormCadastrarDocumento.tsx`, `FormCadastrarDocumentosEmLote.tsx`, `FormNovaVersaoRegra.tsx`), edição só via Django Admin/direto no banco. "Vigente a partir" renomeado pra "Data de início dos alertas", pré-preenchido com o dia de hoje (`hojeISO()` novo em `lib/utils.ts` -- monta a partir de `getFullYear/Month/Date` locais, não `toISOString()`, que converte pra UTC e erra o dia perto da meia-noite em Brasília), editável.
+
+- **Achado em code review**: os formulários de cadastro (documento único e em lote) ficam sempre montados (`hidden` entre trocas de aba na Administração) -- recalcular "hoje" só na montagem inicial deixava uma aba esquecida aberta de um dia pro outro mostrar a data de ontem na primeira reabertura. Corrigido: efeito de reset passa a rodar em toda transição de `open`, não só ao fechar.
+
+### P4.28 Anexo obrigatório no cadastro em lote pra status Regular/Protocolado (STC-524) — sem mockup próprio
+
+**Status:** ✅ Implementado e mergeado em `main` (PR #67). Mesma reunião da P4.27: obrigatoriedade de evidência no cadastro em lote passa a valer só quando o status escolhido pressupõe documento em mãos (Regular/Protocolado) -- os demais (Não iniciado, Em andamento, Vencido) continuam sem exigir nada.
+
+- **Achado em análise própria de falhas críticas**: o bloqueio original travava só o botão "Concluir" (fecha o diálogo inteiro), não a ação que de fato persiste no backend ("Salvar status e validade" por item) -- um clique nesta última bypassava a obrigatoriedade por completo. Corrigido movendo a mesma checagem pra dentro da função que salva de verdade.
+
+### P4.29 Campo "Setor de apoio" no cadastro/edição de Tipo de Documento (STC-526) — sem mockup próprio
+
+**Status:** ✅ Implementado e mergeado em `main` (PR #68). Reaproveita um campo já existente e já totalmente conectado no backend (`TipoDocumentoRegulatorio.setor_apoio`, escrita via `setor_apoio_id`, write-only) que nenhum formulário do frontend enviava até aqui -- `FormNovoTipoDocumento.tsx` ganha um `Select` opcional, populado via `useSetores()`. Assim que configurado, o seletor de Responsável Operacional (`SeletorResponsaveis.tsx`, P4.23) já passa a oferecer também pessoas do setor de apoio, sem nenhuma mudança adicional -- `usuarios_candidatos_responsavel()`/`validate_responsaveis()` (backend) já liam esse campo dinamicamente, só faltava um jeito de preenchê-lo.
+
+- **Achado em code review**: o efeito de pré-preenchimento dependia do array inteiro devolvido por `useSetores()` -- como o hook devolve `data ?? []` (referência nova a cada render enquanto ainda carrega), o efeito reset disparava repetidas vezes até o fetch resolver, arriscando apagar edições em andamento. Corrigido trocando a dependência pra `setores.length` (estável durante o carregamento).
+- **Ponto de atenção aceito, não corrigido** (registrado em `Plano de Ação - Legalização.md` §9, não no código, a pedido do usuário): a pré-seleção em modo edição casa o setor pelo **nome** (o backend só expõe o nome em leitura) contra a lista de setores -- `Setor.nome` não é único no banco, então nomes duplicados poderiam pré-selecionar o setor errado. Risco aceito (nomes duplicados são incomuns na prática); revisitar só se doer de verdade.
+
+### P4.30 Reaproveita regra existente ao cadastrar documento único, evita erro de unicidade com regra órfã (STC-527) — sem mockup próprio
+
+**Status:** ✅ Implementado e mergeado em `main` (PR #69). Achado investigando um erro relatado por uma usuária real (Nova Iguaçu): cadastrar um documento normalmente podia estourar o erro técnico cru do backend "Os campos tipo_documento, unidade, vigente_a_partir devem criar um set único" -- uma regra "órfã" (criada numa tentativa anterior que falhou no passo seguinte, sem nenhum documento apontando pra ela) ficava invisível pro cheque existente (que só enxergava regra através de documento), e uma tentativa nova tentava criar outra igual. `listarRegras()` novo em `legalizacaoCatalogo.ts`; detecção de regra existente (antes só pra Dosimetria) generalizada pra todo tipo, tanto na tela (pré-preenchimento/trava dos campos de regra) quanto no submit (reaproveita em vez de recriar).
+
+- **Achado em code review (achado próprio)**: o filtro por `ativa=true` na busca de regra deixava passar batido o mesmo erro pra uma regra órfã que tivesse sido desativada -- removido (`RegraDocumento.regra_efetiva()`, backend, já usa `regra_aplicada` incondicionalmente quando preenchido, o filtro por `ativa` só entra no fallback).
+- **Achado em code review automático**: faltava teste de regressão pro cenário de tipo comum (todo teste de reaproveitamento existente ficava dentro do describe de Dosimetria, que já funcionava antes desta issue) -- adicionado.
+- **Verificado ponta a ponta, não só com testes automatizados**: reproduzido o crash exato na branch anterior (regra órfã forçada direto no banco local) e confirmado que a branch nova reaproveita a regra em vez de estourar, rodando a aplicação completa (frontend + backend em Docker) localmente.
+
+### P4.31 Biblioteca de Documentos mostra o identificador do equipamento (STC-530) — sem mockup próprio
+
+**Status:** ✅ Implementado e mergeado em `main` (PR #70). Achado revisando várias balanças cadastradas em lote pra uma mesma unidade: os cards de um tipo com múltiplas instâncias apareciam com o nome idêntico (só o nome do tipo de documento), sem nenhum jeito de distinguir qual equipamento é qual. A Matriz de Conformidade já resolvia isso (`documento.profissional` concatenado ao nome do tipo) -- `BibliotecaDocumentos.tsx` nunca tinha adotado o mesmo padrão, apesar do dado já estar disponível ali (mesma fonte, `useDocumentosLegalizacao`). Replicado nos 3 pontos que faltavam (card da lista, com e sem evidência, e título do modal de detalhe).
+
 ---
 
 ## Pacote P6 — Testes e Homologação
