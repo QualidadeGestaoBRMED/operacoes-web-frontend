@@ -195,6 +195,43 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     expect(screen.getByText(/Válido até 01\/01\/2027/)).toBeInTheDocument();
   });
 
+  it("mostra o identificador (profissional) junto do nome do tipo, distinguindo instâncias do mesmo tipo (STC-530)", async () => {
+    // Mesmo tipo pras duas (ex.: várias balanças cadastradas em lote) --
+    // sem o identificador, os dois cards ficariam com o nome idêntico.
+    // Mesmo padrão já usado em MatrizTable.tsx.
+    const tipoBalanca = tipo({
+      id: 5,
+      codigo: "certificado-calibracao-balancas",
+      nome: "Certificado de Calibração - Balanças",
+      permite_multiplas_instancias: true,
+    });
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documento({
+        id: 10,
+        tipo_documento: tipoBalanca,
+        profissional: "Balança - G-TECH - NS 123",
+      }),
+      documento({
+        id: 11,
+        tipo_documento: tipoBalanca,
+        evidencia_vigente: null,
+        profissional: "Balança - Nikon - NS 456",
+      }),
+    ]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+
+    renderTela();
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Certificado de Calibração - Balanças — Balança - G-TECH - NS 123",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Certificado de Calibração - Balanças — Balança - Nikon - NS 456"),
+    ).toBeInTheDocument();
+  });
+
   it("documento sem evidência vigente aparece esmaecido, com o status real, sem link de baixar nem virar botão", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
       documento({ evidencia_vigente: null, status: "vencido" }),

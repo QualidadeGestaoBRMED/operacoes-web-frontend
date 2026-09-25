@@ -417,10 +417,17 @@ export function BibliotecaDocumentos() {
                                   )}
                                 >
                                   {documento.tipo_documento.nome}
+                                  {/* STC-530: distingue instâncias do mesmo tipo
+                                      (ex. várias balanças) -- mesmo padrão já
+                                      usado em MatrizTable.tsx. */}
+                                  {documento.profissional &&
+                                    ` — ${documento.profissional}`}
                                 </button>
                               ) : (
                                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground">
                                   {documento.tipo_documento.nome}
+                                  {documento.profissional &&
+                                    ` — ${documento.profissional}`}
                                 </span>
                               )}
                               {/* Só Vencido -- os outros estados de
@@ -496,6 +503,8 @@ export function BibliotecaDocumentos() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-foreground">
                     {documentoSelecionado.tipo_documento.nome}
+                    {documentoSelecionado.profissional &&
+                      ` — ${documentoSelecionado.profissional}`}
                   </p>
                   <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
                     {evidenciaSelecionada.nome_original}
