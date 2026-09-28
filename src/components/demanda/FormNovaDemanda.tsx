@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 import { useCriarDemanda } from "@/hooks/useDemandaMutations";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useSetores } from "@/hooks/useSetores";
@@ -96,6 +97,7 @@ export function FormNovaDemanda({
   // escolher de novo algo que já estava implícito na tela de origem.
   tipoGestaoInicial?: number;
 }) {
+  const { user, isCoordenacaoUnidade } = useAuth();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
@@ -117,18 +119,52 @@ export function FormNovaDemanda({
     defaultValues: valoresPadrao,
   });
 
-  // Reseta o formulário toda vez que o modal fecha -- sem isso, reabrir
-  // "Nova Demanda" mostrava os dados da última tentativa (inclusive depois
-  // de criar uma com sucesso). Ao abrir, já parte do tipo_gestao da aba
-  // ativa do Kanban (tipoGestaoInicial), em vez de pedir pra escolher de
-  // novo algo que já estava implícito.
+  // Achado em produção (relato da Fernanda Fortino, STC-538): este efeito
+  // reagia a QUALQUER mudança de `tipoGestaoInicial`, não só à abertura do
+  // modal -- `tipoGestaoInicial` vem de `filtros.tipo_gestao`
+  // (KanbanBoard.tsx), que é autocorrigido de forma ASSÍNCRONA sempre que o
+  // tipo de gestão da URL deixa de ser válido pro perfil (mais comum pra
+  // Coordenação de Unidade, que enxerga uma lista bem mais restrita que
+  // Admin). Se essa autocorreção rodava com "Nova Demanda" já aberto, o
+  // `reset()` disparava de novo e reescrevia o formulário INTEIRO (Unidade
+  // incluída) pros valores padrão, em segundo plano -- o Select continuava
+  // mostrando o valor antigo na tela, mas o estado real do formulário já
+  // tinha sido zerado, fazendo o submit falhar com "Selecione a unidade."
+  // mesmo com o campo aparentemente preenchido.
+  //
+  // Fix: só reagir à transição false -> true de `open` (guardada no ref
+  // abaixo) -- uma mudança de `tipoGestaoInicial` com o modal já aberto não
+  // reseta mais nada; a próxima abertura de verdade já usa o valor mais
+  // recente (lido direto no corpo do efeito, não capturado antes).
+  // Sempre começa em `false` (nunca `open`) -- se o componente já nascer
+  // com `open=true` (não acontece hoje em KanbanBoard.tsx, mas é o caso de
+  // todo teste deste arquivo), a 1ª execução do efeito precisa CONTAR como
+  // abertura de verdade e aplicar tipoGestaoInicial, igual sempre fez.
+  const abertoAnteriormenteRef = useRef(false);
   useEffect(() => {
+    const abriuAgora = open && !abertoAnteriormenteRef.current;
     if (open) {
-      reset({ ...valoresPadrao, tipo_gestao: tipoGestaoInicial });
+      if (abriuAgora) {
+        reset({ ...valoresPadrao, tipo_gestao: tipoGestaoInicial });
+      }
     } else {
       reset(valoresPadrao);
     }
+    abertoAnteriormenteRef.current = open;
   }, [open, tipoGestaoInicial, reset]);
+
+  // STC-538: mesmo padrão de Legalização (FormCadastrarDocumento.tsx) --
+  // Coordenação de Unidade só pode abrir demanda pra própria unidade, então
+  // nem oferece escolher outra (evita o mesmo tipo de erro relatado: menos
+  // uma chance de "Selecione a unidade" por escolha errada ou perdida).
+  // Efeito DECLARADO DEPOIS do de cima de propósito -- os dois rodam no
+  // mesmo commit quando `open` vira true; o reset() de cima limpa `unidade`
+  // antes deste preenchê-la, nunca na ordem inversa (que apagaria o valor
+  // que este acabou de definir).
+  useEffect(() => {
+    if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
+    setValue("unidade", user.unidade_id);
+  }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
 
   // Achado no review: SeletorEtiquetas usava tiposGestao[0]?.modulo (sempre
   // o primeiro da lista), não o módulo do tipo_gestao de fato selecionado
@@ -145,9 +181,14 @@ export function FormNovaDemanda({
   // precisa acompanhar a rede do tipo de gestão selecionado NO FORMULÁRIO
   // (não só o da aba de origem) -- o usuário pode trocar de tipo de gestão
   // sem fechar o modal.
-  const { unidades } = useUnidades(
+  const { unidades: todasAsUnidades } = useUnidades(
     tipoGestaoSelecionado?.visibilidade_padrao === "opex" ? "opex" : "padrao",
   );
+  // STC-538: Coordenação de Unidade só escolhe a própria unidade -- mesmo
+  // critério de Legalização (FormCadastrarDocumento.tsx).
+  const unidades = isCoordenacaoUnidade
+    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    : todasAsUnidades;
 
   async function aoSubmeter(valores: FormValuesSaida) {
     // "unidade" e "area_responsavel" são mutuamente exclusivos -- qual dos
@@ -280,8 +321,13 @@ export function FormNovaDemanda({
                     control={control}
                     name="unidade"
                     render={({ field }) => (
+                      // "" (não undefined) -- mesmo padrão de
+                      // FormCadastrarDocumento.tsx (STC-488): evita o
+                      // Select trocar de controlado pra não-controlado (e o
+                      // warning correspondente) quando ainda não há
+                      // unidade escolhida.
                       <Select
-                        value={field.value ? String(field.value) : undefined}
+                        value={field.value ? String(field.value) : ""}
                         onValueChange={(valor) => field.onChange(Number(valor))}
                       >
                         <SelectTrigger id="f-unidade" className="w-full">

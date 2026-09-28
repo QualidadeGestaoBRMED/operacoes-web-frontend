@@ -6,22 +6,14 @@ import { criarDemanda as construirDemandaFixture } from "@/test-utils/fixtures";
 import type { TipoGestao, Unidade } from "@/types";
 import { FormNovaDemanda } from "./FormNovaDemanda";
 
-vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: { usuarioId: 1, perfil: { id: 1, nome: "Admin Operações", nivel: 2 } },
-    perfil: { id: 1, nome: "Admin Operações", nivel: 2 },
-    isLoading: false,
-    isAdminQG: false,
-    isAdminOps: true,
-  }),
-}));
-
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 // Auto-mock: mesma estratégia do KanbanBoard.test.tsx -- só o que os
 // testes controlam explicitamente ganha implementação, o resto (categorias,
 // setores, etiquetas) fica `undefined` e os hooks já tratam como `?? []`.
 vi.mock("@/lib/demandas");
 vi.mock("@/lib/plataforma");
 
+import { useAuth } from "@/hooks/useAuth";
 import { criarDemanda, listarTiposGestao } from "@/lib/demandas";
 import { listarUnidades } from "@/lib/plataforma";
 
@@ -123,6 +115,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO]);
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+  vi.mocked(useAuth).mockReturnValue({
+    user: { usuarioId: 1, perfil: { id: 1, nome: "Admin Operações", nivel: 2 } },
+    perfil: { id: 1, nome: "Admin Operações", nivel: 2 },
+    isLoading: false,
+    isAdminQG: false,
+    isAdminOps: true,
+    isCoordenacaoUnidade: false,
+  } as never);
 });
 
 describe("FormNovaDemanda", () => {
@@ -231,4 +231,95 @@ describe("FormNovaDemanda -- Select de Unidade acompanha a rede do Tipo de Gest�
     expect(await screen.findByRole("option", { name: "Aeroclínica Central" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
   });
+});
+
+describe("FormNovaDemanda -- reset não pode rodar de novo com o modal já aberto (STC-538)", () => {
+  // Config estável (mesma instância reaproveitada entre render e rerender)
+  // -- um objeto novo a cada render recriaria o cache do SWR e mascararia o
+  // que este teste quer provar (a mudança de tipoGestaoInicial sozinha, sem
+  // fechar/reabrir o modal).
+  const configSWR = { provider: () => new Map() };
+
+  it("trocar tipoGestaoInicial com o modal já aberto (achado real: autocorreção assíncrona de KanbanBoard.tsx) não apaga a Unidade já escolhida", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_UNIDADES]);
+    vi.mocked(criarDemanda).mockResolvedValue(construirDemandaFixture());
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <SWRConfig value={configSWR}>
+        <FormNovaDemanda
+          open
+          onOpenChange={onOpenChange}
+          tipoGestaoInicial={TIPO_GESTAO_UNIDADES.id}
+        />
+      </SWRConfig>,
+    );
+
+    await user.type(screen.getByLabelText(/título/i), "Trocar lâmpada do corredor");
+    await user.type(screen.getByLabelText(/descrição/i), "Lâmpada queimada há 2 dias.");
+    await user.click(screen.getByRole("button", { name: "Média" }));
+    await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
+    await user.click(await screen.findByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    // Simula a autocorreção assíncrona de KanbanBoard.tsx (filtros.tipo_gestao
+    // reescrito na URL) acontecendo DEPOIS que o modal já foi aberto e
+    // preenchido -- `open` continua `true` o tempo todo, só o valor de
+    // `tipoGestaoInicial` muda.
+    rerender(
+      <SWRConfig value={configSWR}>
+        <FormNovaDemanda
+          open
+          onOpenChange={onOpenChange}
+          tipoGestaoInicial={TIPO_GESTAO_UNIDADES.id + 1}
+        />
+      </SWRConfig>,
+    );
+
+    expect(screen.getByLabelText(/título/i)).toHaveValue("Trocar lâmpada do corredor");
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    await waitFor(() => {
+      expect(criarDemanda).toHaveBeenCalledWith(
+        expect.objectContaining({ unidade: UNIDADE.id }),
+      );
+    });
+    expect(screen.queryByText("Selecione a unidade.")).not.toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra própria unidade (STC-538)", () => {
+  const OUTRA_UNIDADE: Unidade = {
+    id: 2,
+    nome: "Vitória",
+    codigo: "VIT",
+    cidade: "Vitória",
+    ativa: true,
+    rede: "padrao",
+  };
+
+  it("Unidade já vem pré-selecionada e sem oferecer outras da rede", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_UNIDADES]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 9, unidade_id: OUTRA_UNIDADE.id, perfil: { id: 3, nome: "Unidade", nivel: 3 } },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(
+      await screen.findByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(OUTRA_UNIDADE.nome);
+    await user.click(screen.getByLabelText(/^unidade/i));
+    expect(
+      screen.queryByRole("option", { name: UNIDADE.nome }),
+    ).not.toBeInTheDocument();
+  });
+
 });
