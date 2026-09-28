@@ -368,6 +368,16 @@ describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra próp
   });
 });
 
+// Achado em code review automático: os 2 testes abaixo cobrem o critério de
+// aceite ao pé da letra (Admin, unidade escolhida por clique no Select), mas
+// NÃO isolam o no-op de setValue(nome, undefined) que motivou a issue -- esse
+// só se manifesta quando o valor anterior também foi setado via setValue de
+// um efeito (não por clique), caminho que só existe pro travamento de
+// Coordenação de Unidade (STC-538) e que, depois dela, nunca mais cai no
+// ramo que zera o campo (sempre reaplica a própria unidade). Não há hoje
+// como montar um cenário que isole e comprove esse no-op especificamente.
+// O `z.preprocess` (null -> undefined) do schema, esse sim, é coberto de
+// verdade pelo segundo teste abaixo.
 describe("FormNovaDemanda -- trocar 'Tipo de gestão' realmente limpa a Unidade (STC-539)", () => {
   const OUTRO_TIPO_UNIDADES: TipoGestao = {
     ...TIPO_GESTAO_UNIDADES,
