@@ -367,3 +367,68 @@ describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra próp
     ).toHaveTextContent(OUTRA_UNIDADE.nome);
   });
 });
+
+describe("FormNovaDemanda -- trocar 'Tipo de gestão' realmente limpa a Unidade (STC-539)", () => {
+  const OUTRO_TIPO_UNIDADES: TipoGestao = {
+    ...TIPO_GESTAO_UNIDADES,
+    id: 5,
+    nome: "Outro Tipo de Unidades",
+    codigo: "outro-tipo-unidades",
+  };
+
+  it("reabrir o Select de Unidade depois de trocar de Tipo de gestão mostra 'Selecionar...', não a unidade antiga", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_UNIDADES,
+      OUTRO_TIPO_UNIDADES,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    expect(
+      screen.getByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(UNIDADE.nome);
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Outro Tipo de Unidades" }),
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent("Selecionar...");
+  });
+
+  it("submeter sem reescolher a Unidade depois da troca continua bloqueado com 'Selecione a unidade.'", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_UNIDADES,
+      OUTRO_TIPO_UNIDADES,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Outro Tipo de Unidades" }),
+    );
+
+    await user.type(screen.getByLabelText(/título/i), "x");
+    await user.type(screen.getByLabelText(/descrição/i), "y");
+    await user.click(screen.getByRole("button", { name: "Média" }));
+    await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    expect(await screen.findByText("Selecione a unidade.")).toBeInTheDocument();
+    expect(criarDemanda).not.toHaveBeenCalled();
+  });
+});

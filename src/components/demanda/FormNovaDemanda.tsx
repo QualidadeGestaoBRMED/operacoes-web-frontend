@@ -56,7 +56,24 @@ const schema = z.object({
   // demais usam unidade). Os dois ficam opcionais aqui de propósito; a
   // obrigatoriedade condicional é aplicada em aoSubmeter, onde o código do
   // tipo de gestão selecionado já está disponível.
-  unidade: z.coerce.number().int().positive().optional(),
+  //
+  // z.preprocess null->undefined (STC-539): setValue("unidade", undefined)
+  // é um no-op silencioso do react-hook-form pra este campo (Controller +
+  // Select) especificamente quando o valor anterior também tinha sido
+  // setado via setValue de um efeito (não por clique da pessoa no Select)
+  // -- setValue("unidade", null) é quem realmente limpa o valor nesse
+  // caso. Sem este preprocess, null cairia direto no z.coerce.number()
+  // (Number(null) é 0, não NaN) e passaria por aqui como um "0" válido pro
+  // .int(), falhando só no .positive() com uma mensagem de erro diferente
+  // da esperada ("Selecione a unidade.", aplicada manualmente em
+  // aoSubmeter). Proteção defensiva: a reestruturação da STC-538 já faz
+  // esse caminho nunca ser alcançado hoje (ver handler do Select de "Tipo
+  // de gestão"), mas o problema de fundo é real caso volte a ser
+  // alcançável no futuro.
+  unidade: z.preprocess(
+    (valor) => (valor === null ? undefined : valor),
+    z.coerce.number().int().positive().optional(),
+  ),
   area_responsavel: z
     .array(z.enum(["gerencia", "processo", "qualidade", "desenvolvimento"]))
     .default([]),
@@ -418,21 +435,26 @@ export function FormNovaDemanda({
                         // Coordenação (acima) só reage a mudança de
                         // `open`/`isCoordenacaoUnidade`/`user?.unidade_id` --
                         // nenhum dos quais muda só por trocar Tipo de
-                        // gestão, então ele não reaplicaria o valor sozinho
-                        // se este `setValue` chegasse a limpar o campo pra
-                        // Coordenação. Hoje isso não é observável na
-                        // prática -- `setValue(nome, undefined)` é um no-op
-                        // pra este campo Controller-Select nesta versão do
-                        // react-hook-form (STC-539), então o valor nem sai
-                        // do lugar --, mas essa linha reaplica o valor
-                        // travado de qualquer jeito, sem depender do efeito
-                        // rodar de novo, pra não virar regressão quando a
-                        // STC-539 consertar aquele no-op.
+                        // gestão -- então ele não reaplicaria o valor
+                        // sozinho depois deste `setValue` limpar o campo.
+                        // Reaplica aqui direto, sem depender do efeito
+                        // rodar de novo.
+                        //
+                        // `null`, não `undefined` (STC-539): especificamente
+                        // aqui, o valor de "unidade" pode ter sido setado
+                        // pelo efeito de travamento acima (não por clique da
+                        // pessoa no Select) -- nesse caso,
+                        // setValue("unidade", undefined) é um no-op
+                        // silencioso do react-hook-form, o valor anterior
+                        // permanece de verdade no formulário. `null` limpa
+                        // de verdade (e o preprocess do schema trata null
+                        // como undefined na validação, sem mudar a mensagem
+                        // de erro).
                         setValue(
                           "unidade",
                           isCoordenacaoUnidade && user?.unidade_id
                             ? user.unidade_id
-                            : undefined,
+                            : null,
                         );
                         setValue("area_responsavel", []);
                       }}
