@@ -170,6 +170,9 @@ export function FormCadastrarDocumentosEmLote({
     {},
   );
   const [concluindo, setConcluindo] = useState(false);
+  const [progressoConclusao, setProgressoConclusao] = useState(0);
+  // Guarda de reentrância síncrona pra concluir() -- ver comentário lá.
+  const concluindoRef = useRef(false);
 
   // Sempre disponíveis, mesmo já tendo instâncias cadastradas antes -- é
   // exatamente o ponto deste formulário (mesmo raciocínio já usado pra
@@ -284,6 +287,7 @@ export function FormCadastrarDocumentosEmLote({
     setValidadePorItem({});
     setErroSalvamento({});
     setConcluindo(false);
+    setProgressoConclusao(0);
     onOpenChange(false);
   }
 
@@ -370,20 +374,38 @@ export function FormCadastrarDocumentosEmLote({
   // STC-531 (achado do usuário: "Salvar" por item era fácil de esquecer,
   // deixando o status preso em "Não iniciado" mesmo com evidência já
   // anexada): "Concluir" passa a SER o "salvar tudo" -- roda a mesma
-  // validação/PATCH de salvarStatusEValidade pra cada item de uma vez, e só
-  // fecha o diálogo se todos confirmarem sucesso. Item incompleto (sem
-  // status, ou Regular/Protocolado sem evidência) reprova aqui e mantém o
-  // diálogo aberto, mostrando o erro embaixo do item -- mesma função que já
-  // fazia essa validação, só que agora chamada pra todo mundo de uma vez,
-  // não só quando alguém lembrava de clicar num botão por item.
+  // validação/PATCH de salvarStatusEValidade pra cada item, e só fecha o
+  // diálogo se todos confirmarem sucesso. Item incompleto (sem status, ou
+  // Regular/Protocolado sem evidência) reprova aqui e mantém o diálogo
+  // aberto, mostrando o erro embaixo do item -- mesma função que já fazia
+  // essa validação, só que agora chamada pra todo mundo, não só quando
+  // alguém lembrava de clicar num botão por item.
+  //
+  // Achado em análise própria de falhas críticas: sequencial, não
+  // Promise.all -- o backend throttla escrita em legalizacao em 60/min
+  // (ThrottleDeEscrita, legalizacao_escrita), e o lote aceita até 200
+  // identificadores. Disparar tudo de uma vez estourava esse limite pra
+  // qualquer lote com mais de ~60 itens, falhando itens legítimos por
+  // throttle (429), não por dado errado -- exatamente o tipo de falha
+  // silenciosa que esta issue existe pra evitar. `concluindoRef` (além do
+  // state `concluindo`, só pra UI) trava reentrância de verdade: duas
+  // chamadas de concluir() disparadas antes do primeiro setState
+  // re-renderizar (ex.: Esc repetido rápido) não conseguem, as duas, ler
+  // `concluindo` ainda `false` do mesmo closure.
   async function concluir() {
-    if (!documentosCriados || concluindo) return;
+    if (!documentosCriados || concluindoRef.current) return;
+    concluindoRef.current = true;
     setConcluindo(true);
-    const resultados = await Promise.all(
-      documentosCriados.map((documento) => salvarStatusEValidade(documento.id)),
-    );
+    setProgressoConclusao(0);
+    let todosOk = true;
+    for (const documento of documentosCriados) {
+      const ok = await salvarStatusEValidade(documento.id);
+      if (!ok) todosOk = false;
+      setProgressoConclusao((p) => p + 1);
+    }
+    concluindoRef.current = false;
     setConcluindo(false);
-    if (resultados.every(Boolean)) {
+    if (todosOk) {
       fechar();
     } else {
       toast.error(
@@ -461,6 +483,7 @@ export function FormCadastrarDocumentosEmLote({
                     <LinhaEvidencia
                       identificador={documento.profissional}
                       status={statusEnvio[documento.id]}
+                      desabilitado={concluindo}
                       onSelecionar={(arquivo) =>
                         void enviarEvidenciaDoItem(documento.id, arquivo)
                       }
@@ -471,6 +494,7 @@ export function FormCadastrarDocumentosEmLote({
                     status={statusDoItem}
                     validade={validadePorItem[documento.id] ?? ""}
                     erro={erroSalvamento[documento.id]}
+                    desabilitado={concluindo}
                     onStatusChange={(valor) =>
                       setStatusPorItem((s) => ({ ...s, [documento.id]: valor }))
                     }
@@ -494,7 +518,9 @@ export function FormCadastrarDocumentosEmLote({
               onClick={() => void concluir()}
               disabled={algumItemIncompleto || concluindo}
             >
-              {concluindo ? "Concluindo..." : "Concluir"}
+              {concluindo
+                ? `Concluindo... (${progressoConclusao}/${documentosCriados.length})`
+                : "Concluir"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -757,10 +783,12 @@ export function FormCadastrarDocumentosEmLote({
 function LinhaEvidencia({
   identificador,
   status,
+  desabilitado,
   onSelecionar,
 }: {
   identificador: string;
   status: StatusEnvio | undefined;
+  desabilitado: boolean;
   onSelecionar: (arquivo: File) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -804,13 +832,14 @@ function LinhaEvidencia({
       />
       <button
         type="button"
+        disabled={desabilitado}
         onClick={() => inputRef.current?.click()}
         aria-label={
           status === "erro"
             ? `Tentar anexar evidência de novo para ${identificador}`
             : `Anexar evidência para ${identificador}`
         }
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
       >
         <Paperclip className="size-3.5" />
         {status === "erro" ? "Tentar de novo" : "Anexar"}
@@ -828,6 +857,7 @@ function LinhaStatusValidade({
   status,
   validade,
   erro,
+  desabilitado,
   onStatusChange,
   onValidadeChange,
 }: {
@@ -835,6 +865,7 @@ function LinhaStatusValidade({
   status: StatusDocumento | "";
   validade: string;
   erro: string | undefined;
+  desabilitado: boolean;
   onStatusChange: (valor: StatusDocumento) => void;
   onValidadeChange: (valor: string) => void;
 }) {
@@ -847,6 +878,7 @@ function LinhaStatusValidade({
           </Label>
           <Select
             value={status}
+            disabled={desabilitado}
             onValueChange={(valor) => onStatusChange(valor as StatusDocumento)}
           >
             <SelectTrigger id={`lel-status-${documentoId}`} className="h-8 text-xs">
@@ -870,6 +902,7 @@ function LinhaStatusValidade({
             type="date"
             className="h-8 text-xs"
             value={validade}
+            disabled={desabilitado}
             onChange={(evento) => onValidadeChange(evento.target.value)}
           />
         </div>
