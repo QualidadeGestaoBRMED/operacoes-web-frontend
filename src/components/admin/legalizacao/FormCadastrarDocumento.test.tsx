@@ -171,6 +171,24 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     expect(screen.getByLabelText(/início dos alertas/i)).not.toBeDisabled();
   });
 
+  it("pré-preenche 'Antecedência' com o valor configurado pro tipo, não mais fixo em 60 (STC-537)", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([
+      { ...TIPO, antecedencia_padrao_dias: 30 },
+    ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText(/tipo de documento/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Licença Sanitária" }),
+    );
+
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(30);
+    expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
+  });
+
   it("recalcula 'Data de início dos alertas' ao abrir, não só na montagem (achado em code review, STC-523)", () => {
     // CatalogoLegalizacaoAdmin.tsx nunca desmonta este formulário (fica
     // `hidden` entre trocas de aba) -- sem recalcular no open, uma aba

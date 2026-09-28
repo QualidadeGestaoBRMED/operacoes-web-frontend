@@ -47,10 +47,11 @@ const STATUS_EXIGE_EVIDENCIA = new Set<StatusDocumento>(["regular", "protocolado
 
 type StatusEnvio = "enviando" | "enviado" | "erro";
 
-// STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
-// (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
-// vez de input editável; exceção só via Django Admin, direto no banco.
-const ANTECEDENCIA_PADRAO_DIAS = 60;
+// STC-537: fallback caso o backend ainda não devolva o campo (deploy fora de
+// ordem com STC-536) ou nenhum tipo esteja selecionado ainda -- mesmo valor
+// de sempre, agora só usado quando tipo_documento.antecedencia_padrao_dias
+// não estiver disponível.
+const ANTECEDENCIA_PADRAO_DIAS_FALLBACK = 60;
 
 // Mesma lista de FormCadastrarDocumento.tsx (sem Não aplicável/Unidade em
 // encerramento, que não fazem sentido pra um cadastro em lote de
@@ -136,7 +137,7 @@ function criarValoresPadrao(): Partial<FormValuesEntrada> {
     gera_card_demanda: true,
     responsaveis: [],
     vigente_a_partir: hojeISO(),
-    antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS,
+    antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS_FALLBACK,
   };
 }
 
@@ -253,13 +254,23 @@ export function FormCadastrarDocumentosEmLote({
   // valores da regra anterior ficavam visíveis e editáveis, prontos pra ir
   // no submit como se fossem da regra nova. Mesmo padrão de
   // FormCadastrarDocumento.tsx (limparCamposDeRegra).
-  function limparCamposDeRegra() {
+  //
+  // STC-537: recebe o id do tipo recém-escolhido em vez de ler
+  // `tipoDocumentoSelecionado` (derivado de `watch()`) -- quem chama esta
+  // função no onValueChange do Select de tipo roda no mesmo evento em que
+  // `field.onChange` muda `tipo_documento`, antes do re-render que
+  // atualizaria esse valor; ler a variável aqui pegaria o tipo ANTERIOR,
+  // mesma armadilha de closure obsoleta já vista na STC-531.
+  function limparCamposDeRegra(tipoRecemEscolhidoId?: number) {
+    const antecedenciaPadrao =
+      tiposDocumento.find((tipo) => tipo.id === tipoRecemEscolhidoId)
+        ?.antecedencia_padrao_dias ?? ANTECEDENCIA_PADRAO_DIAS_FALLBACK;
     // STC-523: volta pros mesmos defaults do formulário recém-aberto (hoje e
-    // 60), não mais vazio -- os dois campos são fixos/pré-preenchidos por
-    // padrão, deixar de reaproveitar uma regra existente não deveria
-    // esvaziá-los.
+    // a antecedência sugerida pro tipo, ou 60 sem tipo escolhido), não mais
+    // vazio -- os dois campos são fixos/pré-preenchidos por padrão, deixar
+    // de reaproveitar uma regra existente não deveria esvaziá-los.
     setValue("vigente_a_partir", hojeISO());
-    setValue("antecedencia_dias", ANTECEDENCIA_PADRAO_DIAS);
+    setValue("antecedencia_dias", antecedenciaPadrao);
     setValue("janela_dia_inicio", undefined);
     setValue("janela_dia_fim", undefined);
     setValue("gera_card_demanda", true);
@@ -623,7 +634,7 @@ export function FormCadastrarDocumentosEmLote({
                     value={field.value ? String(field.value) : ""}
                     onValueChange={(valor) => {
                       field.onChange(Number(valor));
-                      limparCamposDeRegra();
+                      limparCamposDeRegra(undefined);
                     }}
                   >
                     <SelectTrigger id="cel-unidade" className="w-full">
@@ -656,7 +667,7 @@ export function FormCadastrarDocumentosEmLote({
                     value={field.value ? String(field.value) : ""}
                     onValueChange={(valor) => {
                       field.onChange(Number(valor));
-                      limparCamposDeRegra();
+                      limparCamposDeRegra(Number(valor));
                     }}
                   >
                     <SelectTrigger id="cel-tipo" className="w-full">

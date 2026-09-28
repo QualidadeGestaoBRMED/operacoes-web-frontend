@@ -35,6 +35,13 @@ export interface TipoDocumentoRegulatorio {
   // pra este tipo -- N DocumentoUnidade por unidade, um por identificador
   // livre (reaproveita a mesma coluna `profissional`, sem ligar RN11).
   permite_multiplas_instancias: boolean;
+  // STC-536 (backend): sugestão inicial pro campo "Antecedência (dias)" nos
+  // 3 forms de cadastro/nova versão de regra -- editável só via Django
+  // Admin, sem tela do app pra isso (decisão de negócio). Opcional: além do
+  // fallback pra 60 (backend pode não devolver ainda, deploy fora de
+  // ordem), evita reescrever cada fixture de teste que já existia antes
+  // desta issue e não usa este campo.
+  antecedencia_padrao_dias?: number;
   ativo: boolean;
   created_at: string;
 }

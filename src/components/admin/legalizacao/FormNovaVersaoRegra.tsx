@@ -35,10 +35,10 @@ import { extrairMensagemErro } from "@/lib/erros";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 
-// STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
-// (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
-// vez de input editável; exceção só via Django Admin, direto no banco.
-const ANTECEDENCIA_PADRAO_DIAS = 60;
+// STC-537: fallback caso o backend ainda não devolva o campo (deploy fora de
+// ordem com STC-536) -- mesmo valor de sempre, agora só usado quando
+// tipo_documento.antecedencia_padrao_dias vier undefined.
+const ANTECEDENCIA_PADRAO_DIAS_FALLBACK = 60;
 
 // "YYYY-MM-DD" (DateField do Django) formatado sem passar por Date -- mesmo
 // motivo/mesma duplicação já aceita em PermissoesAdmin.tsx::formatarData
@@ -94,6 +94,9 @@ export function DialogNovaVersao({
   onAtualizado?: () => void;
 }) {
   const regraAtual = documento.regra_aplicada;
+  const antecedenciaPadrao =
+    documento.tipo_documento.antecedencia_padrao_dias ??
+    ANTECEDENCIA_PADRAO_DIAS_FALLBACK;
   const { criar: criarRegra } = useCriarRegraDocumento();
   const { atualizar: atualizarDocumento } = useAtualizarDocumentoLegalizacao();
   const [salvando, setSalvando] = useState(false);
@@ -112,18 +115,18 @@ export function DialogNovaVersao({
   useEffect(() => {
     if (open && regraAtual) {
       reset({
-        // STC-523: padronizado em 60 pra toda a rede (decisão de negócio)
-        // -- deixa de reaproveitar o valor da regra atual (que pode ser
-        // legado, de antes desta padronização). Exceção só via Django
-        // Admin, direto no banco.
-        antecedencia_dias: ANTECEDENCIA_PADRAO_DIAS,
+        // STC-523: deixa de reaproveitar o valor da regra atual (que pode
+        // ser legado) -- nasce com a sugestão configurada pro tipo de
+        // documento (STC-536/537, editável só via Django Admin), com
+        // fallback pra 60.
+        antecedencia_dias: antecedenciaPadrao,
         janela_dia_inicio: regraAtual.janela_dia_inicio ?? undefined,
         janela_dia_fim: regraAtual.janela_dia_fim ?? undefined,
         gera_card_demanda: regraAtual.gera_card_demanda,
         vigente_a_partir: undefined,
       });
     }
-  }, [open, regraAtual, reset]);
+  }, [open, regraAtual, antecedenciaPadrao, reset]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
     if (regraAtual && valores.vigente_a_partir <= regraAtual.vigente_a_partir) {
