@@ -64,6 +64,16 @@ const STATUS_INICIAIS: StatusDocumento[] = [
   "vencido",
 ];
 
+// STC-531 (achado em code review automático): backend throttla escrita em
+// legalizacao em 60/min por janela móvel de 60s -- 1100ms de intervalo
+// mínimo entre chamadas mantém ~54/min, com margem de segurança (ver
+// concluir()).
+const INTERVALO_MIN_ENTRE_CHAMADAS_MS = 1100;
+
+function aguardar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // z.coerce.number() sozinho transforma "" (campo em branco) em 0, não
 // undefined -- mesmo achado já registrado em FormCadastrarDocumento.tsx.
 const numeroDiaOpcional = z.preprocess(
@@ -173,6 +183,13 @@ export function FormCadastrarDocumentosEmLote({
   const [progressoConclusao, setProgressoConclusao] = useState(0);
   // Guarda de reentrância síncrona pra concluir() -- ver comentário lá.
   const concluindoRef = useRef(false);
+  // Achado em code review automático (STC-531): pra concluir() não reenviar
+  // (e gastar cota de throttle) um item que já foi salvo com sucesso e não
+  // mudou desde então -- só o status/validade que de fato foram persistidos
+  // contam, não basta "não deu erro" (ver concluir()).
+  const ultimoSalvoRef = useRef<
+    Record<number, { status: StatusDocumento; validade: string }>
+  >({});
 
   // Sempre disponíveis, mesmo já tendo instâncias cadastradas antes -- é
   // exatamente o ponto deste formulário (mesmo raciocínio já usado pra
@@ -288,6 +305,7 @@ export function FormCadastrarDocumentosEmLote({
     setErroSalvamento({});
     setConcluindo(false);
     setProgressoConclusao(0);
+    ultimoSalvoRef.current = {};
     onOpenChange(false);
   }
 
@@ -364,6 +382,7 @@ export function FormCadastrarDocumentosEmLote({
         validade: validade || null,
         definindo_status_inicial: true,
       });
+      ultimoSalvoRef.current[documentoId] = { status, validade };
       return true;
     } catch (erro) {
       setErroSalvamento((e) => ({ ...e, [documentoId]: extrairMensagemErro(erro) }));
@@ -381,24 +400,53 @@ export function FormCadastrarDocumentosEmLote({
   // essa validação, só que agora chamada pra todo mundo, não só quando
   // alguém lembrava de clicar num botão por item.
   //
-  // Achado em análise própria de falhas críticas: sequencial, não
-  // Promise.all -- o backend throttla escrita em legalizacao em 60/min
-  // (ThrottleDeEscrita, legalizacao_escrita), e o lote aceita até 200
-  // identificadores. Disparar tudo de uma vez estourava esse limite pra
-  // qualquer lote com mais de ~60 itens, falhando itens legítimos por
-  // throttle (429), não por dado errado -- exatamente o tipo de falha
-  // silenciosa que esta issue existe pra evitar. `concluindoRef` (além do
-  // state `concluindo`, só pra UI) trava reentrância de verdade: duas
-  // chamadas de concluir() disparadas antes do primeiro setState
-  // re-renderizar (ex.: Esc repetido rápido) não conseguem, as duas, ler
-  // `concluindo` ainda `false` do mesmo closure.
+  // Achado em code review automático: o backend throttla escrita em
+  // legalizacao em 60/min (ThrottleDeEscrita, legalizacao_escrita) com uma
+  // JANELA MÓVEL de 60s (ScopedRateThrottle/SimpleRateThrottle conta
+  // requisições nos últimos 60s a partir de agora, não "por minuto
+  // corrido") -- processar sequencial, sozinho, não reduz a contagem
+  // dentro dessa janela se cada PATCH responde rápido (comum). Por isso o
+  // `await aguardar(...)` abaixo garante um intervalo mínimo real entre o
+  // INÍCIO de cada chamada, independente da latência de rede -- 1100ms
+  // mantém a taxa em ~54/min, com margem sobre o limite de 60, mesmo pro
+  // lote inteiro (até 200 identificadores).
+  //
+  // `ultimoSalvoRef` evita reenviar (e gastar essa cota) um item que já foi
+  // salvo com sucesso numa tentativa anterior de "Concluir" e não mudou
+  // desde então -- sem isto, uma nova tentativa depois de uma falha
+  // parcial reprocessava o lote inteiro de novo, os itens que já tinham
+  // dado certo incluídos, disputando a mesma cota de throttle com os que
+  // de fato ainda precisam ser (re)salvos.
+  //
+  // `concluindoRef` (além do state `concluindo`, só pra UI) trava
+  // reentrância de verdade: duas chamadas de concluir() disparadas antes
+  // do primeiro setState re-renderizar (ex.: Esc repetido rápido) não
+  // conseguem, as duas, ler `concluindo` ainda `false` do mesmo closure.
   async function concluir() {
     if (!documentosCriados || concluindoRef.current) return;
     concluindoRef.current = true;
     setConcluindo(true);
     setProgressoConclusao(0);
     let todosOk = true;
+    let ultimaChamadaEm = 0;
     for (const documento of documentosCriados) {
+      const statusAtual = statusPorItem[documento.id] ?? "";
+      const validadeAtual = validadePorItem[documento.id] ?? "";
+      const jaSalvoSemMudanca =
+        statusAtual !== "" &&
+        ultimoSalvoRef.current[documento.id]?.status === statusAtual &&
+        ultimoSalvoRef.current[documento.id]?.validade === validadeAtual;
+      if (jaSalvoSemMudanca) {
+        setProgressoConclusao((p) => p + 1);
+        continue;
+      }
+      if (ultimaChamadaEm) {
+        const decorrido = Date.now() - ultimaChamadaEm;
+        if (decorrido < INTERVALO_MIN_ENTRE_CHAMADAS_MS) {
+          await aguardar(INTERVALO_MIN_ENTRE_CHAMADAS_MS - decorrido);
+        }
+      }
+      ultimaChamadaEm = Date.now();
       const ok = await salvarStatusEValidade(documento.id);
       if (!ok) todosOk = false;
       setProgressoConclusao((p) => p + 1);

@@ -785,6 +785,100 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     });
   });
 
+  it("'Concluir' mantém o diálogo aberto e mostra o erro quando falha ao salvar um item (achado em code review, STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(new Error("Falha de rede."));
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Existem itens que não puderam ser salvos -- veja os erros de cada um antes de concluir.",
+      );
+    });
+    // Falha real ao salvar não pode fechar com dado incompleto, mesmo com
+    // "Concluir" tendo sido de fato clicado.
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Não foi possível completar a operação. Tente novamente."),
+    ).toBeInTheDocument();
+  });
+
+  it("retomar 'Concluir' após falha parcial não reenvia um item que já foi salvo com sucesso e não mudou (achado em code review, STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+      documentoCriado({ id: 1, profissional: "Balança 01" }),
+      documentoCriado({ id: 2, profissional: "Balança 02" }),
+    ]);
+    let tentativasItem2 = 0;
+    vi.mocked(atualizarDocumentoLegalizacao).mockImplementation(async (id) => {
+      if (id === 2) {
+        tentativasItem2 += 1;
+        if (tentativasItem2 === 1) throw new Error("Falha de rede.");
+      }
+      return documentoCriado({ id });
+    });
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(
+      screen.getByLabelText(/identificadores/i),
+      "Balança 01\nBalança 02",
+    );
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    const gatilhosDeStatus = screen.getAllByLabelText(/status inicial/i);
+    await user.click(gatilhosDeStatus[0]);
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+    await user.click(gatilhosDeStatus[1]);
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
+
+    // Intervalo mínimo entre chamadas (pacing de throttle, ver concluir())
+    // insere ~1.1s de espera real entre o item 1 (sucesso) e o item 2
+    // (falha) -- timeout maior que o default do waitFor.
+    await waitFor(
+      () => {
+        expect(toast.error).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(atualizarDocumentoLegalizacao).mock.calls.filter(([id]) => id === 1),
+    ).toHaveLength(1);
+    expect(
+      vi.mocked(atualizarDocumentoLegalizacao).mock.calls.filter(([id]) => id === 2),
+    ).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
+
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    // O item 1 (já salvo com sucesso, sem mudança desde então) não é
+    // reenviado na nova tentativa -- só o item 2, que tinha falhado.
+    expect(
+      vi.mocked(atualizarDocumentoLegalizacao).mock.calls.filter(([id]) => id === 1),
+    ).toHaveLength(1);
+    expect(
+      vi.mocked(atualizarDocumentoLegalizacao).mock.calls.filter(([id]) => id === 2),
+    ).toHaveLength(2);
+  }, 10000);
+
   describe("Responsável operacional obrigatório (STC-517)", () => {
     it("não deixa submeter sem nenhum responsável selecionado", async () => {
       const user = userEvent.setup();
