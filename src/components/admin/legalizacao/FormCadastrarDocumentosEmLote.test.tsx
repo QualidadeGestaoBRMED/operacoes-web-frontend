@@ -785,6 +785,40 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     });
   });
 
+  it("fechar sem nenhum status escolhido em vários itens não acumula espera de pacing de throttle (achado em code review, STC-531)", async () => {
+    // O intervalo mínimo entre chamadas (pacing pro throttle do backend, ver
+    // concluir()) só faz sentido em cima de uma chamada de rede de verdade
+    // -- itens que reprovam validação local (aqui, nenhum tem status
+    // escolhido) nunca chegam no PATCH. Sem o fix, o pacing rodava mesmo
+    // assim, acumulando ~1.1s por item só pra reprovar validação local; o
+    // timeout padrão do waitFor abaixo (1000ms) já é curto o bastante pra
+    // pegar essa regressão com 3 itens (~2.2s perdidos sem o fix).
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
+      documentoCriado({ id: 1, profissional: "Balança 01" }),
+      documentoCriado({ id: 2, profissional: "Balança 02" }),
+      documentoCriado({ id: 3, profissional: "Balança 03" }),
+    ]);
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(
+      screen.getByLabelText(/identificadores/i),
+      "Balança 01\nBalança 02\nBalança 03",
+    );
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Selecione o status.")).toHaveLength(3);
+    });
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it("'Concluir' mantém o diálogo aberto e mostra o erro quando falha ao salvar um item (achado em code review, STC-531)", async () => {
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(new Error("Falha de rede."));

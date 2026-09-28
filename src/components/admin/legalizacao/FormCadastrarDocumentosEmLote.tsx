@@ -340,7 +340,18 @@ export function FormCadastrarDocumentosEmLote({
   // STC-531 (achado do usuário): retorna sucesso/falha -- reaproveitada por
   // concluir() pra salvar todo item de uma vez, não só por um clique
   // individual (que não existe mais nesta tela).
-  async function salvarStatusEValidade(documentoId: number): Promise<boolean> {
+  //
+  // `antesDeChamarRede` (achado em code review automático): as 3 validações
+  // locais abaixo (status, validade de "Vencido", evidência) nunca chegam a
+  // fazer requisição nenhuma -- só o pacing de throttle de concluir() (ver
+  // lá) precisa rodar bem em cima da chamada de rede de verdade, senão um
+  // lote com vários itens incompletos (ex.: fechado via Esc sem nenhum
+  // status escolhido) acumulava ~1.1s de espera por item só pra reprovar
+  // validação local, sem nenhum PATCH de verdade envolvido.
+  async function salvarStatusEValidade(
+    documentoId: number,
+    antesDeChamarRede?: () => Promise<void>,
+  ): Promise<boolean> {
     const status = statusPorItem[documentoId];
     const validade = validadePorItem[documentoId] ?? "";
     if (!status) {
@@ -369,6 +380,7 @@ export function FormCadastrarDocumentosEmLote({
       return false;
     }
     setErroSalvamento((e) => ({ ...e, [documentoId]: "" }));
+    await antesDeChamarRede?.();
     try {
       // STC-497 (achado do usuário: status escolhido aqui ficava preso em
       // "Não iniciado" mesmo depois de "Salvar"): documento criado em lote
@@ -406,10 +418,14 @@ export function FormCadastrarDocumentosEmLote({
   // requisições nos últimos 60s a partir de agora, não "por minuto
   // corrido") -- processar sequencial, sozinho, não reduz a contagem
   // dentro dessa janela se cada PATCH responde rápido (comum). Por isso o
-  // `await aguardar(...)` abaixo garante um intervalo mínimo real entre o
-  // INÍCIO de cada chamada, independente da latência de rede -- 1100ms
-  // mantém a taxa em ~54/min, com margem sobre o limite de 60, mesmo pro
-  // lote inteiro (até 200 identificadores).
+  // `antesDeChamarRede` passado a salvarStatusEValidade garante um
+  // intervalo mínimo real entre o INÍCIO de cada chamada de rede,
+  // independente da latência de rede -- 1100ms mantém a taxa em ~54/min,
+  // com margem sobre o limite de 60, mesmo pro lote inteiro (até 200
+  // identificadores). Fica de fora do loop (só roda bem em cima da chamada
+  // de verdade, dentro de salvarStatusEValidade) pra não acumular espera
+  // em itens que reprovam validação local (sem status, sem validade de
+  // "Vencido", sem evidência) e por isso nunca chegam a fazer requisição.
   //
   // `ultimoSalvoRef` evita reenviar (e gastar essa cota) um item que já foi
   // salvo com sucesso numa tentativa anterior de "Concluir" e não mudou
@@ -440,14 +456,15 @@ export function FormCadastrarDocumentosEmLote({
         setProgressoConclusao((p) => p + 1);
         continue;
       }
-      if (ultimaChamadaEm) {
-        const decorrido = Date.now() - ultimaChamadaEm;
-        if (decorrido < INTERVALO_MIN_ENTRE_CHAMADAS_MS) {
-          await aguardar(INTERVALO_MIN_ENTRE_CHAMADAS_MS - decorrido);
+      const ok = await salvarStatusEValidade(documento.id, async () => {
+        if (ultimaChamadaEm) {
+          const decorrido = Date.now() - ultimaChamadaEm;
+          if (decorrido < INTERVALO_MIN_ENTRE_CHAMADAS_MS) {
+            await aguardar(INTERVALO_MIN_ENTRE_CHAMADAS_MS - decorrido);
+          }
         }
-      }
-      ultimaChamadaEm = Date.now();
-      const ok = await salvarStatusEValidade(documento.id);
+        ultimaChamadaEm = Date.now();
+      });
       if (!ok) todosOk = false;
       setProgressoConclusao((p) => p + 1);
     }
