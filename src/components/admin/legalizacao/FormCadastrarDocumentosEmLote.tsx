@@ -634,7 +634,16 @@ export function FormCadastrarDocumentosEmLote({
                     value={field.value ? String(field.value) : ""}
                     onValueChange={(valor) => {
                       field.onChange(Number(valor));
-                      limparCamposDeRegra(undefined);
+                      // Achado em code review automático (STC-537):
+                      // diferente de FormCadastrarDocumento.tsx, trocar de
+                      // unidade aqui NÃO limpa o tipo já escolhido (o Select
+                      // de tipo continua mostrando o mesmo) -- passar
+                      // `undefined` aqui perdia a antecedência sugerida
+                      // desse tipo e caía no fallback de 60, mesmo com o
+                      // tipo (não a unidade) sendo o que de fato decide o
+                      // valor. `tipoDocumentoSelecionado` ainda reflete o
+                      // tipo certo neste ponto -- só a unidade mudou.
+                      limparCamposDeRegra(tipoDocumentoSelecionado);
                     }}
                   >
                     <SelectTrigger id="cel-unidade" className="w-full">

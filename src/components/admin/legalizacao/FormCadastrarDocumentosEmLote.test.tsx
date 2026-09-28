@@ -206,6 +206,38 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(screen.getByLabelText(/antecedência/i)).toBeDisabled();
   });
 
+  it("mantém a antecedência do tipo já escolhido ao trocar só de unidade -- este form não limpa o tipo (achado em code review, STC-537)", async () => {
+    const OUTRA_UNIDADE: Unidade = {
+      id: 2,
+      nome: "Vitória",
+      codigo: "VIT",
+      cidade: "Vitória",
+      ativa: true,
+      rede: "padrao",
+    };
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(listarTiposDocumento).mockResolvedValue([
+      { ...TIPO_EQUIPAMENTO, antecedencia_padrao_dias: 30 },
+    ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText(/tipo de documento/i));
+    await user.click(await screen.findByRole("option", { name: "Calibração de Balança" }));
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(30);
+
+    // Diferente de FormCadastrarDocumento.tsx, trocar de unidade aqui NÃO
+    // limpa o tipo já escolhido (o Select de tipo continua mostrando
+    // "Calibração de Balança") -- a antecedência precisa continuar
+    // refletindo esse tipo, não cair no fallback de 60.
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Vitória" }));
+
+    expect(screen.getByLabelText(/antecedência/i)).toHaveValue(30);
+  });
+
   it("recalcula 'Data de início dos alertas' ao abrir, não só na montagem (achado em code review, STC-523)", () => {
     // CatalogoLegalizacaoAdmin.tsx nunca desmonta este formulário (fica
     // `hidden` entre trocas de aba) -- sem recalcular no open, uma aba
