@@ -259,6 +259,53 @@ describe("FormNovaVersaoRegra (STC-415)", () => {
     });
   });
 
+  it("pré-preenche 'Antecedência' com o valor configurado pro tipo, não mais fixo em 60 (STC-537)", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documento({
+        tipo_documento: { ...TIPO, antecedencia_padrao_dias: 30 },
+      }),
+    ]);
+    vi.mocked(criarRegraDocumento).mockResolvedValue({
+      id: 99,
+      tipo_documento: TIPO.id,
+      unidade: UNIDADE.id,
+      antecedencia_dias: 30,
+      periodicidade_meses: null,
+      janela_dia_inicio: null,
+      janela_dia_fim: null,
+      criticidade: "media",
+      vigente_a_partir: "2026-06-01",
+      ativa: true,
+      gera_card_demanda: true,
+      created_at: "2026-06-01T00:00:00Z",
+    });
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    renderComponente();
+
+    await selecionarUnidadeETipo(user);
+    await user.click(
+      await screen.findByRole("button", { name: /criar nova versão/i }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(/antecedência/i)).toHaveValue(30);
+
+    await user.type(
+      within(dialog).getByLabelText(/vigente a partir/i),
+      "2026-06-01",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Criar nova versão" }),
+    );
+
+    await waitFor(() => {
+      expect(criarRegraDocumento).toHaveBeenCalledWith(
+        expect.objectContaining({ antecedencia_dias: 30 }),
+      );
+    });
+  });
+
   it("carrega periodicidade_meses da regra anterior pra nova versão, sem campo próprio no form", async () => {
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
       documento({
