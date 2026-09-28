@@ -367,3 +367,119 @@ describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra próp
     ).toHaveTextContent(OUTRA_UNIDADE.nome);
   });
 });
+
+// Achado em code review automático: os 2 testes abaixo cobrem o critério de
+// aceite ao pé da letra (Admin, unidade escolhida por clique no Select), mas
+// NÃO isolam o no-op de setValue(nome, undefined) que motivou a issue -- esse
+// só se manifesta quando o valor anterior também foi setado via setValue de
+// um efeito (não por clique), caminho que só existe pro travamento de
+// Coordenação de Unidade (STC-538) e que, depois dela, nunca mais cai no
+// ramo que zera o campo (sempre reaplica a própria unidade). Não há hoje
+// como montar um cenário que isole e comprove esse no-op especificamente.
+// O `z.preprocess` (null -> undefined) do schema, esse sim, é coberto de
+// verdade pelo segundo teste abaixo.
+describe("FormNovaDemanda -- trocar 'Tipo de gestão' realmente limpa a Unidade (STC-539)", () => {
+  const OUTRO_TIPO_UNIDADES: TipoGestao = {
+    ...TIPO_GESTAO_UNIDADES,
+    id: 5,
+    nome: "Outro Tipo de Unidades",
+    codigo: "outro-tipo-unidades",
+  };
+
+  it("reabrir o Select de Unidade depois de trocar de Tipo de gestão mostra 'Selecionar...', não a unidade antiga", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_UNIDADES,
+      OUTRO_TIPO_UNIDADES,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    expect(
+      screen.getByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(UNIDADE.nome);
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Outro Tipo de Unidades" }),
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent("Selecionar...");
+  });
+
+  it("submeter sem reescolher a Unidade depois da troca continua bloqueado com 'Selecione a unidade.'", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_UNIDADES,
+      OUTRO_TIPO_UNIDADES,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Outro Tipo de Unidades" }),
+    );
+
+    await user.type(screen.getByLabelText(/título/i), "x");
+    await user.type(screen.getByLabelText(/descrição/i), "y");
+    await user.click(screen.getByRole("button", { name: "Média" }));
+    await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    expect(await screen.findByText("Selecione a unidade.")).toBeInTheDocument();
+    expect(criarDemanda).not.toHaveBeenCalled();
+  });
+});
+
+describe("FormNovaDemanda -- area_responsavel não sofre do mesmo no-op que 'unidade' (STC-539)", () => {
+  // Escopo explícito da STC-539: confirmar se setValue("area_responsavel", [])
+  // sofre do mesmo problema de setValue(nome, undefined) achado pra
+  // "unidade". Confirmado que não -- um array vazio é um valor definido de
+  // verdade (não undefined), então o react-hook-form propaga normalmente.
+  it("limpa area_responsavel de verdade ao trocar de tipo e voltar", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO, TIPO_GESTAO_UNIDADES]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    vi.mocked(criarDemanda).mockResolvedValue(construirDemandaFixture());
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Operacional" }));
+    await user.click(await screen.findByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("checkbox", { name: "Gerência" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Operacional" }));
+
+    await user.type(screen.getByLabelText(/título/i), "x");
+    await user.type(screen.getByLabelText(/descrição/i), "y");
+    await user.click(screen.getByRole("button", { name: "Média" }));
+    await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
+    await user.click(await screen.findByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("checkbox", { name: "Processo" }));
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    await waitFor(() => {
+      expect(criarDemanda).toHaveBeenCalledWith(
+        expect.objectContaining({ area_responsavel: ["processo"] }),
+      );
+    });
+  });
+});
