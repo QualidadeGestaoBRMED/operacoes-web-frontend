@@ -432,3 +432,44 @@ describe("FormNovaDemanda -- trocar 'Tipo de gestão' realmente limpa a Unidade 
     expect(criarDemanda).not.toHaveBeenCalled();
   });
 });
+
+describe("FormNovaDemanda -- area_responsavel não sofre do mesmo no-op que 'unidade' (STC-539)", () => {
+  // Escopo explícito da STC-539: confirmar se setValue("area_responsavel", [])
+  // sofre do mesmo problema de setValue(nome, undefined) achado pra
+  // "unidade". Confirmado que não -- um array vazio é um valor definido de
+  // verdade (não undefined), então o react-hook-form propaga normalmente.
+  it("limpa area_responsavel de verdade ao trocar de tipo e voltar", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO, TIPO_GESTAO_UNIDADES]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+    vi.mocked(criarDemanda).mockResolvedValue(construirDemandaFixture());
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Operacional" }));
+    await user.click(await screen.findByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("checkbox", { name: "Gerência" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Unidades" }));
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(await screen.findByRole("option", { name: "Operacional" }));
+
+    await user.type(screen.getByLabelText(/título/i), "x");
+    await user.type(screen.getByLabelText(/descrição/i), "y");
+    await user.click(screen.getByRole("button", { name: "Média" }));
+    await user.type(screen.getByLabelText(/prazo/i), "2026-12-31");
+    await user.click(await screen.findByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("checkbox", { name: "Processo" }));
+    await user.click(screen.getByRole("button", { name: "Criar Demanda" }));
+
+    await waitFor(() => {
+      expect(criarDemanda).toHaveBeenCalledWith(
+        expect.objectContaining({ area_responsavel: ["processo"] }),
+      );
+    });
+  });
+});
