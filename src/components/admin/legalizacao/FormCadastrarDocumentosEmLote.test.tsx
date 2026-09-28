@@ -785,6 +785,101 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     });
   });
 
+  it("botão 'Close' (X) roda a mesma validação de 'Concluir' -- não fecha com item incompleto (achado em code review, STC-531)", async () => {
+    // Mesmo padrão dos testes de Esc acima -- achado em code review
+    // automático: só Esc e "Concluir" tinham teste, faltava o X (mesmo
+    // botão de sempre do Dialog, DialogPrimitive.Close) e o clique fora.
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByText("Anexar evidências")).toBeInTheDocument();
+  });
+
+  it("botão 'Close' (X) fecha de verdade quando todo item já está completo (achado em code review, STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
+      status: "nao_iniciado",
+      validade: null,
+      definindo_status_inicial: true,
+    });
+  });
+
+  it("clique fora (overlay) roda a mesma validação de 'Concluir' -- não fecha com item incompleto (achado em code review, STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    // Overlay do Radix -- irmão do conteúdo do diálogo dentro do mesmo
+    // portal, é justamente o alvo que o Radix trata como "fora" do conteúdo.
+    const overlay = document.querySelector('[data-slot="dialog-overlay"]');
+    await user.click(overlay as Element);
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByText("Anexar evidências")).toBeInTheDocument();
+  });
+
+  it("clique fora (overlay) fecha de verdade quando todo item já está completo (achado em code review, STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+
+    const overlay = document.querySelector('[data-slot="dialog-overlay"]');
+    await user.click(overlay as Element);
+
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
+      status: "nao_iniciado",
+      validade: null,
+      definindo_status_inicial: true,
+    });
+  });
+
   it("fechar sem nenhum status escolhido em vários itens não acumula espera de pacing de throttle (achado em code review, STC-531)", async () => {
     // O intervalo mínimo entre chamadas (pacing pro throttle do backend, ver
     // concluir()) só faz sentido em cima de uma chamada de rede de verdade
