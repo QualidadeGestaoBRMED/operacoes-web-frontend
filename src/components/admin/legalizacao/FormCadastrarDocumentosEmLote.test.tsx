@@ -410,12 +410,11 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(await screen.findByText("Falhou")).toBeInTheDocument();
   });
 
-  it("botões 'Anexar'/'Salvar' de cada linha têm aria-label diferenciado por identificador (achado em code review)", async () => {
-    // N linhas repetem os mesmos textos visuais ("Anexar", "Salvar") --
-    // sem aria-label com o identificador, um leitor de tela que navegue
-    // pela lista de controles da página (rotor/lista de botões) via
-    // apenas "Anexar" x3, "Salvar" x3, indistinguíveis fora do contexto
-    // visual da linha.
+  it("botão 'Anexar' de cada linha tem aria-label diferenciado por identificador (achado em code review)", async () => {
+    // N linhas repetem o mesmo texto visual ("Anexar") -- sem aria-label
+    // com o identificador, um leitor de tela que navegue pela lista de
+    // controles da página (rotor/lista de botões) via só "Anexar" x2,
+    // indistinguíveis fora do contexto visual da linha.
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
       documentoCriado({ id: 1, profissional: "Balança 01" }),
       documentoCriado({ id: 2, profissional: "Balança 02" }),
@@ -437,16 +436,11 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(
       screen.getByRole("button", { name: "Anexar evidência para Balança 02" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Salvar status e validade de Balança 01" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Salvar status e validade de Balança 02" }),
-    ).toBeInTheDocument();
   });
 
-  it("'Concluir' fecha o diálogo mesmo sem anexar nenhuma evidência", async () => {
+  it("'Concluir' salva o status escolhido e fecha o diálogo mesmo sem anexar evidência, quando o status não exige (STC-531)", async () => {
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
     renderForm(onOpenChange);
@@ -456,17 +450,31 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
     await screen.findByText("Anexar evidências");
 
+    // STC-531: sem status escolhido ainda, "Concluir" vem desabilitado --
+    // não dá mais pra sair do passo 2 sem confirmar status de todo item.
+    expect(screen.getByRole("button", { name: "Concluir" })).toBeDisabled();
+
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
     await user.click(screen.getByRole("button", { name: "Concluir" }));
 
+    await waitFor(() => {
+      expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
+        status: "nao_iniciado",
+        validade: null,
+        definindo_status_inicial: true,
+      });
+    });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(enviarEvidenciaLegalizacao).not.toHaveBeenCalled();
   });
 
-  it("salva status e validade de um item (STC-490)", async () => {
+  it("'Concluir' salva o status/validade de todo item numa tacada só (STC-490/STC-531)", async () => {
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const onOpenChange = vi.fn();
     const user = userEvent.setup();
-    renderForm();
+    renderForm(onOpenChange);
 
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
@@ -476,14 +484,14 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
     await user.type(screen.getByLabelText(/^validade/i), "2026-12-31");
-    // STC-524: "Regular" agora exige evidência anexada antes de salvar.
+    // STC-524: "Regular" exige evidência anexada antes de concluir.
     const inputArquivo = document.querySelector(
       'input[type="file"]',
     ) as HTMLInputElement;
     const certificado = new File(["x"], "cert.pdf", { type: "application/pdf" });
     await user.upload(inputArquivo, certificado);
     await screen.findByText("Enviado");
-    await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
 
     await waitFor(() => {
       expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
@@ -495,7 +503,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
         definindo_status_inicial: true,
       });
     });
-    expect(await screen.findByText("Salvo")).toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   describe("Anexo obrigatório pra status Regular/Protocolado (STC-524)", () => {
@@ -512,7 +520,8 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       await screen.findByText("Anexar evidências");
 
       const botaoConcluir = screen.getByRole("button", { name: "Concluir" });
-      expect(botaoConcluir).not.toBeDisabled();
+      // STC-531: sem status escolhido ainda, já vem desabilitado.
+      expect(botaoConcluir).toBeDisabled();
 
       await user.click(screen.getByLabelText(/status inicial/i));
       await user.click(await screen.findByRole("option", { name: "Regular" }));
@@ -561,12 +570,14 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
       expect(botaoConcluir).not.toBeDisabled();
     });
 
-    it("bloqueia 'Salvar status e validade' pra 'Regular' sem evidência -- achado em análise própria: bloquear só 'Concluir' não impede persistir o status sem anexo", async () => {
+    it("'Concluir' desabilitado impede persistir 'Regular' sem evidência -- achado em análise própria original: bloquear só o fechar não impedia persistir o status sem anexo (STC-531 endurece isso pro Concluir em si)", async () => {
+      const onOpenChange = vi.fn();
       vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([
         documentoCriado(),
       ]);
+      vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
       const user = userEvent.setup();
-      renderForm();
+      renderForm(onOpenChange);
 
       await preencherCamposComuns(user);
       await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
@@ -575,21 +586,21 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
       await user.click(screen.getByLabelText(/status inicial/i));
       await user.click(await screen.findByRole("option", { name: "Regular" }));
-      await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
 
-      expect(
-        await screen.findByText('Anexe a evidência antes de salvar como "Regular".'),
-      ).toBeInTheDocument();
+      // "Concluir" já vem desabilitado (evidência obrigatória pra Regular)
+      // -- nada é persistido, e o diálogo não fecha.
+      expect(screen.getByRole("button", { name: "Concluir" })).toBeDisabled();
       expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
 
-      // Anexando a evidência, o mesmo clique passa a salvar normalmente.
+      // Anexando a evidência, "Concluir" libera e passa a salvar/fechar.
       const inputArquivo = document.querySelector(
         'input[type="file"]',
       ) as HTMLInputElement;
       const certificado = new File(["x"], "cert.pdf", { type: "application/pdf" });
       await user.upload(inputArquivo, certificado);
       await screen.findByText("Enviado");
-      await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
+      await user.click(screen.getByRole("button", { name: "Concluir" }));
 
       await waitFor(() => {
         expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
@@ -598,13 +609,15 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
           definindo_status_inicial: true,
         });
       });
+      expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   });
 
-  it("bloqueia 'Vencido' sem validade no client, antes de chamar a API", async () => {
+  it("'Concluir' bloqueia 'Vencido' sem validade, sem chamar a API nem fechar o diálogo", async () => {
+    const onOpenChange = vi.fn();
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     const user = userEvent.setup();
-    renderForm();
+    renderForm(onOpenChange);
 
     await preencherCamposComuns(user);
     await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
@@ -613,12 +626,16 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
-    await user.click(screen.getByRole("button", { name: /^Salvar status e validade/ }));
+    // "Vencido" não exige evidência (STC-524), só validade -- "Concluir"
+    // fica habilitado (a checagem preemptiva não sabe da validade), mas a
+    // validação real dentro de concluir() ainda barra.
+    await user.click(screen.getByRole("button", { name: "Concluir" }));
 
     expect(
       await screen.findByText("Validade obrigatória para status 'Vencido'."),
     ).toBeInTheDocument();
     expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it("reaproveita a regra já cadastrada nesta unidade+tipo e trava os campos (achado do usuário: 2º lote descartava valores digitados)", async () => {
@@ -716,11 +733,13 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     });
   });
 
-  it("Esc não fecha o passo de evidências -- só X ou 'Concluir' (achado no dogfooding)", async () => {
-    // Documentos já foram criados de verdade no passo 1 -- fechar sem
-    // querer (Esc/clique fora) não pode passar a impressão de que também
-    // desfez a criação, diferente do passo 1 (onde cancelar de fato não
-    // cria nada).
+  it("Esc no passo de evidências roda a mesma validação de 'Concluir' -- não fecha com item incompleto (STC-531)", async () => {
+    // Documentos já foram criados de verdade no passo 1. STC-531 (achado
+    // do usuário): as 4 formas de fechar (X, Esc, clique fora, "Concluir")
+    // passam pela MESMA validação/salvamento agora -- Esc não é mais
+    // bloqueado incondicionalmente (onEscapeKeyDown/onInteractOutside
+    // foram removidos), ele só não FECHA de fato enquanto sobrar item sem
+    // status confirmado, igual "Concluir" desabilitado faria.
     vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
@@ -731,10 +750,39 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
     await screen.findByText("Anexar evidências");
 
+    // Nenhum status escolhido ainda -- Esc tenta concluir, falha a
+    // validação, não fecha.
     await user.keyboard("{Escape}");
 
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(screen.getByText("Anexar evidências")).toBeInTheDocument();
+  });
+
+  it("Esc no passo de evidências fecha de verdade quando todo item já está completo (STC-531)", async () => {
+    vi.mocked(criarDocumentosLegalizacaoEmLote).mockResolvedValue([documentoCriado()]);
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documentoCriado());
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    renderForm(onOpenChange);
+
+    await preencherCamposComuns(user);
+    await user.type(screen.getByLabelText(/identificadores/i), "Balança 01");
+    await user.click(screen.getByRole("button", { name: /cadastrar documentos/i }));
+    await screen.findByText("Anexar evidências");
+
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Não iniciado" }));
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(1, {
+      status: "nao_iniciado",
+      validade: null,
+      definindo_status_inicial: true,
+    });
   });
 
   describe("Responsável operacional obrigatório (STC-517)", () => {

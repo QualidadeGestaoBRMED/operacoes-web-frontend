@@ -46,7 +46,6 @@ import type { DocumentoUnidade, StatusDocumento } from "@/types/legalizacao";
 const STATUS_EXIGE_EVIDENCIA = new Set<StatusDocumento>(["regular", "protocolado"]);
 
 type StatusEnvio = "enviando" | "enviado" | "erro";
-type StatusSalvamento = "salvando" | "salvo" | "erro";
 
 // STC-523: antecedência de alerta padronizada em 60 dias pra toda a rede
 // (decisão de negócio, reunião 23/09/2026) -- campo trava nesta constante em
@@ -167,12 +166,10 @@ export function FormCadastrarDocumentosEmLote({
   const [validadePorItem, setValidadePorItem] = useState<Record<number, string>>(
     {},
   );
-  const [statusSalvamento, setStatusSalvamento] = useState<
-    Record<number, StatusSalvamento>
-  >({});
   const [erroSalvamento, setErroSalvamento] = useState<Record<number, string>>(
     {},
   );
+  const [concluindo, setConcluindo] = useState(false);
 
   // Sempre disponíveis, mesmo já tendo instâncias cadastradas antes -- é
   // exatamente o ponto deste formulário (mesmo raciocínio já usado pra
@@ -285,8 +282,8 @@ export function FormCadastrarDocumentosEmLote({
     setStatusEnvio({});
     setStatusPorItem({});
     setValidadePorItem({});
-    setStatusSalvamento({});
     setErroSalvamento({});
+    setConcluindo(false);
     onOpenChange(false);
   }
 
@@ -318,12 +315,15 @@ export function FormCadastrarDocumentosEmLote({
     }
   }
 
-  async function salvarStatusEValidade(documentoId: number) {
+  // STC-531 (achado do usuário): retorna sucesso/falha -- reaproveitada por
+  // concluir() pra salvar todo item de uma vez, não só por um clique
+  // individual (que não existe mais nesta tela).
+  async function salvarStatusEValidade(documentoId: number): Promise<boolean> {
     const status = statusPorItem[documentoId];
     const validade = validadePorItem[documentoId] ?? "";
     if (!status) {
       setErroSalvamento((e) => ({ ...e, [documentoId]: "Selecione o status." }));
-      return;
+      return false;
     }
     // Mesma regra de FormCadastrarDocumento.tsx/DocumentoUnidadeWriteSerializer
     // (backend): "Vencido" sempre exige validade.
@@ -332,17 +332,10 @@ export function FormCadastrarDocumentosEmLote({
         ...e,
         [documentoId]: "Validade obrigatória para status 'Vencido'.",
       }));
-      return;
+      return false;
     }
-    // STC-524 (achado em análise própria de falhas críticas): o bloqueio de
-    // "Concluir" (abaixo, no fim do componente) impede só FECHAR o diálogo
-    // sem evidência -- mas quem de fato grava o status no backend é este
-    // PATCH, não "Concluir". Sem esta checagem aqui, dava pra clicar
-    // "Salvar status e validade" com "Regular"/"Protocolado" escolhido e
-    // nenhuma evidência anexada: o documento já ficava persistido sem
-    // evidência (justo o que esta issue existe pra evitar), e só depois
-    // disso "Concluir" continuava travado -- proteção tarde demais, o dado
-    // ruim já tinha sido salvo.
+    // STC-524: "Regular"/"Protocolado" pressupõem documento em mãos -- só
+    // esses dois exigem evidência antes de persistir o status.
     if (
       STATUS_EXIGE_EVIDENCIA.has(status) &&
       statusEnvio[documentoId] !== "enviado"
@@ -351,10 +344,9 @@ export function FormCadastrarDocumentosEmLote({
         ...e,
         [documentoId]: `Anexe a evidência antes de salvar como "${LABEL_STATUS[status]}".`,
       }));
-      return;
+      return false;
     }
     setErroSalvamento((e) => ({ ...e, [documentoId]: "" }));
-    setStatusSalvamento((s) => ({ ...s, [documentoId]: "salvando" }));
     try {
       // STC-497 (achado do usuário: status escolhido aqui ficava preso em
       // "Não iniciado" mesmo depois de "Salvar"): documento criado em lote
@@ -368,10 +360,35 @@ export function FormCadastrarDocumentosEmLote({
         validade: validade || null,
         definindo_status_inicial: true,
       });
-      setStatusSalvamento((s) => ({ ...s, [documentoId]: "salvo" }));
+      return true;
     } catch (erro) {
-      setStatusSalvamento((s) => ({ ...s, [documentoId]: "erro" }));
-      toast.error(extrairMensagemErro(erro));
+      setErroSalvamento((e) => ({ ...e, [documentoId]: extrairMensagemErro(erro) }));
+      return false;
+    }
+  }
+
+  // STC-531 (achado do usuário: "Salvar" por item era fácil de esquecer,
+  // deixando o status preso em "Não iniciado" mesmo com evidência já
+  // anexada): "Concluir" passa a SER o "salvar tudo" -- roda a mesma
+  // validação/PATCH de salvarStatusEValidade pra cada item de uma vez, e só
+  // fecha o diálogo se todos confirmarem sucesso. Item incompleto (sem
+  // status, ou Regular/Protocolado sem evidência) reprova aqui e mantém o
+  // diálogo aberto, mostrando o erro embaixo do item -- mesma função que já
+  // fazia essa validação, só que agora chamada pra todo mundo de uma vez,
+  // não só quando alguém lembrava de clicar num botão por item.
+  async function concluir() {
+    if (!documentosCriados || concluindo) return;
+    setConcluindo(true);
+    const resultados = await Promise.all(
+      documentosCriados.map((documento) => salvarStatusEValidade(documento.id)),
+    );
+    setConcluindo(false);
+    if (resultados.every(Boolean)) {
+      fechar();
+    } else {
+      toast.error(
+        "Existem itens que não puderam ser salvos -- veja os erros de cada um antes de concluir.",
+      );
     }
   }
 
@@ -387,11 +404,16 @@ export function FormCadastrarDocumentosEmLote({
   }
 
   if (documentosCriados) {
-    // STC-524: bloqueia "Concluir" enquanto sobrar algum item "Regular"/
-    // "Protocolado" sem evidência anexada -- os outros 3 status continuam
-    // liberando normalmente.
-    const algumItemSemAnexoObrigatorio = documentosCriados.some((documento) => {
+    // STC-531 (achado do usuário): "Concluir" passou a ser o "salvar tudo"
+    // -- não dá mais pra sair deste passo com um item sem status escolhido
+    // (nem "Não iniciado" explícito, que é uma opção real do Select).
+    // "Regular"/"Protocolado" continuam exigindo evidência (STC-524), sem
+    // mudança. Trava preemptiva aqui (desabilita o botão) -- a validação de
+    // verdade roda dentro de concluir(), acionada pelas 4 formas de fechar
+    // (ver onOpenChange abaixo), não só por este botão.
+    const algumItemIncompleto = documentosCriados.some((documento) => {
       const statusDoItem = statusPorItem[documento.id] ?? "";
+      if (!statusDoItem) return true;
       return (
         STATUS_EXIGE_EVIDENCIA.has(statusDoItem as StatusDocumento) &&
         statusEnvio[documento.id] !== "enviado"
@@ -399,18 +421,8 @@ export function FormCadastrarDocumentosEmLote({
     });
 
     return (
-      <Dialog open={open} onOpenChange={(valor) => !valor && fechar()}>
-        <DialogContent
-          className="flex max-h-[85vh] max-w-[min(30rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0"
-          // Achado no dogfooding: clicar fora/Esc aqui não "cancela" nada --
-          // os documentos já foram criados de verdade no passo 1. Deixar
-          // fechar sem querer nesse passo passaria a falsa impressão de
-          // que a criação também foi desfeita, igual clicar fora no passo
-          // 1 (esse sim cancela de verdade, antes de qualquer chamada à
-          // API). Só fecha por ação explícita (X ou "Concluir").
-          onInteractOutside={(evento) => evento.preventDefault()}
-          onEscapeKeyDown={(evento) => evento.preventDefault()}
-        >
+      <Dialog open={open} onOpenChange={(valor) => !valor && void concluir()}>
+        <DialogContent className="flex max-h-[85vh] max-w-[min(30rem,calc(100%-2rem))] flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>Anexar evidências</DialogTitle>
           </DialogHeader>
@@ -418,7 +430,10 @@ export function FormCadastrarDocumentosEmLote({
           <div className="scrollbar-discreta flex-1 space-y-3 overflow-y-auto px-6 py-5">
             <p className="text-sm text-muted-foreground">
               Status e validade são por item -- cada equipamento pode ter sua
-              própria data de calibração. Evidência é opcional pros status
+              própria data de calibração. &quot;Concluir&quot; salva o status
+              de todo item de uma vez (mesmo que seja só
+              &quot;Não iniciado&quot;) -- escolha um status pra cada um antes
+              de sair. Evidência é opcional pros status
               &quot;Não iniciado&quot;/&quot;Em andamento&quot;/&quot;Vencido&quot;
               -- dá pra completar depois, um por um, na Matriz de
               Conformidade. Já pra &quot;Regular&quot; e
@@ -453,10 +468,8 @@ export function FormCadastrarDocumentosEmLote({
                   </div>
                   <LinhaStatusValidade
                     documentoId={documento.id}
-                    identificador={documento.profissional}
                     status={statusDoItem}
                     validade={validadePorItem[documento.id] ?? ""}
-                    statusSalvamento={statusSalvamento[documento.id]}
                     erro={erroSalvamento[documento.id]}
                     onStatusChange={(valor) =>
                       setStatusPorItem((s) => ({ ...s, [documento.id]: valor }))
@@ -464,7 +477,6 @@ export function FormCadastrarDocumentosEmLote({
                     onValidadeChange={(valor) =>
                       setValidadePorItem((v) => ({ ...v, [documento.id]: valor }))
                     }
-                    onSalvar={() => void salvarStatusEValidade(documento.id)}
                   />
                   {faltaAnexoObrigatorio && (
                     <p className="text-xs text-destructive">
@@ -478,8 +490,11 @@ export function FormCadastrarDocumentosEmLote({
           </div>
 
           <DialogFooter className="border-t border-border px-6 py-4">
-            <Button onClick={fechar} disabled={algumItemSemAnexoObrigatorio}>
-              Concluir
+            <Button
+              onClick={() => void concluir()}
+              disabled={algumItemIncompleto || concluindo}
+            >
+              {concluindo ? "Concluindo..." : "Concluir"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -805,29 +820,23 @@ function LinhaEvidencia({
 }
 
 // Status/validade não usam react-hook-form (estado local simples, uma
-// linha independente da outra) -- "Salvar" é explícito (diferente da
-// evidência, que envia na hora) porque os dois campos precisam fazer
-// sentido juntos antes de ir pro PATCH (Vencido exige validade).
+// linha independente da outra). STC-531: sem botão "Salvar" próprio --
+// "Concluir" (rodapé do diálogo) salva todo item de uma vez, acionado
+// pelas 4 formas de fechar o diálogo.
 function LinhaStatusValidade({
   documentoId,
-  identificador,
   status,
   validade,
-  statusSalvamento,
   erro,
   onStatusChange,
   onValidadeChange,
-  onSalvar,
 }: {
   documentoId: number;
-  identificador: string;
   status: StatusDocumento | "";
   validade: string;
-  statusSalvamento: StatusSalvamento | undefined;
   erro: string | undefined;
   onStatusChange: (valor: StatusDocumento) => void;
   onValidadeChange: (valor: string) => void;
-  onSalvar: () => void;
 }) {
   return (
     <div className="space-y-1">
@@ -864,20 +873,6 @@ function LinhaStatusValidade({
             onChange={(evento) => onValidadeChange(evento.target.value)}
           />
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={statusSalvamento === "salvando"}
-          aria-label={`Salvar status e validade de ${identificador}`}
-          onClick={onSalvar}
-        >
-          {statusSalvamento === "salvando"
-            ? "Salvando..."
-            : statusSalvamento === "salvo"
-              ? "Salvo"
-              : "Salvar"}
-        </Button>
       </div>
       {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
