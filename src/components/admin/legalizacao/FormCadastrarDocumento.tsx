@@ -54,6 +54,13 @@ import type { StatusDocumento } from "@/types/legalizacao";
 // não estiver disponível.
 const ANTECEDENCIA_PADRAO_DIAS_FALLBACK = 60;
 
+// STC-541: mesma regra/mesmo Set de FormCadastrarDocumentosEmLote.tsx
+// (STC-524) -- "Regular"/"Protocolado" pressupõem documento em mãos, só
+// esses dois exigem evidência antes de cadastrar. Duplicado em vez de
+// exportado de lá, mesmo espírito de STATUS_INICIAIS abaixo: as duas telas
+// evoluem separado.
+const STATUS_EXIGE_EVIDENCIA = new Set<StatusDocumento>(["regular", "protocolado"]);
+
 // Exclui Não aplicável (é o toggle abaixo, não uma opção deste select) e
 // Unidade em encerramento (fora do escopo desta issue -- ação de nível
 // unidade, não de cadastro documento a documento). Inclui Vencido de
@@ -270,6 +277,14 @@ export function FormCadastrarDocumento({
 
   const naoAplicavel = watch("nao_aplicavel");
   const status = watch("status");
+  // STC-541: trava preemptiva do botão -- a validação de verdade roda em
+  // aoSubmeter, antes de criar regra/documento. "Não aplicável" nunca cai
+  // aqui (status vira "nao_aplicavel", fora do Set).
+  const evidenciaObrigatoriaFaltando =
+    !naoAplicavel &&
+    !!status &&
+    STATUS_EXIGE_EVIDENCIA.has(status as StatusDocumento) &&
+    !arquivo;
   const unidadeSelecionada = watch("unidade") as number | undefined;
   const tipoDocumentoSelecionado = watch("tipo_documento") as
     | number
@@ -379,6 +394,12 @@ export function FormCadastrarDocumento({
     // responsável válido pra combinação anterior pode não ser candidato
     // pra nova (outra unidade, ou outro setor de apoio).
     setValue("responsaveis", []);
+    // STC-541 (achado em análise própria de falhas críticas): mesmo motivo
+    // de "profissional" acima -- sem isto, um arquivo anexado antes da
+    // troca sobrevivia silenciosamente e podia acabar enviado pro
+    // documento errado (outro tipo/unidade).
+    setArquivo(null);
+    if (inputArquivoRef.current) inputArquivoRef.current.value = "";
   }
 
   // Extraído do fluxo principal -- também usado quando o usuário clica
@@ -473,6 +494,19 @@ export function FormCadastrarDocumento({
           }),
         });
       } else {
+        // STC-541 (paridade com o lote, STC-524): "Regular"/"Protocolado"
+        // pressupõem documento em mãos -- defesa real, além da trava
+        // preemptiva do botão (evidenciaObrigatoriaFaltando): bloqueia
+        // ANTES de criar regra/documento, não depois.
+        if (
+          STATUS_EXIGE_EVIDENCIA.has(valores.status as StatusDocumento) &&
+          !arquivo
+        ) {
+          toast.error(
+            `Anexe a evidência antes de cadastrar como "${LABEL_STATUS[valores.status as StatusDocumento]}".`,
+          );
+          return;
+        }
         // STC-432: regra é por tipo+unidade, nunca por profissional (prazo/
         // antecedência não variam entre profissionais do mesmo tipo) -- se
         // já existe uma regra de uma linha anterior deste tipo+unidade
@@ -939,7 +973,12 @@ export function FormCadastrarDocumento({
                 </label>
 
                 <div className="space-y-1.5">
-                  <Label>Evidência</Label>
+                  <Label>
+                    Evidência{" "}
+                    {status && STATUS_EXIGE_EVIDENCIA.has(status as StatusDocumento) && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
                   <input
                     ref={inputArquivoRef}
                     type="file"
@@ -978,8 +1017,16 @@ export function FormCadastrarDocumento({
                       className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border-1.5 border-dashed border-border text-[13px] font-medium text-muted-foreground transition-colors hover:border-secondary hover:text-secondary"
                     >
                       <Plus className="size-3.5" />
-                      Anexar evidência (opcional)
+                      {status && STATUS_EXIGE_EVIDENCIA.has(status as StatusDocumento)
+                        ? "Anexar evidência"
+                        : "Anexar evidência (opcional)"}
                     </button>
+                  )}
+                  {evidenciaObrigatoriaFaltando && (
+                    <p className="text-xs text-destructive">
+                      Anexo obrigatório pra status &quot;
+                      {LABEL_STATUS[status as StatusDocumento]}&quot;.
+                    </p>
                   )}
                 </div>
               </>
@@ -994,7 +1041,12 @@ export function FormCadastrarDocumento({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={salvando}>
+            <Button
+              type="submit"
+              disabled={
+                salvando || (!documentoCriado && evidenciaObrigatoriaFaltando)
+              }
+            >
               {salvando
                 ? enviandoArquivo
                   ? "Enviando evidência..."
