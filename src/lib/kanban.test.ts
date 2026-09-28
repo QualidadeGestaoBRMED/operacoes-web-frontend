@@ -131,18 +131,17 @@ describe("mensagemBloqueioConhecido", () => {
     );
   });
 
-  // "Concluir sem revisão" (pedido direto do responsável do projeto): admin
-  // libera em_andamento -> concluido direto, sem aprovador nem justificativa.
+  // "Concluir sem revisão": pula em_revisao direto pra concluido, sem
+  // aprovador nem justificativa -- aberta a qualquer usuário com permissão
+  // de edição na demanda, não só admin (STC-534; era Admin-only antes).
   it("libera em_andamento -> concluido pra admin, sem exigir aprovador/justificativa", () => {
     const demanda = criarDemanda({ status: "em_andamento" });
     expect(mensagemBloqueioConhecido(demanda, "concluido", true, undefined)).toBeNull();
   });
 
-  it("bloqueia em_andamento -> concluido por falta de permissão pra quem não é admin", () => {
+  it("libera em_andamento -> concluido também pra quem não é admin", () => {
     const demanda = criarDemanda({ status: "em_andamento" });
-    expect(mensagemBloqueioConhecido(demanda, "concluido", false, 99)).toBe(
-      "Você não tem permissão para fazer essa transição.",
-    );
+    expect(mensagemBloqueioConhecido(demanda, "concluido", false, 99)).toBeNull();
   });
 
   // Achado em autorevisão: usuarioTemPermissaoParaTransicao (usada por
