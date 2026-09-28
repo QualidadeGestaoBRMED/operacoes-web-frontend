@@ -91,13 +91,8 @@ export function proximosStatusValidos(statusAtual: StatusDemanda): StatusDemanda
 // pode executar. Usado pelo TransicaoStatusSection pra decidir quais
 // status-alvo mostrar pro usuário atual (mesmo padrão de esconder ação sem
 // permissão já usado em AnexoList.tsx, em vez de deixar o backend rejeitar).
-// em_andamento->concluido ("concluir sem revisão", pedido do responsável do
-// projeto): pula em_revisao pros casos sem revisor -- sem aprovador
-// designado nesse caminho, admin é a única autoridade que decide isso (ver
-// comentário equivalente em TRANSICOES_ADMIN_ONLY de backend/demandas/views.py).
 export const TRANSICOES_ADMIN_ONLY = new Set([
   "em_revisao->backlog",
-  "em_andamento->concluido",
   "concluido->em_andamento",
   "concluido->backlog",
 ]);
