@@ -524,6 +524,37 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       });
       expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
     });
+
+    it("remover a evidência já anexada re-trava o botão (achado em análise própria)", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Regular" }));
+
+      const arquivo = new File(["x"], "evidencia.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+
+      const botaoCadastrar = screen.getByRole("button", {
+        name: /cadastrar documento/i,
+      });
+      expect(botaoCadastrar).not.toBeDisabled();
+
+      await user.click(
+        screen.getByRole("button", { name: "Remover evidencia.pdf" }),
+      );
+
+      expect(botaoCadastrar).toBeDisabled();
+      expect(
+        screen.getByText('Anexo obrigatório pra status "Regular".'),
+      ).toBeInTheDocument();
+    });
   });
 
   it("caminho normal: cria a regra, depois o documento com regra_aplicada apontando pra ela", async () => {
