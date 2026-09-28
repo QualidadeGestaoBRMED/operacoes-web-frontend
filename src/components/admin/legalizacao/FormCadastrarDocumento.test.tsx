@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -271,6 +271,38 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     );
   });
 
+  it("trocar de unidade limpa o arquivo de evidência já anexado (achado em análise própria, STC-541)", async () => {
+    const OUTRA_UNIDADE: Unidade = {
+      id: 2,
+      nome: "Vitória",
+      codigo: "VIT",
+      cidade: "Vitória",
+      ativa: true,
+      rede: "padrao",
+    };
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await selecionarUnidadeETipo(user);
+    const arquivo = new File(["x"], "evidencia.pdf", {
+      type: "application/pdf",
+    });
+    const inputArquivo = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(inputArquivo, arquivo);
+    expect(screen.getByText("evidencia.pdf")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Vitória" }));
+
+    expect(screen.queryByText("evidencia.pdf")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /anexar evidência/i }),
+    ).toBeInTheDocument();
+  });
+
   it("rede de segurança: bloqueia no submit se o cadastro mudou entre abrir o formulário e enviar", async () => {
     // 1ª chamada (filtro do select, ao escolher a unidade): nada cadastrado
     // ainda, "Licença Sanitária" aparece normal. 2ª chamada (cheque explícito
@@ -407,6 +439,90 @@ describe("FormCadastrarDocumento (STC-415)", () => {
           validade: "2026-01-01",
         }),
       );
+    });
+  });
+
+  describe("Anexo obrigatório pra status Regular/Protocolado (STC-541, paridade com o lote STC-524)", () => {
+    it("bloqueia 'Cadastrar documento' quando status é 'Regular' sem evidência anexada", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      const botaoCadastrar = screen.getByRole("button", {
+        name: /cadastrar documento/i,
+      });
+
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Regular" }));
+
+      expect(botaoCadastrar).toBeDisabled();
+      expect(
+        screen.getByText('Anexo obrigatório pra status "Regular".'),
+      ).toBeInTheDocument();
+
+      const arquivo = new File(["x"], "evidencia.pdf", {
+        type: "application/pdf",
+      });
+      const inputArquivo = document.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      await user.upload(inputArquivo, arquivo);
+
+      await waitFor(() => {
+        expect(botaoCadastrar).not.toBeDisabled();
+      });
+      expect(
+        screen.queryByText('Anexo obrigatório pra status "Regular".'),
+      ).not.toBeInTheDocument();
+    });
+
+    it("bloqueia 'Protocolado' sem evidência, mas não pros demais status", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      const botaoCadastrar = screen.getByRole("button", {
+        name: /cadastrar documento/i,
+      });
+
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Protocolado" }),
+      );
+      expect(botaoCadastrar).toBeDisabled();
+
+      // Trocar pra um status que não exige documento em mãos libera de novo,
+      // mesmo sem anexo -- comportamento já existente, preservado.
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(
+        await screen.findByRole("option", { name: "Em andamento" }),
+      );
+      expect(botaoCadastrar).not.toBeDisabled();
+    });
+
+    it("botão desabilitado impede persistir 'Regular' sem evidência -- defesa real em aoSubmeter também bloqueia caso o disabled seja contornado", async () => {
+      const user = userEvent.setup();
+      renderForm();
+
+      await selecionarUnidadeETipo(user);
+      await user.click(screen.getByLabelText(/status inicial/i));
+      await user.click(await screen.findByRole("option", { name: "Regular" }));
+      await user.clear(screen.getByLabelText(/início dos alertas/i));
+      await user.type(
+        screen.getByLabelText(/início dos alertas/i),
+        "2026-01-01",
+      );
+
+      const botaoCadastrar = screen.getByRole("button", {
+        name: /cadastrar documento/i,
+      });
+      const formulario = botaoCadastrar.closest("form") as HTMLFormElement;
+      fireEvent.submit(formulario);
+
+      await waitFor(() => {
+        expect(criarRegraDocumento).not.toHaveBeenCalled();
+      });
+      expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
     });
   });
 
