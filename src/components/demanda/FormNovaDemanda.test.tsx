@@ -322,4 +322,48 @@ describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra próp
     ).not.toBeInTheDocument();
   });
 
+  // Achado em code review automático: trocar "Tipo de gestão" no meio do
+  // preenchimento tenta limpar "unidade" (mutuamente exclusivo com "Área
+  // Responsável", handler do Select de tipo de gestão) -- pra Coordenação
+  // de Unidade, isso não pode deixar o campo sem valor até ela reabrir a
+  // única opção sozinha. Hoje este teste passaria mesmo sem o fix (o
+  // `setValue(nome, undefined)` que dispararia o problema é um no-op nesta
+  // versão do react-hook-form, ver STC-539) -- fica como proteção pra não
+  // regredir quando a STC-539 corrigir aquele no-op.
+  it("a trava da Unidade sobrevive a trocar de Tipo de gestão no meio do preenchimento", async () => {
+    const OUTRO_TIPO_UNIDADES: TipoGestao = {
+      ...TIPO_GESTAO_UNIDADES,
+      id: 4,
+      nome: "Outra Gestão de Unidades",
+      codigo: "outra-unidades",
+    };
+    vi.mocked(listarTiposGestao).mockResolvedValue([
+      TIPO_GESTAO_UNIDADES,
+      OUTRO_TIPO_UNIDADES,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 9, unidade_id: OUTRA_UNIDADE.id, perfil: { id: 3, nome: "Unidade", nivel: 3 } },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(
+      await screen.findByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(OUTRA_UNIDADE.nome);
+
+    await user.click(screen.getByLabelText(/tipo de gestão/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Outra Gestão de Unidades" }),
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: /^unidade/i }),
+    ).toHaveTextContent(OUTRA_UNIDADE.nome);
+  });
 });

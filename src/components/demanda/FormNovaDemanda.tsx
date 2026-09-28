@@ -412,7 +412,28 @@ export function FormNovaDemanda({
                         // isso, um valor escolhido antes da troca (pro campo
                         // que já não aparece mais) ficava preso e ia junto
                         // no payload.
-                        setValue("unidade", undefined);
+                        //
+                        // Achado em code review automático (STC-538): o
+                        // efeito que trava "unidade" na própria unidade de
+                        // Coordenação (acima) só reage a mudança de
+                        // `open`/`isCoordenacaoUnidade`/`user?.unidade_id` --
+                        // nenhum dos quais muda só por trocar Tipo de
+                        // gestão, então ele não reaplicaria o valor sozinho
+                        // se este `setValue` chegasse a limpar o campo pra
+                        // Coordenação. Hoje isso não é observável na
+                        // prática -- `setValue(nome, undefined)` é um no-op
+                        // pra este campo Controller-Select nesta versão do
+                        // react-hook-form (STC-539), então o valor nem sai
+                        // do lugar --, mas essa linha reaplica o valor
+                        // travado de qualquer jeito, sem depender do efeito
+                        // rodar de novo, pra não virar regressão quando a
+                        // STC-539 consertar aquele no-op.
+                        setValue(
+                          "unidade",
+                          isCoordenacaoUnidade && user?.unidade_id
+                            ? user.unidade_id
+                            : undefined,
+                        );
                         setValue("area_responsavel", []);
                       }}
                     >
