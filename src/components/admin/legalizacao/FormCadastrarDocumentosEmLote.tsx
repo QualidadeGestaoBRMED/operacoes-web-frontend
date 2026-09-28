@@ -755,9 +755,10 @@ export function FormCadastrarDocumentosEmLote({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cel-antecedencia">Antecedência (dias)</Label>
-                {/* STC-523: padronizado em 60 pra toda a rede (decisão de
-                negócio) -- deixou de ser um input editável. Exceção só via
-                Django Admin, direto no banco. */}
+                {/* STC-523: não é um input editável -- só exibe a sugestão
+                vinda do tipo de documento (STC-536/537, default 60). Edição
+                de verdade só via Django Admin, por tipo de documento, direto
+                no banco. */}
                 <Input
                   id="cel-antecedencia"
                   type="number"
