@@ -39,6 +39,11 @@ npm run test       # vitest run
 npm run test:watch # vitest em modo watch
 ```
 
+## Sessão e erros
+
+* **Renovação da sessão:** quem renova o access do backend é o navegador, não o proxy (`src/lib/renovarSessao.ts`): no 401, uma renovação por vez pela rota `/api/sessao/renovar`, que lê o cookie atual, e a requisição é repetida uma vez antes do `signOut`. Falha passageira (sem rede, 429, 5xx) não desloga; só o refresh recusado pelo backend leva ao login. Detalhes e decisões: STC-611 no `PLANEJAMENTO.md`.
+* **Erro 500:** o backend responde `{"detail": "Erro interno. Código de rastreio: <id>"}`, e a tela mostra essa mensagem como veio. O código é o `request_id` do log do backend: filtrar por ele no Render mostra as linhas daquela requisição, inclusive o traceback.
+
 ## Documentação
 
 - [`PLANEJAMENTO.md`](PLANEJAMENTO.md) — planejamento técnico detalhado do módulo Gestão de Demandas, pacote por pacote, com o estado real de cada issue.
