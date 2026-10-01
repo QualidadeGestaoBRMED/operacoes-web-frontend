@@ -1,10 +1,12 @@
 import NextAuth from "next-auth";
-import type { Session } from "next-auth";
+import type { Account, Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { construirCsp, gerarNonce } from "@/lib/csp";
+import { tokenComAccessValido } from "@/lib/renovarTokenBackend";
 import type { Usuario } from "@/types";
 
 async function trocarTokenComBackend(idToken: string) {
@@ -91,6 +93,35 @@ export function autorizado({
   return resposta;
 }
 
+// Extraído pelo mesmo motivo de autorizado(): testar sem montar o NextAuth.
+export async function callbackJwt({ token, account }: { token: JWT; account?: Account | null }) {
+  if (account?.id_token) {
+    try {
+      const dados = await trocarTokenComBackend(account.id_token);
+      token.backendAccessToken = dados.access;
+      token.backendRefreshToken = dados.refresh;
+      token.backendUser = dados.user;
+      delete token.error;
+      delete token.backendRefreshRecusado;
+    } catch (erro) {
+      // Sem isso, timeout/conexão recusada/500 do backend/corpo inválido
+      // caem todos no mesmo "BackendAuthError" genérico sem nenhum
+      // rastro -- impossível diferenciar uma falha transitória de um
+      // problema real sem ver o motivo real no terminal do dev server.
+      console.error("Falha ao trocar token com o backend:", erro);
+      token.error = "BackendAuthError";
+    }
+    return token;
+  }
+  // Este callback roda no /api/auth/session e no middleware, e os dois
+  // regravam o cookie de sessão a partir do token devolvido aqui. Com o
+  // access vencido, renova antes -- senão uma resposta gerada com o
+  // cookie de antes de uma renovação, chegando depois dela, regravaria o
+  // refresh já rotacionado. A renovação do dia a dia (401 de uma chamada
+  // ao backend) é do navegador: src/lib/renovarSessao.ts.
+  return tokenComAccessValido(token);
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
@@ -110,31 +141,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (profile.hd && profile.hd !== "grupobrmed.com.br") return false;
       return true;
     },
-    async jwt({ token, account }) {
-      if (account?.id_token) {
-        try {
-          const dados = await trocarTokenComBackend(account.id_token);
-          token.backendAccessToken = dados.access;
-          // Renovação de verdade acontece no proxy BFF (route.ts, STC-208) --
-          // é o único ponto por onde 100% das chamadas ao backend passam.
-          // Este callback jwt não roda pra requisições de /api/backend/...
-          // (getToken() ali é standalone, não dispara callback; e o
-          // middleware, que dispara, exclui /api do matcher). Só guarda o
-          // refresh aqui pra ele existir no cookie.
-          token.backendRefreshToken = dados.refresh;
-          token.backendUser = dados.user;
-          delete token.error;
-        } catch (erro) {
-          // Sem isso, timeout/conexão recusada/500 do backend/corpo inválido
-          // caem todos no mesmo "BackendAuthError" genérico sem nenhum
-          // rastro -- impossível diferenciar uma falha transitória de um
-          // problema real sem ver o motivo real no terminal do dev server.
-          console.error("Falha ao trocar token com o backend:", erro);
-          token.error = "BackendAuthError";
-        }
-      }
-      return token;
-    },
+    jwt: callbackJwt,
     async session({ session, token }) {
       session.error = token.error;
       if (token.backendUser) {
