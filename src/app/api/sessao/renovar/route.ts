@@ -18,6 +18,8 @@ import {
 // 200: renovado, cookie regravado. 503 + Retry-After: outra renovação do
 // mesmo refresh ainda está em andamento no backend, tentar de novo. 401:
 // sessão inválida de verdade (refresh expirado, revogado, conta desativada).
+// 502: não deu pra renovar agora (backend fora do ar, throttle) -- a sessão
+// pode estar boa, o navegador não desloga.
 const ACCESS_JA_RENOVADO_SEGUNDOS = 60;
 
 export async function POST(request: NextRequest) {
@@ -47,6 +49,12 @@ export async function POST(request: NextRequest) {
   }
   if (resultado.tipo === "recusado") {
     return NextResponse.json({ detail: "Sessão expirada." }, { status: 401 });
+  }
+  if (resultado.tipo === "indisponivel") {
+    return NextResponse.json(
+      { detail: "Não foi possível renovar a sessão agora." },
+      { status: 502 },
+    );
   }
 
   const resposta = NextResponse.json({ ok: true });

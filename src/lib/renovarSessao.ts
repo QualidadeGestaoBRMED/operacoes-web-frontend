@@ -15,7 +15,13 @@ const ROTA_RENOVACAO = "/api/sessao/renovar";
 const TENTATIVAS_MAXIMAS = 3;
 const ESPERA_MAXIMA_RETRY_AFTER_MS = 5_000;
 
-let renovacaoEmAndamento: Promise<boolean> | null = null;
+// "invalida": a rota respondeu 401, o refresh não vale mais -- leva ao login.
+// "indisponivel": não deu pra renovar agora (sem rede, backend fora do ar,
+// 503 que não passou) -- a sessão pode estar boa, então a requisição falha
+// sem deslogar e a próxima tentativa (ex.: revalidação do SWR) renova de novo.
+export type ResultadoRenovacaoSessao = "renovada" | "invalida" | "indisponivel";
+
+let renovacaoEmAndamento: Promise<ResultadoRenovacaoSessao> | null = null;
 let ultimaRenovacaoConcluidaEm = 0;
 let sessaoEncerrada = false;
 
@@ -29,32 +35,32 @@ function msDoRetryAfter(resposta: Response) {
   return Math.min(ms, ESPERA_MAXIMA_RETRY_AFTER_MS);
 }
 
-async function tentarRenovar(): Promise<boolean> {
+async function tentarRenovar(): Promise<ResultadoRenovacaoSessao> {
   for (let tentativa = 1; tentativa <= TENTATIVAS_MAXIMAS; tentativa++) {
     let resposta: Response;
     try {
       resposta = await fetch(ROTA_RENOVACAO, { method: "POST" });
     } catch {
-      return false;
+      return "indisponivel";
     }
-    if (resposta.ok) return true;
-    if (resposta.status !== 503 || tentativa === TENTATIVAS_MAXIMAS) return false;
+    if (resposta.ok) return "renovada";
+    if (resposta.status === 401) return "invalida";
+    if (resposta.status !== 503 || tentativa === TENTATIVAS_MAXIMAS) return "indisponivel";
     await esperar(msDoRetryAfter(resposta));
   }
-  return false;
+  return "indisponivel";
 }
 
 /**
  * Renova a sessão. Uma renovação por vez nesta aba: chamadas concorrentes
- * (várias requisições recebendo 401 juntas) esperam a mesma. Devolve se a
- * sessão foi renovada.
+ * (várias requisições recebendo 401 juntas) esperam a mesma.
  */
-export function renovarSessao(): Promise<boolean> {
+export function renovarSessao(): Promise<ResultadoRenovacaoSessao> {
   if (renovacaoEmAndamento) return renovacaoEmAndamento;
   renovacaoEmAndamento = tentarRenovar()
-    .then((renovada) => {
-      if (renovada) ultimaRenovacaoConcluidaEm = Date.now();
-      return renovada;
+    .then((resultado) => {
+      if (resultado === "renovada") ultimaRenovacaoConcluidaEm = Date.now();
+      return resultado;
     })
     .finally(() => {
       renovacaoEmAndamento = null;
@@ -93,6 +99,7 @@ export function encerrarSessao() {
 /**
  * fetch() para rotas same-origin que devolvem 401 com a sessão expirada
  * (ex.: /api/media/...): renova e repete uma vez antes de levar ao login.
+ * Se não deu pra renovar agora, devolve o 401 original sem deslogar.
  * Para as chamadas do Axios, o mesmo fluxo mora no interceptor de api.ts.
  */
 export async function fetchComRenovacao(...argumentos: Parameters<typeof fetch>) {
@@ -103,7 +110,9 @@ export async function fetchComRenovacao(...argumentos: Parameters<typeof fetch>)
     const repetida = await fetch(...argumentos);
     if (repetida.status !== 401) return repetida;
   }
-  if (await renovarSessao()) {
+  const renovacao = await renovarSessao();
+  if (renovacao === "indisponivel") return resposta;
+  if (renovacao === "renovada") {
     const repetida = await fetch(...argumentos);
     if (repetida.status !== 401) return repetida;
   }

@@ -88,6 +88,32 @@ describe("interceptor de 401 do api.ts (STC-611)", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
+  it("renovação indisponível (sem rede, backend fora do ar) rejeita a requisição sem deslogar", async () => {
+    const { api, adapter } = await carregar([401]);
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(api.get("/plataforma/modulos/")).rejects.toMatchObject({
+      response: { status: 401 },
+    });
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("503 da renovação que não passa rejeita a requisição sem deslogar", async () => {
+    vi.useFakeTimers();
+    const { api } = await carregar([401]);
+    fetchMock.mockResolvedValue(new Response(null, { status: 503, headers: { "Retry-After": "1" } }));
+
+    const chamada = api.get("/plataforma/modulos/");
+    const verificacao = expect(chamada).rejects.toBeDefined();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await verificacao;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(signOut).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it("erro que não é 401 não renova nem desloga", async () => {
     const { api } = await carregar([500]);
 

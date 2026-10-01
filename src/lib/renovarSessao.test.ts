@@ -28,11 +28,11 @@ afterEach(() => {
 });
 
 describe("renovarSessao (STC-611)", () => {
-  it("renova pela rota de sessão e devolve true", async () => {
+  it("renova pela rota de sessão", async () => {
     const { renovarSessao } = await carregar();
     fetchMock.mockResolvedValue(resposta(200));
 
-    await expect(renovarSessao()).resolves.toBe(true);
+    await expect(renovarSessao()).resolves.toBe("renovada");
     expect(fetchMock).toHaveBeenCalledWith("/api/sessao/renovar", { method: "POST" });
   });
 
@@ -44,7 +44,7 @@ describe("renovarSessao (STC-611)", () => {
     const chamadas = [renovarSessao(), renovarSessao(), renovarSessao()];
     concluir(resposta(200));
 
-    await expect(Promise.all(chamadas)).resolves.toEqual([true, true, true]);
+    await expect(Promise.all(chamadas)).resolves.toEqual(["renovada", "renovada", "renovada"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -60,11 +60,11 @@ describe("renovarSessao (STC-611)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
 
-    await expect(renovacao).resolves.toBe(true);
+    await expect(renovacao).resolves.toBe("renovada");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("desiste depois de 3 respostas 503 seguidas", async () => {
+  it("desiste depois de 3 respostas 503 seguidas, como indisponível (não sessão inválida)", async () => {
     vi.useFakeTimers();
     const { renovarSessao } = await carregar();
     fetchMock.mockResolvedValue(resposta(503, { "Retry-After": "1" }));
@@ -72,7 +72,7 @@ describe("renovarSessao (STC-611)", () => {
     const renovacao = renovarSessao();
     await vi.advanceTimersByTimeAsync(5_000);
 
-    await expect(renovacao).resolves.toBe(false);
+    await expect(renovacao).resolves.toBe("indisponivel");
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -80,15 +80,23 @@ describe("renovarSessao (STC-611)", () => {
     const { renovarSessao } = await carregar();
     fetchMock.mockResolvedValue(resposta(401));
 
-    await expect(renovarSessao()).resolves.toBe(false);
+    await expect(renovarSessao()).resolves.toBe("invalida");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("falha de rede devolve false", async () => {
+  it("falha de rede é indisponível, não sessão inválida", async () => {
     const { renovarSessao } = await carregar();
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    await expect(renovarSessao()).resolves.toBe(false);
+    await expect(renovarSessao()).resolves.toBe("indisponivel");
+  });
+
+  it("502 da rota (backend fora do ar, throttle) é indisponível e não tenta de novo", async () => {
+    const { renovarSessao } = await carregar();
+    fetchMock.mockResolvedValue(resposta(502));
+
+    await expect(renovarSessao()).resolves.toBe("indisponivel");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("depois de terminar, uma chamada nova faz outra renovação", async () => {
@@ -165,6 +173,35 @@ describe("fetchComRenovacao (STC-611)", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("sem rede na renovação devolve o 401 original sem levar ao login", async () => {
+    const { fetchComRenovacao } = await carregar();
+    fetchMock
+      .mockResolvedValueOnce(resposta(401))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const r = await fetchComRenovacao("/api/media/evidencia-vigente?documento=1");
+
+    expect(r.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("depois de uma renovação indisponível, a próxima tentativa renova normalmente", async () => {
+    const { fetchComRenovacao } = await carregar();
+    fetchMock
+      .mockResolvedValueOnce(resposta(401))
+      .mockResolvedValueOnce(resposta(502))
+      .mockResolvedValueOnce(resposta(401))
+      .mockResolvedValueOnce(resposta(200))
+      .mockResolvedValueOnce(resposta(200));
+
+    await fetchComRenovacao("/api/media/evidencia-vigente?documento=1");
+    const r = await fetchComRenovacao("/api/media/evidencia-vigente?documento=1");
+
+    expect(r.status).toBe(200);
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
 

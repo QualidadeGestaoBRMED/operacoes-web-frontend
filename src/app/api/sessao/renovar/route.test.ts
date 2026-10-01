@@ -97,10 +97,31 @@ describe("POST /api/sessao/renovar (STC-611)", () => {
     expect(resposta.headers.get("set-cookie")).toBeNull();
   });
 
-  it("backend fora do ar devolve 401", async () => {
+  it("backend fora do ar devolve 502, não 401 (a sessão pode estar boa)", async () => {
     const { POST } = await carregar();
     vi.mocked(obterTokenBackend).mockResolvedValue({ backendRefreshToken: "refresh" } as never);
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+    const resposta = await POST(requisicao());
+
+    expect(resposta.status).toBe(502);
+    expect(resposta.headers.get("set-cookie")).toBeNull();
+  });
+
+  it.each([429, 500, 502])("%i do backend devolve 502", async (status) => {
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({ backendRefreshToken: "refresh" } as never);
+    fetchMock.mockResolvedValue(new Response(null, { status }));
+
+    const resposta = await POST(requisicao());
+
+    expect(resposta.status).toBe(502);
+  });
+
+  it("400 do backend (refresh malformado) conta como recusado: 401", async () => {
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({ backendRefreshToken: "refresh" } as never);
+    fetchMock.mockResolvedValue(new Response(null, { status: 400 }));
 
     const resposta = await POST(requisicao());
 

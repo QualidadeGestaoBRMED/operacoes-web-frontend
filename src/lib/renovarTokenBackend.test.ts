@@ -94,6 +94,15 @@ describe("tokenComAccessValido, usado pelo callback jwt (STC-611)", () => {
     expect(await tokenComAccessValido(token)).toBe(token);
   });
 
+  it("backend indisponível: devolve o token como veio, sem lançar", async () => {
+    const { tokenComAccessValido } = await carregar();
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    const token = { backendAccessToken: jwtComExp(agoraSegundos() - 60), backendRefreshToken: "r" };
+
+    expect(await tokenComAccessValido(token)).toBe(token);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("sem refresh no token: não chama o backend", async () => {
     const { tokenComAccessValido } = await carregar();
     const token = { backendAccessToken: jwtComExp(agoraSegundos() - 60) };
