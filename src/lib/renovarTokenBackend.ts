@@ -116,7 +116,11 @@ export function accessValidoPorMaisDe(
   return exp !== null && exp > agora + segundos * 1000;
 }
 
-type TokenDaSessao = { backendAccessToken?: unknown; backendRefreshToken?: unknown };
+type TokenDaSessao = {
+  backendAccessToken?: unknown;
+  backendRefreshToken?: unknown;
+  backendRefreshRecusado?: boolean;
+};
 
 /**
  * Usado pelo callback jwt do NextAuth (src/auth.ts), que roda no
@@ -131,10 +135,18 @@ type TokenDaSessao = { backendAccessToken?: unknown; backendRefreshToken?: unkno
  * na janela do backend e recebe o mesmo par.
  *
  * Nunca lança: se a renovação não der certo, devolve o token como veio, e o
- * fluxo do navegador (src/lib/renovarSessao.ts) cuida do 401.
+ * fluxo do navegador (src/lib/renovarSessao.ts) cuida do 401. Refresh
+ * recusado pelo backend fica marcado no token: sem isso, cada /session e cada
+ * navegação até o signOut reenviaria o mesmo refresh morto, gastando o
+ * throttle do /refresh/ -- e um 429 na renovação do navegador conta como
+ * indisponível, segurando a pessoa numa sessão morta em vez de ir pro login.
  */
 export async function tokenComAccessValido<T extends TokenDaSessao>(token: T): Promise<T> {
-  if (typeof token.backendRefreshToken !== "string" || !accessExpirado(token.backendAccessToken)) {
+  if (
+    typeof token.backendRefreshToken !== "string" ||
+    token.backendRefreshRecusado ||
+    !accessExpirado(token.backendAccessToken)
+  ) {
     return token;
   }
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
@@ -146,6 +158,7 @@ export async function tokenComAccessValido<T extends TokenDaSessao>(token: T): P
         backendRefreshToken: resultado.tokens.refresh,
       };
     }
+    if (resultado.tipo === "recusado") return { ...token, backendRefreshRecusado: true };
     if (resultado.tipo !== "em_andamento" || tentativa === 2) return token;
     await new Promise((resolver) =>
       setTimeout(

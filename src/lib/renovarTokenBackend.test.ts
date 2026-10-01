@@ -86,12 +86,24 @@ describe("tokenComAccessValido, usado pelo callback jwt (STC-611)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("renovação recusada: devolve o token como veio, sem lançar", async () => {
+  it("renovação recusada: marca o refresh como recusado, sem lançar", async () => {
     const { tokenComAccessValido } = await carregar();
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
     const token = { backendAccessToken: jwtComExp(agoraSegundos() - 60), backendRefreshToken: "r" };
 
+    expect(await tokenComAccessValido(token)).toEqual({ ...token, backendRefreshRecusado: true });
+  });
+
+  it("refresh já recusado não é reenviado ao backend", async () => {
+    const { tokenComAccessValido } = await carregar();
+    const token = {
+      backendAccessToken: jwtComExp(agoraSegundos() - 60),
+      backendRefreshToken: "r",
+      backendRefreshRecusado: true,
+    };
+
     expect(await tokenComAccessValido(token)).toBe(token);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("backend indisponível: devolve o token como veio, sem lançar", async () => {

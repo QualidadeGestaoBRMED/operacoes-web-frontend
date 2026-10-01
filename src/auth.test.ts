@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
-import { autorizado } from "./auth";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { autorizado, callbackJwt } from "./auth";
 
 // Achado no code review do Tech Lead (STC-239): script-src usava
 // 'unsafe-inline' -- migrado pra nonce, gerado dentro de authorized()
@@ -89,5 +89,53 @@ describe("autorizado", () => {
     expect(destino.pathname).toBe("/login");
     expect(destino.searchParams.get("error")).toBe("BackendAuthError");
     expect(resposta.headers.get("set-cookie")).toContain("authjs.session-token=;");
+  });
+});
+
+describe("callbackJwt (STC-611)", () => {
+  function accessComValidade(segundos: number) {
+    const exp = Math.floor(Date.now() / 1000) + segundos;
+    return `cabecalho.${btoa(JSON.stringify({ exp })).replace(/=+$/, "")}.assinatura`;
+  }
+
+  const fetchMock = vi.fn();
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("access vencido: renova e devolve o par novo, pra regravar o cookie já convergido", async () => {
+    fetchMock.mockResolvedValue(Response.json({ access: "access-novo", refresh: "refresh-novo" }));
+
+    const token = await callbackJwt({
+      token: { backendAccessToken: accessComValidade(-60), backendRefreshToken: "refresh-antigo" },
+    });
+
+    expect(token).toMatchObject({
+      backendAccessToken: "access-novo",
+      backendRefreshToken: "refresh-novo",
+    });
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/auth\/refresh\/$/);
+  });
+
+  it("access válido: devolve o token sem chamar o backend", async () => {
+    const original = { backendAccessToken: accessComValidade(3600), backendRefreshToken: "r" };
+
+    expect(await callbackJwt({ token: original })).toBe(original);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("login novo limpa a marca de refresh recusado", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ access: "a", refresh: "r", user: { id: 1, email: "x@grupobrmed.com.br" } }),
+    );
+
+    const token = await callbackJwt({
+      token: { backendRefreshToken: "morto", backendRefreshRecusado: true },
+      account: { id_token: "id-token-google" } as never,
+    });
+
+    expect(token.backendRefreshRecusado).toBeUndefined();
+    expect(token.backendRefreshToken).toBe("r");
   });
 });

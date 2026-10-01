@@ -37,6 +37,19 @@ describe("POST /api/sessao/renovar (STC-611)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("refresh já recusado (marcado pelo callback jwt) devolve 401 sem chamar o backend", async () => {
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({
+      backendRefreshToken: "refresh-morto",
+      backendRefreshRecusado: true,
+    } as never);
+
+    const resposta = await POST(requisicao());
+
+    expect(resposta.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("renova com o refresh do cookie atual e regrava o cookie de sessão", async () => {
     const { POST } = await carregar();
     vi.mocked(obterTokenBackend).mockResolvedValue({

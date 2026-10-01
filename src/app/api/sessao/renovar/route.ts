@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
   if (!token?.backendRefreshToken) {
     return NextResponse.json({ detail: "Sem sessão." }, { status: 401 });
   }
+  // O callback jwt já viu o backend recusar esse refresh: nem reenvia.
+  if (token.backendRefreshRecusado) {
+    return NextResponse.json({ detail: "Sessão expirada." }, { status: 401 });
+  }
 
   // O cookie que chegou aqui já tem um access válido: alguém (outra renovação,
   // o /session do NextAuth) renovou depois que a requisição que deu 401 saiu.

@@ -15,10 +15,13 @@ declare module "@auth/core/types" {
 declare module "@auth/core/jwt" {
   interface JWT {
     backendAccessToken?: string;
-    // Usado só pelo proxy BFF (route.ts) pra renovar o access token sozinho
-    // quando ele expira -- STC-208. Nunca chega no client (mesmo motivo do
+    // Usado só server-side pra renovar o access (rota /api/sessao/renovar e
+    // callback jwt). Nunca chega no client (mesmo motivo do
     // backendAccessToken não entrar em Session acima).
     backendRefreshToken?: string;
+    // O backend já recusou esse refresh: ninguém o reenvia (ver
+    // tokenComAccessValido em src/lib/renovarTokenBackend.ts).
+    backendRefreshRecusado?: boolean;
     backendUser?: Usuario;
     error?: "BackendAuthError";
   }
