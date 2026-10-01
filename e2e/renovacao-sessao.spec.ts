@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
@@ -109,6 +109,48 @@ print(BlacklistedToken.objects.filter(token__jti="${jti}").exists())
   );
 }
 
+/** Simula outra requisição renovando este refresh devagar: segura a trava
+ * da janela de tolerância do backend, espera `segundos` e só então rotaciona
+ * e guarda o par -- como uma renovação lenta de verdade. Resolve quando a
+ * trava já está presa; `terminou` resolve quando a renovação acaba. */
+function renovacaoLentaDeOutraRequisicao(refresh: string, segundos: number) {
+  const jti = jtiDe(refresh);
+  const processo = spawn(
+    PYTHON,
+    [
+      "manage.py",
+      "shell",
+      "--settings=core.settings.e2e",
+      "-c",
+      `
+import time
+from django.core.cache import cache
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from accounts import janela_refresh
+trava = "refresh-janela-trava:${jti}"
+cache.add(trava, 1, 30)
+print("trava-presa", flush=True)
+time.sleep(${segundos})
+serializer = TokenRefreshSerializer(data={"refresh": "${refresh}"})
+serializer.is_valid(raise_exception=True)
+janela_refresh.guardar("${jti}", serializer.validated_data)
+cache.delete(trava)
+`,
+    ],
+    { cwd: BACKEND_DIR },
+  );
+  const terminou = new Promise<void>((resolver, rejeitar) =>
+    processo.on("exit", (codigo) =>
+      codigo === 0 ? resolver() : rejeitar(new Error(`renovação lenta saiu com ${codigo}`)),
+    ),
+  );
+  return new Promise<{ terminou: Promise<void> }>((resolver) =>
+    processo.stdout.on("data", (dados) => {
+      if (String(dados).includes("trava-presa")) resolver({ terminou });
+    }),
+  );
+}
+
 /** Simula a aba ficando escondida ou voltando a ter foco. Com a aba
  * escondida o SWR pausa o polling; ao voltar, revalida tudo de uma vez. */
 async function visibilidade(page: Page, estado: "hidden" | "visible") {
@@ -207,30 +249,25 @@ test("sessão inválida de verdade leva ao login, com um único signOut", async 
   expect(signOuts).toHaveLength(1);
 });
 
-test("503 do backend (renovação em andamento) não desloga: tenta de novo depois do Retry-After", async ({
+test("renovação concorrente lenta (503 no backend enquanto espera) não desloga", async ({
   context,
   page,
 }) => {
   test.setTimeout(60_000);
   const { refresh } = await abrirSessao(context, { accessTtlSegundos: -60 });
-  // Outra renovação "em andamento" segurando a trava deste refresh por 7s:
-  // o backend espera até o teto (5s) e responde 503; o navegador espera o
-  // Retry-After e tenta de novo; quando a trava expira, a renovação passa.
-  shellDjango(`
-from django.core.cache import cache
-print(cache.add("refresh-janela-trava:${jtiDe(refresh)}", 1, 7))
-`);
-  const statusDaRenovacao: number[] = [];
-  page.on("response", (r) => {
-    if (r.url().includes("/api/sessao/renovar")) statusDaRenovacao.push(r.status());
-  });
+  // Outra requisição segura a trava deste refresh e só termina a renovação
+  // 6s depois. Quem chega enquanto isso espera até o teto do backend (5s),
+  // recebe 503 e tenta de novo depois do Retry-After -- e então encontra o
+  // par que a outra guardou.
+  const outra = await renovacaoLentaDeOutraRequisicao(refresh, 6);
   const signOuts = contarSignOut(page);
 
   await page.goto(PAGINA);
   await esperarTelaLogada(page);
-  await expect.poll(() => statusDaRenovacao, { timeout: 30_000 }).toContain(200);
+  await outra.terminou;
+  await page.waitForTimeout(4_000);
 
-  expect(statusDaRenovacao).toContain(503);
+  await esperarTelaLogada(page);
   expect(signOuts).toHaveLength(0);
   expect(new URL(page.url()).pathname).toBe(PAGINA);
   expect(await refreshDoCookieAindaVale(context)).toBe(true);
