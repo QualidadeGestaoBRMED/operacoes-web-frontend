@@ -122,3 +122,41 @@ describe("POST /api/sessao/renovar (STC-611)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("POST /api/sessao/renovar com o cookie já renovado (STC-611)", () => {
+  function accessComValidade(segundos: number) {
+    const exp = Math.floor(Date.now() / 1000) + segundos;
+    const payload = btoa(JSON.stringify({ exp })).replace(/=+$/, "");
+    return `cabecalho.${payload}.assinatura`;
+  }
+
+  it("access do cookie ainda válido: 200 sem rotacionar o refresh nem mexer no cookie", async () => {
+    // Outra renovação (ou o /session) já trocou o cookie depois que a
+    // requisição que deu 401 saiu. Rotacionar de novo revogaria um par válido.
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({
+      backendAccessToken: accessComValidade(3600),
+      backendRefreshToken: "refresh-ja-novo",
+    } as never);
+
+    const resposta = await POST(requisicao());
+
+    expect(resposta.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(resposta.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("access vencendo em menos de 60s: renova", async () => {
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({
+      backendAccessToken: accessComValidade(30),
+      backendRefreshToken: "refresh",
+    } as never);
+    fetchMock.mockResolvedValue(Response.json({ access: "a", refresh: "r" }));
+
+    const resposta = await POST(requisicao());
+
+    expect(resposta.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

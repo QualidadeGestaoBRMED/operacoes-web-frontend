@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { construirCsp, gerarNonce } from "@/lib/csp";
+import { tokenComAccessValido } from "@/lib/renovarTokenBackend";
 import type { Usuario } from "@/types";
 
 async function trocarTokenComBackend(idToken: string) {
@@ -115,12 +116,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dados = await trocarTokenComBackend(account.id_token);
           token.backendAccessToken = dados.access;
-          // Renovação de verdade acontece no proxy BFF (route.ts, STC-208) --
-          // é o único ponto por onde 100% das chamadas ao backend passam.
-          // Este callback jwt não roda pra requisições de /api/backend/...
-          // (getToken() ali é standalone, não dispara callback; e o
-          // middleware, que dispara, exclui /api do matcher). Só guarda o
-          // refresh aqui pra ele existir no cookie.
           token.backendRefreshToken = dados.refresh;
           token.backendUser = dados.user;
           delete token.error;
@@ -132,8 +127,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("Falha ao trocar token com o backend:", erro);
           token.error = "BackendAuthError";
         }
+        return token;
       }
-      return token;
+      // Este callback roda no /api/auth/session e no middleware, e os dois
+      // regravam o cookie de sessão a partir do token devolvido aqui. Com o
+      // access vencido, renova antes -- senão uma resposta gerada com o
+      // cookie de antes de uma renovação, chegando depois dela, regravaria o
+      // refresh já rotacionado. A renovação do dia a dia (401 de uma chamada
+      // ao backend) é do navegador: src/lib/renovarSessao.ts.
+      return tokenComAccessValido(token);
     },
     async session({ session, token }) {
       session.error = token.error;

@@ -16,6 +16,7 @@ const TENTATIVAS_MAXIMAS = 3;
 const ESPERA_MAXIMA_RETRY_AFTER_MS = 5_000;
 
 let renovacaoEmAndamento: Promise<boolean> | null = null;
+let ultimaRenovacaoConcluidaEm = 0;
 let sessaoEncerrada = false;
 
 function esperar(ms: number) {
@@ -50,21 +51,43 @@ async function tentarRenovar(): Promise<boolean> {
  */
 export function renovarSessao(): Promise<boolean> {
   if (renovacaoEmAndamento) return renovacaoEmAndamento;
-  renovacaoEmAndamento = tentarRenovar().finally(() => {
-    renovacaoEmAndamento = null;
-  });
+  renovacaoEmAndamento = tentarRenovar()
+    .then((renovada) => {
+      if (renovada) ultimaRenovacaoConcluidaEm = Date.now();
+      return renovada;
+    })
+    .finally(() => {
+      renovacaoEmAndamento = null;
+    });
   return renovacaoEmAndamento;
+}
+
+/**
+ * Uma requisição que saiu ANTES da última renovação terminar levou o cookie
+ * antigo: o 401 dela já está resolvido, basta repetir -- renovar de novo
+ * faria uma rotação a mais do refresh, que só gasta o limite de renovações
+ * do backend. Uma que saiu depois e mesmo assim levou 401 é caso novo.
+ */
+export function renovacaoJaCobre(enviadaEm: number) {
+  // <= e não <: no mesmo milissegundo não dá pra saber a ordem. Repetir sem
+  // renovar é o lado seguro -- se a repetida voltar 401, ela segue para a
+  // renovação normal no próximo passo.
+  return ultimaRenovacaoConcluidaEm > 0 && enviadaEm <= ultimaRenovacaoConcluidaEm;
 }
 
 /**
  * Leva ao login quando a sessão é inválida de verdade. Uma vez só: numa
  * rajada, várias requisições concluem isso ao mesmo tempo, e cada signOut()
- * é uma ida ao servidor e um redirecionamento.
+ * é uma ida ao servidor e um redirecionamento. Se o signOut() falhar (ex.:
+ * rede), libera de novo -- senão a sessão inválida nunca mais levaria ao
+ * login até recarregar a página.
  */
 export function encerrarSessao() {
   if (sessaoEncerrada) return;
   sessaoEncerrada = true;
-  void signOut({ redirectTo: "/login" });
+  signOut({ redirectTo: "/login" }).catch(() => {
+    sessaoEncerrada = false;
+  });
 }
 
 /**
@@ -73,8 +96,13 @@ export function encerrarSessao() {
  * Para as chamadas do Axios, o mesmo fluxo mora no interceptor de api.ts.
  */
 export async function fetchComRenovacao(...argumentos: Parameters<typeof fetch>) {
+  const enviadaEm = Date.now();
   const resposta = await fetch(...argumentos);
   if (resposta.status !== 401) return resposta;
+  if (renovacaoJaCobre(enviadaEm)) {
+    const repetida = await fetch(...argumentos);
+    if (repetida.status !== 401) return repetida;
+  }
   if (await renovarSessao()) {
     const repetida = await fetch(...argumentos);
     if (repetida.status !== 401) return repetida;

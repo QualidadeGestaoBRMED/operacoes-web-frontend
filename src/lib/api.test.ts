@@ -26,7 +26,8 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.mocked(signOut).mockReset();
+  // signOut() de verdade devolve uma Promise (encerrarSessao usa o .catch).
+  vi.mocked(signOut).mockReset().mockResolvedValue(undefined as never);
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
@@ -92,6 +93,36 @@ describe("interceptor de 401 do api.ts (STC-611)", () => {
 
     await expect(api.get("/plataforma/modulos/")).rejects.toBeDefined();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("renovação extra evitada no interceptor (STC-611)", () => {
+  it("401 de requisição que saiu antes da renovação terminar só repete, sem nova renovação", async () => {
+    vi.resetModules();
+    const { default: api } = await import("./api");
+    const { renovarSessao } = await import("./renovarSessao");
+    let liberarPrimeira!: () => void;
+    const respostas = [401, 200];
+    let chamada = 0;
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      if (chamada++ === 0) await new Promise<void>((r) => (liberarPrimeira = r));
+      const status = respostas.shift()!;
+      const resposta = { data: {}, status, statusText: "", headers: {}, config };
+      if (status >= 400) throw new AxiosError("erro", undefined, config, undefined, resposta);
+      return resposta;
+    }) satisfies AxiosAdapter;
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+
+    // A requisição sai, outra renovação termina enquanto ela está a caminho,
+    // e só então chega o 401 dela (levou o cookie antigo).
+    const original = api.get("/plataforma/modulos/");
+    await vi.waitFor(() => expect(liberarPrimeira).toBeDefined());
+    await renovarSessao();
+    liberarPrimeira();
+
+    expect((await original).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
   });
 });

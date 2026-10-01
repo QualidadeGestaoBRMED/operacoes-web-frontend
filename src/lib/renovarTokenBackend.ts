@@ -69,6 +69,87 @@ export async function renovarToken(refreshToken: string): Promise<ResultadoRenov
   }
 }
 
+// Margem antes do vencimento: renovar um pouco antes evita mandar ao backend
+// um access que vence no meio do caminho.
+const MARGEM_EXPIRACAO_SEGUNDOS = 10;
+// No callback jwt, quanto esperar um 503 (renovação em andamento) antes de
+// tentar de novo -- curto, porque o callback roda dentro do /session e do
+// middleware, segurando a resposta.
+const ESPERA_MAXIMA_EM_ANDAMENTO_MS = 2_000;
+
+/** `exp` (em ms) do access do backend, ou null se ausente/ilegível. Só lê o
+ * payload, sem validar assinatura -- quem valida é o backend. atob, não
+ * Buffer: roda também no middleware (runtime Edge). */
+function expiracaoDoAccessMs(access: unknown): number | null {
+  if (typeof access !== "string") return null;
+  try {
+    const base64 = access.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const { exp } = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    return typeof exp === "number" ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** O access já venceu (ou vence em segundos)? false para token ausente ou
+ * ilegível: o callback jwt não tem como renovar o que não sabe ler. */
+export function accessExpirado(access: unknown, agora = Date.now()): boolean {
+  const exp = expiracaoDoAccessMs(access);
+  return exp !== null && exp <= agora + MARGEM_EXPIRACAO_SEGUNDOS * 1000;
+}
+
+/** O access ainda vale por mais de `segundos`? false para token ausente ou
+ * ilegível -- na dúvida, quem pergunta renova. */
+export function accessValidoPorMaisDe(
+  access: unknown,
+  segundos: number,
+  agora = Date.now(),
+): boolean {
+  const exp = expiracaoDoAccessMs(access);
+  return exp !== null && exp > agora + segundos * 1000;
+}
+
+type TokenDaSessao = { backendAccessToken?: unknown; backendRefreshToken?: unknown };
+
+/**
+ * Usado pelo callback jwt do NextAuth (src/auth.ts), que roda no
+ * /api/auth/session e no middleware: os dois regravam o cookie de sessão
+ * inteiro a partir da cópia que veio na requisição. Sem isto, uma resposta
+ * do /session gerada com o cookie de ANTES de uma renovação, chegando
+ * depois dela, trazia de volta o refresh já rotacionado -- e, passada a
+ * janela de tolerância do backend, a próxima renovação deslogava a pessoa.
+ * Com isto, o /session e o middleware também renovam um access vencido, e
+ * todos os escritores do cookie convergem pro mesmo par: um /session com o
+ * refresh antigo está em andamento justo no momento da renovação, então cai
+ * na janela do backend e recebe o mesmo par.
+ *
+ * Nunca lança: se a renovação não der certo, devolve o token como veio, e o
+ * fluxo do navegador (src/lib/renovarSessao.ts) cuida do 401.
+ */
+export async function tokenComAccessValido<T extends TokenDaSessao>(token: T): Promise<T> {
+  if (typeof token.backendRefreshToken !== "string" || !accessExpirado(token.backendAccessToken)) {
+    return token;
+  }
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    const resultado = await renovarToken(token.backendRefreshToken);
+    if (resultado.tipo === "renovado") {
+      return {
+        ...token,
+        backendAccessToken: resultado.tokens.access,
+        backendRefreshToken: resultado.tokens.refresh,
+      };
+    }
+    if (resultado.tipo !== "em_andamento" || tentativa === 2) return token;
+    await new Promise((resolver) =>
+      setTimeout(
+        resolver,
+        Math.min(resultado.retryAfterSegundos * 1000, ESPERA_MAXIMA_EM_ANDAMENTO_MS),
+      ),
+    );
+  }
+  return token;
+}
+
 // Reescreve o cookie de sessão com os tokens novos -- mesmo formato que
 // auth.ts grava no callback jwt, só que fora do fluxo normal do NextAuth.
 export async function codificarCookieSessao(

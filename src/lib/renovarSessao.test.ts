@@ -18,7 +18,8 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.mocked(signOut).mockReset();
+  // signOut() de verdade devolve uma Promise (encerrarSessao usa o .catch).
+  vi.mocked(signOut).mockReset().mockResolvedValue(undefined as never);
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
@@ -164,5 +165,62 @@ describe("fetchComRenovacao (STC-611)", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("renovação extra evitada (STC-611)", () => {
+  it("requisição que saiu antes da última renovação terminar está coberta; a que saiu depois, não", async () => {
+    const { renovarSessao, renovacaoJaCobre } = await carregar();
+    fetchMock.mockResolvedValue(resposta(200));
+    const antes = Date.now() - 1;
+
+    await renovarSessao();
+
+    expect(renovacaoJaCobre(antes)).toBe(true);
+    expect(renovacaoJaCobre(Date.now() + 1)).toBe(false);
+  });
+
+  it("renovação recusada não cobre ninguém", async () => {
+    const { renovarSessao, renovacaoJaCobre } = await carregar();
+    fetchMock.mockResolvedValue(resposta(401));
+    const antes = Date.now() - 1;
+
+    await renovarSessao();
+
+    expect(renovacaoJaCobre(antes)).toBe(false);
+  });
+
+  it("fetchComRenovacao: 401 de requisição que saiu antes da renovação só repete, sem renovar de novo", async () => {
+    const { fetchComRenovacao, renovarSessao } = await carregar();
+    let concluirOriginal!: (r: Response) => void;
+    fetchMock
+      .mockReturnValueOnce(new Promise<Response>((r) => (concluirOriginal = r)))
+      .mockResolvedValueOnce(resposta(200)) // renovação disparada por outra requisição
+      .mockResolvedValueOnce(resposta(200)); // repetição da original
+
+    const original = fetchComRenovacao("/api/media/evidencia-vigente?documento=1");
+    await renovarSessao();
+    concluirOriginal(resposta(401));
+
+    expect((await original).status).toBe(200);
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
+      "/api/media/evidencia-vigente?documento=1",
+      "/api/sessao/renovar",
+      "/api/media/evidencia-vigente?documento=1",
+    ]);
+  });
+});
+
+describe("encerrarSessao quando o signOut falha (STC-611)", () => {
+  it("libera de novo, pra uma próxima sessão inválida ainda levar ao login", async () => {
+    const { encerrarSessao } = await carregar();
+    vi.mocked(signOut).mockRejectedValueOnce(new Error("rede"));
+
+    encerrarSessao();
+    await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 0));
+    encerrarSessao();
+
+    expect(signOut).toHaveBeenCalledTimes(2);
   });
 });

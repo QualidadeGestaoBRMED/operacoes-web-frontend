@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
 import {
+  accessValidoPorMaisDe,
   codificarCookieSessao,
   MAX_AGE_COOKIE_SEGUNDOS,
   NOME_COOKIE_SESSAO,
@@ -17,10 +18,23 @@ import {
 // 200: renovado, cookie regravado. 503 + Retry-After: outra renovação do
 // mesmo refresh ainda está em andamento no backend, tentar de novo. 401:
 // sessão inválida de verdade (refresh expirado, revogado, conta desativada).
+const ACCESS_JA_RENOVADO_SEGUNDOS = 60;
+
 export async function POST(request: NextRequest) {
   const token = await obterTokenBackend(request);
   if (!token?.backendRefreshToken) {
     return NextResponse.json({ detail: "Sem sessão." }, { status: 401 });
+  }
+
+  // O cookie que chegou aqui já tem um access válido: alguém (outra renovação,
+  // o /session do NextAuth) renovou depois que a requisição que deu 401 saiu.
+  // Não rotaciona de novo -- rotacionar um par válido revoga o refresh dele,
+  // e uma resposta atrasada que regravasse esse par deixaria no cookie um
+  // refresh revogado com access de 1h, derrubando a sessão na próxima
+  // renovação. 200 sem mexer no cookie: o navegador repete com o cookie atual.
+  // 60s de folga cobrem diferença de relógio entre este servidor e o backend.
+  if (accessValidoPorMaisDe(token.backendAccessToken, ACCESS_JA_RENOVADO_SEGUNDOS)) {
+    return NextResponse.json({ ok: true });
   }
 
   const resultado = await renovarToken(token.backendRefreshToken);
