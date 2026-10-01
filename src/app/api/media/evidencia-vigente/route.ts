@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
-import {
-  codificarCookieSessao,
-  MAX_AGE_COOKIE_SEGUNDOS,
-  NOME_COOKIE_SESSAO,
-  renovarToken,
-  SECURE_COOKIE,
-} from "@/lib/renovarTokenBackend";
 
 // STC-416 (Biblioteca de Documentos): proxy same-origin só de leitura, pra
 // baixar o PDF de uma evidência vigente e servir de volta pro navegador
@@ -51,73 +44,34 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  function buscarEvidencias(accessToken: string) {
-    return fetch(
-      new URL(
-        `/api/modulos/legalizacao/documentos/${documentoId}/evidencias/`,
-        process.env.NEXT_PUBLIC_API_URL,
-      ),
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+  // Não renova o token aqui: um 401 do backend volta como 401 pro navegador,
+  // que renova pela rota /api/sessao/renovar e repete a busca (o preview usa
+  // fetchComRenovacao, src/lib/renovarSessao.ts) -- mesmo desenho do proxy de
+  // JSON (src/app/api/backend/[...path]/route.ts).
+  const respostaEvidencias = await fetch(
+    new URL(
+      `/api/modulos/legalizacao/documentos/${documentoId}/evidencias/`,
+      process.env.NEXT_PUBLIC_API_URL,
+    ),
+    { headers: { Authorization: `Bearer ${token.backendAccessToken}` } },
+  );
+
+  if (respostaEvidencias.status === 401) {
+    return NextResponse.json({ detail: "Sessão expirada." }, { status: 401 });
   }
-
-  let respostaEvidencias = await buscarEvidencias(token.backendAccessToken);
-  let cookieRenovado: string | null = null;
-
-  // Renovação silenciosa (STC-208, achado em code review: este proxy fazia
-  // sua própria chamada ao backend sem passar pela mesma lógica que
-  // /api/backend/[...path]/route.ts já tem -- um access token expirado no
-  // meio de uma sessão longa quebrava só o preview, com um 502 sem
-  // recuperação, enquanto o resto do app se recuperava sozinho). Mesmo
-  // padrão daquele proxy: tenta recuperar a sessão com o refresh token antes
-  // de desistir.
-  if (respostaEvidencias.status === 401 && token.backendRefreshToken) {
-    const tokensNovos = await renovarToken(token.backendRefreshToken);
-    if (tokensNovos) {
-      respostaEvidencias = await buscarEvidencias(tokensNovos.access);
-      try {
-        cookieRenovado = await codificarCookieSessao(token, tokensNovos);
-      } catch (erro) {
-        console.error("Falha ao reescrever o cookie de sessão após renovar o token:", erro);
-      }
-    }
-    // Se a renovação falhar, respostaEvidencias continua sendo o 401
-    // original -- cai no branch de erro abaixo, mesmo comportamento de hoje.
-  }
-
-  // Cookie renovado precisa ir em toda resposta a partir daqui, não só na de
-  // sucesso -- senão a próxima requisição (ex.: o próximo poll de 60s) ainda
-  // vê o cookie velho e passa pelo mesmo 401 de novo.
-  function comCookieRenovado(resposta: NextResponse) {
-    if (cookieRenovado) {
-      resposta.cookies.set(NOME_COOKIE_SESSAO, cookieRenovado, {
-        httpOnly: true,
-        secure: SECURE_COOKIE,
-        sameSite: "lax",
-        path: "/",
-        maxAge: MAX_AGE_COOKIE_SEGUNDOS,
-      });
-    }
-    return resposta;
-  }
-
   if (!respostaEvidencias.ok) {
-    return comCookieRenovado(
-      NextResponse.json(
-        { detail: "Documento não encontrado." },
-        { status: respostaEvidencias.status === 404 ? 404 : 502 },
-      ),
+    return NextResponse.json(
+      { detail: "Documento não encontrado." },
+      { status: respostaEvidencias.status === 404 ? 404 : 502 },
     );
   }
 
   const evidencias = (await respostaEvidencias.json()) as { arquivo: string; vigente: boolean }[];
   const vigente = evidencias.find((evidencia) => evidencia.vigente);
   if (!vigente) {
-    return comCookieRenovado(
-      NextResponse.json(
-        { detail: "Nenhuma evidência vigente para este documento." },
-        { status: 404 },
-      ),
+    return NextResponse.json(
+      { detail: "Nenhuma evidência vigente para este documento." },
+      { status: 404 },
     );
   }
 
@@ -132,25 +86,21 @@ export async function GET(request: NextRequest) {
 
   const respostaArquivo = await fetch(urlArquivo);
   if (!respostaArquivo.ok) {
-    return comCookieRenovado(
-      NextResponse.json({ detail: "Não foi possível baixar o arquivo." }, { status: 502 }),
-    );
+    return NextResponse.json({ detail: "Não foi possível baixar o arquivo." }, { status: 502 });
   }
 
   // arrayBuffer() (não .text(), como o proxy de JSON) -- texto corrompe
   // conteúdo binário.
   const bytes = await respostaArquivo.arrayBuffer();
-  return comCookieRenovado(
-    new NextResponse(bytes, {
-      status: 200,
-      // Fixo, não repassado da origem (achado em code review): esta rota só
-      // serve pré-visualização de evidência regulatória, sempre PDF por
-      // desenho -- nada aqui garante que o upload original tenha sido
-      // validado como PDF de verdade (accept=".pdf" no input é só dica de
-      // UI, não filtra drag-and-drop nem é reenviado ao servidor). Fixar o
-      // header evita depender dessa garantia externa, em vez de repassar o
-      // que a origem mandar pra dentro de um iframe same-origin.
-      headers: { "Content-Type": "application/pdf" },
-    }),
-  );
+  return new NextResponse(bytes, {
+    status: 200,
+    // Fixo, não repassado da origem (achado em code review): esta rota só
+    // serve pré-visualização de evidência regulatória, sempre PDF por
+    // desenho -- nada aqui garante que o upload original tenha sido
+    // validado como PDF de verdade (accept=".pdf" no input é só dica de
+    // UI, não filtra drag-and-drop nem é reenviado ao servidor). Fixar o
+    // header evita depender dessa garantia externa, em vez de repassar o
+    // que a origem mandar pra dentro de um iframe same-origin.
+    headers: { "Content-Type": "application/pdf" },
+  });
 }

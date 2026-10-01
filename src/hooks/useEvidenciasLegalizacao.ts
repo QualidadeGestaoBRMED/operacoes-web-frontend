@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import useSWR, { mutate as mutateGlobal } from "swr";
 import { listarEvidenciasLegalizacao } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
+import { fetchComRenovacao } from "@/lib/renovarSessao";
 import type { EvidenciaRegulatoria } from "@/types/legalizacao";
 
 export function useEvidenciasLegalizacao(documentoId: number | null) {
@@ -85,7 +86,10 @@ function registrarPreviewNoCache(documentoId: number, blobUrl: string) {
 }
 
 async function buscarPreviewEvidenciaVigente(documentoId: number) {
-  const resposta = await fetch(
+  // fetchComRenovacao, não fetch puro: com o access expirado, o proxy de mídia
+  // devolve 401, e o preview precisa renovar a sessão e repetir -- mesmo fluxo
+  // que o interceptor do Axios faz pras outras chamadas (src/lib/api.ts).
+  const resposta = await fetchComRenovacao(
     `/api/media/evidencia-vigente?documento=${documentoId}`,
   );
   if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);

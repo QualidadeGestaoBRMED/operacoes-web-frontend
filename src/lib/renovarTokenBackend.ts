@@ -1,10 +1,9 @@
 import { encode } from "next-auth/jwt";
 
-// Extraído de src/app/api/backend/[...path]/route.ts (achado em code review,
-// STC-416): o proxy de mídia (src/app/api/media/) precisa da MESMA renovação
-// silenciosa de token (STC-208) -- sem isto, um access token expirado no meio
-// de uma sessão longa quebrava só o preview de PDF (502 sem recuperação),
-// enquanto o resto do app se recuperava sozinho via este mesmo mecanismo.
+// Server-side: troca o refresh do backend por um par novo e reescreve o
+// cookie de sessão. Usado só pela rota /api/sessao/renovar -- quem decide
+// QUANDO renovar é o navegador (src/lib/renovarSessao.ts), que chama essa
+// rota com o cookie atual.
 
 export const SECURE_COOKIE = process.env.NODE_ENV === "production";
 // encode() não autodetecta isso sozinho -- mesmo achado documentado em
@@ -17,37 +16,48 @@ const SEGREDO = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 // não faz sentido o cookie sobreviver além do que o refresh nele permite.
 export const MAX_AGE_COOKIE_SEGUNDOS = 60 * 60 * 24 * 7;
 
-// Dedupe de renovação concorrente (STC-208): duas requisições vendo o mesmo
-// access expirado não podem cada uma chamar /refresh/ com o mesmo refresh --
-// a rotação do backend blacklista o antigo, a 2ª perderia a corrida e
-// tomaria um 401 indevido em vez de reaproveitar o resultado da 1ª. Só
-// protege dentro da mesma instância do processo Node (não é lock
-// distribuído entre instâncias serverless) -- suficiente pra escala atual.
-// Compartilhado entre os dois proxies (backend genérico e mídia): o mesmo
-// refresh token pode chegar de qualquer um dos dois quase ao mesmo tempo
-// (ex.: o poll de 60s da lista e um clique no preview).
-const renovacoesEmAndamento = new Map<
-  string,
-  Promise<{ access: string; refresh: string } | null>
->();
+export type TokensBackend = { access: string; refresh: string };
 
-export async function renovarToken(
-  refreshToken: string,
-): Promise<{ access: string; refresh: string } | null> {
+// "em_andamento" é o 503 do /api/auth/refresh/: outra renovação do mesmo
+// refresh ainda não terminou (janela de tolerância do backend). Não é sessão
+// inválida -- quem chamou tenta de novo depois do Retry-After.
+export type ResultadoRenovacao =
+  | { tipo: "renovado"; tokens: TokensBackend }
+  | { tipo: "em_andamento"; retryAfterSegundos: number }
+  | { tipo: "recusado" };
+
+// Dedupe de renovação concorrente dentro da mesma instância do processo Node:
+// duas chamadas com o mesmo refresh ao mesmo tempo reaproveitam a mesma ida
+// ao backend. A proteção de verdade contra corrida (várias instâncias da
+// Vercel, várias abas) é a janela de tolerância do backend, que devolve o
+// mesmo par para o mesmo refresh por alguns segundos.
+const renovacoesEmAndamento = new Map<string, Promise<ResultadoRenovacao>>();
+
+function segundosDoRetryAfter(resposta: Response): number {
+  const valor = Number(resposta.headers.get("Retry-After"));
+  return Number.isFinite(valor) && valor > 0 ? valor : 1;
+}
+
+export async function renovarToken(refreshToken: string): Promise<ResultadoRenovacao> {
   const emAndamento = renovacoesEmAndamento.get(refreshToken);
   if (emAndamento) return emAndamento;
 
-  const promessa = (async () => {
+  const promessa = (async (): Promise<ResultadoRenovacao> => {
     try {
       const resposta = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       });
-      if (!resposta.ok) return null;
-      return (await resposta.json()) as { access: string; refresh: string };
+      if (resposta.ok) {
+        return { tipo: "renovado", tokens: (await resposta.json()) as TokensBackend };
+      }
+      if (resposta.status === 503) {
+        return { tipo: "em_andamento", retryAfterSegundos: segundosDoRetryAfter(resposta) };
+      }
+      return { tipo: "recusado" };
     } catch {
-      return null;
+      return { tipo: "recusado" };
     }
   })();
 
@@ -60,12 +70,10 @@ export async function renovarToken(
 }
 
 // Reescreve o cookie de sessão com os tokens novos -- mesmo formato que
-// auth.ts grava no callback jwt, só que fora do fluxo normal do NextAuth
-// (aqui é uma renovação silenciosa disparada por um 401 no meio de um
-// proxy, não um refresh de sessão do NextAuth em si).
+// auth.ts grava no callback jwt, só que fora do fluxo normal do NextAuth.
 export async function codificarCookieSessao(
   token: Record<string, unknown>,
-  tokensNovos: { access: string; refresh: string },
+  tokensNovos: TokensBackend,
 ) {
   return encode({
     token: {
