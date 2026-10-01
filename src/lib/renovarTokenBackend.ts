@@ -21,16 +21,17 @@ export type TokensBackend = { access: string; refresh: string };
 // "em_andamento" é o 503 do /api/auth/refresh/: outra renovação do mesmo
 // refresh ainda não terminou (janela de tolerância do backend). Não é sessão
 // inválida -- quem chamou tenta de novo depois do Retry-After.
-// "recusado" é só o backend dizendo que o refresh não vale (400/401/403).
-// "indisponivel" é não ter conseguido perguntar: rede, throttle (429) ou
-// erro do backend -- a sessão pode estar boa, então não é motivo pra deslogar.
+// "recusado" é só o 401 do backend: refresh inválido, expirado ou revogado.
+// "indisponivel" é qualquer outra falha: rede, throttle (429), erro do
+// backend ou um 4xx que não veio dele (ex.: 403 de proxy/WAF na frente) --
+// a sessão pode estar boa, então não é motivo pra deslogar. O 400 do
+// /refresh/ só sai sem o campo "refresh" no corpo, que daqui sempre vai.
 export type ResultadoRenovacao =
   | { tipo: "renovado"; tokens: TokensBackend }
   | { tipo: "em_andamento"; retryAfterSegundos: number }
   | { tipo: "recusado" }
   | { tipo: "indisponivel" };
 
-const STATUS_REFRESH_RECUSADO = new Set([400, 401, 403]);
 
 // Dedupe de renovação concorrente dentro da mesma instância do processo Node:
 // duas chamadas com o mesmo refresh ao mesmo tempo reaproveitam a mesma ida
@@ -61,7 +62,7 @@ export async function renovarToken(refreshToken: string): Promise<ResultadoRenov
       if (resposta.status === 503) {
         return { tipo: "em_andamento", retryAfterSegundos: segundosDoRetryAfter(resposta) };
       }
-      if (STATUS_REFRESH_RECUSADO.has(resposta.status)) return { tipo: "recusado" };
+      if (resposta.status === 401) return { tipo: "recusado" };
       return { tipo: "indisponivel" };
     } catch {
       return { tipo: "indisponivel" };

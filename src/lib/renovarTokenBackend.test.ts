@@ -94,6 +94,14 @@ describe("tokenComAccessValido, usado pelo callback jwt (STC-611)", () => {
     expect(await tokenComAccessValido(token)).toEqual({ ...token, backendRefreshRecusado: true });
   });
 
+  it.each([403, 429, 500])("%i do backend não marca o refresh como recusado", async (status) => {
+    const { tokenComAccessValido } = await carregar();
+    fetchMock.mockResolvedValue(new Response(null, { status }));
+    const token = { backendAccessToken: jwtComExp(agoraSegundos() - 60), backendRefreshToken: "r" };
+
+    expect(await tokenComAccessValido(token)).toBe(token);
+  });
+
   it("refresh já recusado não é reenviado ao backend", async () => {
     const { tokenComAccessValido } = await carregar();
     const token = {

@@ -121,7 +121,7 @@ describe("POST /api/sessao/renovar (STC-611)", () => {
     expect(resposta.headers.get("set-cookie")).toBeNull();
   });
 
-  it.each([429, 500, 502])("%i do backend devolve 502", async (status) => {
+  it.each([400, 403, 429, 500, 502])("%i do backend devolve 502", async (status) => {
     const { POST } = await carregar();
     vi.mocked(obterTokenBackend).mockResolvedValue({ backendRefreshToken: "refresh" } as never);
     fetchMock.mockResolvedValue(new Response(null, { status }));
@@ -131,15 +131,7 @@ describe("POST /api/sessao/renovar (STC-611)", () => {
     expect(resposta.status).toBe(502);
   });
 
-  it("400 do backend (refresh malformado) conta como recusado: 401", async () => {
-    const { POST } = await carregar();
-    vi.mocked(obterTokenBackend).mockResolvedValue({ backendRefreshToken: "refresh" } as never);
-    fetchMock.mockResolvedValue(new Response(null, { status: 400 }));
 
-    const resposta = await POST(requisicao());
-
-    expect(resposta.status).toBe(401);
-  });
 
   it("duas renovações simultâneas com o mesmo refresh fazem uma só ida ao backend", async () => {
     const { POST } = await carregar();
