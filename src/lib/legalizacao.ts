@@ -154,6 +154,20 @@ export async function enviarEvidenciaLegalizacao(
   );
 }
 
+export type VisualizacaoEvidencia = { modo: "direto"; url: string } | { modo: "proxy" };
+
+// STC-628: URL assinada (5 min) que mostra o PDF da evidência vigente direto
+// do R2, sem passar pela função da Vercel (limite de 4,5 MB na resposta).
+// "proxy": sem R2 (dev, E2E), segue pelo /api/media/evidencia-vigente.
+export async function obterVisualizacaoEvidenciaVigente(
+  documentoId: number,
+): Promise<VisualizacaoEvidencia> {
+  const { data } = await api.get<VisualizacaoEvidencia>(
+    `${DOCUMENTOS_URL}${documentoId}/evidencia-vigente/visualizacao/`,
+  );
+  return data;
+}
+
 // "Mais recente primeiro" (docstring da action no backend) -- não precisa
 // ordenar de novo no client.
 export async function listarEvidenciasLegalizacao(

@@ -199,21 +199,13 @@ export function BibliotecaDocumentos() {
     );
   }
 
-  // Achado no feedback visual: um <iframe> apontando direto pra URL do
-  // arquivo nunca renderiza -- (1) CSP (connect-src 'self', src/lib/csp.ts)
-  // bloqueia fetch() direto pro backend/R2, (2) em dev o backend manda
-  // X-Frame-Options: DENY em toda resposta, (3) em produção toda URL
-  // assinada do R2 já vem com Content-Disposition: attachment forçado
-  // (achado de segurança do próprio backend, base.py). Contorna buscando os
-  // bytes via um proxy same-origin (/api/media/evidencia-vigente, só
-  // leitura -- nunca aceita uma URL do cliente pra evitar SSRF, rebusca a
-  // evidência vigente direto do backend pelo id do documento) e montando
-  // uma Blob URL local pro <iframe>, que nenhum dos três se aplica.
-  // STC-511: antes, reabrir um documento já visto refazia o download
-  // inteiro do PDF do zero (a Blob URL era revogada a cada troca de
-  // documento, mesmo já tendo acabado de baixar). Cache em memória
-  // (useEvidenciaVigentePreview, chaveado por documentoId) resolve isso --
-  // ver comentário completo em useEvidenciasLegalizacao.ts.
+  // Pré-visualização do PDF (useEvidenciaVigentePreview, ver comentários em
+  // useEvidenciasLegalizacao.ts). Com R2, o <iframe> abre a URL assinada do
+  // PDF direto do bucket: o backend pede `inline` só nessa URL (o download
+  // comum continua forçando `attachment`) e a CSP libera o caminho do bucket
+  // em frame-src (src/lib/csp.ts). Sem R2 (dev, E2E), os bytes vêm pelo
+  // proxy same-origin /api/media/evidencia-vigente e o <iframe> abre uma
+  // Blob URL local, cacheada por documento.
   const { previewUrl, carregandoPreview, erroPreview, tentarNovamente } =
     useEvidenciaVigentePreview(documentoSelecionadoId);
 

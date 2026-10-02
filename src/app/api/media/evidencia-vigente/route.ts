@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
 
+// Caminho da pré-visualização sem R2 (dev, E2E). Com R2, o navegador abre a
+// URL assinada do PDF direto do bucket (useEvidenciasLegalizacao.ts): este
+// proxy passa o PDF inteiro pela função da Vercel, que recusa resposta acima
+// de 4,5 MB.
+//
 // STC-416 (Biblioteca de Documentos): proxy same-origin só de leitura, pra
 // baixar o PDF de uma evidência vigente e servir de volta pro navegador
 // como bytes binários (não como texto -- diferente de

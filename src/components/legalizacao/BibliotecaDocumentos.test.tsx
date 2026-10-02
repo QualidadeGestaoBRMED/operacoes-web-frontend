@@ -30,6 +30,7 @@ import { listarUnidades } from "@/lib/plataforma";
 import {
   listarDocumentosLegalizacao,
   listarEvidenciasVigentes,
+  obterVisualizacaoEvidenciaVigente,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
 
@@ -126,6 +127,9 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([NITEROI, VITORIA]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
   vi.mocked(listarEvidenciasVigentes).mockResolvedValue([]);
+  // Padrão: sem R2 (dev, E2E), preview pelo proxy. O caminho com R2 tem o
+  // próprio describe (STC-628), no fim do arquivo.
+  vi.mocked(obterVisualizacaoEvidenciaVigente).mockResolvedValue({ modo: "proxy" });
 
   // O painel de preview busca os bytes do PDF via
   // /api/media/evidencia-vigente (proxy same-origin, ver BibliotecaDocumentos.tsx)
@@ -599,6 +603,110 @@ describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de docu
     // recentemente usado agora -- é ele que devia ser evictado/revogado.
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:doc-2");
     expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:doc-1");
+  });
+});
+
+describe("BibliotecaDocumentos -- preview direto do R2 (STC-628)", () => {
+  const URL_ASSINADA =
+    "https://conta.r2.cloudflarestorage.com/atlas/legalizacao/evidencias/documento_10/a.pdf?X-Amz-Signature=1";
+
+  async function abrirDocumento(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: "Alvará de Funcionamento" }));
+  }
+
+  it("abre a URL assinada direto do bucket, sem passar o PDF pelo proxy", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    vi.mocked(obterVisualizacaoEvidenciaVigente).mockResolvedValue({
+      modo: "direto",
+      url: URL_ASSINADA,
+    });
+    const user = userEvent.setup();
+    renderTela();
+
+    await abrirDocumento(user);
+
+    const iframe = await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(iframe).toHaveAttribute("src", `${URL_ASSINADA}#toolbar=0&navpanes=0&scrollbar=0`);
+    expect(obterVisualizacaoEvidenciaVigente).toHaveBeenCalledWith(10);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("backend sem a rota de visualização (404) cai no proxy", async () => {
+    const { AxiosError, AxiosHeaders } = await import("axios");
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    vi.mocked(obterVisualizacaoEvidenciaVigente).mockRejectedValue(
+      new AxiosError("404", "ERR", undefined, undefined, {
+        status: 404,
+        statusText: "",
+        data: {},
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      }),
+    );
+    const user = userEvent.setup();
+    renderTela();
+
+    await abrirDocumento(user);
+
+    const iframe = await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(iframe).toHaveAttribute("src", "blob:mock-evidencia#toolbar=0&navpanes=0&scrollbar=0");
+  });
+
+  it("reabrir depois de a URL expirar busca outra, sem mostrar a expirada", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+      vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+      vi.mocked(obterVisualizacaoEvidenciaVigente)
+        .mockResolvedValueOnce({ modo: "direto", url: `${URL_ASSINADA}-primeira` })
+        .mockResolvedValueOnce({ modo: "direto", url: `${URL_ASSINADA}-segunda` });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderTela();
+      await abrirDocumento(user);
+      expect(await screen.findByTitle("Pré-visualização de alvara.pdf")).toHaveAttribute(
+        "src",
+        expect.stringContaining("-primeira"),
+      );
+      await abrirDocumento(user); // fecha
+
+      vi.setSystemTime(Date.now() + 5 * 60 * 1000);
+      await abrirDocumento(user); // reabre
+
+      await waitFor(() =>
+        expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toHaveAttribute(
+          "src",
+          expect.stringContaining("-segunda"),
+        ),
+      );
+      expect(obterVisualizacaoEvidenciaVigente).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reabrir antes de a URL expirar reaproveita a mesma", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    vi.mocked(obterVisualizacaoEvidenciaVigente).mockResolvedValue({
+      modo: "direto",
+      url: URL_ASSINADA,
+    });
+    const user = userEvent.setup();
+    renderTela();
+    await abrirDocumento(user);
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    await abrirDocumento(user); // fecha
+
+    await abrirDocumento(user); // reabre
+
+    expect(await screen.findByTitle("Pré-visualização de alvara.pdf")).toHaveAttribute(
+      "src",
+      `${URL_ASSINADA}#toolbar=0&navpanes=0&scrollbar=0`,
+    );
+    expect(obterVisualizacaoEvidenciaVigente).toHaveBeenCalledTimes(1);
   });
 });
 
