@@ -1,4 +1,5 @@
 import api from "./api";
+import { enviarArquivo, type AoProgredir } from "./uploadDireto";
 import type { RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
@@ -139,17 +140,18 @@ export async function atualizarDocumentoLegalizacao(
   return data;
 }
 
+// Direto ao R2 quando houver (src/lib/uploadDireto.ts): pelo proxy BFF, o
+// corpo tem limite de 4,5 MB na Vercel.
 export async function enviarEvidenciaLegalizacao(
   documentoId: number,
   arquivo: File,
+  aoProgredir?: AoProgredir,
 ): Promise<EvidenciaRegulatoria> {
-  const formData = new FormData();
-  formData.append("arquivo", arquivo);
-  const { data } = await api.post<EvidenciaRegulatoria>(
+  return enviarArquivo<EvidenciaRegulatoria>(
     `${DOCUMENTOS_URL}${documentoId}/evidencias/`,
-    formData,
+    arquivo,
+    aoProgredir,
   );
-  return data;
 }
 
 // "Mais recente primeiro" (docstring da action no backend) -- não precisa

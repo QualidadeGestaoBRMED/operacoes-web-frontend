@@ -1,4 +1,5 @@
 import api from "./api";
+import { enviarArquivo, type AoProgredir } from "./uploadDireto";
 import type {
   Anexo,
   Categoria,
@@ -216,11 +217,14 @@ export async function listarAnexos(demandaId: number): Promise<Anexo[]> {
   return data;
 }
 
-export async function enviarAnexo(demandaId: number, arquivo: File): Promise<Anexo> {
-  const formData = new FormData();
-  formData.append("arquivo", arquivo);
-  const { data } = await api.post<Anexo>(`${BASE_URL}${demandaId}/anexos/`, formData);
-  return data;
+// Direto ao R2 quando houver (src/lib/uploadDireto.ts): pelo proxy BFF, o
+// corpo tem limite de 4,5 MB na Vercel.
+export async function enviarAnexo(
+  demandaId: number,
+  arquivo: File,
+  aoProgredir?: AoProgredir,
+): Promise<Anexo> {
+  return enviarArquivo<Anexo>(`${BASE_URL}${demandaId}/anexos/`, arquivo, aoProgredir);
 }
 
 export async function excluirAnexo(demandaId: number, anexoId: number): Promise<void> {
