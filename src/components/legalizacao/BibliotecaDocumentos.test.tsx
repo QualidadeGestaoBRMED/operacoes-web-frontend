@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade } from "@/types";
 import type {
   DocumentoUnidade,
@@ -609,6 +609,31 @@ describe("BibliotecaDocumentos -- preview de PDF fica em cache ao trocar de docu
 describe("BibliotecaDocumentos -- preview direto do R2 (STC-628)", () => {
   const URL_ASSINADA =
     "https://conta.r2.cloudflarestorage.com/atlas/legalizacao/evidencias/documento_10/a.pdf?X-Amz-Signature=1";
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_R2_URL_BUCKET", "https://conta.r2.cloudflarestorage.com/atlas/");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("URL fora do bucket liberado na CSP (variável ausente): segue pelo proxy", async () => {
+    vi.stubEnv("NEXT_PUBLIC_R2_URL_BUCKET", "");
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    vi.mocked(obterVisualizacaoEvidenciaVigente).mockResolvedValue({
+      modo: "direto",
+      url: URL_ASSINADA,
+    });
+    const user = userEvent.setup();
+    renderTela();
+
+    await abrirDocumento(user);
+
+    const iframe = await screen.findByTitle("Pré-visualização de alvara.pdf");
+    expect(iframe).toHaveAttribute("src", "blob:mock-evidencia#toolbar=0&navpanes=0&scrollbar=0");
+  });
 
   async function abrirDocumento(user: ReturnType<typeof userEvent.setup>) {
     await user.click(await screen.findByRole("button", { name: "Alvará de Funcionamento" }));

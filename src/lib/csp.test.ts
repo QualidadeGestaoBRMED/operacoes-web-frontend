@@ -52,7 +52,7 @@ describe("construirCsp com o bucket do R2 (STC-628)", () => {
   }
 
   it("libera só o caminho do bucket em connect-src e frame-src", () => {
-    vi.stubEnv("R2_URL_BUCKET", BUCKET);
+    vi.stubEnv("NEXT_PUBLIC_R2_URL_BUCKET", BUCKET);
 
     const csp = construirCsp("qualquer");
 
@@ -65,7 +65,7 @@ describe("construirCsp com o bucket do R2 (STC-628)", () => {
   });
 
   it("sem a variável, não libera nada além de 'self'", () => {
-    vi.stubEnv("R2_URL_BUCKET", "");
+    vi.stubEnv("NEXT_PUBLIC_R2_URL_BUCKET", "");
 
     const csp = construirCsp("qualquer");
 
@@ -80,7 +80,7 @@ describe("construirCsp com o bucket do R2 (STC-628)", () => {
     ["http", "http://conta123.r2.cloudflarestorage.com/atlas-anexos/"],
     ["injeção de diretiva", `${BUCKET}; script-src *`],
   ])("ignora valor fora do formato (%s)", (_caso, valor) => {
-    vi.stubEnv("R2_URL_BUCKET", valor);
+    vi.stubEnv("NEXT_PUBLIC_R2_URL_BUCKET", valor);
 
     const csp = construirCsp("qualquer");
 

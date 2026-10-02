@@ -7,6 +7,7 @@ import {
   listarEvidenciasLegalizacao,
   obterVisualizacaoEvidenciaVigente,
 } from "@/lib/legalizacao";
+import { estaNoBucketR2 } from "@/lib/bucketR2";
 import { extrairMensagemErro } from "@/lib/erros";
 import { fetchComRenovacao } from "@/lib/renovarSessao";
 import type { EvidenciaRegulatoria } from "@/types/legalizacao";
@@ -105,7 +106,9 @@ async function buscarPreviewEvidenciaVigente(
 ): Promise<PreviewEvidencia> {
   try {
     const visualizacao = await obterVisualizacaoEvidenciaVigente(documentoId);
-    if (visualizacao.modo === "direto") {
+    // Só abre direto se a URL é do bucket liberado na CSP (frame-src): fora
+    // dele, o navegador bloqueia o <iframe> sem erro nenhum para a página.
+    if (visualizacao.modo === "direto" && estaNoBucketR2(visualizacao.url)) {
       return {
         direta: true,
         url: visualizacao.url,

@@ -20,11 +20,20 @@ type PreparacaoEnvio =
 /** Falha no envio direto ao bucket, com mensagem pronta para a tela
  * (extrairMensagemErro, src/lib/erros.ts). */
 export class ErroEnvioArquivo extends Error {
-  constructor(mensagem: string) {
+  /** O navegador nem chegou a uma resposta do bucket: rede, CORS do bucket
+   * ou CSP (connect-src) bloqueando. */
+  readonly bloqueado: boolean;
+
+  constructor(mensagem: string, bloqueado = false) {
     super(mensagem);
     this.name = "ErroEnvioArquivo";
+    this.bloqueado = bloqueado;
   }
 }
+
+// Abaixo disto o arquivo cabe no corpo da função da Vercel (4,5 MB), com
+// folga para o envelope do multipart.
+const LIMITE_ENVIO_PELO_PROXY = 4 * 1024 * 1024;
 
 const MENSAGEM_FALHA_ENVIO =
   "Não foi possível enviar o arquivo. Verifique a conexão e tente novamente.";
@@ -60,7 +69,7 @@ function enviarAoBucket(
     };
     // Rede caída, CORS do bucket ou CSP (connect-src, src/lib/csp.ts)
     // bloqueando: o navegador não diz qual, só que falhou.
-    requisicao.onerror = () => reject(new ErroEnvioArquivo(MENSAGEM_FALHA_ENVIO));
+    requisicao.onerror = () => reject(new ErroEnvioArquivo(MENSAGEM_FALHA_ENVIO, true));
     requisicao.onabort = () => reject(new ErroEnvioArquivo(MENSAGEM_FALHA_ENVIO));
     requisicao.send(arquivo);
   });
@@ -117,7 +126,25 @@ export async function enviarArquivo<T>(
   if (preparacao.modo === "multipart") {
     return enviarMultipart<T>(urlBase, arquivo, aoProgredir);
   }
-  await enviarAoBucket(preparacao, arquivo, aoProgredir);
+  try {
+    await enviarAoBucket(preparacao, arquivo, aoProgredir);
+  } catch (erro) {
+    // Bucket inalcançável do navegador (NEXT_PUBLIC_R2_URL_BUCKET ausente na Vercel, CORS
+    // do bucket não configurado): um arquivo que cabe no proxy segue pelo
+    // multipart, como antes do envio direto, em vez de falhar. O aviso no
+    // console aponta a configuração que falta.
+    if (
+      erro instanceof ErroEnvioArquivo &&
+      erro.bloqueado &&
+      arquivo.size <= LIMITE_ENVIO_PELO_PROXY
+    ) {
+      console.warn(
+        "Envio direto ao R2 bloqueado; enviando pelo proxy. Conferir NEXT_PUBLIC_R2_URL_BUCKET e o CORS do bucket.",
+      );
+      return enviarMultipart<T>(urlBase, arquivo, aoProgredir);
+    }
+    throw erro;
+  }
   const { data } = await api.post<T>(`${urlBase}confirmar-envio/`, {
     token: preparacao.token,
   });

@@ -173,6 +173,33 @@ describe("enviarArquivo (STC-628)", () => {
     expect(apiPost).toHaveBeenCalledTimes(1);
   });
 
+  it("PUT bloqueado (CSP ou CORS) com arquivo pequeno: segue pelo multipart", async () => {
+    apiPost
+      .mockResolvedValueOnce({ data: PREPARACAO_DIRETA })
+      .mockResolvedValueOnce({ data: { id: 10 } });
+    XhrFalso.desfecho = { erroDeRede: true };
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const enviado = arquivo(1024 * 1024);
+
+    const resultado = await enviarArquivo(URL_BASE, enviado);
+
+    expect(resultado).toEqual({ id: 10 });
+    const [url, corpo] = apiPost.mock.calls[1];
+    expect(url).toBe(URL_BASE);
+    expect((corpo as FormData).get("arquivo")).toBe(enviado);
+    expect(aviso).toHaveBeenCalled();
+  });
+
+  it("PUT recusado pelo bucket (403) não cai no multipart, mesmo com arquivo pequeno", async () => {
+    apiPost.mockResolvedValueOnce({ data: PREPARACAO_DIRETA });
+    XhrFalso.desfecho = { status: 403 };
+
+    const erro = await enviarArquivo(URL_BASE, arquivo(1024)).catch((e: unknown) => e);
+
+    expect(erro).toBeInstanceOf(ErroEnvioArquivo);
+    expect(apiPost).toHaveBeenCalledTimes(1);
+  });
+
   it("recusa da confirmação sobe com a mensagem do backend", async () => {
     apiPost
       .mockResolvedValueOnce({ data: PREPARACAO_DIRETA })
