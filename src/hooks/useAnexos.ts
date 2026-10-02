@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import { enviarAnexo, excluirAnexo, listarAnexos } from "@/lib/demandas";
@@ -28,15 +29,26 @@ export function useEnviarAnexo(demandaId: number) {
   // revalidate automático do useSWRMutation já cobre a lista de anexos.
   // Histórico é uma chave diferente (não bate por igualdade) -- precisa de
   // invalidação explícita, mesmo achado do Tech Lead na STC-165.
+  // Fração enviada (0 a 1) do arquivo em andamento; null fora de um envio.
+  // Um anexo grande vai direto ao R2 (STC-628) e leva alguns segundos.
+  const [progresso, setProgresso] = useState<number | null>(null);
   const { trigger, isMutating, error } = useSWRMutation(
     ["demanda", demandaId, "anexos"],
-    (_chave, { arg }: { arg: File }) => enviarAnexo(demandaId, arg),
+    async (_chave, { arg }: { arg: File }) => {
+      setProgresso(0);
+      try {
+        return await enviarAnexo(demandaId, arg, setProgresso);
+      } finally {
+        setProgresso(null);
+      }
+    },
     { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
   );
 
   return {
     enviar: trigger,
     isLoading: isMutating,
+    progresso,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
   };

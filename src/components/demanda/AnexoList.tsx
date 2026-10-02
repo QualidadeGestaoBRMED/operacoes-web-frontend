@@ -36,7 +36,7 @@ export function AnexoList({
   podeAnexar: boolean;
 }) {
   const { anexos, isLoading, mensagemErro } = useAnexos(demandaId);
-  const { enviar, isLoading: enviando } = useEnviarAnexo(demandaId);
+  const { enviar, isLoading: enviando, progresso } = useEnviarAnexo(demandaId);
   const { excluir, isLoading: excluindo } = useExcluirAnexo(demandaId);
   const { user, isAdminOps } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,7 +153,7 @@ export function AnexoList({
             {enviando ? (
               <>
                 <Paperclip className="size-3.5 animate-pulse" />
-                Enviando...
+                {progresso ? `Enviando... ${Math.round(progresso * 100)}%` : "Enviando..."}
               </>
             ) : (
               <>
