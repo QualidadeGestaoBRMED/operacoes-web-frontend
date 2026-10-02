@@ -29,17 +29,24 @@ test("fluxo principal: criar demanda, mover no board, comentar e concluir", asyn
   // 1. Criar demanda -- mesmos campos/seletores que
   // FormNovaDemanda.test.tsx já usa (id/aria-label da STC-215).
   await page.getByRole("button", { name: "Nova Demanda" }).click();
-  const formulario = page.getByRole("dialog");
+  // Pelo nome: o popover de Área Responsável também tem role="dialog" e
+  // fica no DOM ao fechar, então getByRole("dialog") sozinho acharia os dois.
+  const formulario = page.getByRole("dialog", { name: "Nova Demanda" });
   await formulario.getByLabel(/título/i).fill(TITULO);
   await formulario.getByLabel(/descrição/i).fill("Criada pela suíte E2E (STC-216).");
   await formulario.getByRole("button", { name: "Média", exact: true }).click();
   await formulario.getByLabel(/prazo/i).fill("2026-12-31");
 
-  await formulario.getByLabel(/^unidade/i).click();
-  await page.getByRole("option", { name: "Niterói" }).click();
-
   await formulario.getByLabel(/tipo de gestão/i).click();
   await page.getByRole("option", { name: "Operacional" }).click();
+
+  // Operacional usa Área Responsável no lugar de Unidade (os dois nunca
+  // aparecem juntos, ver FormNovaDemanda.tsx). SeletorAreaResponsavel é
+  // Popover+Checkbox, não Select: marca a área e fecha o popover com
+  // Escape, que fecha só a camada de cima e mantém o modal aberto.
+  await formulario.getByLabel(/área responsável/i).click();
+  await page.getByRole("checkbox", { name: "Gerência" }).click();
+  await page.keyboard.press("Escape");
 
   await formulario.getByRole("button", { name: "Criar Demanda" }).click();
   await expect(formulario).not.toBeVisible();
