@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { callbackJwt, invalidarRefreshNoBackend } from "./auth";
 
@@ -49,4 +49,23 @@ describe("logout repassa IP e navegador (STC-637)", () => {
       "User-Agent": "Mozilla/5.0 Teste",
     });
   });
+});
+
+describe("login e logout mandam o segredo do proxy (STC-651)", () => {
+  it("a troca do token do Google e o logout levam o X-Atlas-Proxy", async () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", "segredo-do-servidor");
+    fetchMock.mockResolvedValue(Response.json({ access: "a", refresh: "r", user: { id: 1 } }));
+
+    await callbackJwt({ token: {}, account: { id_token: "id-token-do-google" } as never });
+    await invalidarRefreshNoBackend("refresh");
+
+    for (const [, opcoes] of fetchMock.mock.calls) {
+      expect(opcoes.headers["X-Atlas-Proxy"]).toBe("segredo-do-servidor");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
