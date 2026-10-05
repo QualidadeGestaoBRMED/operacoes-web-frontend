@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Os 5 relatórios do mockup. A lista real depende da fonte dos dados
-// (planilha, RPA ou API): ajustada quando a aba for ligada à API (STC-595).
-const RELATORIOS = ["Jornada", "Faltas", "Pendências", "Afastamentos e férias", "Colaboradores"];
+// Os relatórios que a operação exporta hoje do VR Pontomais, em XLS, um
+// centro de custo por vez (semanal de 30/09/2026): cada relatório aceita
+// vários arquivos. A lista definitiva depende da fonte dos dados (planilha,
+// RPA ou API) e é ajustada quando a aba for ligada à API (STC-595).
+const RELATORIOS = ["Espelho de ponto", "Pendências"];
 
 const COLUNAS_HISTORICO = [
   "Importado em",
@@ -54,12 +56,17 @@ export function AbaImportacao() {
           </div>
         </div>
 
-        <ul className="divide-y divide-border rounded-md border border-border">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {RELATORIOS.map((relatorio) => (
-            <li key={relatorio} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <span className="min-w-40 flex-1 text-sm font-medium text-foreground">{relatorio}</span>
-              <span className="text-xs text-muted-foreground">Arraste o arquivo XLSX ou CSV</span>
-              <Button type="button" variant="outline" size="sm">
+            <li
+              key={relatorio}
+              className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-3 py-3"
+            >
+              <span className="text-sm font-medium text-foreground">{relatorio}</span>
+              <span className="text-xs text-muted-foreground">
+                Arraste os arquivos XLS, um por centro de custo
+              </span>
+              <Button type="button" variant="outline" size="sm" className="mt-auto w-full">
                 <Upload className="size-3.5" />
                 Selecionar
               </Button>

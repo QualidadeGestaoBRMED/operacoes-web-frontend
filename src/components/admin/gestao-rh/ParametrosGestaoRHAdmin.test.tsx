@@ -344,7 +344,9 @@ describe("Aba Importação", () => {
     ).toBeInTheDocument();
     expect(within(painel).getByLabelText("Início do período *")).toBeDisabled();
     expect(within(painel).getByRole("button", { name: "Importar relatórios" })).toBeDisabled();
-    expect(within(painel).getAllByRole("button", { name: "Selecionar" })).toHaveLength(5);
+    expect(within(painel).getByText("Espelho de ponto")).toBeInTheDocument();
+    expect(within(painel).getByText("Pendências")).toBeInTheDocument();
+    expect(within(painel).getAllByRole("button", { name: "Selecionar" })).toHaveLength(2);
     expect(within(painel).getByText("Nenhuma importação ainda.")).toBeInTheDocument();
     expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
