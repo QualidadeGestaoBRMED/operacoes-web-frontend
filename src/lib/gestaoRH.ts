@@ -107,6 +107,22 @@ function mensagens(valor: unknown): string[] {
 }
 
 /**
+ * Erros de validação do DRF (400) de um campo que é lista (ex.: `marcos`),
+ * um texto por item, na mesma ordem do que foi enviado. Null quando o erro
+ * não é por item (ex.: `{"marcos": ["Marco repetido."]}`).
+ */
+export function errosPorItem(erro: unknown, campo: string): (string | undefined)[] | null {
+  if (!isAxiosError(erro) || erro.response?.status !== 400) return null;
+  const dados: unknown = erro.response.data;
+  if (!dados || typeof dados !== "object") return null;
+  const itens = (dados as Record<string, unknown>)[campo];
+  if (!Array.isArray(itens) || !itens.some((item) => item && typeof item === "object")) {
+    return null;
+  }
+  return itens.map((item) => mensagens(item).join(" ") || undefined);
+}
+
+/**
  * Erros de validação do DRF (400) por campo de primeiro nível, com as
  * mensagens aninhadas achatadas (ex.: `faixas.non_field_errors`,
  * `marcos[1].dias`). Vazio quando não é um 400 com corpo de campos.

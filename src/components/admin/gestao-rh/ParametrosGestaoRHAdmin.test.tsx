@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
 import { SWRConfig } from "swr";
@@ -81,9 +81,9 @@ function erro400(data: unknown) {
   } as AxiosResponse);
 }
 
-function renderTela() {
+function renderTela(opcoesSWR: Record<string, unknown> = {}) {
   return render(
-    <SWRConfig value={{ provider: () => new Map() }}>
+    <SWRConfig value={{ provider: () => new Map(), ...opcoesSWR }}>
       <ParametrosGestaoRHAdmin />
     </SWRConfig>,
   );
@@ -188,6 +188,44 @@ describe("Parâmetros de absenteísmo", () => {
     expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
 
+  it("limite vazio é obrigatório, não vira 0", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Versão inicial");
+
+    await user.clear(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)"));
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+
+    expect(await screen.findByText("Obrigatório.")).toBeInTheDocument();
+    expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
+  });
+
+  it("recarregar a versão vigente não apaga uma edição em andamento", async () => {
+    const user = userEvent.setup();
+    renderTela({ dedupingInterval: 0, focusThrottleInterval: 0 });
+    await screen.findByText("Versão inicial");
+    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+
+    // Outro Admin salvou: a tela revalida ao voltar o foco.
+    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
+      parametros({
+        ...VERSAO_INICIAL,
+        id: 2,
+        limite_atraso_minutos: 30,
+        versao_inicial: false,
+        salvo_por: "Outro Admin",
+        vigente_a_partir_de: "2026-10-05",
+      }),
+    );
+    fireEvent(window, new Event("focus"));
+
+    expect(
+      await screen.findByText("Versão vigente desde 05/10/2026, por Outro Admin"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)")).toHaveValue(15);
+  });
+
   it("exige ao menos um tipo de ocorrência", async () => {
     const user = userEvent.setup();
     renderTela();
@@ -263,9 +301,11 @@ describe("Régua de férias", () => {
 
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(
-      await screen.findByText("Para este marco, os dias vão de 1 a 365."),
-    ).toBeInTheDocument();
+    const erro = await screen.findByText("Para este marco, os dias vão de 1 a 365.");
+    const linhaDoMarco = screen
+      .getByLabelText("Dias: dias antes do limite para tirar")
+      .closest("li") as HTMLElement;
+    expect(linhaDoMarco).toContainElement(erro);
   });
 });
 

@@ -33,11 +33,16 @@ const percentualOpcional = z
 
 const schema = z
   .object({
-    limite_atraso_minutos: z.coerce
-      .number({ error: "Obrigatório." })
-      .int("Número inteiro de minutos.")
-      .min(0, "Não pode ser negativo.")
-      .max(240, "No máximo 240 minutos."),
+    // Vazio é "Obrigatório", não 0: 0 é um limite válido (todo atraso
+    // contaria) e seria salvo sem ninguém perceber.
+    limite_atraso_minutos: z.preprocess(
+      (valor) => (valor === "" || valor === null || valor === undefined ? undefined : Number(valor)),
+      z
+        .number({ error: "Obrigatório." })
+        .int("Número inteiro de minutos.")
+        .min(0, "Não pode ser negativo.")
+        .max(240, "No máximo 240 minutos."),
+    ),
     meta_percentual: percentualOpcional,
     atencao_a_partir_de: percentualOpcional,
     critica_acima_de: percentualOpcional,
@@ -94,14 +99,17 @@ export function FormParametrosAbsenteismo() {
     reset,
     watch,
     setError,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ValoresEntrada & { faixas?: string }, unknown, ValoresSaida>({
     resolver: zodResolver(schema),
   });
 
+  // Recarregar a versão vigente (ex.: outro Admin salvou e a tela revalidou)
+  // não substitui uma edição em andamento. Depois de salvar, quem reinicia o
+  // formulário é o próprio aoSubmeter.
   useEffect(() => {
-    if (vigente) reset(valoresDaVersao(vigente));
-  }, [vigente, reset]);
+    if (vigente && !isDirty) reset(valoresDaVersao(vigente));
+  }, [vigente, isDirty, reset]);
 
   const semFaixas = !watch("atencao_a_partir_de") && !watch("critica_acima_de");
 
@@ -120,6 +128,7 @@ export function FormParametrosAbsenteismo() {
           : null,
         tipos_computados: valores.tipos_computados,
       });
+      if (resultado.dados.vigente) reset(valoresDaVersao(resultado.dados.vigente));
       if (resultado.criouVersao) {
         toast.success("Nova versão dos parâmetros salva.");
       } else {
