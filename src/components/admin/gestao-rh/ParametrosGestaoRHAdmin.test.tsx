@@ -171,6 +171,49 @@ describe("Parâmetros de absenteísmo", () => {
     expect(salvar).toBeDisabled();
   });
 
+  it("voltar o limite ao valor original desabilita os botões de novo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Versão inicial");
+    const salvar = screen.getByRole("button", { name: "Salvar nova versão" });
+    const limite = screen.getByLabelText("Limite de atraso e saída antecipada (minutos)");
+
+    await user.clear(limite);
+    await user.type(limite, "20");
+    expect(salvar).toBeEnabled();
+
+    await user.clear(limite);
+    await user.type(limite, "15");
+    expect(salvar).toBeDisabled();
+  });
+
+  it("falha ao carregar mostra o erro e permite tentar de novo", async () => {
+    const user = userEvent.setup();
+    vi.mocked(buscarParametrosAbsenteismo).mockRejectedValueOnce(new Error("Falha de rede"));
+    renderTela({ shouldRetryOnError: false });
+
+    await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+
+    expect(await screen.findByText("Versão inicial")).toBeInTheDocument();
+  });
+
+  it("falha numa revalidação mantém o formulário e a edição", async () => {
+    const user = userEvent.setup();
+    renderTela({ dedupingInterval: 0, focusThrottleInterval: 0, shouldRetryOnError: false });
+    await screen.findByText("Versão inicial");
+    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+
+    vi.mocked(buscarParametrosAbsenteismo).mockRejectedValue(new Error("Falha de rede"));
+    vi.mocked(buscarReguaFerias).mockRejectedValue(new Error("Falha de rede"));
+    fireEvent(window, new Event("focus"));
+
+    await waitFor(() => expect(buscarParametrosAbsenteismo).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(buscarReguaFerias).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByText("Régua de alertas de férias")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).not.toBeInTheDocument();
+  });
+
   it("avisa quando a API diz que não há alteração", async () => {
     // Ex.: outro Admin já salvou exatamente os mesmos valores.
     const user = userEvent.setup();
@@ -212,7 +255,11 @@ describe("Parâmetros de absenteísmo", () => {
     await user.clear(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)"));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
-    expect(await screen.findByText("Obrigatório.")).toBeInTheDocument();
+    const erro = await screen.findByText("Obrigatório.");
+    expect(erro).toHaveAttribute("role", "alert");
+    const limite = screen.getByLabelText("Limite de atraso e saída antecipada (minutos)");
+    expect(limite).toHaveAttribute("aria-invalid", "true");
+    expect(limite).toHaveAccessibleDescription(/Obrigatório\./);
     expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
 
@@ -333,7 +380,7 @@ describe("Régua de férias", () => {
 
     const dias = screen.getByLabelText("Dias: dias antes do limite para tirar");
     await user.clear(dias);
-    await user.type(dias, "400");
+    await user.type(dias, "100");
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     const erro = await screen.findByText("Para este marco, os dias vão de 1 a 365.");
@@ -341,6 +388,27 @@ describe("Régua de férias", () => {
       .getByLabelText("Dias: dias antes do limite para tirar")
       .closest("li") as HTMLElement;
     expect(linhaDoMarco).toContainElement(erro);
+  });
+});
+
+describe("Régua de férias: validação", () => {
+  it.each([
+    ["", "Informe os dias."],
+    ["400", "Os dias vão de 1 a 365."],
+  ])("dias %o não chegam à API", async (valor, mensagem) => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Régua de alertas de férias");
+
+    const dias = screen.getByLabelText("Dias: dias antes do limite para tirar");
+    await user.clear(dias);
+    if (valor) await user.type(dias, valor);
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    expect(dias).toHaveAttribute("aria-invalid", "true");
+    expect(dias).toHaveAccessibleDescription(mensagem);
+    expect(salvarReguaFerias).not.toHaveBeenCalled();
   });
 });
 

@@ -29,6 +29,7 @@ export function useParametrosAbsenteismo() {
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
     salvar,
   };
 }
@@ -49,6 +50,7 @@ export function useReguaFerias() {
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
     salvar,
   };
 }

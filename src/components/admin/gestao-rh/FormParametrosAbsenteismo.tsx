@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParametrosAbsenteismo } from "@/hooks/useParametrosGestaoRH";
+import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   ROTULO_TIPO_OCORRENCIA,
@@ -82,7 +83,9 @@ const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
 
 function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
   return {
-    limite_atraso_minutos: versao.limite_atraso_minutos,
+    // Texto, como o input devolve: com número, voltar ao valor original
+    // ainda contaria como alteração.
+    limite_atraso_minutos: String(versao.limite_atraso_minutos),
     meta_percentual: percentualParaCampo(versao.meta_percentual),
     atencao_a_partir_de: percentualParaCampo(versao.faixas?.atencao_a_partir_de),
     critica_acima_de: percentualParaCampo(versao.faixas?.critica_acima_de),
@@ -90,13 +93,8 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
   };
 }
 
-function MensagemErro({ texto }: { texto?: string }) {
-  if (!texto) return null;
-  return <p className="text-xs text-destructive">{texto}</p>;
-}
-
 export function FormParametrosAbsenteismo() {
-  const { vigente, isLoading, mensagemErro, salvar } = useParametrosAbsenteismo();
+  const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo();
   const [salvando, setSalvando] = useState(false);
   const [erroFaixas, setErroFaixas] = useState<string>();
 
@@ -164,11 +162,13 @@ export function FormParametrosAbsenteismo() {
   }
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
-  if (mensagemErro || !vigente) {
+  // Falha numa revalidação com dado em tela mantém o formulário (e a edição).
+  if (!vigente) {
     return (
-      <p className="text-sm text-destructive">
-        {mensagemErro ?? "Parâmetros de absenteísmo não encontrados."}
-      </p>
+      <ErroAoCarregar
+        mensagem={mensagemErro ?? "Parâmetros de absenteísmo não encontrados."}
+        aoTentarNovamente={recarregar}
+      />
     );
   }
 
@@ -197,46 +197,50 @@ export function FormParametrosAbsenteismo() {
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="pa-limite">Limite de atraso e saída antecipada (minutos)</Label>
-            <Input id="pa-limite" type="number" min={0} max={240} {...register("limite_atraso_minutos")} />
+            <Input id="pa-limite" type="number" min={0} max={240} aria-invalid={!!errors.limite_atraso_minutos} aria-describedby={errors.limite_atraso_minutos ? "pa-limite-erro" : undefined} {...register("limite_atraso_minutos")} />
             <p className="text-xs text-muted-foreground">Só conta o que passar do limite.</p>
-            <MensagemErro texto={errors.limite_atraso_minutos?.message} />
+            <MensagemErro id="pa-limite-erro" texto={errors.limite_atraso_minutos?.message} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="pa-meta">Meta de absenteísmo (%)</Label>
-            <Input id="pa-meta" type="number" min={0} max={100} step="0.01" placeholder="Sem meta" {...register("meta_percentual")} />
+            <Input id="pa-meta" type="number" min={0} max={100} step="0.01" placeholder="Sem meta" aria-invalid={!!errors.meta_percentual} aria-describedby={errors.meta_percentual ? "pa-meta-erro" : undefined} {...register("meta_percentual")} />
             <p className="text-xs text-muted-foreground">Exibida como referência no painel.</p>
-            <MensagemErro texto={errors.meta_percentual?.message} />
+            <MensagemErro id="pa-meta-erro" texto={errors.meta_percentual?.message} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="pa-atencao">Faixa de atenção a partir de (%)</Label>
-            <Input id="pa-atencao" type="number" min={0} max={100} step="0.01" placeholder="Sem faixa" {...register("atencao_a_partir_de")} />
+            <Input id="pa-atencao" type="number" min={0} max={100} step="0.01" placeholder="Sem faixa" aria-invalid={!!errors.atencao_a_partir_de || !!mensagemFaixas} aria-describedby={[errors.atencao_a_partir_de && "pa-atencao-erro", mensagemFaixas && "pa-faixas-erro"].filter(Boolean).join(" ") || undefined} {...register("atencao_a_partir_de")} />
             <p className="text-xs text-muted-foreground">Aparece só no painel.</p>
-            <MensagemErro texto={errors.atencao_a_partir_de?.message} />
+            <MensagemErro id="pa-atencao-erro" texto={errors.atencao_a_partir_de?.message} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="pa-critica">Faixa crítica acima de (%)</Label>
-            <Input id="pa-critica" type="number" min={0} max={100} step="0.01" placeholder="Sem faixa" {...register("critica_acima_de")} />
+            <Input id="pa-critica" type="number" min={0} max={100} step="0.01" placeholder="Sem faixa" aria-invalid={!!errors.critica_acima_de || !!mensagemFaixas} aria-describedby={[errors.critica_acima_de && "pa-critica-erro", mensagemFaixas && "pa-faixas-erro"].filter(Boolean).join(" ") || undefined} {...register("critica_acima_de")} />
             <p className="text-xs text-muted-foreground">Só a faixa crítica gera demanda.</p>
-            <MensagemErro texto={errors.critica_acima_de?.message} />
+            <MensagemErro id="pa-critica-erro" texto={errors.critica_acima_de?.message} />
           </div>
         </div>
 
         {mensagemFaixas ? (
-          <MensagemErro texto={mensagemFaixas} />
+          <MensagemErro id="pa-faixas-erro" texto={mensagemFaixas} />
         ) : (
           semFaixas && (
             <p className="flex items-start gap-2 text-sm text-muted-foreground">
-              <Info className="mt-0.5 size-4 shrink-0 text-secondary" />
+              <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary" />
               Sem faixas cadastradas: nenhum colaborador é classificado e nenhuma demanda de
               absenteísmo é gerada.
             </p>
           )
         )}
 
-        <fieldset className="space-y-2">
+        <fieldset
+          className="space-y-2"
+          aria-invalid={!!errors.tipos_computados}
+          aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
+        >
           <legend className="text-sm font-medium text-foreground">
             Tipos de ocorrência que contam no absenteísmo
           </legend>
@@ -267,7 +271,7 @@ export function FormParametrosAbsenteismo() {
             )}
           />
           <p className="text-xs text-muted-foreground">Férias e banco de horas nunca contam.</p>
-          <MensagemErro texto={errors.tipos_computados?.message} />
+          <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
         </fieldset>
 
         <div className="flex justify-end gap-2">

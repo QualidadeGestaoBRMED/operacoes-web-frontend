@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useReguaFerias } from "@/hooks/useParametrosGestaoRH";
+import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
 import { MARCOS_DA_TELA, errosDeCampo, errosPorItem } from "@/lib/gestaoRH";
 import type { MarcoEditado, TipoMarcoEditavel, VersaoMarcoRegua } from "@/types/gestaoRH";
@@ -24,8 +25,26 @@ function edicaoDosMarcos(marcos: VersaoMarcoRegua[]): Edicao | null {
   return edicao;
 }
 
+const DIAS_MINIMO = 1;
+const DIAS_MAXIMO = 365;
+
+// Campo vazio não vira 0 no envio: a mensagem aparece na linha do marco.
+function errosDeDias(edicao: Edicao): Partial<Record<TipoMarcoEditavel, string>> {
+  const erros: Partial<Record<TipoMarcoEditavel, string>> = {};
+  for (const { tipo, temDias } of MARCOS_DA_TELA) {
+    if (!temDias) continue;
+    const texto = edicao[tipo].dias.trim();
+    const dias = Number(texto);
+    if (texto === "") erros[tipo] = "Informe os dias.";
+    else if (!Number.isInteger(dias) || dias < DIAS_MINIMO || dias > DIAS_MAXIMO) {
+      erros[tipo] = `Os dias vão de ${DIAS_MINIMO} a ${DIAS_MAXIMO}.`;
+    }
+  }
+  return erros;
+}
+
 export function FormReguaFerias() {
-  const { marcos, isLoading, mensagemErro, salvar } = useReguaFerias();
+  const { marcos, isLoading, mensagemErro, recarregar, salvar } = useReguaFerias();
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erro, setErro] = useState<string>();
   const [erroPorMarco, setErroPorMarco] = useState<Partial<Record<TipoMarcoEditavel, string>>>({});
@@ -52,6 +71,11 @@ export function FormReguaFerias() {
     evento.preventDefault();
     if (!edicao) return;
     limparErros();
+    const invalidos = errosDeDias(edicao);
+    if (Object.keys(invalidos).length > 0) {
+      setErroPorMarco(invalidos);
+      return;
+    }
     const payload: MarcoEditado[] = MARCOS_DA_TELA.map(({ tipo }) => ({
       tipo_marco: tipo,
       dias: Number(edicao[tipo].dias),
@@ -96,11 +120,13 @@ export function FormReguaFerias() {
     JSON.stringify(edicao) !== JSON.stringify(edicaoDosMarcos(marcos));
 
   if (isLoading) return <Skeleton className="h-56 w-full" />;
-  if (mensagemErro || !edicao) {
+  // Falha numa revalidação com dado em tela mantém a régua (e a edição).
+  if (!edicao) {
     return (
-      <p className="text-sm text-destructive">
-        {mensagemErro ?? "Régua de férias não encontrada."}
-      </p>
+      <ErroAoCarregar
+        mensagem={mensagemErro ?? "Régua de férias não encontrada."}
+        aoTentarNovamente={recarregar}
+      />
     );
   }
 
@@ -120,6 +146,7 @@ export function FormReguaFerias() {
         <ul className="divide-y divide-border rounded-md border border-border">
           {MARCOS_DA_TELA.map(({ tipo, rotulo, descricao, temDias }) => {
             const idDias = `regua-${tipo}-dias`;
+            const idErro = `regua-${tipo}-erro`;
             return (
               <li key={tipo} className="flex items-center gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1 space-y-0.5">
@@ -132,6 +159,8 @@ export function FormReguaFerias() {
                         min={1}
                         max={365}
                         className="h-8 w-20"
+                        aria-invalid={!!erroPorMarco[tipo]}
+                        aria-describedby={erroPorMarco[tipo] ? idErro : undefined}
                         value={edicao[tipo].dias}
                         onChange={(evento) => alterar(tipo, { dias: evento.target.value })}
                       />
@@ -139,9 +168,7 @@ export function FormReguaFerias() {
                     <span>{rotulo}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{descricao}</p>
-                  {erroPorMarco[tipo] && (
-                    <p className="text-xs text-destructive">{erroPorMarco[tipo]}</p>
-                  )}
+                  <MensagemErro id={idErro} texto={erroPorMarco[tipo]} />
                 </div>
                 <Switch
                   aria-label={`Ativar: ${temDias ? `${edicao[tipo].dias} ${rotulo}` : rotulo}`}
@@ -153,7 +180,7 @@ export function FormReguaFerias() {
           })}
         </ul>
 
-        {erro && <p className="text-xs text-destructive">{erro}</p>}
+        <MensagemErro texto={erro} />
 
         <div className="flex justify-end gap-2">
           <Button

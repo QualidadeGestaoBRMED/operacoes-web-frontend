@@ -35,7 +35,7 @@ export function AbaImportacao() {
         role="status"
         className="flex items-start gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-sm text-foreground"
       >
-        <Info className="mt-0.5 size-4 shrink-0 text-secondary" />
+        <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary" />
         <p>A importação será ativada quando a fonte dos dados for definida.</p>
       </div>
 
@@ -70,7 +70,7 @@ export function AbaImportacao() {
               <span className="text-sm font-medium text-foreground">{nome}</span>
               <span className="text-xs text-muted-foreground">{dica}</span>
               <Button type="button" variant="outline" size="sm" className="mt-auto w-full">
-                <Upload className="size-3.5" />
+                <Upload aria-hidden className="size-3.5" />
                 Selecionar
               </Button>
             </li>
