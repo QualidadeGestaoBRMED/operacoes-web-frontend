@@ -51,7 +51,8 @@ function jtiDe(jwt: string): string {
   return JSON.parse(Buffer.from(jwt.split(".")[1], "base64url").toString()).jti;
 }
 
-/** Sessão nova do usuário seedado, com o access valendo `accessTtlSegundos`
+/** Sessão nova do usuário seedado, emitida como no login (com família de
+ * refresh, STC-631), com o access valendo `accessTtlSegundos`
  * (negativo = já expirado). `revogada`: refresh já na blacklist (sessão
  * inválida de verdade). */
 async function abrirSessao(
@@ -61,11 +62,11 @@ async function abrirSessao(
   const saida = shellDjango(`
 import json
 from datetime import timedelta
-from rest_framework_simplejwt.tokens import RefreshToken
+from accounts.familia_refresh import emitir_refresh
 from accounts.models import Usuario
 from accounts.serializers import UsuarioSerializer
 u = Usuario.objects.get(email="${EMAIL_E2E}")
-r = RefreshToken.for_user(u)
+r = emitir_refresh(u)
 a = r.access_token
 a.set_exp(lifetime=timedelta(seconds=${opcoes.accessTtlSegundos}))
 ${opcoes.revogada ? "r.blacklist()" : ""}
