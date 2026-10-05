@@ -49,16 +49,24 @@ import {
   type ValoresIniciaisPermissao,
 } from "./FormNovaPermissao";
 import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
+import { ParametrosGestaoRHAdmin } from "./gestao-rh/ParametrosGestaoRHAdmin";
 import { CatalogoLegalizacaoAdmin } from "./legalizacao/CatalogoLegalizacaoAdmin";
 
 const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
-type Aba = "usuarios" | "catalogo-legalizacao";
+type Aba = "usuarios" | "catalogo-legalizacao" | "parametros-gestao-rh";
 
 const ROTULO_ABA: Record<Aba, string> = {
   usuarios: "Usuários",
   "catalogo-legalizacao": "Catálogo de Legalização",
+  "parametros-gestao-rh": "Parâmetros de Gestão RH",
+};
+
+const ROTA_ABA: Record<Aba, string> = {
+  usuarios: "/admin/permissoes",
+  "catalogo-legalizacao": "/admin/permissoes/catalogo-legalizacao",
+  "parametros-gestao-rh": "/admin/permissoes/parametros-gestao-rh",
 };
 
 // Achado no dogfooding: 50/50 fixo desperdiçava espaço quando uma seção
@@ -217,9 +225,10 @@ export function PermissoesAdmin() {
   // renderizado pelo layout.tsx (persiste entre as duas rotas, nunca
   // desmonta) em vez de cada page.tsx, e lê o pathname direto -- sem
   // remount nenhum, e sem `useState`/prop pra manter sincronizado.
-  const aba: Aba = pathname.endsWith("/catalogo-legalizacao")
-    ? "catalogo-legalizacao"
-    : "usuarios";
+  const aba: Aba =
+    (Object.keys(ROTA_ABA) as Aba[]).find(
+      (candidata) => candidata !== "usuarios" && pathname.endsWith(ROTA_ABA[candidata]),
+    ) ?? "usuarios";
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
@@ -533,11 +542,7 @@ export function PermissoesAdmin() {
               // expandida, diálogos abertos). replace (não push): é troca
               // de aba, não deveria empilhar no histórico do back-button a
               // cada clique no Select.
-              router.replace(
-                valor === "catalogo-legalizacao"
-                  ? "/admin/permissoes/catalogo-legalizacao"
-                  : "/admin/permissoes",
-              );
+              router.replace(ROTA_ABA[valor as Aba]);
             }}
           >
             <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
@@ -555,6 +560,12 @@ export function PermissoesAdmin() {
       </div>
 
       <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
+
+      {/* Parâmetros de Gestão RH: só Admin. Nunca renderiza para quem só tem
+          acesso ao Catálogo (a API também recusa com 403). */}
+      {!apenasCatalogo && (
+        <ParametrosGestaoRHAdmin hidden={abaEfetiva !== "parametros-gestao-rh"} />
+      )}
 
       {/* Cada seção reparte a altura disponível proporcional a quantas
           linhas tem (flex-grow via style, ver pesoSecao) e rola por conta
