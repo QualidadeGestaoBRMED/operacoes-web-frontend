@@ -171,6 +171,25 @@ describe("Parâmetros de absenteísmo", () => {
     expect(salvar).toBeDisabled();
   });
 
+  it("desmarcar e marcar de novo um tipo não conta como alteração", async () => {
+    // A API guarda os tipos na ordem recebida: pode devolver fora da ordem da tela.
+    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
+      parametros({ ...VERSAO_INICIAL, tipos_computados: ["atestado", "falta"] }),
+    );
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Versão inicial");
+    const salvar = screen.getByRole("button", { name: "Salvar nova versão" });
+
+    await user.click(screen.getByRole("checkbox", { name: "Falta" }));
+    await user.click(screen.getByRole("checkbox", { name: "Falta" }));
+    expect(salvar).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "Atestado" }));
+    await user.click(screen.getByRole("checkbox", { name: "Atestado" }));
+    expect(salvar).toBeDisabled();
+  });
+
   it("voltar o limite ao valor original desabilita os botões de novo", async () => {
     const user = userEvent.setup();
     renderTela();
@@ -453,6 +472,11 @@ describe("Régua de férias: validação", () => {
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", {
+        name: valor ? `Ativar: ${valor} dias antes do limite para tirar` : "Ativar: dias antes do limite para tirar",
+      }),
+    ).toBeInTheDocument();
     expect(dias).toHaveAttribute("aria-invalid", "true");
     expect(dias).toHaveAccessibleDescription(mensagem);
     expect(salvarReguaFerias).not.toHaveBeenCalled();

@@ -81,6 +81,12 @@ const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
   "tipos_computados",
 ]);
 
+// Tipos sempre na ordem da tela: o react-hook-form compara listas por
+// posição, e desmarcar e marcar de novo não pode contar como alteração.
+function naOrdemDaTela(tipos: readonly string[]): TipoOcorrenciaComputavel[] {
+  return TIPOS_OCORRENCIA_COMPUTAVEIS.filter((tipo) => tipos.includes(tipo));
+}
+
 function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
   return {
     // Texto, como o input devolve: com número, voltar ao valor original
@@ -89,7 +95,7 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
     meta_percentual: percentualParaCampo(versao.meta_percentual),
     atencao_a_partir_de: percentualParaCampo(versao.faixas?.atencao_a_partir_de),
     critica_acima_de: percentualParaCampo(versao.faixas?.critica_acima_de),
-    tipos_computados: versao.tipos_computados,
+    tipos_computados: naOrdemDaTela(versao.tipos_computados),
   };
 }
 
@@ -257,9 +263,11 @@ export function FormParametrosAbsenteismo() {
                         checked={marcado}
                         onCheckedChange={(valor) =>
                           field.onChange(
-                            valor === true
-                              ? [...(field.value ?? []), tipo]
-                              : (field.value ?? []).filter((item) => item !== tipo),
+                            naOrdemDaTela(
+                              valor === true
+                                ? [...(field.value ?? []), tipo]
+                                : (field.value ?? []).filter((item) => item !== tipo),
+                            ),
                           )
                         }
                       />

@@ -177,7 +177,7 @@ export function FormReguaFerias() {
                   <MensagemErro id={idErro} texto={erroPorMarco[tipo]} />
                 </div>
                 <Switch
-                  aria-label={`Ativar: ${temDias ? `${edicao[tipo].dias} ${rotulo}` : rotulo}`}
+                  aria-label={`Ativar: ${temDias && edicao[tipo].dias.trim() ? `${edicao[tipo].dias.trim()} ${rotulo}` : rotulo}`}
                   checked={edicao[tipo].ativo}
                   onCheckedChange={(ativo) => alterar(tipo, { ativo })}
                 />
