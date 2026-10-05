@@ -3,11 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Os relatórios que a operação exporta hoje do VR Pontomais, em XLS, um
-// centro de custo por vez (semanal de 30/09/2026): cada relatório aceita
-// vários arquivos. A lista definitiva depende da fonte dos dados (planilha,
-// RPA ou API) e é ajustada quando a aba for ligada à API (STC-595).
-const RELATORIOS = ["Espelho de ponto", "Pendências"];
+// Os relatórios que a operação exporta hoje do VR Pontomais, em XLS (semanal
+// de 30/09/2026). O espelho de ponto sai um centro de custo por vez; se as
+// pendências também saem assim não foi confirmado. Os dois cartões aceitam
+// vários arquivos, o que serve nos dois casos. A lista definitiva depende da
+// fonte dos dados (planilha, RPA ou API) e é ajustada quando a aba for
+// ligada à API (STC-595).
+const RELATORIOS = [
+  { nome: "Espelho de ponto", dica: "Arraste os arquivos XLS, um por centro de custo" },
+  { nome: "Pendências", dica: "Arraste o arquivo XLS (ou um por centro de custo)" },
+];
 
 const COLUNAS_HISTORICO = [
   "Importado em",
@@ -57,15 +62,13 @@ export function AbaImportacao() {
         </div>
 
         <ul className="grid gap-3 sm:grid-cols-2">
-          {RELATORIOS.map((relatorio) => (
+          {RELATORIOS.map(({ nome, dica }) => (
             <li
-              key={relatorio}
+              key={nome}
               className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-3 py-3"
             >
-              <span className="text-sm font-medium text-foreground">{relatorio}</span>
-              <span className="text-xs text-muted-foreground">
-                Arraste os arquivos XLS, um por centro de custo
-              </span>
+              <span className="text-sm font-medium text-foreground">{nome}</span>
+              <span className="text-xs text-muted-foreground">{dica}</span>
               <Button type="button" variant="outline" size="sm" className="mt-auto w-full">
                 <Upload className="size-3.5" />
                 Selecionar
