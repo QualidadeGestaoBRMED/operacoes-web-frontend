@@ -271,6 +271,20 @@ describe("Parâmetros de absenteísmo", () => {
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });
+
+  it("erro da API sem campo na tela vira toast", async () => {
+    const user = userEvent.setup();
+    vi.mocked(salvarParametrosAbsenteismo).mockRejectedValue(
+      erro400({ non_field_errors: ["Parâmetros inválidos."] }),
+    );
+    renderTela();
+    await screen.findByText("Versão inicial");
+
+    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Parâmetros inválidos."));
+  });
 });
 
 describe("Régua de férias", () => {

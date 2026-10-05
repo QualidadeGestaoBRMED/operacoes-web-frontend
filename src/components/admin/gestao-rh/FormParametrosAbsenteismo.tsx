@@ -74,6 +74,12 @@ type ValoresEntrada = z.input<typeof schema>;
 type ValoresSaida = z.output<typeof schema>;
 type CampoComErro = keyof ValoresEntrada | "faixas";
 
+const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
+  "limite_atraso_minutos",
+  "meta_percentual",
+  "tipos_computados",
+]);
+
 function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
   return {
     limite_atraso_minutos: versao.limite_atraso_minutos,
@@ -137,15 +143,21 @@ export function FormParametrosAbsenteismo() {
         toast.info("Nenhuma alteração: a versão vigente continua a mesma.");
       }
     } catch (erro) {
+      // Chave sem campo na tela (ex.: non_field_errors) vira toast, para o
+      // erro nunca sumir em silêncio.
       const porCampo = errosDeCampo(erro);
       if (Object.keys(porCampo).length === 0) {
         toast.error(extrairMensagemErro(erro));
         return;
       }
+      const semCampo: string[] = [];
       for (const [campo, mensagem] of Object.entries(porCampo)) {
         if (campo === "faixas") setErroFaixas(mensagem);
-        else setError(campo as CampoComErro, { message: mensagem });
+        else if (CAMPOS_COM_ERRO_NA_TELA.has(campo)) {
+          setError(campo as CampoComErro, { message: mensagem });
+        } else semCampo.push(mensagem);
       }
+      if (semCampo.length > 0) toast.error(semCampo.join(" "));
     } finally {
       setSalvando(false);
     }
