@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
+import { cabecalhosDoCliente } from "@/lib/cabecalhosDoCliente";
 
 type ParamsPromise = Promise<{ path: string[] }>;
 
@@ -43,6 +44,9 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   const resposta = await fetch(destino, {
     method: request.method,
     headers: {
+      // IP e navegador de quem está usando o Atlas, para a trilha de
+      // auditoria do backend (src/lib/cabecalhosDoCliente.ts).
+      ...cabecalhosDoCliente(request.headers),
       Authorization: `Bearer ${token.backendAccessToken}`,
       ...(temCorpo && contentType ? { "Content-Type": contentType } : {}),
     },
