@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -162,15 +163,17 @@ export function FormParametrosAbsenteismo() {
 
   return (
     <section aria-labelledby="titulo-parametros-absenteismo" className="space-y-5">
-      <div className="space-y-1">
-        <h2 id="titulo-parametros-absenteismo" className="text-base font-semibold text-foreground">
-          Parâmetros de absenteísmo
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Cada alteração cria uma nova versão; a versão anterior continua valendo para os
-          períodos já calculados.
-        </p>
-        <p className="text-xs font-medium text-secondary">{textoVersaoVigente(vigente)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="titulo-parametros-absenteismo" className="text-base font-semibold text-foreground">
+            Parâmetros de absenteísmo
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Cada alteração cria uma nova versão; a versão anterior continua valendo para os
+            períodos já calculados.
+          </p>
+        </div>
+        <Badge variant="outline">{textoVersaoVigente(vigente)}</Badge>
       </div>
 
       <form
@@ -178,7 +181,7 @@ export function FormParametrosAbsenteismo() {
         className="space-y-5"
         noValidate
       >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="pa-limite">Limite de atraso e saída antecipada (minutos)</Label>
             <Input id="pa-limite" type="number" min={0} max={240} {...register("limite_atraso_minutos")} />

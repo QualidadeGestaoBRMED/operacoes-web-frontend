@@ -6,25 +6,36 @@ import { AbaImportacao } from "./AbaImportacao";
 import { FormParametrosAbsenteismo } from "./FormParametrosAbsenteismo";
 import { FormReguaFerias } from "./FormReguaFerias";
 
+const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shadow-none";
+
 /**
  * Seção "Parâmetros de Gestão RH" da Administração (só Admin). Abre na aba
  * Absenteísmo e férias, a única ligada à API; a de Importação mostra o
- * formulário desligado até a fonte dos dados ser definida.
+ * formulário desligado até a fonte dos dados ser definida. Abas sublinhadas,
+ * como no detalhe do documento da Legalização; seções empilhadas na largura
+ * toda, como as outras seções da Administração.
  */
 export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
   return (
     <div hidden={hidden} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <Tabs defaultValue="absenteismo-ferias" className="gap-5">
-        <TabsList>
-          <TabsTrigger value="importacao">Importação</TabsTrigger>
-          <TabsTrigger value="absenteismo-ferias">Absenteísmo e férias</TabsTrigger>
+      <Tabs defaultValue="absenteismo-ferias" className="gap-6">
+        <TabsList
+          variant="line"
+          className="h-11 w-full justify-start gap-5 rounded-none border-b border-border bg-transparent"
+        >
+          <TabsTrigger value="importacao" className={CLASSE_ABA}>
+            Importação
+          </TabsTrigger>
+          <TabsTrigger value="absenteismo-ferias" className={CLASSE_ABA}>
+            Absenteísmo e férias
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="importacao" className="max-w-3xl">
+        <TabsContent value="importacao">
           <AbaImportacao />
         </TabsContent>
 
-        <TabsContent value="absenteismo-ferias" className="max-w-3xl space-y-7">
+        <TabsContent value="absenteismo-ferias" className="space-y-7">
           <FormParametrosAbsenteismo />
           <Separator />
           <FormReguaFerias />

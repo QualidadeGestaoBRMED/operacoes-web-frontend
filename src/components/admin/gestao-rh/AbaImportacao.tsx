@@ -43,7 +43,7 @@ export function AbaImportacao() {
       </div>
 
       <fieldset disabled className="space-y-5 disabled:opacity-60">
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="imp-inicio">Início do período *</Label>
             <Input id="imp-inicio" type="date" />
@@ -77,12 +77,12 @@ export function AbaImportacao() {
         </div>
       </fieldset>
 
-      <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full min-w-[40rem] text-sm">
-          <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-            <tr>
+      <div className="scrollbar-discreta overflow-x-auto rounded-lg border border-border">
+        <table aria-label="Importações" className="w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {COLUNAS_HISTORICO.map((coluna) => (
-                <th key={coluna} scope="col" className="px-3 py-2 font-medium">
+                <th key={coluna} scope="col" className="px-4 py-2.5">
                   {coluna}
                 </th>
               ))}
@@ -90,7 +90,7 @@ export function AbaImportacao() {
           </thead>
           <tbody>
             <tr>
-              <td colSpan={COLUNAS_HISTORICO.length} className="px-3 py-6 text-center text-muted-foreground">
+              <td colSpan={COLUNAS_HISTORICO.length} className="px-4 py-6 text-center text-muted-foreground">
                 Nenhuma importação ainda.
               </td>
             </tr>
