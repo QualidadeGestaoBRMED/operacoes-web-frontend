@@ -89,6 +89,12 @@ export function FormReguaFerias() {
     }
   }
 
+  // Botões só com alteração de verdade: desfazer uma mudança desabilita de novo.
+  const mudou =
+    !!marcos &&
+    !!edicao &&
+    JSON.stringify(edicao) !== JSON.stringify(edicaoDosMarcos(marcos));
+
   if (isLoading) return <Skeleton className="h-56 w-full" />;
   if (mensagemErro || !edicao) {
     return (
@@ -153,7 +159,7 @@ export function FormReguaFerias() {
           <Button
             type="button"
             variant="outline"
-            disabled={salvando}
+            disabled={salvando || !mudou}
             onClick={() => {
               limparErros();
               setEditado(false);
@@ -162,7 +168,7 @@ export function FormReguaFerias() {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando || !mudou}>
             {salvando ? "Salvando..." : "Salvar"}
           </Button>
         </div>

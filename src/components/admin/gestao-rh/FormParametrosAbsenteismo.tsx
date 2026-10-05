@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Info } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -215,7 +216,8 @@ export function FormParametrosAbsenteismo() {
           <MensagemErro texto={mensagemFaixas} />
         ) : (
           semFaixas && (
-            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Info className="mt-0.5 size-4 shrink-0 text-secondary" />
               Sem faixas cadastradas: nenhum colaborador é classificado e nenhuma demanda de
               absenteísmo é gerada.
             </p>
@@ -260,7 +262,7 @@ export function FormParametrosAbsenteismo() {
           <Button
             type="button"
             variant="outline"
-            disabled={salvando}
+            disabled={salvando || !isDirty}
             onClick={() => {
               setErroFaixas(undefined);
               reset(valoresDaVersao(vigente));
@@ -268,7 +270,7 @@ export function FormParametrosAbsenteismo() {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando || !isDirty}>
             {salvando ? "Salvando..." : "Salvar nova versão"}
           </Button>
         </div>

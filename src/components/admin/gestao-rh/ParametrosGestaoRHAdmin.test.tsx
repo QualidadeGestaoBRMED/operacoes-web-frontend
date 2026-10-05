@@ -157,7 +157,22 @@ describe("Parâmetros de absenteísmo", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it("avisa quando não há alteração", async () => {
+  it("botões ficam desabilitados até haver alteração, e voltam a ficar se ela for desfeita", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Versão inicial");
+    const salvar = screen.getByRole("button", { name: "Salvar nova versão" });
+    expect(salvar).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    expect(salvar).toBeEnabled();
+
+    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    expect(salvar).toBeDisabled();
+  });
+
+  it("avisa quando a API diz que não há alteração", async () => {
+    // Ex.: outro Admin já salvou exatamente os mesmos valores.
     const user = userEvent.setup();
     vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue({
       dados: parametros(VERSAO_INICIAL),
@@ -166,6 +181,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
+    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(toast.info).toHaveBeenCalled());
@@ -247,6 +263,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
+    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     expect(
@@ -298,7 +315,11 @@ describe("Régua de férias", () => {
     );
     renderTela();
     await screen.findByText("Régua de alertas de férias");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
 
+    const dias = screen.getByLabelText("Dias: dias antes do limite para tirar");
+    await user.clear(dias);
+    await user.type(dias, "400");
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     const erro = await screen.findByText("Para este marco, os dias vão de 1 a 365.");
