@@ -1,4 +1,5 @@
 import api from "./api";
+import { enviarArquivo, type AoProgredir } from "./uploadDireto";
 import type { RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
@@ -139,15 +140,30 @@ export async function atualizarDocumentoLegalizacao(
   return data;
 }
 
+// Direto ao R2 quando houver (src/lib/uploadDireto.ts): pelo proxy BFF, o
+// corpo tem limite de 4,5 MB na Vercel.
 export async function enviarEvidenciaLegalizacao(
   documentoId: number,
   arquivo: File,
+  aoProgredir?: AoProgredir,
 ): Promise<EvidenciaRegulatoria> {
-  const formData = new FormData();
-  formData.append("arquivo", arquivo);
-  const { data } = await api.post<EvidenciaRegulatoria>(
+  return enviarArquivo<EvidenciaRegulatoria>(
     `${DOCUMENTOS_URL}${documentoId}/evidencias/`,
-    formData,
+    arquivo,
+    aoProgredir,
+  );
+}
+
+export type VisualizacaoEvidencia = { modo: "direto"; url: string } | { modo: "proxy" };
+
+// STC-628: URL assinada (5 min) que mostra o PDF da evidência vigente direto
+// do R2, sem passar pela função da Vercel (limite de 4,5 MB na resposta).
+// "proxy": sem R2 (dev, E2E), segue pelo /api/media/evidencia-vigente.
+export async function obterVisualizacaoEvidenciaVigente(
+  documentoId: number,
+): Promise<VisualizacaoEvidencia> {
+  const { data } = await api.get<VisualizacaoEvidencia>(
+    `${DOCUMENTOS_URL}${documentoId}/evidencia-vigente/visualizacao/`,
   );
   return data;
 }

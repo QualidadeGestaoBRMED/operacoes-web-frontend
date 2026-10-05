@@ -7,6 +7,8 @@ const MENSAGEM_PADRAO = "Não foi possível completar a operação. Tente novame
 // "detail" + "code" da resposta concatenados, ex. "...tipo de token
 // token_not_valid") só confunde numa tela que vai sumir em seguida.
 const MENSAGEM_SESSAO_EXPIRADA = "Sua sessão expirou. Você será redirecionado para o login.";
+const MENSAGEM_ARQUIVO_GRANDE =
+  "Arquivo grande demais para este envio. Tente de novo; se persistir, avise o suporte.";
 
 /**
  * Normaliza o formato de erro do DRF -- `{"campo": ["msg"]}`,
@@ -15,9 +17,21 @@ const MENSAGEM_SESSAO_EXPIRADA = "Sua sessão expirou. Você será redirecionado
  * demanda) pra devolver uma mensagem pronta pra tela.
  */
 export function extrairMensagemErro(error: unknown): string {
+  // Envio direto ao R2 (src/lib/uploadDireto.ts): a mensagem já vem pronta.
+  // Pelo nome, sem instanceof, para não importar o módulo de upload aqui.
+  if (error instanceof Error && error.name === "ErroEnvioArquivo") {
+    return error.message;
+  }
+
   if (isAxiosError(error)) {
     if (error.response?.status === 401) {
       return MENSAGEM_SESSAO_EXPIRADA;
+    }
+
+    // 413 vem da função da Vercel (FUNCTION_PAYLOAD_TOO_LARGE), em texto
+    // cru, quando um arquivo grande cai no envio multipart pelo proxy BFF.
+    if (error.response?.status === 413) {
+      return MENSAGEM_ARQUIVO_GRANDE;
     }
 
     const dados: unknown = error.response?.data;

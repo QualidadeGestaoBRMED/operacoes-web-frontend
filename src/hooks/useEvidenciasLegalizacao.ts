@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { isAxiosError } from "axios";
+import { useEffect, useState } from "react";
 import useSWR, { mutate as mutateGlobal } from "swr";
-import { listarEvidenciasLegalizacao } from "@/lib/legalizacao";
+import {
+  listarEvidenciasLegalizacao,
+  obterVisualizacaoEvidenciaVigente,
+} from "@/lib/legalizacao";
+import { estaNoBucketR2 } from "@/lib/bucketR2";
 import { extrairMensagemErro } from "@/lib/erros";
 import { fetchComRenovacao } from "@/lib/renovarSessao";
 import type { EvidenciaRegulatoria } from "@/types/legalizacao";
@@ -85,7 +90,41 @@ function registrarPreviewNoCache(documentoId: number, blobUrl: string) {
   });
 }
 
-async function buscarPreviewEvidenciaVigente(documentoId: number) {
+// STC-628: com R2, o preview é a URL assinada do PDF direto do bucket
+// (`direta`), e não uma Blob URL: o proxy abaixo passa o PDF inteiro pela
+// função da Vercel, que recusa resposta acima de 4,5 MB. A URL assinada vale
+// 5 minutos (backend); a margem de 1 minuto evita abrir uma que expira no
+// meio do carregamento.
+const VALIDADE_UTIL_URL_DIRETA_MS = 4 * 60 * 1000;
+
+type PreviewEvidencia =
+  | { direta: true; url: string; expiraEm: number }
+  | { direta: false; url: string };
+
+async function buscarPreviewEvidenciaVigente(
+  documentoId: number,
+): Promise<PreviewEvidencia> {
+  try {
+    const visualizacao = await obterVisualizacaoEvidenciaVigente(documentoId);
+    // Só abre direto se a URL é do bucket liberado na CSP (frame-src): fora
+    // dele, o navegador bloqueia o <iframe> sem erro nenhum para a página.
+    if (visualizacao.modo === "direto" && estaNoBucketR2(visualizacao.url)) {
+      return {
+        direta: true,
+        url: visualizacao.url,
+        expiraEm: Date.now() + VALIDADE_UTIL_URL_DIRETA_MS,
+      };
+    }
+  } catch (erro) {
+    // 404: sem evidência vigente (o proxy abaixo devolve o mesmo erro) ou
+    // backend ainda sem a rota de visualização (o proxy funciona até 4,5 MB).
+    if (!(isAxiosError(erro) && erro.response?.status === 404)) throw erro;
+  }
+  return { direta: false, url: await buscarBlobPeloProxy(documentoId) };
+}
+
+// Sem R2 (dev, E2E): bytes pelo proxy same-origin e Blob URL local.
+async function buscarBlobPeloProxy(documentoId: number) {
   // fetchComRenovacao, não fetch puro: com o access expirado, o proxy de mídia
   // devolve 401, e o preview precisa renovar a sessão e repetir -- mesmo fluxo
   // que o interceptor do Axios faz pras outras chamadas (src/lib/api.ts).
@@ -116,7 +155,7 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
     telaAtiva = true;
   }, []);
 
-  const { data, error, isLoading, mutate } = useSWR<string>(
+  const { data, error, isLoading, mutate } = useSWR<PreviewEvidencia>(
     documentoId ? [CHAVE_PREVIEW, documentoId] : null,
     () => buscarPreviewEvidenciaVigente(documentoId as number),
     {
@@ -130,8 +169,23 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
   // de buscarPreviewEvidenciaVigente) -- ver comentário de
   // tocarPreviewNoCache acima.
   useEffect(() => {
-    if (documentoId && data) tocarPreviewNoCache(documentoId);
+    if (documentoId && data && !data.direta) tocarPreviewNoCache(documentoId);
   }, [documentoId, data]);
+
+  // URL direta guardada no cache já expirada ao reabrir o documento: esconde
+  // e busca outra. O instante de referência é o da abertura (não o de cada
+  // render): com o documento aberto, o PDF já carregado continua na tela
+  // mesmo depois de a URL expirar, sem recarregar o <iframe> no meio da
+  // leitura.
+  const [abertura, setAbertura] = useState(() => ({ documentoId, em: Date.now() }));
+  if (abertura.documentoId !== documentoId) {
+    setAbertura({ documentoId, em: Date.now() });
+  }
+  const urlDiretaExpirada = !!data?.direta && data.expiraEm <= abertura.em;
+  useEffect(() => {
+    if (urlDiretaExpirada) void mutate();
+  }, [urlDiretaExpirada, mutate]);
+  const previewValido = data && !urlDiretaExpirada ? data : null;
 
   return {
     // #toolbar=0&navpanes=0&scrollbar=0 -- parâmetros que o visualizador de
@@ -141,8 +195,10 @@ export function useEvidenciaVigentePreview(documentoId: number | null) {
     // botão "Baixar PDF" do rodapé e destoando do resto da tela. Adicionado
     // aqui (não guardado no cache) -- revogar precisa da Blob URL crua, sem
     // fragment.
-    previewUrl: data ? `${data}#toolbar=0&navpanes=0&scrollbar=0` : null,
-    carregandoPreview: isLoading,
+    previewUrl: previewValido
+      ? `${previewValido.url}#toolbar=0&navpanes=0&scrollbar=0`
+      : null,
+    carregandoPreview: isLoading || urlDiretaExpirada,
     erroPreview: error ? "Não foi possível carregar a pré-visualização." : null,
     // STC-511 (review): revalidateIfStale:false (acima) também deixa um
     // ERRO "grudado" no cache -- fechar e reabrir o mesmo documento, mesmo
