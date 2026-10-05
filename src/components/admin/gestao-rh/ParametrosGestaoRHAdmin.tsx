@@ -17,7 +17,10 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
  */
 export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
   return (
-    <div hidden={hidden} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    // overflow-y-auto também corta na horizontal: sem a folga de 1 (px-1,
+    // compensada por -mx-1), o anel de foco dos campos encostados nas bordas
+    // (limite de atraso à esquerda, faixa crítica à direita) era cortado.
+    <div hidden={hidden} className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">
       <Tabs defaultValue="absenteismo-ferias" className="gap-6">
         <TabsList
           variant="line"
