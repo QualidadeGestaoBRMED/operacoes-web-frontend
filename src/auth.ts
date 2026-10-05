@@ -5,14 +5,18 @@ import Google from "next-auth/providers/google";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { cabecalhosDaRequisicaoAtual } from "@/lib/cabecalhosDoCliente";
 import { construirCsp, gerarNonce } from "@/lib/csp";
 import { tokenComAccessValido } from "@/lib/renovarTokenBackend";
 import type { Usuario } from "@/types";
 
 async function trocarTokenComBackend(idToken: string) {
+  // Roda no callback do login com Google (/api/auth/callback/google), uma
+  // navegação do próprio navegador: os cabeçalhos dela são os da pessoa que
+  // está entrando, e vão para a trilha de auditoria do backend.
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...(await cabecalhosDaRequisicaoAtual()), "Content-Type": "application/json" },
     body: JSON.stringify({ id_token: idToken }),
   });
 
@@ -23,11 +27,12 @@ async function trocarTokenComBackend(idToken: string) {
   return response.json() as Promise<{ access: string; refresh: string; user: Usuario }>;
 }
 
-async function invalidarRefreshNoBackend(refresh: string) {
+// Exportado só para teste, como callbackJwt.
+export async function invalidarRefreshNoBackend(refresh: string) {
   try {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...(await cabecalhosDaRequisicaoAtual()), "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
     });
   } catch (erro) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
+import { cabecalhosDoCliente } from "@/lib/cabecalhosDoCliente";
 
 // Caminho da pré-visualização sem R2 (dev, E2E). Com R2, o navegador abre a
 // URL assinada do PDF direto do bucket (useEvidenciasLegalizacao.ts): este
@@ -58,7 +59,12 @@ export async function GET(request: NextRequest) {
       `/api/modulos/legalizacao/documentos/${documentoId}/evidencias/`,
       process.env.NEXT_PUBLIC_API_URL,
     ),
-    { headers: { Authorization: `Bearer ${token.backendAccessToken}` } },
+    {
+      headers: {
+        ...cabecalhosDoCliente(request.headers),
+        Authorization: `Bearer ${token.backendAccessToken}`,
+      },
+    },
   );
 
   if (respostaEvidencias.status === 401) {

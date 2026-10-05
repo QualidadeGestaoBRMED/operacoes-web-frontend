@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { obterTokenBackend } from "@/lib/authBackend";
+import { cabecalhosDoCliente } from "@/lib/cabecalhosDoCliente";
 import {
   accessValidoPorMaisDe,
   codificarCookieSessao,
@@ -43,7 +44,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const resultado = await renovarToken(token.backendRefreshToken);
+  const resultado = await renovarToken(
+    token.backendRefreshToken,
+    cabecalhosDoCliente(request.headers),
+  );
 
   if (resultado.tipo === "em_andamento") {
     return NextResponse.json(

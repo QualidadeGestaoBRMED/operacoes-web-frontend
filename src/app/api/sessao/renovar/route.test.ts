@@ -26,6 +26,30 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
+describe("POST /api/sessao/renovar repassa IP e navegador (STC-637)", () => {
+  it("envia ao backend o IP e o navegador de quem pediu a renovação", async () => {
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({
+      backendAccessToken: "access-velho",
+      backendRefreshToken: "refresh",
+    } as never);
+    fetchMock.mockResolvedValue(Response.json({ access: "a", refresh: "r" }));
+
+    await POST(
+      new NextRequest("http://localhost:3000/api/sessao/renovar", {
+        method: "POST",
+        headers: { "x-forwarded-for": "200.10.20.30", "user-agent": "Mozilla/5.0 Teste" },
+      }),
+    );
+
+    expect(fetchMock.mock.calls[0][1].headers).toEqual({
+      "X-Forwarded-For": "200.10.20.30",
+      "User-Agent": "Mozilla/5.0 Teste",
+      "Content-Type": "application/json",
+    });
+  });
+});
+
 describe("POST /api/sessao/renovar (STC-611)", () => {
   it("sem sessão no cookie devolve 401 sem chamar o backend", async () => {
     const { POST } = await carregar();

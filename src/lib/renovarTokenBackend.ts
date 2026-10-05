@@ -1,4 +1,5 @@
 import { encode } from "next-auth/jwt";
+import { cabecalhosDaRequisicaoAtual } from "./cabecalhosDoCliente";
 
 // Server-side: troca o refresh do backend por um par novo e reescreve o
 // cookie de sessão. Usado só pela rota /api/sessao/renovar -- quem decide
@@ -45,7 +46,12 @@ function segundosDoRetryAfter(resposta: Response): number {
   return Number.isFinite(valor) && valor > 0 ? valor : 1;
 }
 
-export async function renovarToken(refreshToken: string): Promise<ResultadoRenovacao> {
+// `cabecalhosCliente`: IP e navegador de quem está usando o Atlas
+// (src/lib/cabecalhosDoCliente.ts), para a trilha de auditoria do backend.
+export async function renovarToken(
+  refreshToken: string,
+  cabecalhosCliente: Record<string, string> = {},
+): Promise<ResultadoRenovacao> {
   const emAndamento = renovacoesEmAndamento.get(refreshToken);
   if (emAndamento) return emAndamento;
 
@@ -53,7 +59,7 @@ export async function renovarToken(refreshToken: string): Promise<ResultadoRenov
     try {
       const resposta = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...cabecalhosCliente, "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       });
       if (resposta.ok) {
@@ -151,7 +157,10 @@ export async function tokenComAccessValido<T extends TokenDaSessao>(token: T): P
     return token;
   }
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const resultado = await renovarToken(token.backendRefreshToken);
+    const resultado = await renovarToken(
+      token.backendRefreshToken,
+      await cabecalhosDaRequisicaoAtual(),
+    );
     if (resultado.tipo === "renovado") {
       return {
         ...token,
