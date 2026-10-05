@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { cabecalhosDaRequisicaoAtual, cabecalhosDoCliente } from "./cabecalhosDoCliente";
 
@@ -61,5 +61,44 @@ describe("cabecalhosDaRequisicaoAtual", () => {
     vi.mocked(headers).mockRejectedValue(new Error("headers() fora de uma requisição"));
 
     expect(await cabecalhosDaRequisicaoAtual()).toEqual({});
+  });
+});
+
+describe("segredo do proxy (STC-651)", () => {
+  const SEGREDO = "segredo-de-teste-0123456789abcdef";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("com ATLAS_PROXY_SEGREDO, manda o X-Atlas-Proxy junto do IP e do navegador", () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", SEGREDO);
+    const entrada = new Headers({ "x-forwarded-for": "200.10.20.30", "user-agent": "Firefox" });
+
+    expect(cabecalhosDoCliente(entrada)).toEqual({
+      "X-Atlas-Proxy": SEGREDO,
+      "X-Forwarded-For": "200.10.20.30",
+      "User-Agent": "Firefox",
+    });
+  });
+
+  it("sem a variável (dev, E2E), não manda", () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", "");
+
+    expect(cabecalhosDoCliente(new Headers())).toEqual({});
+  });
+
+  it("um X-Atlas-Proxy vindo do navegador nunca é repassado", () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", "");
+    const entrada = new Headers({ "x-atlas-proxy": "forjado-pelo-navegador" });
+
+    expect(cabecalhosDoCliente(entrada)).toEqual({});
+  });
+
+  it("fora de uma requisição (middleware), o segredo vai mesmo sem IP e navegador", async () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", SEGREDO);
+    vi.mocked(headers).mockRejectedValue(new Error("headers() fora de uma requisição"));
+
+    expect(await cabecalhosDaRequisicaoAtual()).toEqual({ "X-Atlas-Proxy": SEGREDO });
   });
 });

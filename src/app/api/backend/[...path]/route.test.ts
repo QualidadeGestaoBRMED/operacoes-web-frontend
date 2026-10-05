@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { obterTokenBackend } from "@/lib/authBackend";
 import { GET, POST } from "./route";
 
@@ -53,4 +53,26 @@ describe("proxy /api/backend repassa IP e navegador (STC-637)", () => {
 
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer access");
   });
+});
+
+describe("proxy /api/backend manda o segredo do proxy (STC-651)", () => {
+  it("com ATLAS_PROXY_SEGREDO, o backend recebe o X-Atlas-Proxy; o do navegador é ignorado", async () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", "segredo-do-servidor");
+    const requisicao = new NextRequest("http://localhost:3000/api/backend/auth/me", {
+      headers: {
+        "x-atlas-proxy": "forjado-pelo-navegador",
+        "x-forwarded-for": "200.10.20.30",
+      },
+    });
+
+    await GET(requisicao, contexto("auth", "me"));
+
+    const cabecalhos = fetchMock.mock.calls[0][1].headers;
+    expect(cabecalhos["X-Atlas-Proxy"]).toBe("segredo-do-servidor");
+    expect(JSON.stringify(cabecalhos)).not.toContain("forjado-pelo-navegador");
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });

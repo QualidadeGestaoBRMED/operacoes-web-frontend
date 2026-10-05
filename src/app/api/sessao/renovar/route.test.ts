@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { encode } from "next-auth/jwt";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { obterTokenBackend } from "@/lib/authBackend";
 
 vi.mock("@/lib/authBackend", () => ({ obterTokenBackend: vi.fn() }));
@@ -47,6 +47,22 @@ describe("POST /api/sessao/renovar repassa IP e navegador (STC-637)", () => {
       "User-Agent": "Mozilla/5.0 Teste",
       "Content-Type": "application/json",
     });
+  });
+});
+
+describe("POST /api/sessao/renovar manda o segredo do proxy (STC-651)", () => {
+  it("a renovação leva o X-Atlas-Proxy", async () => {
+    vi.stubEnv("ATLAS_PROXY_SEGREDO", "segredo-do-servidor");
+    const { POST } = await carregar();
+    vi.mocked(obterTokenBackend).mockResolvedValue({
+      backendAccessToken: "access-velho",
+      backendRefreshToken: "refresh",
+    } as never);
+    fetchMock.mockResolvedValue(Response.json({ access: "a", refresh: "r" }));
+
+    await POST(requisicao());
+
+    expect(fetchMock.mock.calls[0][1].headers["X-Atlas-Proxy"]).toBe("segredo-do-servidor");
   });
 });
 
@@ -209,4 +225,8 @@ describe("POST /api/sessao/renovar com o cookie já renovado (STC-611)", () => {
     expect(resposta.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
