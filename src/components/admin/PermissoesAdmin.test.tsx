@@ -42,12 +42,18 @@ vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 vi.mock("@/lib/plataforma");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/legalizacaoCatalogo");
+vi.mock("@/lib/gestaoRH", async (original) => ({
+  ...(await original<typeof import("@/lib/gestaoRH")>()),
+  buscarParametrosAbsenteismo: vi.fn(),
+  buscarReguaFerias: vi.fn(),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
+import { buscarParametrosAbsenteismo, buscarReguaFerias } from "@/lib/gestaoRH";
 import {
   criarPermissao,
   listarModulos,
@@ -160,6 +166,21 @@ beforeEach(() => {
   vi.mocked(listarTiposDocumento).mockResolvedValue([]);
   vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue({
+    vigente: {
+      id: 1,
+      limite_atraso_minutos: 15,
+      tipos_computados: ["falta", "atestado"],
+      meta_percentual: null,
+      faixas: null,
+      vigente_a_partir_de: "2000-01-01",
+      salvo_por: null,
+      versao_inicial: true,
+      created_at: "2026-10-05T10:00:00Z",
+    },
+    versoes: [],
+  });
+  vi.mocked(buscarReguaFerias).mockResolvedValue({ marcos: [], versoes: [] });
 });
 
 describe("PermissoesAdmin (STC-266)", () => {
@@ -206,6 +227,25 @@ describe("PermissoesAdmin (STC-266)", () => {
       screen.queryByRole("table", { name: /permissões individuais/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+  });
+
+  it("Coordenador não vê os Parâmetros de Gestão RH, nem pela rota própria", async () => {
+    mockSetPathname("/admin/permissoes/parametros-gestao-rh");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(
+      await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Parâmetros de absenteísmo" }),
+    ).not.toBeInTheDocument();
+    expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
 
   // STC-521: Setor de Legalização (nível 4, setor.codigo === "LEG") ganha o
@@ -275,6 +315,39 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(
       await screen.findByRole("heading", { name: "Tipos de documento" }),
     ).toBeInTheDocument();
+  });
+
+  it("na rota /admin/permissoes/parametros-gestao-rh, Admin abre direto nos Parâmetros de Gestão RH", async () => {
+    mockSetPathname("/admin/permissoes/parametros-gestao-rh");
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Parâmetros de Gestão RH");
+    expect(
+      await screen.findByRole("heading", { name: "Parâmetros de absenteísmo" }),
+    ).toBeVisible();
+    expect(screen.getByTestId("secao-usuarios").closest("[hidden]")).not.toBeNull();
+  });
+
+  it("Admin chega aos Parâmetros de Gestão RH pelo Select de seção", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText("Seção"));
+    await user.click(await screen.findByRole("option", { name: "Parâmetros de Gestão RH" }));
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes/parametros-gestao-rh");
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Parâmetros de Gestão RH");
   });
 
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {
