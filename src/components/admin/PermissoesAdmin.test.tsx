@@ -344,10 +344,15 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
     await user.click(await screen.findByLabelText("Seção"));
+    // Entrar na Administração não busca os parâmetros: só a visita à seção.
+    expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
+    expect(buscarReguaFerias).not.toHaveBeenCalled();
     await user.click(await screen.findByRole("option", { name: "Parâmetros de Gestão RH" }));
 
     expect(replace).toHaveBeenCalledWith("/admin/permissoes/parametros-gestao-rh");
     expect(await screen.findByLabelText("Seção")).toHaveTextContent("Parâmetros de Gestão RH");
+    await waitFor(() => expect(buscarParametrosAbsenteismo).toHaveBeenCalled());
+    expect(buscarReguaFerias).toHaveBeenCalled();
   });
 
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {

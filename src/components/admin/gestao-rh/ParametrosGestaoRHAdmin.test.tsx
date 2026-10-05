@@ -391,6 +391,53 @@ describe("Régua de férias", () => {
   });
 });
 
+describe("Régua de férias: edição desfeita", () => {
+  it("depois de desfazer, recebe a régua que outro Admin salvou", async () => {
+    const user = userEvent.setup();
+    renderTela({ dedupingInterval: 0, focusThrottleInterval: 0 });
+    await screen.findByText("Régua de alertas de férias");
+    const salvar = screen.getByRole("button", { name: "Salvar" });
+    const completou = screen.getByRole("switch", { name: "Ativar: Completou o período de direito" });
+
+    await user.click(completou);
+    await user.click(completou);
+    expect(salvar).toBeDisabled();
+
+    // Outro Admin salvou 60 dias: a tela revalida ao voltar o foco.
+    vi.mocked(buscarReguaFerias).mockResolvedValue({
+      ...REGUA,
+      marcos: REGUA.marcos.map((item) =>
+        item.tipo_marco === "antes_do_limite" ? { ...item, dias: 60 } : item,
+      ),
+    });
+    fireEvent(window, new Event("focus"));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Dias: dias antes do limite para tirar")).toHaveValue(60),
+    );
+    expect(salvar).toBeDisabled();
+  });
+});
+
+describe("Troca de aba", () => {
+  it("ir à Importação e voltar mantém a edição", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Versão inicial");
+    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+    const dias = screen.getByLabelText("Dias: dias antes do limite para tirar");
+    await user.clear(dias);
+    await user.type(dias, "60");
+
+    await user.click(screen.getByRole("tab", { name: "Importação" }));
+    expect(screen.getByLabelText("Meta de absenteísmo (%)")).not.toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Absenteísmo e férias" }));
+
+    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByLabelText("Dias: dias antes do limite para tirar")).toHaveValue(60);
+  });
+});
+
 describe("Régua de férias: validação", () => {
   it.each([
     ["", "Informe os dias."],

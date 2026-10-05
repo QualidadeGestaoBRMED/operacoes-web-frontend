@@ -48,17 +48,30 @@ export function FormReguaFerias() {
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erro, setErro] = useState<string>();
   const [erroPorMarco, setErroPorMarco] = useState<Partial<Record<TipoMarcoEditavel, string>>>({});
-  const [editado, setEditado] = useState(false);
+  // Régua de onde a edição partiu. "Mudou" compara com ela, não com a
+  // vigente recarregada: desfazer a alteração volta a "sem alteração" e
+  // libera a tela para receber a versão que outro Admin salvou.
+  const [base, setBase] = useState<VersaoMarcoRegua[]>();
   const [salvando, setSalvando] = useState(false);
+
+  const mudou =
+    !!base && !!edicao && JSON.stringify(edicao) !== JSON.stringify(edicaoDosMarcos(base));
 
   // Recarregar a régua (ex.: outro Admin salvou e a tela revalidou) não
   // substitui uma edição em andamento.
   useEffect(() => {
-    if (marcos && !editado) setEdicao(edicaoDosMarcos(marcos));
-  }, [marcos, editado]);
+    if (marcos && !mudou) {
+      setBase(marcos);
+      setEdicao(edicaoDosMarcos(marcos));
+    }
+  }, [marcos, mudou]);
+
+  function partirDe(novaBase: VersaoMarcoRegua[]) {
+    setBase(novaBase);
+    setEdicao(edicaoDosMarcos(novaBase));
+  }
 
   function alterar(tipo: TipoMarcoEditavel, mudanca: Partial<{ dias: string; ativo: boolean }>) {
-    setEditado(true);
     setEdicao((atual) => (atual ? { ...atual, [tipo]: { ...atual[tipo], ...mudanca } } : atual));
   }
 
@@ -84,8 +97,7 @@ export function FormReguaFerias() {
     setSalvando(true);
     try {
       const resultado = await salvar(payload);
-      setEdicao(edicaoDosMarcos(resultado.dados.marcos));
-      setEditado(false);
+      partirDe(resultado.dados.marcos);
       if (resultado.criouVersao) {
         toast.success("Régua de férias salva.");
       } else {
@@ -112,12 +124,6 @@ export function FormReguaFerias() {
       setSalvando(false);
     }
   }
-
-  // Botões só com alteração de verdade: desfazer uma mudança desabilita de novo.
-  const mudou =
-    !!marcos &&
-    !!edicao &&
-    JSON.stringify(edicao) !== JSON.stringify(edicaoDosMarcos(marcos));
 
   if (isLoading) return <Skeleton className="h-56 w-full" />;
   // Falha numa revalidação com dado em tela mantém a régua (e a edição).
@@ -189,8 +195,7 @@ export function FormReguaFerias() {
             disabled={salvando || !mudou}
             onClick={() => {
               limparErros();
-              setEditado(false);
-              if (marcos) setEdicao(edicaoDosMarcos(marcos));
+              if (marcos) partirDe(marcos);
             }}
           >
             Cancelar

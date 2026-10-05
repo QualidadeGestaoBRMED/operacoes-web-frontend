@@ -229,6 +229,8 @@ export function PermissoesAdmin() {
     (Object.keys(ROTA_ABA) as Aba[]).find(
       (candidata) => candidata !== "usuarios" && pathname.endsWith(ROTA_ABA[candidata]),
     ) ?? "usuarios";
+  // Parâmetros de Gestão RH só buscam na API depois da primeira visita à seção.
+  const [visitouGestaoRH, setVisitouGestaoRH] = useState(false);
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
@@ -326,6 +328,7 @@ export function PermissoesAdmin() {
   // Coordenador só tem 1 aba de verdade (Catálogo) -- nem faz sentido
   // deixar `aba` (useState acima, nasce "usuarios") valer pra ele.
   const abaEfetiva: Aba = apenasCatalogo ? "catalogo-legalizacao" : aba;
+  if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
 
   function nomeUsuario(usuarioId: number) {
     const usuario = usuarios.find((candidato) => candidato.id === usuarioId);
@@ -561,9 +564,10 @@ export function PermissoesAdmin() {
 
       <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
 
-      {/* Parâmetros de Gestão RH: só Admin. Nunca renderiza para quem só tem
-          acesso ao Catálogo (a API também recusa com 403). */}
-      {!apenasCatalogo && (
+      {/* Parâmetros de Gestão RH: só Admin (a API também recusa com 403).
+          Monta na primeira visita à seção, não em toda entrada na
+          Administração; depois fica só escondida, para não perder edição. */}
+      {isAdminOps && visitouGestaoRH && (
         <ParametrosGestaoRHAdmin hidden={abaEfetiva !== "parametros-gestao-rh"} />
       )}
 
