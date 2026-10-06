@@ -290,3 +290,59 @@ export interface PainelAbsenteismo {
   cards: CardsAbsenteismo;
   linhas: LinhaPainelAbsenteismo[];
 }
+
+// Aba Absenteísmo do modal: contrato de GET .../colaboradores/{id}/absenteismo/
+// e POST .../colaboradores/{id}/tratamentos/, fixado na STC-592.
+
+export type TipoOcorrenciaAbsenteismo = OcorrenciaFiltro | "banco_horas";
+
+export interface OcorrenciaAbsenteismo {
+  tipo: TipoOcorrenciaAbsenteismo;
+  inicio: string;
+  fim: string;
+  dias: number | null;
+  minutos: number | null;
+  conta_no_absenteismo: boolean | null;
+  em_aprovacao: boolean;
+  justificada: boolean | null;
+}
+
+export type AcaoTratamento = "feedback" | "advertencia" | "desligamento" | "sem_medida";
+
+export interface AlertaAbsenteismo {
+  id: number;
+  periodo_inicio: string;
+  periodo_fim: string;
+  faixa: FaixaAbsenteismo;
+  gerado_em: string;
+  demanda_id: number | null;
+  demanda_aberta: boolean;
+  responsavel: string | null;
+  pode_registrar_tratamento: boolean;
+  tratamento: { acao: AcaoTratamento; justificativa: string; por: string | null; em: string } | null;
+}
+
+export interface AbsenteismoColaborador {
+  periodo: { inicio: string; fim: string };
+  parametros: { faixas_cadastradas: boolean; limite_atraso_minutos: number };
+  indicadores: {
+    percentual: string | null;
+    faixa: FaixaAbsenteismo | null;
+    provisorio: boolean;
+    pendencias: number;
+    dias_trabalhados: number;
+    dias_previstos: number;
+    conformidade_percentual: string | null;
+    banco_horas_saldo_minutos: number;
+    banco_horas_uso_minutos: number;
+  };
+  ocorrencias: OcorrenciaAbsenteismo[];
+  alertas: AlertaAbsenteismo[];
+  historico: RegistroHistoricoRH[];
+}
+
+export interface RegistrarTratamentoPayload {
+  alerta: number;
+  acao: AcaoTratamento;
+  justificativa: string;
+}
