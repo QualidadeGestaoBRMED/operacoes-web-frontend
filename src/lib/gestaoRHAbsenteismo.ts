@@ -11,15 +11,19 @@ import type {
 const PAINEL_URL = "/modulos/gestao-rh/absenteismo/";
 
 /**
- * Painel de Absenteísmo. Com `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1` (só no
- * ambiente local, enquanto a rota real não existe, STC-588), devolve dados de
- * exemplo no mesmo contrato. A variável é fixada no build: sem ela, o
- * módulo de exemplo nem entra no pacote de produção.
+ * Painel de Absenteísmo. No ambiente local, com
+ * `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1`, devolve dados de exemplo no mesmo
+ * contrato enquanto a rota real não existe (STC-588). `NODE_ENV` vira
+ * constante no build: em produção o ramo some e o módulo de exemplo não
+ * entra no pacote, mesmo com a variável ligada.
  */
 export async function buscarPainelAbsenteismo(
   filtros: FiltrosPainelAbsenteismo,
 ): Promise<PainelAbsenteismo> {
-  if (process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1") {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
+  ) {
     const { painelAbsenteismoDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
     return painelAbsenteismoDeExemplo(filtros);
   }
