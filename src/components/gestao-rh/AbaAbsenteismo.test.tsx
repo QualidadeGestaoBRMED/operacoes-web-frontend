@@ -146,6 +146,27 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(buscarAbsenteismoColaborador).not.toHaveBeenCalled();
   });
 
+  it("ir para Férias e voltar mantém o formulário de tratamento preenchido", async () => {
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue({
+      periodos_pendentes: [],
+      ferias_tiradas: [],
+      periodo_em_andamento: null,
+      historico: [],
+    });
+    const user = usuario();
+    renderModal();
+    const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+    await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
+    await user.type(alerta.getByLabelText("Justificativa *"), "Rascunho da conversa.");
+
+    await user.click(screen.getByRole("tab", { name: /Férias/ }));
+    expect(await screen.findByText("Nenhum período com férias pendentes.")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /Absenteísmo/ }));
+
+    expect(screen.getByLabelText("Justificativa *")).toHaveValue("Rascunho da conversa.");
+    expect(buscarAbsenteismoColaborador).toHaveBeenCalledTimes(1);
+  });
+
   it("indicadores, aviso de pendências e ocorrências com o que conta e o que está em aprovação", async () => {
     renderModal();
     await screen.findByText("Ocorrências do período");
