@@ -194,13 +194,38 @@ describe("Modal do colaborador · aba Férias", () => {
     await screen.findByText(/2 períodos/);
 
     const vencido = card("Período 20/08/2024 a 19/08/2025");
-    expect(vencido.getByText("vencido há 48 dias · pagamento em dobro")).toBeInTheDocument();
+    expect(vencido.getByText("vencido há 48 dias · demanda aberta · pagamento em dobro")).toBeInTheDocument();
     expect(vencido.getByRole("button", { name: "Programar férias" })).toBeInTheDocument();
     expect(vencido.queryByRole("button", { name: "Não programar agora" })).not.toBeInTheDocument();
 
     const pendente = card("Período 20/08/2025 a 19/08/2026");
     expect(pendente.getByRole("button", { name: "Não programar agora" })).toBeInTheDocument();
     expect(pendente.getByText("próximo alerta")).toBeInTheDocument();
+  });
+
+  it("uma demanda por período: o primeiro marco abre, os seguintes atualizam", async () => {
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(
+      ferias({
+        periodos_pendentes: [
+          {
+            ...VENCIDO,
+            marcos: [
+              { tipo: "completou_periodo", rotulo: "", data: "2025-08-20", situacao: "alerta_gerado", demanda_id: 7 },
+              { tipo: "antes_do_limite", rotulo: "", data: "2026-05-31", situacao: "alerta_gerado", demanda_id: 7 },
+              { tipo: "limite", rotulo: "", data: "2026-08-19", situacao: "vencido", demanda_id: 7 },
+            ],
+          },
+        ],
+      }),
+    );
+    renderModal();
+
+    const vencido = within(await screen.findByRole("region", { name: "Período 20/08/2024 a 19/08/2025" }));
+    expect(vencido.getByText("alerta gerado · demanda aberta")).toBeInTheDocument();
+    expect(vencido.getByText("alerta gerado · demanda atualizada")).toBeInTheDocument();
+    expect(
+      vencido.getByText("vencido há 48 dias · demanda atualizada · pagamento em dobro"),
+    ).toBeInTheDocument();
   });
 
   it("aberto pelo card do Kanban, rola até o período do alerta", async () => {

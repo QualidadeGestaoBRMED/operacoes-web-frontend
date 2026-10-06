@@ -217,6 +217,21 @@ export function textoSituacao(linha: LinhaPainelFerias): string {
 }
 
 /**
+ * Marcos que só atualizaram a demanda aberta por um marco anterior do mesmo
+ * período (uma demanda por período: o primeiro marco abre, os seguintes atualizam).
+ */
+export function marcosQueAtualizaram(marcos: MarcoDoPeriodo[]): Set<MarcoDoPeriodo["tipo"]> {
+  const vistas = new Set<number>();
+  const atualizaram = new Set<MarcoDoPeriodo["tipo"]>();
+  for (const marco of marcos) {
+    if (marco.demanda_id === null) continue;
+    if (vistas.has(marco.demanda_id)) atualizaram.add(marco.tipo);
+    vistas.add(marco.demanda_id);
+  }
+  return atualizaram;
+}
+
+/**
  * Texto abaixo de cada marco no card do período. Com as férias programadas,
  * o motor não dispara mais os marcos do período.
  */
@@ -224,16 +239,21 @@ export function textoSituacaoMarco(
   marco: MarcoDoPeriodo,
   hoje: string,
   status: StatusPeriodoFerias,
+  atualizouDemanda = false,
 ): string {
+  const demanda = atualizouDemanda ? "demanda atualizada" : "demanda aberta";
   if (marco.tipo === "limite") {
     if (marco.situacao === "vencido") {
-      return `vencido há ${textoDias(diasEntre(marco.data, hoje))} · pagamento em dobro`;
+      const ha = `vencido há ${textoDias(diasEntre(marco.data, hoje))}`;
+      return marco.demanda_id === null
+        ? `${ha} · pagamento em dobro`
+        : `${ha} · ${demanda} · pagamento em dobro`;
     }
     return "após essa data, pagamento em dobro";
   }
   switch (marco.situacao) {
     case "alerta_gerado":
-      return "alerta gerado · demanda aberta";
+      return `alerta gerado · ${demanda}`;
     case "tratado":
       return "alerta gerado · tratado";
     case "proximo":

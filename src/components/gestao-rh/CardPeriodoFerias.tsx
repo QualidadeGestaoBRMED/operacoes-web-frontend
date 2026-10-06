@@ -13,6 +13,7 @@ import {
   ROTULO_STATUS_PERIODO,
   intervalo,
   limiteJaVencido,
+  marcosQueAtualizaram,
   textoDias,
   textoSituacaoMarco,
 } from "@/lib/gestaoRHFerias";
@@ -36,10 +37,12 @@ function LinhaMarco({
   marco,
   hoje,
   status,
+  atualizouDemanda,
 }: {
   marco: MarcoDoPeriodo;
   hoje: string;
   status: PeriodoPendente["status"];
+  atualizouDemanda: boolean;
 }) {
   const programado = status === "programado";
   return (
@@ -54,7 +57,7 @@ function LinhaMarco({
             marco.situacao === "proximo" && !programado && "text-cyan-700",
           )}
         >
-          {textoSituacaoMarco(marco, hoje, status)}
+          {textoSituacaoMarco(marco, hoje, status, atualizouDemanda)}
         </span>
       </span>
       <span className="text-[12.5px] font-medium text-foreground tabular-nums">
@@ -85,6 +88,7 @@ export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>
     const [registrandoRh, setRegistrandoRh] = useState(false);
     const vencido = limiteJaVencido(periodo, hoje);
     const programacao = periodo.status === "programado" ? periodo.programacao : null;
+    const atualizaram = marcosQueAtualizaram(periodo.marcos);
     const acaoDestePeriodo = acaoAberta?.periodoId === periodo.id ? acaoAberta.tipo : null;
     const prazoRhPassou =
       !!programacao?.data_limite_substituicao && programacao.data_limite_substituicao < hoje;
@@ -135,7 +139,13 @@ export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>
 
         <ul aria-label="Marcos do período" className="divide-y divide-border/60">
           {periodo.marcos.map((marco) => (
-            <LinhaMarco key={marco.tipo} marco={marco} hoje={hoje} status={periodo.status} />
+            <LinhaMarco
+              key={marco.tipo}
+              marco={marco}
+              hoje={hoje}
+              status={periodo.status}
+              atualizouDemanda={atualizaram.has(marco.tipo)}
+            />
           ))}
         </ul>
 
