@@ -124,7 +124,10 @@ export function textoOcorrencia(
 ): { datas: string; descricao: string; marcas: string[] } {
   const rotulo = ROTULO_TIPO_OCORRENCIA[ocorrencia.tipo];
   let descricao = rotulo;
-  if (ocorrencia.tipo === "falta" && ocorrencia.justificada !== null) {
+  if (ocorrencia.tipo === "falta" && ocorrencia.em_aprovacao) {
+    // Justificativa enviada e ainda não aprovada no SuperApp VR: não está resolvida.
+    descricao = "Falta com justificativa em aprovação";
+  } else if (ocorrencia.tipo === "falta" && ocorrencia.justificada !== null) {
     descricao = ocorrencia.justificada ? "Falta justificada" : "Falta sem justificativa";
   } else if (ocorrencia.minutos !== null && ocorrencia.tipo !== "banco_horas") {
     descricao = `${rotulo} de ${textoMinutos(ocorrencia.minutos)}`;
