@@ -216,6 +216,8 @@ export interface FeriasColaborador {
     fim_aquisitivo: string;
     direito_a_partir_de: string;
   } | null;
+  /** Antecedência do prazo para acionar o RH, pela régua vigente; nulo com o marco desativado. */
+  dias_antes_do_inicio_substituicao: number | null;
   historico: RegistroHistoricoRH[];
 }
 

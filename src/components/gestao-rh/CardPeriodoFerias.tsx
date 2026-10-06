@@ -70,6 +70,7 @@ function LinhaMarco({
 interface CardPeriodoFeriasProps {
   periodo: PeriodoPendente;
   hoje: string;
+  diasAntesSubstituicao: number | null;
   podeAgir: boolean;
   emFoco: boolean;
   acaoAberta: AcaoAberta;
@@ -81,7 +82,18 @@ interface CardPeriodoFeriasProps {
 
 export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>(
   function CardPeriodoFerias(
-    { periodo, hoje, podeAgir, emFoco, acaoAberta, onAbrirAcao, onProgramar, onAdiar, onRhAcionado },
+    {
+      periodo,
+      hoje,
+      diasAntesSubstituicao,
+      podeAgir,
+      emFoco,
+      acaoAberta,
+      onAbrirAcao,
+      onProgramar,
+      onAdiar,
+      onRhAcionado,
+    },
     ref,
   ) {
     const [confirmandoRh, setConfirmandoRh] = useState(false);
@@ -204,6 +216,7 @@ export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>
           <FormProgramarFerias
             periodo={periodo}
             hoje={hoje}
+            diasAntesSubstituicao={diasAntesSubstituicao}
             onSalvar={async (payload) => {
               await onProgramar(periodo.id, payload);
               onAbrirAcao(null);

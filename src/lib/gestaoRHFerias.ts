@@ -137,6 +137,33 @@ export function diasEntre(de: string, ate: string): number {
   return Math.round((utc(ate) - utc(de)) / 86_400_000);
 }
 
+/** `iso` menos `dias` (datas "AAAA-MM-DD"), sem passar por fuso. */
+export function subtrairDias(iso: string, dias: number): string {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia - dias)).toISOString().slice(0, 10);
+}
+
+/** Aviso do formulário de programar: mesma conta que a API grava (início menos a antecedência da régua). */
+export function avisoPrazoSubstituicao(
+  inicio: string,
+  diasAntes: number,
+  hoje: string,
+): { texto: string; passou: boolean } {
+  const prazo = subtrairDias(inicio, diasAntes);
+  const quando =
+    diasAntes === 0
+      ? "no dia do início das férias"
+      : `${textoDias(diasAntes)} antes do início das férias`;
+  if (prazo < hoje) {
+    return {
+      texto: `O prazo para acionar o RH passou em ${formatarDataISO(prazo)} (${quando}). Acione o RH assim que registrar.`,
+      passou: true,
+    };
+  }
+  const ate = prazo === hoje ? `hoje, ${formatarDataISO(prazo)}` : formatarDataISO(prazo);
+  return { texto: `Acionar o RH até ${ate} (${quando}).`, passou: false };
+}
+
 /**
  * Mesmo critério da API ao programar: vencido pelo status ou pela data. Não
  * usar `limite_vencido_ha_dias`, que vem nulo em período programado.

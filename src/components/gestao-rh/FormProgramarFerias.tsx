@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { extrairMensagemErro } from "@/lib/erros";
 import { errosDeCampo, formatarDataISO } from "@/lib/gestaoRH";
-import { diasEntre, limiteJaVencido, textoDias } from "@/lib/gestaoRHFerias";
+import { avisoPrazoSubstituicao, diasEntre, limiteJaVencido, textoDias } from "@/lib/gestaoRHFerias";
+import { cn } from "@/lib/utils";
 import type { PeriodoPendente, ProgramarFeriasPayload } from "@/types/gestaoRH";
 
 // Mesmo teto da API (CLT art. 130): uma programação cobre até 30 dias.
@@ -40,11 +41,18 @@ function validar(
 interface FormProgramarFeriasProps {
   periodo: PeriodoPendente;
   hoje: string;
+  diasAntesSubstituicao: number | null;
   onSalvar: (payload: ProgramarFeriasPayload) => Promise<unknown>;
   onCancelar: () => void;
 }
 
-export function FormProgramarFerias({ periodo, hoje, onSalvar, onCancelar }: FormProgramarFeriasProps) {
+export function FormProgramarFerias({
+  periodo,
+  hoje,
+  diasAntesSubstituicao,
+  onSalvar,
+  onCancelar,
+}: FormProgramarFeriasProps) {
   // Só reprograma o que está programado: a API não deixa abrir o formulário
   // depois de as férias começarem (pode_programar), então o início
   // pré-preenchido nunca está no passado.
@@ -57,6 +65,13 @@ export function FormProgramarFerias({ periodo, hoje, onSalvar, onCancelar }: For
 
   const dias = inicio && fim && fim >= inicio ? diasEntre(inicio, fim) + 1 : null;
   const vencido = limiteJaVencido(periodo, hoje);
+  const temPrazo = diasAntesSubstituicao !== null;
+  // O campo de data aceita ano com mais de 4 dígitos enquanto se digita.
+  const inicioCompleto = /^\d{4}-\d{2}-\d{2}$/.test(inicio);
+  const avisoPrazo =
+    substituicao && temPrazo && inicioCompleto
+      ? avisoPrazoSubstituicao(inicio, diasAntesSubstituicao, hoje)
+      : null;
   const idPrefixo = `programar-${periodo.id}`;
 
   async function aoSubmeter(evento: React.FormEvent) {
@@ -153,10 +168,27 @@ export function FormProgramarFerias({ periodo, hoje, onSalvar, onCancelar }: For
         <div className="space-y-0.5">
           <Label htmlFor={`${idPrefixo}-substituicao`}>Precisa de substituição</Label>
           <p className="text-[12px] text-muted-foreground">
-            Abre o prazo para acionar o RH (vaga, seleção, ASO), contado a partir do início das
-            férias pela régua de férias.
+            {temPrazo
+              ? "Abre o prazo para acionar o RH (vaga, seleção, ASO)."
+              : "Registra que o colaborador precisa de substituto durante as férias."}
           </p>
         </div>
+      </div>
+
+      <div aria-live="polite">
+        {avisoPrazo && (
+          <p
+            className={cn(
+              "flex items-start gap-2 rounded-md border px-3 py-2 text-[12.5px]",
+              avisoPrazo.passou
+                ? "border-red-200 bg-red-50 font-medium text-red-700"
+                : "border-amber-200 bg-amber-50 text-amber-800",
+            )}
+          >
+            <Clock aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+            {avisoPrazo.texto}
+          </p>
+        )}
       </div>
 
       <div className="flex justify-end gap-2">
