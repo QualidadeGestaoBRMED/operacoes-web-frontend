@@ -355,9 +355,9 @@ describe("Modal do colaborador · aba Férias", () => {
   });
 
   it("sem o campo na resposta, o formulário segue sem aviso e sem quebrar", async () => {
-    const semCampo: Partial<FeriasColaborador> = ferias();
+    const semCampo = ferias();
     delete semCampo.dias_antes_do_inicio_substituicao;
-    vi.mocked(buscarFeriasColaborador).mockResolvedValue(semCampo as FeriasColaborador);
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(semCampo);
     const user = usuario();
     renderModal();
     await screen.findByText(/2 períodos/);

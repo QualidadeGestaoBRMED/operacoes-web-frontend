@@ -41,7 +41,7 @@ function validar(
 interface FormProgramarFeriasProps {
   periodo: PeriodoPendente;
   hoje: string;
-  diasAntesSubstituicao: number | null;
+  diasAntesSubstituicao?: number | null;
   onSalvar: (payload: ProgramarFeriasPayload) => Promise<unknown>;
   onCancelar: () => void;
 }

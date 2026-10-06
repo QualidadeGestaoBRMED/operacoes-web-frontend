@@ -70,7 +70,7 @@ function LinhaMarco({
 interface CardPeriodoFeriasProps {
   periodo: PeriodoPendente;
   hoje: string;
-  diasAntesSubstituicao: number | null;
+  diasAntesSubstituicao?: number | null;
   podeAgir: boolean;
   emFoco: boolean;
   acaoAberta: AcaoAberta;
