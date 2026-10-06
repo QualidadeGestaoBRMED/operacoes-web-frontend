@@ -220,7 +220,11 @@ export function TabelaAbsenteismo({
                     <td className="truncate px-3 py-2.5 text-[13px]">{linha.colaborador.unidade.nome}</td>
                     <CelulaAbsenteismo linha={linha} />
                     <td className="truncate px-3 py-2.5 text-[12.5px] tabular-nums">
-                      {linha.dias_trabalhados} de {linha.dias_previstos}
+                      {/* Sem dia previsto (afastado o período todo, admitido depois):
+                          traço, como no percentual e na conformidade. */}
+                      {linha.dias_previstos === 0
+                        ? "—"
+                        : `${linha.dias_trabalhados} de ${linha.dias_previstos}`}
                     </td>
                     <td className="truncate px-3 py-2.5 text-[12.5px] tabular-nums">
                       {formatarPercentual(linha.conformidade_percentual)}

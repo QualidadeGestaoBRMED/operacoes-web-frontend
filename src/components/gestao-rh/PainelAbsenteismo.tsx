@@ -39,7 +39,9 @@ import { CardsAbsenteismo } from "./CardsAbsenteismo";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
 
-// "Crítica e atenção" é a combinação mais usada (quem precisa de olhar).
+// "Crítica e atenção" é a combinação mais usada (quem precisa de olhar) e o
+// filtro com que o painel abre quando há faixas cadastradas.
+const FAIXA_PADRAO = "critica,atencao";
 const OPCOES_FAIXA: { valor: string; rotulo: string; faixas: FaixaAbsenteismo[] }[] = [
   { valor: "critica,atencao", rotulo: "Crítica e atenção", faixas: ["critica", "atencao"] },
   { valor: "critica", rotulo: "Só crítica", faixas: ["critica"] },
@@ -68,6 +70,9 @@ export function PainelAbsenteismo() {
   const [periodo, setPeriodo] = useState(periodoEditado);
   const [unidade, setUnidade] = useState<number>();
   const [faixa, setFaixa] = useState<string>();
+  // Escolha da pessoa no filtro de faixa (inclusive "Todas"): depois dela, o
+  // filtro padrão não volta a ser aplicado.
+  const [faixaEscolhida, setFaixaEscolhida] = useState(false);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
   const [busca, setBusca] = useState("");
@@ -100,6 +105,11 @@ export function PainelAbsenteismo() {
   // Sem faixas cadastradas o filtro de faixa some da tela; então também não
   // pode continuar valendo (ex.: um Admin apagou as faixas nos Parâmetros).
   if (painel && !comFaixas && faixa) setFaixa(undefined);
+  // Com faixas cadastradas, abre mostrando quem está nelas (mockup do painel).
+  if (painel && comFaixas && !faixaEscolhida && faixa === undefined) {
+    setFaixa(FAIXA_PADRAO);
+    setFaixaEscolhida(true);
+  }
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
 
@@ -145,29 +155,44 @@ export function PainelAbsenteismo() {
     <div ref={refPai} className={cn("flex h-full min-h-0 flex-col", ehMobile && "overflow-y-auto")}>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
         <div className="flex flex-wrap items-center gap-2">
-          <Label htmlFor="periodo-inicio" className="text-[13px] font-semibold">
-            Período
-          </Label>
-          <Input
-            id="periodo-inicio"
-            type="date"
-            value={periodoEditado.inicio}
-            onChange={(evento) => editarPeriodo("inicio", evento.target.value)}
-            aria-invalid={!periodoValido}
-            className="h-8 w-40"
-          />
-          <Label htmlFor="periodo-fim" className="text-[13px] text-muted-foreground">
-            até
-          </Label>
-          <Input
-            id="periodo-fim"
-            type="date"
-            value={periodoEditado.fim}
-            onChange={(evento) => editarPeriodo("fim", evento.target.value)}
-            aria-invalid={!periodoValido}
-            aria-describedby={periodoValido ? undefined : "periodo-erro"}
-            className="h-8 w-40"
-          />
+          {/* Mesmo formato do filtro de data da Matriz de Conformidade
+              ("Prazo até"): rótulos e datas dentro de uma borda só. */}
+          <div
+            className={cn(
+              "flex h-8 items-center gap-1.5 rounded-md border border-input bg-transparent px-3 shadow-xs",
+              !periodoValido && "border-destructive",
+            )}
+          >
+            <Label
+              htmlFor="periodo-inicio"
+              className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+            >
+              Período
+            </Label>
+            <Input
+              id="periodo-inicio"
+              type="date"
+              value={periodoEditado.inicio}
+              onChange={(evento) => editarPeriodo("inicio", evento.target.value)}
+              aria-invalid={!periodoValido}
+              className="h-full w-[7.5rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+            />
+            <Label
+              htmlFor="periodo-fim"
+              className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+            >
+              até
+            </Label>
+            <Input
+              id="periodo-fim"
+              type="date"
+              value={periodoEditado.fim}
+              onChange={(evento) => editarPeriodo("fim", evento.target.value)}
+              aria-invalid={!periodoValido}
+              aria-describedby={periodoValido ? undefined : "periodo-erro"}
+              className="h-full w-[7.5rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+            />
+          </div>
           {!periodoValido && (
             <p id="periodo-erro" role="alert" className="text-xs text-destructive">
               Informe início e fim, com o fim depois do início.
@@ -247,7 +272,10 @@ export function PainelAbsenteismo() {
             {comFaixas && (
               <Select
                 value={faixa ?? "todas"}
-                onValueChange={(valor) => setFaixa(valor === "todas" ? undefined : valor)}
+                onValueChange={(valor) => {
+                  setFaixaEscolhida(true);
+                  setFaixa(valor === "todas" ? undefined : valor);
+                }}
               >
                 <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Faixa">
                   <SelectValue placeholder="Faixa" />
@@ -297,6 +325,7 @@ export function PainelAbsenteismo() {
                   setBusca("");
                   setUnidade(undefined);
                   setFaixa(undefined);
+                  setFaixaEscolhida(true);
                   setOcorrencia(undefined);
                   setComPendencias(false);
                 }}

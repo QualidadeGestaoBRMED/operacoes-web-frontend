@@ -81,7 +81,7 @@ describe("Painel de Absenteísmo", () => {
     renderPainel();
 
     expect(await screen.findByText("Juliana Ramos")).toBeInTheDocument();
-    expect(ultimaBusca()).toEqual({
+    expect(vi.mocked(buscarPainelAbsenteismo).mock.calls[0][0]).toEqual({
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,
@@ -108,8 +108,26 @@ describe("Painel de Absenteísmo", () => {
     expect(juliana.getByText("-03:40")).toBeInTheDocument();
 
     const marcos = within(screen.getByText("Marcos Lima").closest("tr") as HTMLElement);
-    expect(marcos.getAllByText("—")).toHaveLength(2);
+    // Sem dia previsto no período: traço em dias, percentual e conformidade.
+    expect(marcos.getAllByText("—")).toHaveLength(3);
     expect(marcos.getByText("Nenhuma")).toBeInTheDocument();
+  });
+
+  it("com faixas cadastradas, abre filtrando crítica e atenção; \"Todas\" mostra todos", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica", "atencao"]));
+    expect(screen.getByLabelText("Faixa")).toHaveTextContent("Crítica e atenção");
+
+    await user.click(screen.getByLabelText("Faixa"));
+    await user.click(await screen.findByRole("option", { name: "Todas as faixas" }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toBeUndefined());
+    // A escolha da pessoa vale: o filtro padrão não volta.
+    await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
+    await waitFor(() => expect(ultimaBusca()?.com_pendencias).toBe(true));
+    expect(ultimaBusca()?.faixa).toBeUndefined();
   });
 
   it("sem faixas cadastradas: sem cards, filtro e selo de faixa; sem meta, avisa", async () => {
@@ -126,6 +144,7 @@ describe("Painel de Absenteísmo", () => {
     expect(screen.queryByLabelText("Faixa")).not.toBeInTheDocument();
     expect(screen.queryByText("Crítica")).not.toBeInTheDocument();
     expect(screen.getByText("sem meta cadastrada")).toBeInTheDocument();
+    expect(ultimaBusca()?.faixa).toBeUndefined();
   });
 
   it("filtros vão para a API no formato do contrato", async () => {
@@ -134,8 +153,8 @@ describe("Painel de Absenteísmo", () => {
     await screen.findByText("Juliana Ramos");
 
     await user.click(screen.getByLabelText("Faixa"));
-    await user.click(await screen.findByRole("option", { name: "Crítica e atenção" }));
-    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica", "atencao"]));
+    await user.click(await screen.findByRole("option", { name: "Só atenção" }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["atencao"]));
 
     await user.click(screen.getByLabelText("Ocorrência"));
     await user.click(await screen.findByRole("option", { name: "Atraso" }));
