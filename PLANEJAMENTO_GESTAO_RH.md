@@ -16,7 +16,8 @@
 | --- | --- | --- |
 | STC-597 Seção Parâmetros de Gestão RH (aba Absenteísmo e férias, Importação desligada) | P5.4 | ✅ Mergeada |
 | STC-599 Base do módulo (menu, casca do modal, tipos e hooks de férias), Painel de Férias e aba Férias do modal | P5.1/P5.2/P5.3/P5.5 | 🔄 Construída, em revisão |
-| STC-596 / STC-598 Painel e aba Absenteísmo | P5.1/P5.3 | ⚠️ Depende do formato dos dados e da fórmula (STC-588) |
+| STC-596 Painel de Absenteísmo, sobre o contrato da STC-588 com dados de exemplo locais | P5.1 | 🔄 Construída, em revisão |
+| STC-598 Aba Absenteísmo do modal | P5.3 | ⚠️ Leitura pode seguir o mesmo caminho (contrato antes do backend); tratamento depende da lista de ações (Gestão de RH) |
 | STC-595 Ligar a aba Importação | P5.4 | ⛔ Depende da definição da fonte (STC-587) |
 
 ---
@@ -24,7 +25,7 @@
 ## O que já está pronto
 
 - Layout base, NextAuth, middleware, API client autenticado (`lib/api.ts`), `useAuth()` com os flags de perfil (`isAdminOps`, `isAdminQG`, `isCoordenacaoUnidade`, `isSetorLeg`).
-- **Entrada "Gestão RH"** em `config/modulos-futuros.ts` com `codigo`, `rota` e o subitem Painel de Férias (STC-599). Continua "em breve" na Sidebar e no Hub até `Modulo.status=ativo` no backend (P7); "em breve" só esconde o menu, a rota direta abre a tela. `/modulos/gestao-rh` redireciona para o Painel de Férias até o Painel de Absenteísmo existir (STC-596).
+- **Entrada "Gestão RH"** em `config/modulos-futuros.ts` com `codigo`, `rota` e os subitens Painel de Absenteísmo (STC-596) e Painel de Férias (STC-599). Continua "em breve" na Sidebar e no Hub até `Modulo.status=ativo` no backend (P7), que só acontece depois da rota real de absenteísmo (STC-588); "em breve" só esconde o menu, a rota direta abre a tela.
 - **Clique no card do Kanban** redireciona para `demanda.origem_url` (`components/kanban/KanbanBoard.tsx::selecionarDemanda`): sem código novo no Kanban.
 - **Seção Parâmetros de Gestão RH (STC-597)**: `components/admin/gestao-rh/`, `hooks/useParametrosGestaoRH.ts`, `lib/gestaoRH.ts` (chamadas, rótulos, `formatarDataISO`, `errosDeCampo`/`errosPorItem` para levar erros do DRF aos campos), `types/gestaoRH.ts`, `components/ui/switch.tsx`.
 - **Painel de Férias e modal do colaborador (STC-599)**: `components/gestao-rh/`, `hooks/useFeriasGestaoRH.ts` (`usePainelFerias`, `useColaboradorRH`, `useFeriasColaborador`), `lib/gestaoRHFerias.ts` (chamadas, rótulos e textos de marcos, situação e histórico).
@@ -38,7 +39,7 @@
 frontend/src/
 ├── config/modulos-futuros.ts           → ✅ "Gestão RH" com codigo, rota e subitem Painel de Férias (Absenteísmo entra com a STC-596)
 ├── app/(app)/modulos/gestao-rh/
-│   ├── page.tsx                               → hoje redireciona para Férias; vira o Painel de Absenteísmo (STC-596)
+│   ├── page.tsx                               → ✅ Painel de Absenteísmo (?colaborador=<id> abre o modal)
 │   └── ferias/page.tsx                        → ✅ Painel de Férias (?colaborador=<id>&periodo=<id> abre o modal)
 ├── app/(app)/admin/permissoes/parametros-gestao-rh/page.tsx  → ✅ rota da seção (conteúdo no layout.tsx)
 ├── components/admin/gestao-rh/          → ✅ STC-597
@@ -49,14 +50,16 @@ frontend/src/
 │   ├── PainelFerias.tsx · CardsFerias.tsx · TabelaFerias.tsx           → ✅ STC-599
 │   ├── DetalheColaboradorModal.tsx            → ✅ modal único; hoje só a aba Férias (carga por aba)
 │   ├── AbaFerias.tsx · CardPeriodoFerias.tsx · FormProgramarFerias.tsx · FormAdiarProgramacao.tsx  → ✅
-│   ├── PainelAbsenteismo.tsx · TabelaColaboradores.tsx                 → a fazer (STC-596)
+│   ├── PainelAbsenteismo.tsx · CardsAbsenteismo.tsx · TabelaAbsenteismo.tsx  → ✅ STC-596
+│   ├── CardIndicador.tsx                      → ✅ card de indicador dos dois painéis
 │   └── AbaAbsenteismo.tsx · FormRegistrarTratamento.tsx                → a fazer (STC-598)
 ├── hooks/
 │   ├── useParametrosGestaoRH.ts               → ✅ useParametrosAbsenteismo, useReguaFerias
 │   ├── useFeriasGestaoRH.ts                   → ✅ usePainelFerias, useColaboradorRH, useFeriasColaborador
-│   └── hooks de absenteísmo                   → a fazer
-├── lib/gestaoRH.ts · lib/gestaoRHFerias.ts  → ✅ parâmetros · férias
-└── types/gestaoRH.ts                     → ✅ parâmetros e férias (absenteísmo a fazer)
+│   └── useAbsenteismoGestaoRH.ts              → ✅ usePainelAbsenteismo
+├── lib/gestaoRH.ts · lib/gestaoRHFerias.ts · lib/gestaoRHAbsenteismo.ts  → ✅ parâmetros · férias · absenteísmo
+├── lib/gestaoRHAbsenteismoExemplo.ts      → dados de exemplo do painel, só no ambiente local (ver P5.1)
+└── types/gestaoRH.ts                     → ✅ parâmetros, férias e painel de absenteísmo
 ```
 
 Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo padrão da Matriz de Conformidade; SRS §3.1).
@@ -73,7 +76,8 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 | `colaboradores/{id}/ferias/` | GET | Aba Férias | ✅ |
 | `ferias/{id}/` | PATCH | `acao=programar` (`data_inicio`, `data_fim`, `necessita_substituicao`) ou `acao=adiar` (`justificativa`); devolve a aba Férias atualizada | ✅ |
 | `ferias/{id}/rh-acionado/` | POST | "RH acionado"; devolve a aba Férias atualizada | ✅ |
-| `colaboradores/?inicio=&fim=...` · `indicadores/` · `colaboradores/{id}/absenteismo/` · `colaboradores/{id}/tratamentos/` | | Absenteísmo | a fazer (STC-588/592) |
+| `absenteismo/?inicio=&fim=&unidade=&faixa=&ocorrencia=&com_pendencias=` | GET | Painel de Absenteísmo: `periodo`, `parametros`, `cards`, `linhas`. Contrato fixado na STC-588 (faixa e ocorrência repetem: `faixa=a&faixa=b`) | contrato ✅ · rota a fazer (STC-588) |
+| `colaboradores/{id}/absenteismo/` · `colaboradores/{id}/tratamentos/` | | Aba Absenteísmo | a fazer (STC-592) |
 | `importacoes/` e afins | | Importação | ⛔ depende da fonte (STC-587) |
 
 `{id}` em `ferias/{id}/` é o do período de férias. Acesso: Admin Q&G e Admin Operações tudo; coordenação e OPEX só a própria unidade (fora dela, 404); demais perfis 403. Percentuais chegam como string decimal ("5.00").
@@ -89,10 +93,12 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 ### P5.1 Menu Gestão RH e Painel de Absenteísmo — `mockup_painel_absenteismo_gestao_rh.html`
 
-- Acrescentar o subitem Painel de Absenteísmo à entrada que a STC-599 criou em `modulos-futuros.ts`.
-- Rota `/modulos/gestao-rh`. Período obrigatório (início/fim livres, RF-003), cards de indicadores, filtros unidade · faixa · ocorrência · com pendências + busca por colaborador/matrícula.
-- Coluna de faixa só aparece quando o backend devolve faixa (critérios cadastrados); meta só com valor cadastrado. Percentual com "provisório · N pendências" quando houver pendência.
-- **Depende do cálculo (STC-588)**, que depende do formato real dos dados e da fórmula da Gestão de RH.
+- ✅ STC-596, **construída sobre o contrato antes do backend** (06/10/2026): a fonte dos dados de ponto segue indefinida, mas o que a tela mostra já está definido pela SRS e pelo mockup. O contrato de `GET /absenteismo/` está no texto da STC-588; mudança nele precisa ser combinada com a tela.
+- Subitem Painel de Absenteísmo no menu; rota `/modulos/gestao-rh`. Período livre (padrão: mês anterior fechado; com o fim antes do início, não busca e mantém o último válido), cards (absenteísmo com a meta, faixa crítica, faixa de atenção, pendências de ponto, colaboradores), filtros unidade (só Admin) · faixa · ocorrência · com pendências + busca, tabela com ordenação pelo cabeçalho. Mesmo visual do Painel de Férias (`CardIndicador` compartilhado).
+- Sem faixas cadastradas, somem os cards, o filtro e o selo de faixa; sem meta, "sem meta cadastrada". Percentual com "provisório · N pendências".
+- Coluna "Ocorrências" em texto ("2 faltas · 1 atestado" / "1 atraso · 1 saída antecipada >15min") no lugar das colunas "Faltas · Atestados" e "Atrasos · Saídas" do mockup: os pares de números não diziam qual era qual. Afastamentos e ausências ficam na aba do modal.
+- Linha clicável abre o modal do colaborador (`?colaborador=`); até a aba Absenteísmo existir (STC-598), abre em Férias.
+- **Dados de exemplo locais**: `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1` no `.env.local` faz `buscarPainelAbsenteismo` devolver `lib/gestaoRHAbsenteismoExemplo.ts` (ids dos colaboradores fictícios do banco local). A condição também exige `NODE_ENV !== "production"`: no build de produção o ramo some e o módulo de exemplo não entra no pacote, mesmo com a variável ligada (conferido no build).
 
 ### P5.2 Painel de Férias — `mockup_painel_ferias_gestao_rh.html`
 
