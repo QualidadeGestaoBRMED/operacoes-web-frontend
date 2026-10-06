@@ -39,8 +39,11 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
   {
     nome: "Gestão RH",
     icon: Users,
-    descricao: "Quadro de colaboradores por unidade.",
+    descricao: "Férias e absenteísmo por colaborador.",
     larguras: ["60%"],
+    codigo: "gestao-rh",
+    rota: "/modulos/gestao-rh",
+    subitens: [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" }],
   },
   {
     nome: "Arquitetura",
