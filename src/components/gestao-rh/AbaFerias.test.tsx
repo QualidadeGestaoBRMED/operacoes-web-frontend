@@ -439,6 +439,29 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(screen.queryByRole("button", { name: "Não programar agora" })).not.toBeInTheDocument();
   });
 
+  it("histórico mostra os 5 mais recentes e abre o completo", async () => {
+    const registros = Array.from({ length: 7 }, (_, indice) => ({
+      acao: "periodo_ferias_criado",
+      valor_anterior: "",
+      valor_novo: `registro ${indice + 1}`,
+      justificativa: "",
+      regra_gatilho: "virada_de_periodo",
+      por: null,
+      automatico: true,
+      em: `2026-10-0${7 - indice}T07:37:00-03:00`,
+    }));
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(ferias({ historico: registros }));
+    const user = usuario();
+    renderModal();
+
+    expect(await screen.findByText("Novo período de direito: registro 5")).toBeInTheDocument();
+    expect(screen.queryByText("Novo período de direito: registro 6")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ver histórico completo (7)" }));
+    expect(screen.getByText("Novo período de direito: registro 7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver só os mais recentes" })).toBeInTheDocument();
+  });
+
   it("histórico com texto legível e quem fez (ou automático)", async () => {
     renderModal();
 

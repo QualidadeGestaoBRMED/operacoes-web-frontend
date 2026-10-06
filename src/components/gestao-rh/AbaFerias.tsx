@@ -89,6 +89,44 @@ function ItemHistorico({ registro }: { registro: RegistroHistoricoRH }) {
   );
 }
 
+// A API devolve o histórico do mais recente para o mais antigo.
+const HISTORICO_RESUMIDO = 5;
+
+function HistoricoFerias({ registros }: { registros: RegistroHistoricoRH[] }) {
+  const [completo, setCompleto] = useState(false);
+  const exibidos = completo ? registros : registros.slice(0, HISTORICO_RESUMIDO);
+  return (
+    <section aria-labelledby="historico-ferias-titulo" className="space-y-3 pt-2">
+      <h3
+        id="historico-ferias-titulo"
+        className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase"
+      >
+        Histórico
+      </h3>
+      {registros.length === 0 ? (
+        <p className="text-[12.5px] text-muted-foreground">Nenhum registro ainda.</p>
+      ) : (
+        <>
+          <ul>
+            {exibidos.map((registro, indice) => (
+              <ItemHistorico key={`${registro.em}-${indice}`} registro={registro} />
+            ))}
+          </ul>
+          {registros.length > HISTORICO_RESUMIDO && (
+            <button
+              type="button"
+              onClick={() => setCompleto((atual) => !atual)}
+              className="text-[12.5px] font-medium text-secondary hover:underline"
+            >
+              {completo ? "Ver só os mais recentes" : `Ver histórico completo (${registros.length})`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 interface AbaFeriasProps {
   colaboradorId: number;
   ativo: boolean;
@@ -171,23 +209,7 @@ export function AbaFerias({ colaboradorId, ativo, periodoEmFoco, hoje }: AbaFeri
 
       <FeriasTiradas ferias={ferias} />
 
-      <section aria-labelledby="historico-ferias-titulo" className="space-y-3 pt-2">
-        <h3
-          id="historico-ferias-titulo"
-          className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase"
-        >
-          Histórico
-        </h3>
-        {ferias.historico.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">Nenhum registro ainda.</p>
-        ) : (
-          <ul>
-            {ferias.historico.map((registro, indice) => (
-              <ItemHistorico key={`${registro.em}-${indice}`} registro={registro} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <HistoricoFerias registros={ferias.historico} />
     </div>
   );
 }
