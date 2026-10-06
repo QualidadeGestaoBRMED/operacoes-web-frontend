@@ -354,6 +354,36 @@ describe("Modal do colaborador · aba Férias", () => {
     ).toBeInTheDocument();
   });
 
+  it("sem o campo na resposta, o formulário segue sem aviso e sem quebrar", async () => {
+    const semCampo: Partial<FeriasColaborador> = ferias();
+    delete semCampo.dias_antes_do_inicio_substituicao;
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(semCampo as FeriasColaborador);
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    await user.type(pendente.getByLabelText("Início *"), "2026-11-23");
+
+    expect(pendente.queryByText(/acionar o RH (até|passou)/i)).not.toBeInTheDocument();
+    expect(pendente.getByRole("button", { name: "Registrar programação" })).toBeInTheDocument();
+  });
+
+  it("início antes de hoje não mostra prazo", async () => {
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    await user.type(pendente.getByLabelText("Início *"), "0002-11-23");
+
+    expect(pendente.queryByText(/acionar o RH (até|passou)/i)).not.toBeInTheDocument();
+  });
+
   it("vencido aceita férias depois do limite, com o aviso de pagamento em dobro", async () => {
     vi.mocked(programarFerias).mockResolvedValue(ferias());
     const user = usuario();
