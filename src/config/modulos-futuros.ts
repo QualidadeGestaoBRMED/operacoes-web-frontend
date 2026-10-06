@@ -43,7 +43,10 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     larguras: ["60%"],
     codigo: "gestao-rh",
     rota: "/modulos/gestao-rh",
-    subitens: [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" }],
+    subitens: [
+      { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
+      { label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" },
+    ],
   },
   {
     nome: "Arquitetura",

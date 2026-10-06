@@ -35,6 +35,8 @@ interface TabelaFeriasProps {
   onOrdenar: (campo: CampoOrdenavelFerias) => void;
   /** Celular: a página rola inteira, sem a moldura de altura travada. */
   rolagemNaPagina?: boolean;
+  /** Filtro trocado e a resposta nova ainda não chegou. */
+  atualizando?: boolean;
   onAbrir: (linha: LinhaPainelFerias) => void;
 }
 
@@ -79,6 +81,7 @@ export function TabelaFerias({
   ordenacao,
   onOrdenar,
   rolagemNaPagina = false,
+  atualizando = false,
   onAbrir,
 }: TabelaFeriasProps) {
   return (
@@ -87,9 +90,11 @@ export function TabelaFerias({
           em linhas inteiras, rolagem por dentro e cabeçalho fixo. */}
       <div
         style={{ maxHeight: rolagemNaPagina ? undefined : maxHeight }}
+        aria-busy={atualizando || undefined}
         className={cn(
-          "overflow-hidden rounded-lg border border-border bg-card",
+          "overflow-hidden rounded-lg border border-border bg-card transition-opacity",
           !rolagemNaPagina && "min-h-0 flex-1",
+          atualizando && "opacity-60",
         )}
       >
         <div

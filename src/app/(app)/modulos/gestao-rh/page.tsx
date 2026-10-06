@@ -1,7 +1,12 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { PainelAbsenteismo } from "@/components/gestao-rh/PainelAbsenteismo";
 
-// O Painel de Absenteísmo (STC-596) ocupa esta rota; até lá, o módulo abre
-// no Painel de Férias.
-export default function GestaoRHPage() {
-  redirect("/modulos/gestao-rh/ferias");
+export default function PainelAbsenteismoPage() {
+  // Suspense exigido pelo App Router: PainelAbsenteismo lê ?colaborador=
+  // com useSearchParams().
+  return (
+    <Suspense fallback={null}>
+      <PainelAbsenteismo />
+    </Suspense>
+  );
 }

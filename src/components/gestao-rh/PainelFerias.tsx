@@ -59,7 +59,8 @@ export function PainelFerias() {
     () => ({ janela_dias: janela, unidade, status }),
     [janela, unidade, status],
   );
-  const { painel, carregandoPrimeiraVez, mensagemErro, recarregar } = usePainelFerias(filtros);
+  const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
+    usePainelFerias(filtros);
   const hoje = hojeISO();
 
   // Modal aberto pela URL: clique na linha e card do Kanban
@@ -169,7 +170,9 @@ export function PainelFerias() {
               </Button>
             </div>
           )}
-          <CardsFerias cards={cards} />
+          <div className={cn("transition-opacity", trocandoFiltro && "opacity-60")}>
+            <CardsFerias cards={cards} />
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">
             <div className="relative min-w-[180px] flex-1 sm:max-w-sm">
@@ -255,6 +258,7 @@ export function PainelFerias() {
             ordenacao={ordenacao}
             onOrdenar={alternarOrdenacao}
             rolagemNaPagina={ehMobile}
+            atualizando={trocandoFiltro}
             onAbrir={abrir}
           />
         </>
