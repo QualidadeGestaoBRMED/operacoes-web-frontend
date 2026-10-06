@@ -217,6 +217,46 @@ describe("Painel de Férias", () => {
     expect(screen.getByText("1 colaborador")).toBeInTheDocument();
   });
 
+  it("cabeçalho ordena crescente, decrescente e volta à ordem da API", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByText("Marcos Lima");
+    const nomes = () =>
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((linhaTabela) => within(linhaTabela).getAllByRole("button")[0].textContent);
+
+    expect(nomes()).toEqual(["Marcos Lima", "Eduardo Pires", "Leonardo Araújo"]);
+
+    await user.click(screen.getByRole("button", { name: "Colaborador" }));
+    expect(nomes()).toEqual(["Eduardo Pires", "Leonardo Araújo", "Marcos Lima"]);
+    expect(screen.getByRole("columnheader", { name: "Colaborador" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Colaborador" }));
+    expect(nomes()).toEqual(["Marcos Lima", "Leonardo Araújo", "Eduardo Pires"]);
+
+    await user.click(screen.getByRole("button", { name: "Colaborador" }));
+    expect(nomes()).toEqual(["Marcos Lima", "Eduardo Pires", "Leonardo Araújo"]);
+  });
+
+  it("próximo marco: na ordem decrescente, o limite vencido vai para o fim", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByText("Marcos Lima");
+
+    await user.click(screen.getByRole("button", { name: "Próximo marco" }));
+    await user.click(screen.getByRole("button", { name: "Próximo marco" }));
+
+    const linhas = screen.getAllByRole("row").slice(1);
+    expect(within(linhas[0]).getByText("Leonardo Araújo")).toBeInTheDocument();
+    expect(within(linhas[1]).getByText("Eduardo Pires")).toBeInTheDocument();
+    expect(within(linhas[2]).getByText("Marcos Lima")).toBeInTheDocument();
+  });
+
   it("filtro de unidade só para Admin (a coordenação já recebe só a própria unidade)", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     renderPainel();

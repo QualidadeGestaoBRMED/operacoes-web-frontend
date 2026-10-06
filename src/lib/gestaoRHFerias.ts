@@ -1,5 +1,6 @@
 import api from "./api";
 import { formatarDataISO } from "./gestaoRH";
+import { ordenarPor, type Ordenacao } from "./ordenacao";
 import type {
   CabecalhoColaborador,
   FeriasColaborador,
@@ -96,6 +97,36 @@ const ROTULO_PROXIMO_MARCO: Record<TipoProximoMarco, string> = {
   acionar_rh: "Acionar o RH até",
   inicio_ferias: "Início das férias",
 };
+
+export type CampoOrdenavelFerias =
+  | "colaborador"
+  | "unidade"
+  | "periodo"
+  | "limite"
+  | "proximo_marco"
+  | "status";
+
+export type OrdenacaoFerias = Ordenacao<CampoOrdenavelFerias>;
+
+// Datas "AAAA-MM-DD" comparam como texto. Limite vencido vem antes de
+// qualquer próximo marco; sem marco nenhum, vai para o fim.
+const CHAVES_FERIAS = {
+  colaborador: (linha: LinhaPainelFerias) => linha.colaborador.nome,
+  unidade: (linha: LinhaPainelFerias) => linha.colaborador.unidade.nome,
+  periodo: (linha: LinhaPainelFerias) => linha.periodo.inicio_aquisitivo,
+  limite: (linha: LinhaPainelFerias) => linha.periodo.limite_concessivo,
+  proximo_marco: (linha: LinhaPainelFerias) =>
+    linha.limite_vencido_ha_dias !== null ? "0000-00-00" : (linha.proximo_marco?.data ?? null),
+  status: (linha: LinhaPainelFerias) => ORDEM_STATUS_PERIODO.indexOf(linha.periodo.status),
+};
+
+/** Sem ordenação escolhida, mantém a ordem da API (limite vencido, depois o próximo marco). */
+export function ordenarLinhasFerias(
+  linhas: LinhaPainelFerias[],
+  ordenacao: OrdenacaoFerias | null,
+): LinhaPainelFerias[] {
+  return ordenarPor(linhas, ordenacao, CHAVES_FERIAS);
+}
 
 /** Dias de `de` até `ate` (datas "AAAA-MM-DD"), sem passar por fuso. */
 export function diasEntre(de: string, ate: string): number {

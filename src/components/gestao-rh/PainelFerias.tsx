@@ -22,6 +22,9 @@ import {
   JANELAS_PAINEL,
   ORDEM_STATUS_PERIODO,
   ROTULO_STATUS_PERIODO,
+  ordenarLinhasFerias,
+  type CampoOrdenavelFerias,
+  type OrdenacaoFerias,
 } from "@/lib/gestaoRHFerias";
 import { cn, formatarDataHora, hojeISO } from "@/lib/utils";
 import type { LinhaPainelFerias, StatusPeriodoFerias } from "@/types/gestaoRH";
@@ -49,6 +52,7 @@ export function PainelFerias() {
   const [unidade, setUnidade] = useState<number>();
   const [status, setStatus] = useState<StatusPeriodoFerias>();
   const [busca, setBusca] = useState("");
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoFerias | null>(null);
 
   const filtros = useMemo(
     () => ({ janela_dias: janela, unidade, status }),
@@ -79,15 +83,23 @@ export function PainelFerias() {
   }
 
   const linhas = useMemo(() => {
-    const todas = painel?.linhas ?? [];
     const termo = normalizar(busca.trim());
-    if (!termo) return todas;
-    return todas.filter(
+    const filtradas = (painel?.linhas ?? []).filter(
       (linha) =>
+        !termo ||
         normalizar(linha.colaborador.nome).includes(termo) ||
         linha.colaborador.matricula_vr.includes(termo),
     );
-  }, [painel, busca]);
+    return ordenarLinhasFerias(filtradas, ordenacao);
+  }, [painel, busca, ordenacao]);
+
+  function alternarOrdenacao(campo: CampoOrdenavelFerias) {
+    setOrdenacao((atual) => {
+      if (atual?.campo !== campo) return { campo, direcao: "asc" };
+      if (atual.direcao === "asc") return { campo, direcao: "desc" };
+      return null;
+    });
+  }
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   // Mesmo breakpoint dos filtros da Matriz: no celular, cards e filtros não
@@ -223,6 +235,8 @@ export function PainelFerias() {
             hoje={hoje}
             refTabela={refTabela}
             maxHeight={maxHeight}
+            ordenacao={ordenacao}
+            onOrdenar={alternarOrdenacao}
             rolagemNaPagina={ehMobile}
             onAbrir={abrir}
           />

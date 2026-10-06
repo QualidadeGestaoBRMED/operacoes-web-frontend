@@ -1,4 +1,4 @@
-import { CalendarCheck2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { formatarDataISO } from "@/lib/gestaoRH";
@@ -9,17 +9,19 @@ import {
   partesProximoMarco,
   textoProximoMarco,
   textoSituacao,
+  type CampoOrdenavelFerias,
+  type OrdenacaoFerias,
 } from "@/lib/gestaoRHFerias";
 import { cn, iniciaisDe } from "@/lib/utils";
 import type { LinhaPainelFerias } from "@/types/gestaoRH";
 
-const COLUNAS = [
-  { rotulo: "Colaborador", largura: "w-[18%]" },
-  { rotulo: "Unidade", largura: "w-[10%]" },
-  { rotulo: "Período de direito", largura: "w-[16%]" },
-  { rotulo: "Limite", largura: "w-[9%]" },
-  { rotulo: "Próximo marco", largura: "w-[16%]" },
-  { rotulo: "Status", largura: "w-[16%]" },
+const COLUNAS: { rotulo: string; largura: string; campo?: CampoOrdenavelFerias }[] = [
+  { rotulo: "Colaborador", largura: "w-[18%]", campo: "colaborador" },
+  { rotulo: "Unidade", largura: "w-[10%]", campo: "unidade" },
+  { rotulo: "Período de direito", largura: "w-[16%]", campo: "periodo" },
+  { rotulo: "Limite", largura: "w-[9%]", campo: "limite" },
+  { rotulo: "Próximo marco", largura: "w-[16%]", campo: "proximo_marco" },
+  { rotulo: "Status", largura: "w-[16%]", campo: "status" },
   { rotulo: "Situação", largura: "w-[15%]" },
 ];
 
@@ -29,6 +31,8 @@ interface TabelaFeriasProps {
   hoje: string;
   refTabela: ReturnType<typeof useAlturaSemLinhaCortada>["refTabela"];
   maxHeight: number | undefined;
+  ordenacao: OrdenacaoFerias | null;
+  onOrdenar: (campo: CampoOrdenavelFerias) => void;
   /** Celular: a página rola inteira, sem a moldura de altura travada. */
   rolagemNaPagina?: boolean;
   onAbrir: (linha: LinhaPainelFerias) => void;
@@ -72,6 +76,8 @@ export function TabelaFerias({
   hoje,
   refTabela,
   maxHeight,
+  ordenacao,
+  onOrdenar,
   rolagemNaPagina = false,
   onAbrir,
 }: TabelaFeriasProps) {
@@ -93,17 +99,43 @@ export function TabelaFerias({
           <table className="w-full min-w-[1000px] table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                {COLUNAS.map((coluna) => (
-                  <th
-                    key={coluna.rotulo}
-                    className={cn(
-                      "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
-                      coluna.largura,
-                    )}
-                  >
-                    {coluna.rotulo}
-                  </th>
-                ))}
+                {COLUNAS.map((coluna) => {
+                  const ativa = !!coluna.campo && ordenacao?.campo === coluna.campo;
+                  const Icone = !ativa ? ArrowUpDown : ordenacao?.direcao === "asc" ? ArrowUp : ArrowDown;
+                  return (
+                    <th
+                      key={coluna.rotulo}
+                      aria-sort={
+                        ativa ? (ordenacao?.direcao === "asc" ? "ascending" : "descending") : undefined
+                      }
+                      className={cn(
+                        "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
+                        coluna.largura,
+                      )}
+                    >
+                      {coluna.campo ? (
+                        // Mesmo comportamento da Matriz de Conformidade: crescente,
+                        // decrescente e de volta à ordem da API.
+                        <button
+                          type="button"
+                          onClick={() => onOrdenar(coluna.campo as CampoOrdenavelFerias)}
+                          className={cn(
+                            "group flex items-center gap-1 uppercase hover:text-foreground",
+                            ativa && "text-foreground",
+                          )}
+                        >
+                          {coluna.rotulo}
+                          <Icone
+                            aria-hidden
+                            className={cn("size-3", !ativa && "opacity-70 group-hover:opacity-100")}
+                          />
+                        </button>
+                      ) : (
+                        coluna.rotulo
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
