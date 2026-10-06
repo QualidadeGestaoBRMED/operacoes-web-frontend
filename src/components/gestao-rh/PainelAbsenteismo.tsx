@@ -96,6 +96,10 @@ export function PainelAbsenteismo() {
   );
 
   const { painel, carregandoPrimeiraVez, mensagemErro, recarregar } = usePainelAbsenteismo(filtros);
+  const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
+  // Sem faixas cadastradas o filtro de faixa some da tela; então também não
+  // pode continuar valendo (ex.: um Admin apagou as faixas nos Parâmetros).
+  if (painel && !comFaixas && faixa) setFaixa(undefined);
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
 
@@ -134,7 +138,6 @@ export function PainelAbsenteismo() {
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
   const temFiltros = Boolean(unidade || faixa || ocorrencia || comPendencias || busca);
   const cards = painel?.cards;
 

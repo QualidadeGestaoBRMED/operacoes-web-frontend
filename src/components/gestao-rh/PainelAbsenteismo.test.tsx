@@ -149,6 +149,25 @@ describe("Painel de Absenteísmo", () => {
     await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
   });
 
+  it("faixa escolhida deixa de valer se as faixas deixarem de existir", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    await user.click(screen.getByLabelText("Faixa"));
+    await user.click(await screen.findByRole("option", { name: "Só crítica" }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica"]));
+
+    // Um Admin apagou as faixas nos Parâmetros; a próxima busca já vem sem elas.
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
+      ...PAINEL,
+      parametros: { ...PAINEL.parametros, faixas_cadastradas: false },
+    });
+    await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
+
+    await waitFor(() => expect(screen.queryByLabelText("Faixa")).not.toBeInTheDocument());
+    await waitFor(() => expect(ultimaBusca()?.faixa).toBeUndefined());
+  });
+
   it("filtro de unidade só para Admin", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     renderPainel();
