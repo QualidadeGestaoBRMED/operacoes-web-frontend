@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CalendarCheck, Clock, Info, Percent } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAbsenteismoColaborador } from "@/hooks/useAbsenteismoGestaoRH";
@@ -19,9 +19,38 @@ import {
 import { cn, formatarDataHora } from "@/lib/utils";
 import type { AcaoTratamento, AlertaAbsenteismo } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
-import { CardIndicador, type CorCard } from "./CardIndicador";
 import { FormRegistrarTratamento } from "./FormRegistrarTratamento";
 import { HistoricoRH } from "./HistoricoRH";
+
+function Indicador({
+  rotulo,
+  valor,
+  detalhe = null,
+  destaque = null,
+}: {
+  rotulo: string;
+  valor: string;
+  detalhe?: string | null;
+  destaque?: "critica" | "atencao" | null;
+}) {
+  return (
+    <div className="bg-card px-3.5 py-2.5">
+      <dt className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+        {rotulo}
+      </dt>
+      <dd
+        className={cn(
+          "mt-0.5 text-lg font-semibold text-foreground tabular-nums",
+          destaque === "critica" && "text-red-600",
+          destaque === "atencao" && "text-amber-700",
+        )}
+      >
+        {valor}
+      </dd>
+      {detalhe && <dd className="text-[11.5px] text-muted-foreground">{detalhe}</dd>}
+    </div>
+  );
+}
 
 interface CardAlertaProps {
   alerta: AlertaAbsenteismo;
@@ -47,8 +76,8 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
         emFoco && "ring-2 ring-secondary/60",
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h3 id={`alerta-${alerta.id}-titulo`} className="text-[14px] font-semibold text-foreground">
             {tituloAlerta(alerta)}
           </h3>
@@ -165,8 +194,6 @@ export function AbaAbsenteismo({ colaboradorId, ativo, periodoInicial, focarAler
   }
 
   const { indicadores, parametros } = aba;
-  const corAbsenteismo: CorCard =
-    indicadores.faixa === "critica" ? "vencido" : indicadores.faixa === "atencao" ? "atencao" : "andamento";
 
   return (
     <div className={cn("space-y-4 transition-opacity", trocandoPeriodo && "opacity-60")} aria-busy={trocandoPeriodo || undefined}>
@@ -188,41 +215,42 @@ export function AbaAbsenteismo({ colaboradorId, ativo, periodoInicial, focarAler
         </div>
       )}
 
-      {/* 2×2: na largura do modal, quatro lado a lado cortam os títulos. */}
-      <div className="grid grid-cols-2 gap-3">
-        <CardIndicador
+      {/* Faixa compacta, não os cards dos painéis: no modal, o que a
+          coordenação veio ver são as ocorrências e o alerta. */}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4">
+        <Indicador
           rotulo="Absenteísmo"
           valor={formatarPercentual(indicadores.percentual)}
-          legenda={
-            [indicadores.faixa && `faixa ${ROTULO_FAIXA[indicadores.faixa].toLowerCase()}`, indicadores.provisorio && "provisório"]
+          detalhe={
+            [
+              indicadores.faixa && `faixa ${ROTULO_FAIXA[indicadores.faixa].toLowerCase()}`,
+              indicadores.provisorio && "provisório",
+            ]
               .filter(Boolean)
-              .join(" · ") || "no período selecionado"
+              .join(" · ") || null
           }
-          cor={corAbsenteismo}
-          Icone={Percent}
+          destaque={indicadores.faixa}
         />
-        <CardIndicador
+        <Indicador
           rotulo="Dias trabalhados"
-          valor={indicadores.dias_previstos === 0 ? "—" : `${indicadores.dias_trabalhados} de ${indicadores.dias_previstos}`}
-          legenda="no período selecionado"
-          cor="neutro"
-          Icone={CalendarCheck}
+          valor={
+            indicadores.dias_previstos === 0
+              ? "—"
+              : `${indicadores.dias_trabalhados} de ${indicadores.dias_previstos}`
+          }
         />
-        <CardIndicador
+        <Indicador
           rotulo="Conformidade"
           valor={formatarPercentual(indicadores.conformidade_percentual)}
-          legenda="da jornada prevista"
-          cor="neutro"
-          Icone={Info}
+          detalhe="da jornada prevista"
         />
-        <CardIndicador
+        <Indicador
           rotulo="Banco de horas"
           valor={formatarSaldoHoras(indicadores.banco_horas_saldo_minutos)}
-          legenda="saldo no fim do período"
-          cor={indicadores.banco_horas_saldo_minutos < 0 ? "vencido" : "neutro"}
-          Icone={Clock}
+          detalhe="saldo no fim do período"
+          destaque={indicadores.banco_horas_saldo_minutos < 0 ? "critica" : null}
         />
-      </div>
+      </dl>
 
       <section aria-labelledby={`ocorrencias-${colaboradorId}-titulo`} className="space-y-2">
         <h3
