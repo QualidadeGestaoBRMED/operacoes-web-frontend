@@ -17,7 +17,7 @@
 | STC-597 Seção Parâmetros de Gestão RH (aba Absenteísmo e férias, Importação desligada) | P5.4 | ✅ Mergeada |
 | STC-599 Base do módulo (menu, casca do modal, tipos e hooks de férias), Painel de Férias e aba Férias do modal | P5.1/P5.2/P5.3/P5.5 | 🔄 Construída, em revisão |
 | STC-596 Painel de Absenteísmo, sobre o contrato da STC-588 com dados de exemplo locais | P5.1 | 🔄 Construída, em revisão |
-| STC-598 Aba Absenteísmo do modal | P5.3 | ⚠️ Leitura pode seguir o mesmo caminho (contrato antes do backend); tratamento depende da lista de ações (Gestão de RH) |
+| STC-598 Aba Absenteísmo do modal, com registro de tratamento, sobre o contrato da STC-592 | P5.3/P5.5 | 🔄 Construída, em revisão |
 | STC-595 Ligar a aba Importação | P5.4 | ⛔ Depende da definição da fonte (STC-587) |
 
 ---
@@ -52,7 +52,8 @@ frontend/src/
 │   ├── AbaFerias.tsx · CardPeriodoFerias.tsx · FormProgramarFerias.tsx · FormAdiarProgramacao.tsx  → ✅
 │   ├── PainelAbsenteismo.tsx · CardsAbsenteismo.tsx · TabelaAbsenteismo.tsx  → ✅ STC-596
 │   ├── CardIndicador.tsx                      → ✅ card de indicador dos dois painéis
-│   └── AbaAbsenteismo.tsx · FormRegistrarTratamento.tsx                → a fazer (STC-598)
+│   ├── AbaAbsenteismo.tsx · FormRegistrarTratamento.tsx                → ✅ STC-598
+│   └── CampoPeriodo.tsx · HistoricoRH.tsx     → ✅ período e histórico compartilhados (painel e abas)
 ├── hooks/
 │   ├── useParametrosGestaoRH.ts               → ✅ useParametrosAbsenteismo, useReguaFerias
 │   ├── useFeriasGestaoRH.ts                   → ✅ usePainelFerias, useColaboradorRH, useFeriasColaborador
@@ -77,7 +78,8 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 | `ferias/{id}/` | PATCH | `acao=programar` (`data_inicio`, `data_fim`, `necessita_substituicao`) ou `acao=adiar` (`justificativa`); devolve a aba Férias atualizada | ✅ |
 | `ferias/{id}/rh-acionado/` | POST | "RH acionado"; devolve a aba Férias atualizada | ✅ |
 | `absenteismo/?inicio=&fim=&unidade=&faixa=&ocorrencia=&com_pendencias=` | GET | Painel de Absenteísmo: `periodo`, `parametros`, `cards`, `linhas`. Contrato fixado na STC-588 (faixa e ocorrência repetem: `faixa=a&faixa=b`) | contrato ✅ · rota a fazer (STC-588) |
-| `colaboradores/{id}/absenteismo/` · `colaboradores/{id}/tratamentos/` | | Aba Absenteísmo | a fazer (STC-592) |
+| `colaboradores/{id}/absenteismo/?inicio=&fim=` | GET | Aba Absenteísmo: `periodo`, `parametros`, `indicadores`, `ocorrencias`, `alertas`, `historico`. Contrato fixado na STC-592 | contrato ✅ · rota a fazer (STC-592) |
+| `colaboradores/{id}/tratamentos/` | POST | `alerta`, `acao` (`feedback`, `advertencia`, `desligamento`, `sem_medida`, proposta do SRS), `justificativa`; devolve a aba no período do alerta | contrato ✅ · rota a fazer (STC-592) |
 | `importacoes/` e afins | | Importação | ⛔ depende da fonte (STC-587) |
 
 `{id}` em `ferias/{id}/` é o do período de férias. Acesso: Admin Q&G e Admin Operações tudo; coordenação e OPEX só a própria unidade (fora dela, 404); demais perfis 403. Percentuais chegam como string decimal ("5.00").
@@ -110,14 +112,15 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 ### P5.3 Modal do Colaborador — `mockup_detalhe_colaborador_{absenteismo,ferias,ferias_acumuladas}.html`
 
-- ✅ Casca e aba Férias na STC-599. Modal único, no desenho do detalhe do documento da Legalização: nome, cargo e unidade no topo; unidade, cargo, matrícula e admissão na coluna da esquerda; abas sublinhadas à direita, **carga só da aba aberta** (cabeçalho de `colaboradores/{id}/`, aba Férias de `colaboradores/{id}/ferias/`, aba Absenteísmo de `colaboradores/{id}/absenteismo/`, a fazer). Cada aba mostra o próprio histórico no fim. Colaborador desligado: só leitura.
+- ✅ Casca e aba Férias na STC-599. Modal único, no desenho do detalhe do documento da Legalização: nome, cargo e unidade no topo; unidade, cargo, matrícula e admissão na coluna da esquerda; abas sublinhadas à direita, **carga só da aba aberta** (cabeçalho de `colaboradores/{id}/`, aba Férias de `colaboradores/{id}/ferias/`, aba Absenteísmo de `colaboradores/{id}/absenteismo/`). Abas na ordem do mockup (Absenteísmo, Férias), abrindo na de quem chamou o modal; cada aba carrega na primeira visita e depois fica montada, escondida quando inativa (trocar de aba não perde formulário nem período). Cada aba mostra o próprio histórico no fim. Colaborador desligado: só leitura.
 - **Aba Férias**: um card por período pendente, do mais antigo para o mais recente, aviso quando houver mais de um; marcos com a situação (`alerta_gerado`, `tratado`, `proximo`, `futuro`, `sem_alerta`, `vencido`); ações "Programar férias" e "Não programar agora" abrindo uma por vez dentro do card, conforme `pode_programar`/`pode_adiar`/`pode_registrar_rh_acionado`.
   - Programar (ou "Reprogramar férias", preenchido com a programação atual): início/fim, dias calculados, toggle de substituição. As regras do backend são conferidas também na tela antes de enviar (início a partir de hoje, no máximo 30 dias, **terminar até o limite para tirar**; com limite vencido aceita, com aviso de pagamento em dobro); a mensagem do 400 vai para o campo. O prazo "Acionar o RH até <data>" aparece depois de registrar: os dias da régua só são visíveis para Admin.
   - Com as férias programadas, marcos ainda à frente aparecem como "sem alerta: férias programadas" (o motor não dispara marcos de período programado).
   - Adiar: justificativa obrigatória; só período pendente e dentro do limite. Mostrar "adiada em <data> por <quem>" (`adiamento`).
   - "RH acionado" junto do aviso de substituição, com confirmação (não pode ser desfeito); depois de registrado, "RH acionado em <data> por <responsável>".
   - Férias já tiradas recolhidas; período em andamento como linha informativa.
-- **Aba Absenteísmo**: período livre, aviso de pendências, indicadores, ocorrências com "conta/não conta" e "em aprovação", card do alerta com "Registrar tratamento". **Condicional** à STC-592.
+- **Aba Absenteísmo** (✅ STC-598, sobre o contrato da STC-592, com os mesmos dados de exemplo locais do painel): período livre (o do painel, o do alerta pelo Kanban ou o mês anterior fechado), aviso de pendências, indicadores 2×2, ocorrências com "conta/não conta", "em aprovação" e "acima de N min" (atestado sem dado clínico), card do alerta ("Alerta de setembro/2026") com "Registrar tratamento" abrindo no card (ação da lista proposta do SRS + justificativa obrigatória) e, depois, o tratamento registrado; histórico. A resposta do tratamento vem no período do alerta: só substitui o cache se for o período na tela, senão busca de novo.
+- **Abertura**: pelo Painel de Absenteísmo, aba Absenteísmo no período do painel (`?colaborador=`); pelo card do Kanban (`?colaborador=&inicio=&fim=`, `origem_url` da STC-592), no período do alerta, rolando e levando o foco ao card do alerta; pelo Painel de Férias, aba Férias.
 - Rótulos da interface: "período de direito", "limite para tirar", "férias tiradas" (SRS §3.1).
 
 ### P5.4 Parâmetros (Importação e regras) — `mockup_parametros_gestao_rh.html` · STC-597 construída
