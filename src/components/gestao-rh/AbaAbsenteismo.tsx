@@ -199,6 +199,21 @@ export function AbaAbsenteismo({ colaboradorId, ativo, periodoInicial, focarAler
     <div className={cn("space-y-4 transition-opacity", trocandoPeriodo && "opacity-60")} aria-busy={trocandoPeriodo || undefined}>
       {cabecalho}
 
+      {/* Falha ao trocar de período: os dados abaixo continuam sendo os do
+          último período que carregou, e isso precisa ficar dito. */}
+      {mensagemErro && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12.5px] text-destructive"
+        >
+          Não foi possível carregar o período escolhido. Os dados abaixo são de{" "}
+          {formatarDataISO(aba.periodo.inicio)} a {formatarDataISO(aba.periodo.fim)}.
+          <Button type="button" variant="outline" size="sm" onClick={recarregar}>
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
       {indicadores.pendencias > 0 && (
         <div
           role="note"

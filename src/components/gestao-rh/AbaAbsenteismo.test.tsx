@@ -307,6 +307,24 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(vi.mocked(buscarAbsenteismoColaborador).mock.calls.length).toBe(chamadas);
   });
 
+  it("falha ao trocar de período avisa de qual período são os dados na tela", async () => {
+    const user = usuario();
+    renderModal();
+    await screen.findByText("Ocorrências do período");
+    vi.mocked(buscarAbsenteismoColaborador).mockRejectedValueOnce(new Error("Falha de rede"));
+
+    await user.clear(screen.getByLabelText("Período"));
+    await user.type(screen.getByLabelText("Período"), "2026-08-01");
+
+    expect(
+      await screen.findByText(/Não foi possível carregar o período escolhido\. Os dados abaixo são de 01\/09\/2026 a 30\/09\/2026/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Não foi possível carregar o período escolhido/)).not.toBeInTheDocument(),
+    );
+  });
+
   it("falha ao carregar oferece tentar de novo", async () => {
     vi.mocked(buscarAbsenteismoColaborador).mockRejectedValueOnce(new Error("Falha de rede"));
     const user = usuario();
