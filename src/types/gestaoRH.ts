@@ -224,3 +224,68 @@ export interface ProgramarFeriasPayload {
   data_fim: string;
   necessita_substituicao: boolean;
 }
+
+// Absenteísmo: contrato de GET /absenteismo/, fixado na STC-588 antes do
+// backend existir. Percentuais como string decimal; minutos como inteiro.
+
+export type FaixaAbsenteismo = "critica" | "atencao";
+
+export type OcorrenciaFiltro =
+  | "falta"
+  | "atestado"
+  | "afastamento"
+  | "ausencia"
+  | "atraso"
+  | "saida_antecipada";
+
+export interface FiltrosPainelAbsenteismo {
+  inicio: string;
+  fim: string;
+  unidade?: number;
+  faixa?: FaixaAbsenteismo[];
+  ocorrencia?: OcorrenciaFiltro[];
+  com_pendencias?: boolean;
+}
+
+export interface LinhaPainelAbsenteismo {
+  colaborador: ColaboradorResumoRH;
+  percentual: string | null;
+  faixa: FaixaAbsenteismo | null;
+  provisorio: boolean;
+  pendencias: number;
+  dias_trabalhados: number;
+  dias_previstos: number;
+  conformidade_percentual: string | null;
+  faltas: number;
+  atestados: number;
+  afastamentos: number;
+  ausencias: number;
+  atrasos_acima_do_limite: number;
+  saidas_acima_do_limite: number;
+  banco_horas_saldo_minutos: number;
+  banco_horas_uso_minutos: number;
+  demanda_aberta: boolean;
+}
+
+export interface CardsAbsenteismo {
+  percentual_periodo: string | null;
+  faixa_critica: number;
+  faixa_atencao: number;
+  pendencias: number;
+  colaboradores_provisorios: number;
+  colaboradores: number;
+  unidades: number;
+  ultima_importacao: string | null;
+  dados_ate: string | null;
+}
+
+export interface PainelAbsenteismo {
+  periodo: { inicio: string; fim: string };
+  parametros: {
+    meta_percentual: string | null;
+    faixas_cadastradas: boolean;
+    limite_atraso_minutos: number;
+  };
+  cards: CardsAbsenteismo;
+  linhas: LinhaPainelAbsenteismo[];
+}
