@@ -15,6 +15,7 @@ import type {
   RegistrarTratamentoPayload,
   RegistroHistoricoRH,
 } from "@/types/gestaoRH";
+import { ROTULO_ACAO_TRATAMENTO } from "./gestaoRHAbsenteismo";
 
 const MACAE = { id: 6, nome: "Macaé" };
 const NITEROI = { id: 1, nome: "Niterói" };
@@ -226,7 +227,8 @@ export function absenteismoColaboradorDeExemplo(
   const historico: RegistroHistoricoRH[] = [];
   if (tratamento) {
     historico.push({
-      acao: "tratamento_registrado", valor_anterior: "", valor_novo: tratamento.acao,
+      acao: "tratamento_registrado", valor_anterior: "",
+      valor_novo: ROTULO_ACAO_TRATAMENTO[tratamento.acao],
       justificativa: tratamento.justificativa, regra_gatilho: "", por: tratamento.por,
       automatico: false, em: tratamento.em,
     });

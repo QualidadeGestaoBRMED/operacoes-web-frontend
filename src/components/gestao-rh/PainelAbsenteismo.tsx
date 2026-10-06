@@ -55,6 +55,12 @@ function numeroDaUrl(valor: string | null): number | null {
   return Number(valor);
 }
 
+function periodoDaUrl(inicio: string | null, fim: string | null) {
+  const data = /^\d{4}-\d{2}-\d{2}$/;
+  if (!inicio || !fim || !data.test(inicio) || !data.test(fim) || inicio > fim) return null;
+  return { inicio, fim };
+}
+
 function normalizar(texto: string) {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
@@ -99,16 +105,23 @@ export function PainelAbsenteismo() {
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
+  // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
+  // A linha do painel abre só com ?colaborador=, no período do painel.
+  const periodoDoAlerta = periodoDaUrl(searchParams.get("inicio"), searchParams.get("fim"));
 
   function abrir(linha: LinhaPainelAbsenteismo) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("colaborador", String(linha.colaborador.id));
+    params.delete("inicio");
+    params.delete("fim");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function fechar() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("colaborador");
+    params.delete("inicio");
+    params.delete("fim");
     router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, {
       scroll: false,
     });
@@ -300,7 +313,14 @@ export function PainelAbsenteismo() {
         </>
       )}
 
-      <DetalheColaboradorModal colaboradorId={colaboradorAberto} periodoEmFoco={null} onFechar={fechar} />
+      <DetalheColaboradorModal
+        colaboradorId={colaboradorAberto}
+        periodoEmFoco={null}
+        abaInicial="absenteismo"
+        periodoAbsenteismo={periodoDoAlerta ?? periodo}
+        focarAlertaAbsenteismo={periodoDoAlerta !== null}
+        onFechar={fechar}
+      />
     </div>
   );
 }

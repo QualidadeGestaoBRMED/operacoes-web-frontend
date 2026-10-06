@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Percent } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useColaboradorRH } from "@/hooks/useFeriasGestaoRH";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import { hojeISO } from "@/lib/utils";
+import type { Periodo } from "@/hooks/usePeriodoEditavel";
+import { mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
+import { AbaAbsenteismo } from "./AbaAbsenteismo";
 import { AbaFerias } from "./AbaFerias";
 
 function CampoMeta({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
@@ -30,8 +33,26 @@ function CampoMeta({ rotulo, children }: { rotulo: string; children: React.React
 interface DetalheColaboradorModalProps {
   colaboradorId: number | null;
   periodoEmFoco: number | null;
+  /** Aba em que o modal abre: a do painel (ou do card do Kanban) que o chamou. */
+  abaInicial?: "absenteismo" | "ferias";
+  /** Período da aba Absenteísmo: o do painel ou o do alerta. Sem ele, o mês anterior fechado. */
+  periodoAbsenteismo?: Periodo | null;
+  /** Aberto pelo card de absenteísmo do Kanban: rola até o alerta do período. */
+  focarAlertaAbsenteismo?: boolean;
   onFechar: () => void;
 }
+
+function SeloAlertas({ quantidade }: { quantidade: number }) {
+  if (quantidade === 0) return null;
+  return (
+    <span className="rounded-full bg-amber-600/15 px-1.5 py-px text-[10.5px] font-bold text-amber-700">
+      {quantidade} {quantidade === 1 ? "alerta" : "alertas"}
+    </span>
+  );
+}
+
+const CLASSE_ABA = "flex-none gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none";
+const CLASSE_CONTEUDO = "scrollbar-discreta flex-1 overflow-y-auto p-5";
 
 /**
  * Modal único do colaborador (Gestão RH), aberto pela URL. Cabeçalho e
@@ -42,10 +63,14 @@ interface DetalheColaboradorModalProps {
 export function DetalheColaboradorModal({
   colaboradorId,
   periodoEmFoco,
+  abaInicial = "ferias",
+  periodoAbsenteismo = null,
+  focarAlertaAbsenteismo = false,
   onFechar,
 }: DetalheColaboradorModalProps) {
   const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(colaboradorId);
   const alertasFerias = colaborador?.alertas_pendentes.ferias ?? 0;
+  const alertasAbsenteismo = colaborador?.alertas_pendentes.absenteismo ?? 0;
 
   return (
     <Dialog open={colaboradorId !== null} onOpenChange={(aberto) => !aberto && onFechar()}>
@@ -94,25 +119,33 @@ export function DetalheColaboradorModal({
                 </CampoMeta>
               </div>
 
-              <Tabs defaultValue="ferias" className="min-h-0 min-w-0 flex-1 gap-0">
+              {/* Ordem do mockup: Absenteísmo, Férias. key: trocar de colaborador
+                  com o modal aberto recomeça na aba de quem o chamou. */}
+              <Tabs key={colaborador.id} defaultValue={abaInicial} className="min-h-0 min-w-0 flex-1 gap-0">
                 <TabsList
                   variant="line"
                   className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"
                 >
-                  <TabsTrigger
-                    value="ferias"
-                    className="flex-none gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                  >
+                  <TabsTrigger value="absenteismo" className={CLASSE_ABA}>
+                    <Percent aria-hidden className="size-3.5" />
+                    Absenteísmo
+                    <SeloAlertas quantidade={alertasAbsenteismo} />
+                  </TabsTrigger>
+                  <TabsTrigger value="ferias" className={CLASSE_ABA}>
                     <CalendarDays aria-hidden className="size-3.5" />
                     Férias
-                    {alertasFerias > 0 && (
-                      <span className="rounded-full bg-amber-600/15 px-1.5 py-px text-[10.5px] font-bold text-amber-700">
-                        {alertasFerias} {alertasFerias === 1 ? "alerta" : "alertas"}
-                      </span>
-                    )}
+                    <SeloAlertas quantidade={alertasFerias} />
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent value="ferias" className="scrollbar-discreta flex-1 overflow-y-auto p-5">
+                <TabsContent value="absenteismo" className={CLASSE_CONTEUDO}>
+                  <AbaAbsenteismo
+                    colaboradorId={colaborador.id}
+                    ativo={colaborador.ativo}
+                    periodoInicial={periodoAbsenteismo ?? mesAnteriorFechado(hojeISO())}
+                    focarAlerta={focarAlertaAbsenteismo}
+                  />
+                </TabsContent>
+                <TabsContent value="ferias" className={CLASSE_CONTEUDO}>
                   <AbaFerias
                     colaboradorId={colaborador.id}
                     ativo={colaborador.ativo}
