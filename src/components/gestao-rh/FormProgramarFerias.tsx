@@ -65,11 +65,12 @@ export function FormProgramarFerias({
 
   const dias = inicio && fim && fim >= inicio ? diasEntre(inicio, fim) + 1 : null;
   const vencido = limiteJaVencido(periodo, hoje);
-  const temPrazo = diasAntesSubstituicao !== null;
-  // O campo de data aceita ano com mais de 4 dígitos enquanto se digita.
-  const inicioCompleto = /^\d{4}-\d{2}-\d{2}$/.test(inicio);
+  const temPrazo = typeof diasAntesSubstituicao === "number";
+  // Enquanto se digita o ano, o campo emite datas como 0002-11-23; antes de
+  // hoje o formulário já recusa, então o aviso só conta início a partir de hoje.
+  const inicioValido = /^\d{4}-\d{2}-\d{2}$/.test(inicio) && inicio >= hoje;
   const avisoPrazo =
-    substituicao && temPrazo && inicioCompleto
+    substituicao && temPrazo && inicioValido
       ? avisoPrazoSubstituicao(inicio, diasAntesSubstituicao, hoje)
       : null;
   const idPrefixo = `programar-${periodo.id}`;
