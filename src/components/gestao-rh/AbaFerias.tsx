@@ -136,6 +136,7 @@ export function AbaFerias({ colaboradorId, ativo, periodoEmFoco, hoje }: AbaFeri
           }}
           periodo={periodo}
           hoje={hoje}
+          diasAntesSubstituicao={ferias.dias_antes_do_inicio_substituicao}
           podeAgir={ativo}
           emFoco={periodo.id === periodoEmFoco}
           acaoAberta={acaoAberta}

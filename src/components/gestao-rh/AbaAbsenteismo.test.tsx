@@ -138,6 +138,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       periodos_pendentes: [],
       ferias_tiradas: [],
       periodo_em_andamento: null,
+      dias_antes_do_inicio_substituicao: 40,
       historico: [],
     });
     renderModal({ abaInicial: "ferias", periodoAbsenteismo: null });
@@ -151,6 +152,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       periodos_pendentes: [],
       ferias_tiradas: [],
       periodo_em_andamento: null,
+      dias_antes_do_inicio_substituicao: 40,
       historico: [],
     });
     const user = usuario();

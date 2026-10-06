@@ -98,6 +98,7 @@ function ferias(extra: Partial<FeriasColaborador> = {}): FeriasColaborador {
       fim_aquisitivo: "2027-08-19",
       direito_a_partir_de: "2027-08-20",
     },
+    dias_antes_do_inicio_substituicao: 40,
     historico: [
       {
         acao: "alerta_ferias_gerado",
@@ -308,6 +309,79 @@ describe("Modal do colaborador · aba Férias", () => {
     );
     expect(toast.success).toHaveBeenCalledWith("Férias programadas.");
     expect(await screen.findByText("Acionar o RH até 14/10/2026")).toBeInTheDocument();
+  });
+
+  it("com substituição, mostra antes de registrar até quando acionar o RH e acompanha o início", async () => {
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    expect(pendente.queryByText(/Acionar o RH até/)).not.toBeInTheDocument();
+
+    await user.type(pendente.getByLabelText("Início *"), "2026-11-23");
+    expect(
+      pendente.getByText("Acionar o RH até 14/10/2026 (40 dias antes do início das férias)."),
+    ).toBeInTheDocument();
+
+    await user.clear(pendente.getByLabelText("Início *"));
+    await user.type(pendente.getByLabelText("Início *"), "2026-11-10");
+    expect(pendente.getByText(/O prazo para acionar o RH passou em 01\/10\/2026/)).toBeInTheDocument();
+
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    expect(pendente.queryByText(/acionar o RH (até|passou)/i)).not.toBeInTheDocument();
+  });
+
+  it("marco de substituição desativado: sem prazo no formulário", async () => {
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(
+      ferias({ dias_antes_do_inicio_substituicao: null }),
+    );
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.type(pendente.getByLabelText("Início *"), "2026-11-23");
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+
+    expect(pendente.queryByText(/Acionar o RH até/)).not.toBeInTheDocument();
+    expect(pendente.queryByText(/Abre o prazo/)).not.toBeInTheDocument();
+    expect(
+      pendente.getByText("Registra que o colaborador precisa de substituto durante as férias."),
+    ).toBeInTheDocument();
+  });
+
+  it("sem o campo na resposta, o formulário segue sem aviso e sem quebrar", async () => {
+    const semCampo = ferias();
+    delete semCampo.dias_antes_do_inicio_substituicao;
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(semCampo);
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    await user.type(pendente.getByLabelText("Início *"), "2026-11-23");
+
+    expect(pendente.queryByText(/acionar o RH (até|passou)/i)).not.toBeInTheDocument();
+    expect(pendente.getByRole("button", { name: "Registrar programação" })).toBeInTheDocument();
+  });
+
+  it("início antes de hoje não mostra prazo", async () => {
+    const user = usuario();
+    renderModal();
+    await screen.findByText(/2 períodos/);
+    const pendente = card("Período 20/08/2025 a 19/08/2026");
+
+    await user.click(pendente.getByRole("button", { name: "Programar férias" }));
+    await user.click(pendente.getByRole("switch", { name: "Precisa de substituição" }));
+    await user.type(pendente.getByLabelText("Início *"), "0002-11-23");
+
+    expect(pendente.queryByText(/acionar o RH (até|passou)/i)).not.toBeInTheDocument();
   });
 
   it("vencido aceita férias depois do limite, com o aviso de pagamento em dobro", async () => {
