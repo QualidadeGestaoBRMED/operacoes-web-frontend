@@ -280,8 +280,18 @@ const ALERTA_POR_MARCO: Record<string, string> = {
   limite_vencido: "limite para tirar vencido",
 };
 
-/** Descrição de um registro do histórico de férias. */
+/** "2025/2026": o período de direito pelos anos de início e fim. */
+export function anosDoPeriodo(periodo: { inicio_aquisitivo: string; fim_aquisitivo: string }): string {
+  return `${periodo.inicio_aquisitivo.slice(0, 4)}/${periodo.fim_aquisitivo.slice(0, 4)}`;
+}
+
+/** Descrição de um registro do histórico de férias, com o período quando a API informa. */
 export function textoHistorico(registro: RegistroHistoricoRH): string {
+  const texto = descricaoHistorico(registro);
+  return registro.periodo ? `${texto} · período ${anosDoPeriodo(registro.periodo)}` : texto;
+}
+
+function descricaoHistorico(registro: RegistroHistoricoRH): string {
   const { valor_anterior: anterior, valor_novo: novo } = registro;
   switch (registro.acao) {
     case "periodo_ferias_criado":

@@ -203,6 +203,8 @@ export interface RegistroHistoricoRH {
   por: string | null;
   automatico: boolean;
   em: string;
+  /** Período de férias do registro, quando a API informa. */
+  periodo?: { inicio_aquisitivo: string; fim_aquisitivo: string } | null;
 }
 
 export interface FeriasColaborador {

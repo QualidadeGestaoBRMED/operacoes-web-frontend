@@ -462,6 +462,24 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(screen.getByRole("button", { name: "Ver só os mais recentes" })).toBeInTheDocument();
   });
 
+  it("histórico mostra o período quando a API informa", async () => {
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(
+      ferias({
+        historico: [
+          {
+            ...ferias().historico[0],
+            periodo: { inicio_aquisitivo: "2025-08-20", fim_aquisitivo: "2026-08-19" },
+          },
+        ],
+      }),
+    );
+    renderModal();
+
+    expect(
+      await screen.findByText("Alerta: antes do limite para tirar · período 2025/2026"),
+    ).toBeInTheDocument();
+  });
+
   it("histórico com texto legível e quem fez (ou automático)", async () => {
     renderModal();
 
