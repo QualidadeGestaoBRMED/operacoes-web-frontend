@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,10 +69,7 @@ export function PainelAbsenteismo() {
   const [periodoEditado, setPeriodoEditado] = useState(() => mesAnteriorFechado(hojeISO()));
   const [periodo, setPeriodo] = useState(periodoEditado);
   const [unidade, setUnidade] = useState<number>();
-  const [faixa, setFaixa] = useState<string>();
-  // Escolha da pessoa no filtro de faixa (inclusive "Todas"): depois dela, o
-  // filtro padrão não volta a ser aplicado.
-  const [faixaEscolhida, setFaixaEscolhida] = useState(false);
+  const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
   const [busca, setBusca] = useState("");
@@ -88,28 +85,30 @@ export function PainelAbsenteismo() {
     if (novo.inicio && novo.fim && novo.inicio <= novo.fim) setPeriodo(novo);
   }
 
+  // Sem faixas cadastradas (segundo a última resposta), o filtro de faixa
+  // some da tela e deixa de ir para a API. A API também o ignora nesse caso
+  // (contrato da STC-588), então a primeira carga, que sai com o padrão, já
+  // vem completa.
+  const [semFaixasCadastradas, setSemFaixasCadastradas] = useState(false);
   const filtros = useMemo<FiltrosPainelAbsenteismo>(
     () => ({
       inicio: periodo.inicio,
       fim: periodo.fim,
       unidade,
-      faixa: OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
+      faixa: semFaixasCadastradas
+        ? undefined
+        : OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
       ocorrencia: ocorrencia ? [ocorrencia] : undefined,
       com_pendencias: comPendencias || undefined,
     }),
-    [periodo, unidade, faixa, ocorrencia, comPendencias],
+    [periodo, unidade, faixa, ocorrencia, comPendencias, semFaixasCadastradas],
   );
 
   const { painel, carregandoPrimeiraVez, mensagemErro, recarregar } = usePainelAbsenteismo(filtros);
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
-  // Sem faixas cadastradas o filtro de faixa some da tela; então também não
-  // pode continuar valendo (ex.: um Admin apagou as faixas nos Parâmetros).
-  if (painel && !comFaixas && faixa) setFaixa(undefined);
-  // Com faixas cadastradas, abre mostrando quem está nelas (mockup do painel).
-  if (painel && comFaixas && !faixaEscolhida && faixa === undefined) {
-    setFaixa(FAIXA_PADRAO);
-    setFaixaEscolhida(true);
-  }
+  useEffect(() => {
+    if (painel) setSemFaixasCadastradas(!painel.parametros.faixas_cadastradas);
+  }, [painel]);
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
 
@@ -148,7 +147,9 @@ export function PainelAbsenteismo() {
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  const temFiltros = Boolean(unidade || faixa || ocorrencia || comPendencias || busca);
+  const temFiltros = Boolean(
+    unidade || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
+  );
   const cards = painel?.cards;
 
   return (
@@ -272,10 +273,7 @@ export function PainelAbsenteismo() {
             {comFaixas && (
               <Select
                 value={faixa ?? "todas"}
-                onValueChange={(valor) => {
-                  setFaixaEscolhida(true);
-                  setFaixa(valor === "todas" ? undefined : valor);
-                }}
+                onValueChange={(valor) => setFaixa(valor === "todas" ? undefined : valor)}
               >
                 <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Faixa">
                   <SelectValue placeholder="Faixa" />
@@ -325,7 +323,6 @@ export function PainelAbsenteismo() {
                   setBusca("");
                   setUnidade(undefined);
                   setFaixa(undefined);
-                  setFaixaEscolhida(true);
                   setOcorrencia(undefined);
                   setComPendencias(false);
                 }}

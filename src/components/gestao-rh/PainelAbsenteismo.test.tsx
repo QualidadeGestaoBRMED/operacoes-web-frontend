@@ -81,11 +81,13 @@ describe("Painel de Absenteísmo", () => {
     renderPainel();
 
     expect(await screen.findByText("Juliana Ramos")).toBeInTheDocument();
+    // Uma busca só, já com o filtro padrão de faixa (sem lista completa antes).
+    expect(buscarPainelAbsenteismo).toHaveBeenCalledTimes(1);
     expect(vi.mocked(buscarPainelAbsenteismo).mock.calls[0][0]).toEqual({
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,
-      faixa: undefined,
+      faixa: ["critica", "atencao"],
       ocorrencia: undefined,
       com_pendencias: undefined,
     });
@@ -143,7 +145,8 @@ describe("Painel de Absenteísmo", () => {
     expect(screen.queryByText("Faixa de atenção")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Faixa")).not.toBeInTheDocument();
     expect(screen.queryByText("Crítica")).not.toBeInTheDocument();
-    expect(screen.getByText("sem meta cadastrada")).toBeInTheDocument();
+    expect(screen.getByText("no período selecionado")).toBeInTheDocument();
+    expect(screen.queryByText(/meta/)).not.toBeInTheDocument();
     expect(ultimaBusca()?.faixa).toBeUndefined();
   });
 

@@ -34,7 +34,7 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
       <CardIndicador
         rotulo="Absenteísmo"
         valor={formatarPercentual(cards.percentual_periodo)}
-        legenda={meta ? `meta: até ${formatarPercentual(meta)}` : "sem meta cadastrada"}
+        legenda={meta ? `meta: até ${formatarPercentual(meta)}` : "no período selecionado"}
         cor={
           meta && cards.percentual_periodo && Number(cards.percentual_periodo) > Number(meta)
             ? "vencido"

@@ -105,6 +105,8 @@ export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): P
   );
   const linhas = daUnidade.filter(
     (l) =>
+      // Com faixas cadastradas (sempre, nos dados de exemplo) o filtro vale;
+      // a API o ignora quando não há faixas.
       (!filtros.faixa?.length || (l.faixa !== null && filtros.faixa.includes(l.faixa))) &&
       (!filtros.ocorrencia?.length ||
         filtros.ocorrencia.some((ocorrencia) => OCORRENCIA_NA_LINHA[ocorrencia](l))) &&

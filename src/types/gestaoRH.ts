@@ -225,8 +225,9 @@ export interface ProgramarFeriasPayload {
   necessita_substituicao: boolean;
 }
 
-// Absenteísmo: contrato de GET /absenteismo/, fixado na STC-588 antes do
-// backend existir. Percentuais como string decimal; minutos como inteiro.
+// Absenteísmo: contrato de GET /api/modulos/gestao-rh/absenteismo/, fixado
+// na STC-588 antes do backend existir. Percentuais como string decimal;
+// minutos como inteiro.
 
 export type FaixaAbsenteismo = "critica" | "atencao";
 

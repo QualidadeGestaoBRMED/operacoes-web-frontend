@@ -1,6 +1,8 @@
 import axios from "axios";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import api from "./api";
 import {
+  buscarPainelAbsenteismo,
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
@@ -44,14 +46,26 @@ describe("formatação", () => {
   });
 });
 
-describe("filtros que repetem vão no formato do DRF", () => {
-  it("faixa=critica&faixa=atencao, sem colchetes", () => {
-    const uri = axios.getUri({
-      url: "/absenteismo/",
-      params: { faixa: ["critica", "atencao"], ocorrencia: ["falta"] },
-      paramsSerializer: { indexes: null },
+vi.mock("./api", () => ({ default: { get: vi.fn() } }));
+
+describe("buscarPainelAbsenteismo monta a URL do contrato (STC-588)", () => {
+  it("filtros que repetem sem colchetes, booleano como true e sem os vazios", async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: {} });
+
+    await buscarPainelAbsenteismo({
+      inicio: "2026-09-01",
+      fim: "2026-09-30",
+      unidade: undefined,
+      faixa: ["critica", "atencao"],
+      ocorrencia: ["falta"],
+      com_pendencias: true,
     });
-    expect(uri).toBe("/absenteismo/?faixa=critica&faixa=atencao&ocorrencia=falta");
+
+    const [url, config] = vi.mocked(api.get).mock.calls[0];
+    expect(axios.getUri({ ...config, url })).toBe(
+      "/modulos/gestao-rh/absenteismo/?inicio=2026-09-01&fim=2026-09-30" +
+        "&faixa=critica&faixa=atencao&ocorrencia=falta&com_pendencias=true",
+    );
   });
 });
 
