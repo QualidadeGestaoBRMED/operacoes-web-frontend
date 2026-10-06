@@ -191,12 +191,25 @@ describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
   });
 
   it("um módulo sem rota configurada no frontend continua bloqueado mesmo com status 'ativo' no backend", async () => {
-    // "Gestão RH" não tem `codigo`/`rota` em modulos-futuros.ts (ainda sem
-    // página construída) -- mesmo que por algum motivo já exista um Modulo
-    // "ativo" com esse código no banco, a checagem de rota/ícone continua
-    // sendo do frontend, por decisão da própria issue.
+    // "Arquitetura" não tem `codigo`/`rota` em modulos-futuros.ts (sem
+    // página construída) -- mesmo que já exista um Modulo "ativo" com esse
+    // código no banco, a checagem de rota/ícone continua sendo do frontend.
     vi.mocked(listarModulos).mockResolvedValue([
-      modulo({ id: 2, nome: "Gestão RH", codigo: "gestao-rh", status: "ativo" }),
+      modulo({ id: 2, nome: "Arquitetura", codigo: "arquitetura", status: "ativo" }),
+    ]);
+
+    renderSidebar();
+
+    await screen.findByText("Legalização");
+    expect(screen.getByText("Arquitetura")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /arquitetura/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Gestão RH tem rota, mas segue bloqueado enquanto o módulo está 'em breve'", async () => {
+    vi.mocked(listarModulos).mockResolvedValue([
+      modulo({ id: 2, nome: "Gestão RH", codigo: "gestao-rh", status: "em_breve" }),
     ]);
 
     renderSidebar();
@@ -204,7 +217,7 @@ describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
     await screen.findByText("Legalização");
     expect(screen.getByText("Gestão RH")).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /gestão rh/i }),
+      screen.queryByRole("link", { name: /gestão rh|painel de férias/i }),
     ).not.toBeInTheDocument();
   });
 });

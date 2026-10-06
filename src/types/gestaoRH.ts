@@ -70,3 +70,155 @@ export interface ResultadoSalvar<T> {
   dados: T;
   criouVersao: boolean;
 }
+
+// Férias (rotas da STC-591). Datas "AAAA-MM-DD"; data e hora em ISO.
+
+export type StatusPeriodoFerias =
+  | "pendente"
+  | "programado"
+  | "programacao_adiada"
+  | "ferias_tiradas"
+  | "limite_vencido";
+
+export interface UnidadeResumoRH {
+  id: number;
+  nome: string;
+}
+
+export interface ColaboradorResumoRH {
+  id: number;
+  nome: string;
+  matricula_vr: string;
+  cargo: string;
+  unidade: UnidadeResumoRH;
+}
+
+export interface ProgramacaoFerias {
+  id: number;
+  data_inicio: string;
+  data_fim: string;
+  dias: number;
+  necessita_substituicao: boolean;
+  data_limite_substituicao: string | null;
+  rh_acionado_em: string | null;
+  rh_acionado_por: string | null;
+}
+
+export type TipoProximoMarco =
+  | "completou_periodo"
+  | "antes_do_limite"
+  | "limite"
+  | "acionar_rh"
+  | "inicio_ferias";
+
+export interface ProximoMarco {
+  tipo: TipoProximoMarco;
+  rotulo: string;
+  data: string;
+}
+
+export interface PeriodoResumo {
+  id: number;
+  inicio_aquisitivo: string;
+  fim_aquisitivo: string;
+  limite_concessivo: string;
+  status: StatusPeriodoFerias;
+}
+
+export interface LinhaPainelFerias {
+  colaborador: ColaboradorResumoRH;
+  periodo: PeriodoResumo;
+  outros_periodos_pendentes: number;
+  proximo_marco: ProximoMarco | null;
+  limite_vencido_ha_dias: number | null;
+  programacao: ProgramacaoFerias | null;
+  demandas_abertas: number;
+}
+
+export interface CardsFerias {
+  limite_vencido: number;
+  perto_do_limite: number;
+  dias_perto_do_limite: number;
+  sem_programacao: number;
+  substituicao_a_acionar: number;
+  programacao_adiada: number;
+  alertas_na_janela: number;
+  demandas_na_janela: number;
+  ultima_importacao: string | null;
+}
+
+export interface PainelFerias {
+  linhas: LinhaPainelFerias[];
+  cards: CardsFerias;
+}
+
+export interface FiltrosPainelFerias {
+  janela_dias: number;
+  unidade?: number;
+  status?: StatusPeriodoFerias;
+}
+
+export interface CabecalhoColaborador extends ColaboradorResumoRH {
+  data_admissao: string | null;
+  ativo: boolean;
+  alertas_pendentes: { ferias: number; absenteismo: number };
+}
+
+export type SituacaoMarco =
+  | "alerta_gerado"
+  | "tratado"
+  | "proximo"
+  | "futuro"
+  | "sem_alerta"
+  | "vencido";
+
+export interface MarcoDoPeriodo {
+  tipo: "completou_periodo" | "antes_do_limite" | "limite";
+  rotulo: string;
+  data: string;
+  situacao: SituacaoMarco;
+  demanda_id: number | null;
+}
+
+export interface PeriodoComProgramacao extends PeriodoResumo {
+  programacao: ProgramacaoFerias | null;
+}
+
+export interface PeriodoPendente extends PeriodoComProgramacao {
+  direito_adquirido_em: string;
+  limite_vencido_ha_dias: number | null;
+  marcos: MarcoDoPeriodo[];
+  adiamento: { justificativa: string; em: string | null; por: string | null } | null;
+  pode_programar: boolean;
+  pode_adiar: boolean;
+  pode_registrar_rh_acionado: boolean;
+}
+
+export interface RegistroHistoricoRH {
+  acao: string;
+  valor_anterior: string;
+  valor_novo: string;
+  justificativa: string;
+  regra_gatilho: string;
+  por: string | null;
+  automatico: boolean;
+  em: string;
+}
+
+export interface FeriasColaborador {
+  periodos_pendentes: PeriodoPendente[];
+  ferias_tiradas: PeriodoComProgramacao[];
+  periodo_em_andamento: {
+    id: number;
+    inicio_aquisitivo: string;
+    fim_aquisitivo: string;
+    direito_a_partir_de: string;
+  } | null;
+  historico: RegistroHistoricoRH[];
+}
+
+export interface ProgramarFeriasPayload {
+  data_inicio: string;
+  data_fim: string;
+  necessita_substituicao: boolean;
+}
