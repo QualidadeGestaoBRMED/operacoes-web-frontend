@@ -166,7 +166,8 @@ describe("Painel de Férias", () => {
     expect(
       screen.getByText(/13 alertas e 9 demandas geradas nos últimos 90 dias · Nenhuma importação ainda/),
     ).toBeInTheDocument();
-    expect(screen.getByText("a menos de 80 dias")).toBeInTheDocument();
+    expect(screen.getByText("limite em menos de 80 dias")).toBeInTheDocument();
+    expect(screen.getByText(/Os cards contam períodos de férias em qualquer data/)).toBeInTheDocument();
     expect(screen.getByText("3 colaboradores")).toBeInTheDocument();
   });
 
