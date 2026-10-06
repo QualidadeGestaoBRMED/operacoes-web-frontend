@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { extrairMensagemErro } from "@/lib/erros";
 import { errosDeCampo, formatarDataISO } from "@/lib/gestaoRH";
-import { diasEntre, textoDias } from "@/lib/gestaoRHFerias";
+import { diasEntre, limiteJaVencido, textoDias } from "@/lib/gestaoRHFerias";
 import type { PeriodoPendente, ProgramarFeriasPayload } from "@/types/gestaoRH";
 
 // Mesmo teto da API (CLT art. 130): uma programação cobre até 30 dias.
@@ -31,7 +31,7 @@ function validar(
   if (fim < inicio) erros.data_fim = "O fim precisa ser depois do início.";
   else if (diasEntre(inicio, fim) + 1 > MAXIMO_DIAS) {
     erros.data_fim = `No máximo ${MAXIMO_DIAS} dias por programação.`;
-  } else if (periodo.limite_vencido_ha_dias === null && fim > periodo.limite_concessivo) {
+  } else if (!limiteJaVencido(periodo, hoje) && fim > periodo.limite_concessivo) {
     erros.data_fim = `As férias precisam terminar até o limite para tirar (${formatarDataISO(periodo.limite_concessivo)}).`;
   }
   return erros;
@@ -53,7 +53,7 @@ export function FormProgramarFerias({ periodo, hoje, onSalvar, onCancelar }: For
   const [salvando, setSalvando] = useState(false);
 
   const dias = inicio && fim && fim >= inicio ? diasEntre(inicio, fim) + 1 : null;
-  const vencido = periodo.limite_vencido_ha_dias !== null;
+  const vencido = limiteJaVencido(periodo, hoje);
   const idPrefixo = `programar-${periodo.id}`;
 
   async function aoSubmeter(evento: React.FormEvent) {

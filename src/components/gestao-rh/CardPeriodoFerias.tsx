@@ -12,6 +12,7 @@ import {
   ROTULO_MARCO_DO_PERIODO,
   ROTULO_STATUS_PERIODO,
   intervalo,
+  limiteJaVencido,
   textoDias,
   textoSituacaoMarco,
 } from "@/lib/gestaoRHFerias";
@@ -82,7 +83,7 @@ export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>
   ) {
     const [confirmandoRh, setConfirmandoRh] = useState(false);
     const [registrandoRh, setRegistrandoRh] = useState(false);
-    const vencido = periodo.limite_vencido_ha_dias !== null;
+    const vencido = limiteJaVencido(periodo, hoje);
     const programacao = periodo.status === "programado" ? periodo.programacao : null;
     const acaoDestePeriodo = acaoAberta?.periodoId === periodo.id ? acaoAberta.tipo : null;
     const prazoRhPassou =

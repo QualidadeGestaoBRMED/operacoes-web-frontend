@@ -287,6 +287,51 @@ describe("Modal do colaborador · aba Férias", () => {
     await waitFor(() => expect(programarFerias).toHaveBeenCalledWith(1, expect.anything()));
   });
 
+  it("reprogramar férias de período já vencido (programado) aceita fim depois do limite", async () => {
+    // A API devolve limite_vencido_ha_dias nulo para período programado; o
+    // vencimento vale pela data, como na API.
+    vi.mocked(buscarFeriasColaborador).mockResolvedValue(
+      ferias({
+        periodos_pendentes: [
+          {
+            ...VENCIDO,
+            status: "programado",
+            limite_vencido_ha_dias: null,
+            programacao: {
+              id: 8,
+              data_inicio: "2026-11-02",
+              data_fim: "2026-11-21",
+              dias: 20,
+              necessita_substituicao: false,
+              data_limite_substituicao: null,
+              rh_acionado_em: null,
+              rh_acionado_por: null,
+            },
+          },
+        ],
+      }),
+    );
+    vi.mocked(programarFerias).mockResolvedValue(ferias());
+    const user = usuario();
+    renderModal();
+    const programado = await screen.findByRole("region", { name: "Período 20/08/2024 a 19/08/2025" });
+
+    expect(within(programado).getByText("(vencido)")).toBeInTheDocument();
+    await user.click(within(programado).getByRole("button", { name: "Reprogramar férias" }));
+    expect(within(programado).getByText(/serão pagas em dobro/)).toBeInTheDocument();
+    await user.clear(within(programado).getByLabelText("Fim *"));
+    await user.type(within(programado).getByLabelText("Fim *"), "2026-11-28");
+    await user.click(within(programado).getByRole("button", { name: "Registrar programação" }));
+
+    await waitFor(() =>
+      expect(programarFerias).toHaveBeenCalledWith(1, {
+        data_inicio: "2026-11-02",
+        data_fim: "2026-11-28",
+        necessita_substituicao: false,
+      }),
+    );
+  });
+
   it("erro da API ao programar aparece no campo", async () => {
     vi.mocked(programarFerias).mockRejectedValue(
       erro400({ data_inicio: ["Férias que já começaram não podem ser reprogramadas."] }),

@@ -106,6 +106,17 @@ export function diasEntre(de: string, ate: string): number {
   return Math.round((utc(ate) - utc(de)) / 86_400_000);
 }
 
+/**
+ * Mesmo critério da API ao programar: vencido pelo status ou pela data. Não
+ * usar `limite_vencido_ha_dias`, que vem nulo em período programado.
+ */
+export function limiteJaVencido(
+  periodo: { status: StatusPeriodoFerias; limite_concessivo: string },
+  hoje: string,
+): boolean {
+  return periodo.status === "limite_vencido" || periodo.limite_concessivo < hoje;
+}
+
 /** "05/10/2026 a 04/10/2027". */
 export function intervalo(inicio: string, fim: string): string {
   return `${formatarDataISO(inicio)} a ${formatarDataISO(fim)}`;
