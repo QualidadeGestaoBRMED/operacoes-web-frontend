@@ -1,11 +1,18 @@
 import api from "./api";
 import { ordenarPor, type Ordenacao } from "./ordenacao";
+import { formatarDataISO } from "./gestaoRH";
 import type {
+  AbsenteismoColaborador,
+  AcaoTratamento,
+  AlertaAbsenteismo,
   FaixaAbsenteismo,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
+  OcorrenciaAbsenteismo,
   OcorrenciaFiltro,
   PainelAbsenteismo,
+  RegistrarTratamentoPayload,
+  TipoOcorrenciaAbsenteismo,
 } from "@/types/gestaoRH";
 
 const PAINEL_URL = "/modulos/gestao-rh/absenteismo/";
@@ -33,6 +40,131 @@ export async function buscarPainelAbsenteismo(
     paramsSerializer: { indexes: null },
   });
   return data;
+}
+
+const COLABORADORES_URL = "/modulos/gestao-rh/colaboradores/";
+
+/** Aba Absenteísmo do modal (contrato da STC-592). Mesmos dados de exemplo locais do painel. */
+export async function buscarAbsenteismoColaborador(
+  colaboradorId: number,
+  periodo: { inicio: string; fim: string },
+): Promise<AbsenteismoColaborador> {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
+  ) {
+    const { absenteismoColaboradorDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
+    return absenteismoColaboradorDeExemplo(colaboradorId, periodo);
+  }
+  const { data } = await api.get<AbsenteismoColaborador>(
+    `${COLABORADORES_URL}${colaboradorId}/absenteismo/`,
+    { params: periodo },
+  );
+  return data;
+}
+
+/** Registra o tratamento do alerta; devolve a aba já atualizada, no período do alerta. */
+export async function registrarTratamento(
+  colaboradorId: number,
+  payload: RegistrarTratamentoPayload,
+): Promise<AbsenteismoColaborador> {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
+  ) {
+    const { registrarTratamentoDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
+    return registrarTratamentoDeExemplo(colaboradorId, payload);
+  }
+  const { data } = await api.post<AbsenteismoColaborador>(
+    `${COLABORADORES_URL}${colaboradorId}/tratamentos/`,
+    payload,
+  );
+  return data;
+}
+
+export const ROTULO_ACAO_TRATAMENTO: Record<AcaoTratamento, string> = {
+  feedback: "Feedback",
+  advertencia: "Advertência",
+  desligamento: "Desligamento",
+  sem_medida: "Sem medida (situação justificada)",
+};
+
+export const ACOES_TRATAMENTO = Object.keys(ROTULO_ACAO_TRATAMENTO) as AcaoTratamento[];
+
+const ROTULO_TIPO_OCORRENCIA: Record<TipoOcorrenciaAbsenteismo, string> = {
+  falta: "Falta",
+  atestado: "Atestado",
+  afastamento: "Afastamento",
+  ausencia: "Ausência",
+  atraso: "Atraso",
+  saida_antecipada: "Saída antecipada",
+  banco_horas: "Banco de horas",
+};
+
+function datasDaOcorrencia(ocorrencia: OcorrenciaAbsenteismo): string {
+  return ocorrencia.inicio === ocorrencia.fim
+    ? formatarDataISO(ocorrencia.inicio)
+    : `${formatarDataISO(ocorrencia.inicio)} a ${formatarDataISO(ocorrencia.fim)}`;
+}
+
+function textoMinutos(minutos: number): string {
+  if (minutos < 60) return `${minutos} minutos`;
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  return resto ? `${horas}h${String(resto).padStart(2, "0")}` : `${horas}h`;
+}
+
+/**
+ * Linha de ocorrência da aba: "04/08/2026 · Falta sem justificativa" e as
+ * marcas ao lado ("conta no absenteísmo", "em aprovação", "acima de 15 min").
+ */
+export function textoOcorrencia(
+  ocorrencia: OcorrenciaAbsenteismo,
+  limiteMinutos: number,
+): { datas: string; descricao: string; marcas: string[] } {
+  const rotulo = ROTULO_TIPO_OCORRENCIA[ocorrencia.tipo];
+  let descricao = rotulo;
+  if (ocorrencia.tipo === "falta" && ocorrencia.em_aprovacao) {
+    // Justificativa enviada e ainda não aprovada no SuperApp VR: não está resolvida.
+    descricao = "Falta com justificativa em aprovação";
+  } else if (ocorrencia.tipo === "falta" && ocorrencia.justificada !== null) {
+    descricao = ocorrencia.justificada ? "Falta justificada" : "Falta sem justificativa";
+  } else if (ocorrencia.minutos !== null && ocorrencia.tipo !== "banco_horas") {
+    descricao = `${rotulo} de ${textoMinutos(ocorrencia.minutos)}`;
+  } else if (ocorrencia.minutos !== null) {
+    descricao = `${rotulo} · ${textoMinutos(ocorrencia.minutos)}`;
+  } else if (ocorrencia.dias !== null && ocorrencia.dias > 1) {
+    descricao = `${rotulo} · ${ocorrencia.dias} dias`;
+  }
+
+  const marcas: string[] = [];
+  if (ocorrencia.tipo === "atraso" || ocorrencia.tipo === "saida_antecipada") {
+    marcas.push(`acima de ${limiteMinutos} min`);
+  } else if (ocorrencia.conta_no_absenteismo !== null) {
+    marcas.push(ocorrencia.conta_no_absenteismo ? "conta no absenteísmo" : "não conta no absenteísmo");
+  }
+  if (ocorrencia.em_aprovacao) marcas.push("em aprovação");
+  return { datas: datasDaOcorrencia(ocorrencia), descricao, marcas };
+}
+
+const FORMATADOR_MES = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** "Alerta de agosto/2026" para o mês fechado; senão, "Alerta de 01/08/2026 a 15/08/2026". */
+export function tituloAlerta(alerta: AlertaAbsenteismo): string {
+  const [ano, mes] = alerta.periodo_inicio.split("-").map(Number);
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  const mesInteiro =
+    alerta.periodo_inicio.endsWith("-01") &&
+    alerta.periodo_fim === `${alerta.periodo_inicio.slice(0, 8)}${String(ultimoDia).padStart(2, "0")}`;
+  if (!mesInteiro) {
+    return `Alerta de ${formatarDataISO(alerta.periodo_inicio)} a ${formatarDataISO(alerta.periodo_fim)}`;
+  }
+  const nome = FORMATADOR_MES.format(new Date(Date.UTC(ano, mes - 1, 1))).replace(" de ", "/");
+  return `Alerta de ${nome}`;
 }
 
 export const ROTULO_FAIXA: Record<FaixaAbsenteismo, string> = {

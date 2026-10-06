@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePainelAbsenteismo } from "@/hooks/useAbsenteismoGestaoRH";
+import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -35,6 +36,7 @@ import type {
   LinhaPainelAbsenteismo,
   OcorrenciaFiltro,
 } from "@/types/gestaoRH";
+import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsAbsenteismo } from "./CardsAbsenteismo";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
@@ -53,6 +55,12 @@ function numeroDaUrl(valor: string | null): number | null {
   return Number(valor);
 }
 
+function periodoDaUrl(inicio: string | null, fim: string | null) {
+  const data = /^\d{4}-\d{2}-\d{2}$/;
+  if (!inicio || !fim || !data.test(inicio) || !data.test(fim) || inicio > fim) return null;
+  return { inicio, fim };
+}
+
 function normalizar(texto: string) {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
@@ -64,26 +72,18 @@ export function PainelAbsenteismo() {
   const { isAdminOps } = useAuth();
   const { unidades } = useUnidades();
 
-  // O período editado só vira filtro quando é válido: com o fim antes do
-  // início, o painel continua mostrando o último período válido.
-  const [periodoEditado, setPeriodoEditado] = useState(() => mesAnteriorFechado(hojeISO()));
-  const [periodo, setPeriodo] = useState(periodoEditado);
+  const {
+    periodo,
+    editado: periodoEditado,
+    valido: periodoValido,
+    editar: editarPeriodo,
+  } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
   const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoAbsenteismo | null>(null);
-
-  const periodoValido = Boolean(
-    periodoEditado.inicio && periodoEditado.fim && periodoEditado.inicio <= periodoEditado.fim,
-  );
-
-  function editarPeriodo(campo: "inicio" | "fim", valor: string) {
-    const novo = { ...periodoEditado, [campo]: valor };
-    setPeriodoEditado(novo);
-    if (novo.inicio && novo.fim && novo.inicio <= novo.fim) setPeriodo(novo);
-  }
 
   // O filtro de faixa vai sempre para a API, mesmo escondido: sem faixas
   // cadastradas ela o ignora (contrato da STC-588), então trocar a chave da
@@ -105,16 +105,23 @@ export function PainelAbsenteismo() {
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
+  // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
+  // A linha do painel abre só com ?colaborador=, no período do painel.
+  const periodoDoAlerta = periodoDaUrl(searchParams.get("inicio"), searchParams.get("fim"));
 
   function abrir(linha: LinhaPainelAbsenteismo) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("colaborador", String(linha.colaborador.id));
+    params.delete("inicio");
+    params.delete("fim");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function fechar() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("colaborador");
+    params.delete("inicio");
+    params.delete("fim");
     router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, {
       scroll: false,
     });
@@ -149,51 +156,12 @@ export function PainelAbsenteismo() {
   return (
     <div ref={refPai} className={cn("flex h-full min-h-0 flex-col", ehMobile && "overflow-y-auto")}>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Mesmo formato do filtro de data da Matriz de Conformidade
-              ("Prazo até"): rótulos e datas dentro de uma borda só. */}
-          <div
-            className={cn(
-              "flex h-8 items-center gap-1.5 rounded-md border border-input bg-transparent px-3 shadow-xs",
-              !periodoValido && "border-destructive",
-            )}
-          >
-            <Label
-              htmlFor="periodo-inicio"
-              className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-            >
-              Período
-            </Label>
-            <Input
-              id="periodo-inicio"
-              type="date"
-              value={periodoEditado.inicio}
-              onChange={(evento) => editarPeriodo("inicio", evento.target.value)}
-              aria-invalid={!periodoValido}
-              className="h-full w-[7.5rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
-            />
-            <Label
-              htmlFor="periodo-fim"
-              className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-            >
-              até
-            </Label>
-            <Input
-              id="periodo-fim"
-              type="date"
-              value={periodoEditado.fim}
-              onChange={(evento) => editarPeriodo("fim", evento.target.value)}
-              aria-invalid={!periodoValido}
-              aria-describedby={periodoValido ? undefined : "periodo-erro"}
-              className="h-full w-[7.5rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
-            />
-          </div>
-          {!periodoValido && (
-            <p id="periodo-erro" role="alert" className="text-xs text-destructive">
-              Informe início e fim, com o fim depois do início.
-            </p>
-          )}
-        </div>
+        <CampoPeriodo
+          id="periodo"
+          editado={periodoEditado}
+          valido={periodoValido}
+          onEditar={editarPeriodo}
+        />
         {cards && (
           <p className="text-[12px] text-muted-foreground">
             {cards.ultima_importacao
@@ -345,7 +313,14 @@ export function PainelAbsenteismo() {
         </>
       )}
 
-      <DetalheColaboradorModal colaboradorId={colaboradorAberto} periodoEmFoco={null} onFechar={fechar} />
+      <DetalheColaboradorModal
+        colaboradorId={colaboradorAberto}
+        periodoEmFoco={null}
+        abaInicial="absenteismo"
+        periodoAbsenteismo={periodoDoAlerta ?? periodo}
+        focarAlertaAbsenteismo={periodoDoAlerta !== null}
+        onFechar={fechar}
+      />
     </div>
   );
 }

@@ -6,10 +6,21 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
+  textoOcorrencia,
   textoOcorrencias,
+  tituloAlerta,
 } from "./gestaoRHAbsenteismo";
-import { painelAbsenteismoDeExemplo } from "./gestaoRHAbsenteismoExemplo";
-import type { LinhaPainelAbsenteismo } from "@/types/gestaoRH";
+import {
+  absenteismoColaboradorDeExemplo,
+  painelAbsenteismoDeExemplo,
+  registrarTratamentoDeExemplo,
+} from "./gestaoRHAbsenteismoExemplo";
+import { textoHistorico } from "./gestaoRHFerias";
+import type {
+  AlertaAbsenteismo,
+  LinhaPainelAbsenteismo,
+  OcorrenciaAbsenteismo,
+} from "@/types/gestaoRH";
 
 describe("período padrão: mês anterior fechado", () => {
   it.each([
@@ -90,5 +101,86 @@ describe("dados de exemplo seguem o contrato da STC-588", () => {
 
   it("devolve o período pedido", () => {
     expect(painelAbsenteismoDeExemplo(periodo).periodo).toEqual(periodo);
+  });
+});
+
+function ocorrencia(extra: Partial<OcorrenciaAbsenteismo>): OcorrenciaAbsenteismo {
+  return {
+    tipo: "falta",
+    inicio: "2026-09-04",
+    fim: "2026-09-04",
+    dias: 1,
+    minutos: null,
+    conta_no_absenteismo: true,
+    em_aprovacao: false,
+    justificada: false,
+    ...extra,
+  };
+}
+
+describe("texto das ocorrências da aba", () => {
+  it.each<[Partial<OcorrenciaAbsenteismo>, string, string[]]>([
+    [{}, "Falta sem justificativa", ["conta no absenteísmo"]],
+    [{ justificada: true, em_aprovacao: true }, "Falta com justificativa em aprovação", ["conta no absenteísmo", "em aprovação"]],
+    [{ justificada: true }, "Falta justificada", ["conta no absenteísmo"]],
+    [{ tipo: "afastamento", fim: "2026-09-05", dias: 2, conta_no_absenteismo: false, justificada: null }, "Afastamento · 2 dias", ["não conta no absenteísmo"]],
+    [{ tipo: "atestado", justificada: null }, "Atestado", ["conta no absenteísmo"]],
+    [{ tipo: "atraso", dias: null, minutos: 35, conta_no_absenteismo: null, justificada: null }, "Atraso de 35 minutos", ["acima de 15 min"]],
+    [{ tipo: "banco_horas", dias: null, minutos: 150, conta_no_absenteismo: false, justificada: null }, "Banco de horas · 2h30", ["não conta no absenteísmo"]],
+  ])("%o", (extra, descricao, marcas) => {
+    const texto = textoOcorrencia(ocorrencia(extra), 15);
+    expect(texto.descricao).toBe(descricao);
+    expect(texto.marcas).toEqual(marcas);
+  });
+
+  it("período de mais de um dia mostra as duas datas", () => {
+    expect(textoOcorrencia(ocorrencia({ fim: "2026-09-05" }), 15).datas).toBe("04/09/2026 a 05/09/2026");
+  });
+});
+
+describe("título do alerta", () => {
+  const base = { periodo_inicio: "2026-08-01", periodo_fim: "2026-08-31" } as AlertaAbsenteismo;
+
+  it("mês fechado: pelo nome do mês", () => {
+    expect(tituloAlerta(base)).toBe("Alerta de agosto/2026");
+    expect(tituloAlerta({ ...base, periodo_inicio: "2028-02-01", periodo_fim: "2028-02-29" })).toBe(
+      "Alerta de fevereiro/2028",
+    );
+  });
+
+  it("janela de N dias: pelas datas", () => {
+    expect(tituloAlerta({ ...base, periodo_inicio: "2026-08-04", periodo_fim: "2026-08-31" })).toBe(
+      "Alerta de 04/08/2026 a 31/08/2026",
+    );
+  });
+});
+
+describe("histórico de absenteísmo", () => {
+  const registro = { valor_anterior: "", justificativa: "", regra_gatilho: "", por: null, automatico: true, em: "" };
+  it.each([
+    ["alerta_absenteismo_gerado", "Crítica", "Alerta: faixa crítica"],
+    ["tratamento_registrado", "Feedback", "Tratamento registrado: Feedback"],
+    ["alerta_absenteismo_encerrado", "", "Alerta encerrado: saiu da faixa na nova carga"],
+  ])("%s", (acao, valor_novo, texto) => {
+    expect(textoHistorico({ ...registro, acao, valor_novo })).toBe(texto);
+  });
+});
+
+describe("aba de exemplo (ambiente local)", () => {
+  it("bate com o painel e registra o tratamento até recarregar", () => {
+    const periodo = { inicio: "2026-09-01", fim: "2026-09-30" };
+    const juliana = absenteismoColaboradorDeExemplo(8, periodo);
+    expect(juliana.indicadores.percentual).toBe("13.60");
+    expect(juliana.alertas).toHaveLength(1);
+    expect(juliana.alertas[0].pode_registrar_tratamento).toBe(true);
+
+    const tratada = registrarTratamentoDeExemplo(8, {
+      alerta: juliana.alertas[0].id,
+      acao: "feedback",
+      justificativa: "Conversa.",
+    });
+    expect(tratada.alertas[0].tratamento?.acao).toBe("feedback");
+    expect(tratada.alertas[0].demanda_aberta).toBe(false);
+    expect(tratada.historico[0].valor_novo).toBe("Feedback");
   });
 });

@@ -29,8 +29,21 @@ vi.mock("@/lib/gestaoRHAbsenteismo", async (original) => ({
   buscarPainelAbsenteismo: vi.fn(),
 }));
 vi.mock("./DetalheColaboradorModal", () => ({
-  DetalheColaboradorModal: ({ colaboradorId }: { colaboradorId: number | null }) => (
-    <div data-testid="modal">{colaboradorId ?? "fechado"}</div>
+  DetalheColaboradorModal: ({
+    colaboradorId,
+    abaInicial,
+    periodoAbsenteismo,
+    focarAlertaAbsenteismo,
+  }: {
+    colaboradorId: number | null;
+    abaInicial?: string;
+    periodoAbsenteismo?: { inicio: string; fim: string } | null;
+    focarAlertaAbsenteismo?: boolean;
+  }) => (
+    <div data-testid="modal">
+      {colaboradorId ?? "fechado"}|{abaInicial}|{periodoAbsenteismo?.inicio}..{periodoAbsenteismo?.fim}|
+      {focarAlertaAbsenteismo ? "foco" : "sem-foco"}
+    </div>
   ),
 }));
 
@@ -236,6 +249,19 @@ describe("Painel de Absenteísmo", () => {
     await user.click(await screen.findByRole("button", { name: "Juliana Ramos" }));
 
     expect(replace).toHaveBeenCalledWith("/modulos/gestao-rh?colaborador=8", { scroll: false });
+  });
+
+  it("modal abre na aba Absenteísmo: pela linha no período do painel, pelo Kanban no do alerta", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams("colaborador=8") as never);
+    const { unmount } = renderPainel();
+    expect(screen.getByTestId("modal")).toHaveTextContent("8|absenteismo|2026-09-01..2026-09-30|sem-foco");
+    unmount();
+
+    vi.mocked(useSearchParams).mockReturnValue(
+      new URLSearchParams("colaborador=8&inicio=2026-08-01&fim=2026-08-31") as never,
+    );
+    renderPainel();
+    expect(screen.getByTestId("modal")).toHaveTextContent("8|absenteismo|2026-08-01..2026-08-31|foco");
   });
 
   it("erro sem dados ocupa a tela e oferece tentar de novo", async () => {

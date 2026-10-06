@@ -310,6 +310,12 @@ function descricaoHistorico(registro: RegistroHistoricoRH): string {
       return "Programação adiada, com justificativa";
     case "rh_acionado":
       return `RH acionado para as ${novo}`;
+    case "alerta_absenteismo_gerado":
+      return `Alerta: faixa ${novo.toLowerCase()}`;
+    case "tratamento_registrado":
+      return `Tratamento registrado: ${novo}`;
+    case "alerta_absenteismo_encerrado":
+      return "Alerta encerrado: saiu da faixa na nova carga";
     default:
       return novo || registro.acao;
   }
