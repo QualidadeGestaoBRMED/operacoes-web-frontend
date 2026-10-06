@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,30 +85,24 @@ export function PainelAbsenteismo() {
     if (novo.inicio && novo.fim && novo.inicio <= novo.fim) setPeriodo(novo);
   }
 
-  // Sem faixas cadastradas (segundo a última resposta), o filtro de faixa
-  // some da tela e deixa de ir para a API. A API também o ignora nesse caso
-  // (contrato da STC-588), então a primeira carga, que sai com o padrão, já
-  // vem completa.
-  const [semFaixasCadastradas, setSemFaixasCadastradas] = useState(false);
+  // O filtro de faixa vai sempre para a API, mesmo escondido: sem faixas
+  // cadastradas ela o ignora (contrato da STC-588), então trocar a chave da
+  // busca só para tirá-lo custaria uma requisição a mais, com o mesmo resultado.
   const filtros = useMemo<FiltrosPainelAbsenteismo>(
     () => ({
       inicio: periodo.inicio,
       fim: periodo.fim,
       unidade,
-      faixa: semFaixasCadastradas
-        ? undefined
-        : OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
+      faixa: OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
       ocorrencia: ocorrencia ? [ocorrencia] : undefined,
       com_pendencias: comPendencias || undefined,
     }),
-    [periodo, unidade, faixa, ocorrencia, comPendencias, semFaixasCadastradas],
+    [periodo, unidade, faixa, ocorrencia, comPendencias],
   );
 
-  const { painel, carregandoPrimeiraVez, mensagemErro, recarregar } = usePainelAbsenteismo(filtros);
+  const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
+    usePainelAbsenteismo(filtros);
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
-  useEffect(() => {
-    if (painel) setSemFaixasCadastradas(!painel.parametros.faixas_cadastradas);
-  }, [painel]);
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
 
@@ -230,7 +224,9 @@ export function PainelAbsenteismo() {
               </Button>
             </div>
           )}
-          <CardsAbsenteismo painel={painel} />
+          <div className={cn("transition-opacity", trocandoFiltro && "opacity-60")}>
+            <CardsAbsenteismo painel={painel} />
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">
             <div className="relative min-w-[180px] flex-1 sm:max-w-sm">
@@ -343,6 +339,7 @@ export function PainelAbsenteismo() {
             ordenacao={ordenacao}
             onOrdenar={alternarOrdenacao}
             rolagemNaPagina={ehMobile}
+            atualizando={trocandoFiltro}
             onAbrir={abrir}
           />
         </>

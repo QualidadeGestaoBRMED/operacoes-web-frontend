@@ -68,6 +68,8 @@ interface TabelaAbsenteismoProps {
   onOrdenar: (campo: CampoOrdenavelAbsenteismo) => void;
   /** Celular: a página rola inteira, sem a moldura de altura travada. */
   rolagemNaPagina?: boolean;
+  /** Filtro trocado e a resposta nova ainda não chegou. */
+  atualizando?: boolean;
   onAbrir: (linha: LinhaPainelAbsenteismo) => void;
 }
 
@@ -113,6 +115,7 @@ export function TabelaAbsenteismo({
   ordenacao,
   onOrdenar,
   rolagemNaPagina = false,
+  atualizando = false,
   onAbrir,
 }: TabelaAbsenteismoProps) {
   return (
@@ -121,9 +124,11 @@ export function TabelaAbsenteismo({
           moldura travada em linhas inteiras, rolagem por dentro. */}
       <div
         style={{ maxHeight: rolagemNaPagina ? undefined : maxHeight }}
+        aria-busy={atualizando || undefined}
         className={cn(
-          "overflow-hidden rounded-lg border border-border bg-card",
+          "overflow-hidden rounded-lg border border-border bg-card transition-opacity",
           !rolagemNaPagina && "min-h-0 flex-1",
+          atualizando && "opacity-60",
         )}
       >
         <div ref={refTabela} className="scrollbar-discreta scroll-fade-x h-full min-w-0 overflow-auto">

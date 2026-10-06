@@ -2,6 +2,7 @@
 
 import useSWR, { useSWRConfig } from "swr";
 import { extrairMensagemErro } from "@/lib/erros";
+import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import {
   adiarProgramacao,
   buscarColaboradorRH,
@@ -23,7 +24,7 @@ function ehChaveDoPainel(chave: unknown) {
 }
 
 export function usePainelFerias(filtros: FiltrosPainelFerias) {
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
     [PREFIXO_PAINEL, filtros],
     () => buscarPainelFerias(filtros),
     { keepPreviousData: true },
@@ -31,6 +32,8 @@ export function usePainelFerias(filtros: FiltrosPainelFerias) {
   return {
     painel: data,
     carregandoPrimeiraVez: data === undefined && !error,
+    // Filtro trocado e a resposta nova ainda não chegou: mesmo sinal do Kanban.
+    trocandoFiltro: useValidandoPorTrocaDeChave(filtros, isValidating),
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

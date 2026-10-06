@@ -147,7 +147,10 @@ describe("Painel de Absenteísmo", () => {
     expect(screen.queryByText("Crítica")).not.toBeInTheDocument();
     expect(screen.getByText("no período selecionado")).toBeInTheDocument();
     expect(screen.queryByText(/meta/)).not.toBeInTheDocument();
-    expect(ultimaBusca()?.faixa).toBeUndefined();
+    // A API ignora o filtro sem faixas cadastradas (contrato da STC-588): a
+    // tela não troca a busca só para tirá-lo, nem conta como filtro ativo.
+    expect(buscarPainelAbsenteismo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Limpar filtros/ })).not.toBeInTheDocument();
   });
 
   it("filtros vão para a API no formato do contrato", async () => {
@@ -171,23 +174,21 @@ describe("Painel de Absenteísmo", () => {
     await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
   });
 
-  it("faixa escolhida deixa de valer se as faixas deixarem de existir", async () => {
+  it("troca de filtro esmaece cards e tabela até a resposta chegar", async () => {
     const user = usuario();
     renderPainel();
     await screen.findByText("Juliana Ramos");
-    await user.click(screen.getByLabelText("Faixa"));
-    await user.click(await screen.findByRole("option", { name: "Só crítica" }));
-    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica"]));
+    let responder: (painel: Painel) => void = () => {};
+    vi.mocked(buscarPainelAbsenteismo).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
 
-    // Um Admin apagou as faixas nos Parâmetros; a próxima busca já vem sem elas.
-    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
-      ...PAINEL,
-      parametros: { ...PAINEL.parametros, faixas_cadastradas: false },
-    });
     await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
 
-    await waitFor(() => expect(screen.queryByLabelText("Faixa")).not.toBeInTheDocument());
-    await waitFor(() => expect(ultimaBusca()?.faixa).toBeUndefined());
+    const moldura = () => screen.getByRole("table").closest("[aria-busy]");
+    await waitFor(() => expect(moldura()).toHaveAttribute("aria-busy", "true"));
+    responder(PAINEL);
+    await waitFor(() => expect(moldura()).toBeNull());
   });
 
   it("filtro de unidade só para Admin", async () => {

@@ -204,6 +204,24 @@ describe("Painel de Férias", () => {
     );
   });
 
+  it("troca de janela esmaece a tabela até a resposta chegar", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByText("Marcos Lima");
+    let responder: (painel: Painel) => void = () => {};
+    vi.mocked(buscarPainelFerias).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+
+    await user.click(screen.getByLabelText("Marcos nos próximos"));
+    await user.click(await screen.findByRole("option", { name: "30 dias" }));
+
+    const moldura = () => screen.getByRole("table").closest("[aria-busy]");
+    await waitFor(() => expect(moldura()).toHaveAttribute("aria-busy", "true"));
+    responder(PAINEL);
+    await waitFor(() => expect(moldura()).toBeNull());
+  });
+
   it("busca por nome sem acento ou por matrícula", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPainel();
