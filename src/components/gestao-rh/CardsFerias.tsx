@@ -53,17 +53,17 @@ function Card({ rotulo, valor, legenda, cor, Icone }: CardProps) {
       )}
     >
       <div className="min-w-0">
-        <div className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:truncate">
           {rotulo}
         </div>
         <div className={cn("mt-1 text-2xl font-bold", COR_TEXTO[cor])}>{valor}</div>
-        <div className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">
+        <div className="mt-0.5 text-[11px] font-medium text-muted-foreground sm:truncate">
           {legenda}
         </div>
       </div>
       <div
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full",
+          "hidden size-9 shrink-0 items-center justify-center rounded-full sm:flex",
           COR_FUNDO_ICONE[cor],
           COR_TEXTO[cor],
         )}
@@ -74,7 +74,7 @@ function Card({ rotulo, valor, legenda, cor, Icone }: CardProps) {
   );
 }
 
-const GRADE = "grid grid-cols-2 gap-3 px-7 pt-4 sm:grid-cols-3 xl:grid-cols-5";
+const GRADE = "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5";
 
 export function CardsFerias({ cards }: { cards: Cards | undefined }) {
   if (!cards) {

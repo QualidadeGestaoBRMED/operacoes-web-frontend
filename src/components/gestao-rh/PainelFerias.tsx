@@ -15,6 +15,7 @@ import {
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { usePainelFerias } from "@/hooks/useFeriasGestaoRH";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import {
   JANELA_PADRAO,
@@ -22,7 +23,7 @@ import {
   ORDEM_STATUS_PERIODO,
   ROTULO_STATUS_PERIODO,
 } from "@/lib/gestaoRHFerias";
-import { formatarDataHora, hojeISO } from "@/lib/utils";
+import { cn, formatarDataHora, hojeISO } from "@/lib/utils";
 import type { LinhaPainelFerias, StatusPeriodoFerias } from "@/types/gestaoRH";
 import { CardsFerias } from "./CardsFerias";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
@@ -89,12 +90,15 @@ export function PainelFerias() {
   }, [painel, busca]);
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
+  // Mesmo breakpoint dos filtros da Matriz: no celular, cards e filtros não
+  // deixam altura para a tabela, então a página rola inteira.
+  const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(unidade || status || busca);
   const cards = painel?.cards;
 
   return (
-    <div ref={refPai} className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-7 py-3">
+    <div ref={refPai} className={cn("flex h-full min-h-0 flex-col", ehMobile && "overflow-y-auto")}>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <div className="flex items-center gap-2">
             <Label htmlFor="janela-ferias" className="text-[13px] font-semibold">
@@ -138,7 +142,7 @@ export function PainelFerias() {
         <>
           <CardsFerias cards={cards} />
 
-          <div className="flex flex-wrap items-center gap-3 px-7 py-4">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">
             <div className="relative min-w-[180px] flex-1 sm:max-w-sm">
               <Label htmlFor="busca-ferias" className="sr-only">
                 Buscar colaborador
@@ -219,6 +223,7 @@ export function PainelFerias() {
             hoje={hoje}
             refTabela={refTabela}
             maxHeight={maxHeight}
+            rolagemNaPagina={ehMobile}
             onAbrir={abrir}
           />
         </>

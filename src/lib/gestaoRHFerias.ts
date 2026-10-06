@@ -211,6 +211,13 @@ export const ROTULO_MARCO_DO_PERIODO: Record<MarcoDoPeriodo["tipo"], string> = {
   limite: "Limite para tirar",
 };
 
+// regra_gatilho do alerta de férias é o tipo do marco da régua.
+const ALERTA_POR_MARCO: Record<string, string> = {
+  completou_periodo: "completou o período de direito",
+  antes_do_limite: "antes do limite para tirar",
+  limite_vencido: "limite para tirar vencido",
+};
+
 /** Descrição de um registro do histórico de férias. */
 export function textoHistorico(registro: RegistroHistoricoRH): string {
   const { valor_anterior: anterior, valor_novo: novo } = registro;
@@ -220,7 +227,7 @@ export function textoHistorico(registro: RegistroHistoricoRH): string {
     case "status_periodo_ferias":
       return `Status do período: ${anterior} → ${novo}`;
     case "alerta_ferias_gerado":
-      return `Alerta: ${novo.charAt(0).toLowerCase()}${novo.slice(1)}`;
+      return `Alerta: ${ALERTA_POR_MARCO[registro.regra_gatilho] ?? novo.toLowerCase()}`;
     case "alerta_substituicao_gerado":
       return `Alerta: acionar o RH para as férias de ${novo}`;
     case "demanda_transferida":

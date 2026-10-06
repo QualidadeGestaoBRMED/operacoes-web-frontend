@@ -29,6 +29,8 @@ interface TabelaFeriasProps {
   hoje: string;
   refTabela: ReturnType<typeof useAlturaSemLinhaCortada>["refTabela"];
   maxHeight: number | undefined;
+  /** Celular: a página rola inteira, sem a moldura de altura travada. */
+  rolagemNaPagina?: boolean;
   onAbrir: (linha: LinhaPainelFerias) => void;
 }
 
@@ -70,15 +72,19 @@ export function TabelaFerias({
   hoje,
   refTabela,
   maxHeight,
+  rolagemNaPagina = false,
   onAbrir,
 }: TabelaFeriasProps) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-7 pb-7">
+    <div className={cn("flex flex-col px-4 pb-6 sm:px-7 sm:pb-7", !rolagemNaPagina && "min-h-0 flex-1")}>
       {/* Mesmo padrão da Matriz de Conformidade: moldura com borda travada
           em linhas inteiras, rolagem por dentro e cabeçalho fixo. */}
       <div
-        style={{ maxHeight }}
-        className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card"
+        style={{ maxHeight: rolagemNaPagina ? undefined : maxHeight }}
+        className={cn(
+          "overflow-hidden rounded-lg border border-border bg-card",
+          !rolagemNaPagina && "min-h-0 flex-1",
+        )}
       >
         <div
           ref={refTabela}
