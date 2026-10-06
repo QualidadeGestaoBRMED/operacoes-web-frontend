@@ -145,6 +145,7 @@ beforeEach(() => {
     isLoading: false,
     error: undefined,
   });
+  vi.mocked(buscarPainelFerias).mockReset();
   vi.mocked(buscarPainelFerias).mockResolvedValue(PAINEL);
 });
 
@@ -287,6 +288,28 @@ describe("Painel de Férias", () => {
     expect(screen.getByTestId("modal")).toHaveTextContent("1/2");
   });
 
+  it("falha numa revalidação mantém a tabela e oferece tentar de novo", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PainelFerias />
+      </SWRConfig>,
+    );
+    await screen.findByText("Marcos Lima");
+
+    vi.mocked(buscarPainelFerias).mockRejectedValueOnce(new Error("Falha de rede"));
+    await user.click(screen.getByLabelText("Marcos nos próximos"));
+    await user.click(await screen.findByRole("option", { name: "30 dias" }));
+
+    expect(await screen.findByText(/Não foi possível atualizar o painel/)).toBeInTheDocument();
+    expect(screen.getByText("Marcos Lima")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Não foi possível atualizar o painel/)).not.toBeInTheDocument(),
+    );
+  });
+
   it("sem ninguém na janela, mostra o vazio; erro da API aparece no lugar da tabela", async () => {
     vi.mocked(buscarPainelFerias).mockResolvedValueOnce({ ...PAINEL, linhas: [] });
     const { unmount } = renderPainel();
@@ -301,5 +324,6 @@ describe("Painel de Férias", () => {
       await screen.findByText("Não foi possível completar a operação. Tente novamente."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
   });
 });

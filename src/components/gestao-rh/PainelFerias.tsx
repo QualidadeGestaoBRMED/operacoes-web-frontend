@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -58,7 +59,7 @@ export function PainelFerias() {
     () => ({ janela_dias: janela, unidade, status }),
     [janela, unidade, status],
   );
-  const { painel, carregandoPrimeiraVez, mensagemErro } = usePainelFerias(filtros);
+  const { painel, carregandoPrimeiraVez, mensagemErro, recarregar } = usePainelFerias(filtros);
   const hoje = hojeISO();
 
   // Modal aberto pela URL: clique na linha e card do Kanban
@@ -146,12 +147,28 @@ export function PainelFerias() {
         )}
       </div>
 
-      {mensagemErro ? (
-        <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
+      {/* Falha numa revalidação (ex.: depois de programar férias) mantém
+          cards, filtros e tabela; só sem dado nenhum o erro ocupa a tela. */}
+      {mensagemErro && !painel ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-sm text-destructive">
           {mensagemErro}
+          <Button type="button" variant="outline" size="sm" onClick={recarregar}>
+            Tentar novamente
+          </Button>
         </div>
       ) : (
         <>
+          {mensagemErro && (
+            <div
+              role="alert"
+              className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12.5px] text-destructive sm:mx-7"
+            >
+              Não foi possível atualizar o painel; os dados abaixo podem estar desatualizados.
+              <Button type="button" variant="outline" size="sm" onClick={recarregar}>
+                Tentar novamente
+              </Button>
+            </div>
+          )}
           <CardsFerias cards={cards} />
 
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">

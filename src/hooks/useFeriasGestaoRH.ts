@@ -23,7 +23,7 @@ function ehChaveDoPainel(chave: unknown) {
 }
 
 export function usePainelFerias(filtros: FiltrosPainelFerias) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     [PREFIXO_PAINEL, filtros],
     () => buscarPainelFerias(filtros),
     { keepPreviousData: true },
@@ -34,11 +34,12 @@ export function usePainelFerias(filtros: FiltrosPainelFerias) {
     isLoading,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
   };
 }
 
 export function useColaboradorRH(id: number | null) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     id === null ? null : ["gestao-rh-colaborador", id],
     () => buscarColaboradorRH(id as number),
   );
@@ -46,6 +47,7 @@ export function useColaboradorRH(id: number | null) {
     colaborador: data,
     isLoading,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
   };
 }
 

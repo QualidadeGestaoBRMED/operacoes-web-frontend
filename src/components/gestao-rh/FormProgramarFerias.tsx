@@ -45,7 +45,10 @@ interface FormProgramarFeriasProps {
 }
 
 export function FormProgramarFerias({ periodo, hoje, onSalvar, onCancelar }: FormProgramarFeriasProps) {
-  const atual = periodo.programacao;
+  // Só reprograma o que está programado: a API não deixa abrir o formulário
+  // depois de as férias começarem (pode_programar), então o início
+  // pré-preenchido nunca está no passado.
+  const atual = periodo.status === "programado" ? periodo.programacao : null;
   const [inicio, setInicio] = useState(atual?.data_inicio ?? "");
   const [fim, setFim] = useState(atual?.data_fim ?? "");
   const [substituicao, setSubstituicao] = useState(atual?.necessita_substituicao ?? false);

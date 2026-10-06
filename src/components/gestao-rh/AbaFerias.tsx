@@ -148,6 +148,8 @@ export function AbaFerias({ colaboradorId, ativo, periodoEmFoco, hoje }: AbaFeri
     if (!alvo) return;
     rolouPara.current = periodoEmFoco;
     alvo.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    // Foco junto da rolagem: teclado e leitor de tela chegam ao período do alerta.
+    alvo.focus({ preventScroll: true });
   }, [ferias, periodoEmFoco]);
 
   if (isLoading && !ferias) {

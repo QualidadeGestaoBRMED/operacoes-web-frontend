@@ -110,8 +110,9 @@ export const CardPeriodoFerias = forwardRef<HTMLElement, CardPeriodoFeriasProps>
       <section
         ref={ref}
         aria-labelledby={`periodo-${periodo.id}-titulo`}
+        tabIndex={emFoco ? -1 : undefined}
         className={cn(
-          "scroll-mt-4 space-y-3 rounded-lg border border-border bg-card p-4",
+          "scroll-mt-4 space-y-3 rounded-lg border border-border bg-card p-4 outline-none",
           vencido && "border-red-600/30",
           emFoco && "ring-2 ring-secondary/60",
         )}

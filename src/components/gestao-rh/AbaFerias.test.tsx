@@ -169,6 +169,20 @@ function usuario() {
 }
 
 describe("Modal do colaborador · aba Férias", () => {
+  it("falha ao carregar o colaborador oferece tentar de novo", async () => {
+    vi.mocked(buscarColaboradorRH).mockRejectedValueOnce(new Error("Falha de rede"));
+    const user = usuario();
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <DetalheColaboradorModal colaboradorId={1} periodoEmFoco={null} onFechar={vi.fn()} />
+      </SWRConfig>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+
+    expect(await screen.findByRole("heading", { name: "Marcos Lima" })).toBeInTheDocument();
+  });
+
   it("cabeçalho e dados do colaborador; aba Férias com os alertas pendentes", async () => {
     renderModal();
 
@@ -233,9 +247,9 @@ describe("Modal do colaborador · aba Férias", () => {
 
     await screen.findByText(/2 períodos/);
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
-    expect(scrollIntoView.mock.contexts[0]).toBe(
-      screen.getByRole("region", { name: "Período 20/08/2025 a 19/08/2026" }),
-    );
+    const alvo = screen.getByRole("region", { name: "Período 20/08/2025 a 19/08/2026" });
+    expect(scrollIntoView.mock.contexts[0]).toBe(alvo);
+    expect(alvo).toHaveFocus();
   });
 
   it("uma ação por vez: com um formulário aberto, os outros botões ficam desligados", async () => {

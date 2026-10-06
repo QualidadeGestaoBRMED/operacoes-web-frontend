@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useColaboradorRH } from "@/hooks/useFeriasGestaoRH";
@@ -43,7 +44,7 @@ export function DetalheColaboradorModal({
   periodoEmFoco,
   onFechar,
 }: DetalheColaboradorModalProps) {
-  const { colaborador, isLoading, mensagemErro } = useColaboradorRH(colaboradorId);
+  const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(colaboradorId);
   const alertasFerias = colaborador?.alertas_pendentes.ferias ?? 0;
 
   return (
@@ -60,9 +61,12 @@ export function DetalheColaboradorModal({
             <Skeleton className="mt-4 h-64 w-full" />
           </div>
         ) : !colaborador ? (
-          <div className="flex flex-1 items-center justify-center p-6 text-sm text-destructive">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-sm text-destructive">
             <DialogTitle className="sr-only">Colaborador</DialogTitle>
             Não foi possível carregar o colaborador: {mensagemErro}
+            <Button type="button" variant="outline" size="sm" onClick={recarregar}>
+              Tentar novamente
+            </Button>
           </div>
         ) : (
           <>
