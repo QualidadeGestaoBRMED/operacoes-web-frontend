@@ -1,10 +1,12 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
+  excluirDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
@@ -185,6 +187,59 @@ export function useReverterDocumentoLegalizacao() {
 
   return {
     reverter: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// Telas que mostram algo apagado junto com o documento (STC-702): Matriz e
+// mapa (lista de documentos), Biblioteca (evidências vigentes), Kanban (card
+// do processo de renovação) e os avisos (alertas e notificações do documento).
+const PREFIXOS_AFETADOS_PELA_EXCLUSAO = new Set([
+  PREFIXO_CHAVE_LISTA,
+  "evidencias-vigentes",
+  "demandas",
+  "demanda",
+  "resumo-demandas",
+  "alertas-pendentes",
+  "notificacoes",
+  "notificacoes-nao-lidas",
+]);
+
+export function ehChaveAfetadaPelaExclusao(chave: unknown) {
+  const prefixo = Array.isArray(chave) ? chave[0] : chave;
+  return typeof prefixo === "string" && PREFIXOS_AFETADOS_PELA_EXCLUSAO.has(prefixo);
+}
+
+export function useExcluirDocumentoLegalizacao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "excluir-documento-legalizacao",
+    async (_chave, { arg }: { arg: { id: number } }) => {
+      try {
+        await excluirDocumentoLegalizacao(arg.id);
+        return { id: arg.id, jaExcluido: false };
+      } catch (erro) {
+        // 404: outra pessoa excluiu antes. O resultado é o mesmo (o
+        // documento não existe mais), então as telas são atualizadas igual.
+        if (isAxiosError(erro) && erro.response?.status === 404) {
+          return { id: arg.id, jaExcluido: true };
+        }
+        throw erro;
+      }
+    },
+    {
+      onSuccess: ({ id }) => {
+        // O detalhe do documento apagado não é buscado de novo (daria 404).
+        void mutate(["documento-legalizacao", id], undefined, { revalidate: false });
+        void mutate(ehChaveAfetadaPelaExclusao);
+      },
+    },
+  );
+
+  return {
+    excluir: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

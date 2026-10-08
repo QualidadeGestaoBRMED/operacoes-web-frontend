@@ -7,6 +7,7 @@ import {
   FileText,
   History as HistoryIcon,
   Pencil,
+  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -36,9 +37,11 @@ import {
   useAtualizarDocumentoLegalizacao,
   useCandidatosResponsaveis,
   useDocumentoLegalizacao,
+  useExcluirDocumentoLegalizacao,
   useRemoverResponsavelLegalizacao,
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
+import { useAuth } from "@/hooks/useAuth";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -294,6 +297,8 @@ export function DetalheDocumentoModal({
   ] = useState(false);
   const [mostrandoConfirmarReversao, setMostrandoConfirmarReversao] =
     useState(false);
+  const [mostrandoConfirmarExclusao, setMostrandoConfirmarExclusao] =
+    useState(false);
   // STC-502 (pedido de cliente): editar status/validade direto no modal,
   // no mesmo padrão de EditarDemandaSection.tsx (Gestão de Demandas).
   // Mutuamente exclusivo com mostrandoJustificativa -- não faz sentido as
@@ -343,6 +348,8 @@ export function DetalheDocumentoModal({
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
     useReverterDocumentoLegalizacao();
+  const { excluir, isLoading: excluindo } = useExcluirDocumentoLegalizacao();
+  const { user, isAdminOps, isSetorLeg, isCoordenacaoUnidade } = useAuth();
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
   );
@@ -369,6 +376,7 @@ export function DetalheDocumentoModal({
     setMostrandoProcessoRenovacao(false);
     setMostrandoMovimentacaoProfissional(false);
     setMostrandoConfirmarReversao(false);
+    setMostrandoConfirmarExclusao(false);
     setMostrandoEdicao(false);
     setMostrandoNovaVersaoRegra(false);
     setMostrandoEdicaoResponsaveis(false);
@@ -468,6 +476,23 @@ export function DetalheDocumentoModal({
     }
   }
 
+  async function excluirDocumento() {
+    if (!documento) return;
+    try {
+      const { jaExcluido } = await excluir({ id: documento.id });
+      if (jaExcluido) {
+        toast.info("Este documento já tinha sido excluído.");
+      } else {
+        toast.success("Documento excluído.");
+      }
+      fechar();
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setMostrandoConfirmarExclusao(false);
+    }
+  }
+
   const prazo = documento ? prazoDocumento(documento) : null;
   // STC-518: mostra TODOS os responsáveis (antes só o principal, via
   // responsavelPrincipal() -- ver histórico do arquivo) -- múltiplos
@@ -542,6 +567,23 @@ export function DetalheDocumentoModal({
   // aplicavel OU unidade_encerramento) evita as duas ações opostas
   // aparecerem juntas.
   const podeMarcarNaoAplicavel = documento && !podeReverter;
+  // STC-702/STC-703: excluir só pelo perfil, mesma regra do backend (a
+  // permissão individual de "editar" não libera excluir): Admin, Setor de
+  // Legalização e Coordenação nos documentos da própria unidade.
+  const podeExcluir =
+    !!documento &&
+    (isAdminOps ||
+      isSetorLeg ||
+      (isCoordenacaoUnidade && user?.unidade_id === documento.unidade.id));
+  const nomeDocumento = documento
+    ? `${documento.tipo_documento.nome}${documento.profissional ? ` — ${documento.profissional}` : ""}`
+    : "";
+  // Enquanto as evidências carregam (ou se falharem), sem número: "0
+  // evidências" num documento que tem evidência seria falso.
+  const textoEvidencias =
+    carregandoEvidencias || erroEvidencias
+      ? "as evidências"
+      : `${evidencias.length} ${evidencias.length === 1 ? "evidência" : "evidências"}`;
 
   return (
     <>
@@ -936,6 +978,16 @@ export function DetalheDocumentoModal({
                           Reportar Movimentação
                         </Button>
                       )}
+                      {podeExcluir && (
+                        <Button
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          onClick={() => setMostrandoConfirmarExclusao(true)}
+                        >
+                          <Trash2 className="size-4" />
+                          Excluir documento
+                        </Button>
+                      )}
                     </div>
                   )}
 
@@ -1103,6 +1155,24 @@ export function DetalheDocumentoModal({
         textoConfirmar="Reverter"
         isLoading={revertendo}
         onConfirmar={() => void reverterParaAplicavel()}
+      />
+      <ConfirmDialog
+        open={mostrandoConfirmarExclusao}
+        onOpenChange={setMostrandoConfirmarExclusao}
+        titulo="Excluir documento"
+        descricao={
+          <>
+            O documento <strong className="text-foreground">{nomeDocumento}</strong>{" "}
+            da unidade{" "}
+            <strong className="text-foreground">{documento?.unidade.nome}</strong> será
+            excluído, com {textoEvidencias}, o histórico e, se houver, o processo de renovação e o card no Kanban. Essa ação não pode ser
+            desfeita.
+          </>
+        }
+        textoConfirmar="Excluir"
+        destrutivo
+        isLoading={excluindo}
+        onConfirmar={() => void excluirDocumento()}
       />
     </>
   );

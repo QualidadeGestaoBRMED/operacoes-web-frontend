@@ -13,22 +13,29 @@ import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 
 vi.mock("@/lib/legalizacao");
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: { usuarioId: 7 },
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// Sessão padrão sem permissão de excluir; os testes da exclusão (STC-703)
+// trocam o perfil em `sessao.atual`.
+const sessao = vi.hoisted(() => {
+  const padrao = {
+    user: { usuarioId: 7, unidade_id: null as number | null },
     perfil: null,
     isLoading: false,
     isAdminQG: false,
     isAdminOps: false,
-  }),
-}));
+    isSetorLeg: false,
+    isCoordenacaoUnidade: false,
+  };
+  return { padrao, atual: { ...padrao } };
+});
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => sessao.atual }));
 
 import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarProcessoRenovacao,
+  excluirDocumentoLegalizacao,
   listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
@@ -228,6 +235,7 @@ function renderComComListaPorTras(documentoId: number | null) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  sessao.atual = { ...sessao.padrao, user: { ...sessao.padrao.user } };
   vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
   vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([]);
   vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([]);
@@ -1499,5 +1507,162 @@ describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
     expect(vi.mocked(atualizarDocumentoLegalizacao).mock.calls[0][1]).not.toHaveProperty(
       "profissional",
     );
+  });
+});
+
+
+describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
+  const BOTAO = { name: "Excluir documento" };
+
+  async function abrir(
+    doc: DocumentoUnidade = documento(),
+    onOpenChange: (open: boolean) => void = vi.fn(),
+  ) {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    renderComponente(55, onOpenChange);
+    await screen.findAllByText(new RegExp(doc.tipo_documento.nome));
+  }
+
+  it.each([
+    ["Admin", { isAdminOps: true }],
+    ["Setor de Legalização", { isSetorLeg: true }],
+  ])("%s vê o botão", async (_perfil, flags) => {
+    sessao.atual = { ...sessao.atual, ...flags };
+    await abrir();
+    expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
+  });
+
+  it("Coordenação vê o botão só nos documentos da própria unidade", async () => {
+    sessao.atual = {
+      ...sessao.atual,
+      isCoordenacaoUnidade: true,
+      user: { usuarioId: 7, unidade_id: UNIDADE.id },
+    };
+    await abrir();
+    expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
+  });
+
+  it("Coordenação de outra unidade não vê o botão", async () => {
+    sessao.atual = {
+      ...sessao.atual,
+      isCoordenacaoUnidade: true,
+      user: { usuarioId: 7, unidade_id: UNIDADE.id + 100 },
+    };
+    await abrir();
+    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
+  });
+
+  it("quem não pode escrever no documento não vê o botão", async () => {
+    await abrir();
+    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
+  });
+
+  it("a confirmação diz o que vai sair, e cancelar não exclui", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([evidencia()]);
+    const user = userEvent.setup();
+    await abrir(documento({ profissional: "BALANÇA 01" }));
+
+    await user.click(screen.getByRole("button", BOTAO));
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent(
+      "O documento Alvará de Funcionamento — BALANÇA 01 da unidade " +
+        `${UNIDADE.nome} será excluído, com 1 evidência, o histórico`,
+    );
+    expect(confirmacao).toHaveTextContent("Essa ação não pode ser desfeita.");
+
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(excluirDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("confirmar exclui, avisa e fecha o detalhe", async () => {
+    sessao.atual = { ...sessao.atual, isSetorLeg: true };
+    vi.mocked(excluirDocumentoLegalizacao).mockResolvedValue();
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    await abrir(documento(), onOpenChange);
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => expect(excluirDocumentoLegalizacao).toHaveBeenCalledWith(55));
+    expect(toast.success).toHaveBeenCalledWith("Documento excluído.");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("depois de excluir, a lista da Matriz por trás é atualizada", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(excluirDocumentoLegalizacao).mockResolvedValue();
+    const user = userEvent.setup();
+    renderComComListaPorTras(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
+  });
+
+  it("documento já excluído por outra pessoa: avisa, fecha e atualiza as listas", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Not Found"), {
+        isAxiosError: true,
+        response: { status: 404, data: { detail: "Não encontrado." } },
+      }),
+    );
+    const user = userEvent.setup();
+    renderComComListaPorTras(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith("Este documento já tinha sido excluído."),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
+  });
+
+  it("enquanto as evidências carregam, a confirmação não mostra número", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(listarEvidenciasLegalizacao).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    await abrir();
+
+    await user.click(screen.getByRole("button", BOTAO));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("será excluído, com as evidências, o histórico");
+    expect(confirmacao).not.toHaveTextContent("0 evidências");
+  });
+
+  it("erro do backend aparece legível e o detalhe continua aberto", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Forbidden"), {
+        isAxiosError: true,
+        response: { status: 403, data: { detail: "Você não tem permissão para executar essa ação." } },
+      }),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    await abrir(documento(), onOpenChange);
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Você não tem permissão para executar essa ação."),
+    );
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 });

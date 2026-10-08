@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +30,8 @@ export function ConfirmDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   titulo: string;
-  descricao: string;
+  // Texto, ou texto com destaque (ex.: nome do que vai ser excluído em negrito).
+  descricao: ReactNode;
   textoConfirmar?: string;
   textoCancelar?: string;
   // Ações irreversíveis (excluir, remover) usam o botão vermelho -- mesmo

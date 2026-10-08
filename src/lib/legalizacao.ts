@@ -129,6 +129,12 @@ export async function removerResponsavelLegalizacao(
 // Usado hoje só pra recolocar `regra_aplicada` depois de uma nova versão de
 // regra (RegraDocumento é append-only) -- PATCH parcial, aceita qualquer
 // subconjunto dos campos editáveis.
+// STC-702 (backend): apaga o documento com evidências, histórico, processos
+// de renovação, card no Kanban e notificações. 204 sem corpo.
+export async function excluirDocumentoLegalizacao(id: number): Promise<void> {
+  await api.delete(`${DOCUMENTOS_URL}${id}/`);
+}
+
 export async function atualizarDocumentoLegalizacao(
   id: number,
   payload: Partial<DocumentoUnidadePayload>,
