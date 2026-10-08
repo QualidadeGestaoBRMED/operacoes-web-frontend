@@ -10,6 +10,8 @@ import type {
 } from "@/types/gestaoRH";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 
+// Testes de férias: chave ligada (STC-687 desliga em produção nesta fase).
+vi.mock("@/config/gestaoRH", () => ({ FERIAS_ATIVA: true }));
 vi.mock("@/lib/gestaoRHFerias", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHFerias")>()),
   buscarColaboradorRH: vi.fn(),
