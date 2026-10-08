@@ -25,6 +25,7 @@ import {
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useReportarMovimentacaoProfissional } from "@/hooks/useMovimentacaoProfissional";
 import { extrairMensagemErro } from "@/lib/erros";
+import { CLASSE_CAMPO_IDENTIFICADOR } from "@/lib/identificadorDocumento";
 import { CODIGOS_MOVIMENTACAO_PROFISSIONAL } from "@/lib/legalizacaoMatriz";
 import { cn } from "@/lib/utils";
 import type {
@@ -548,6 +549,8 @@ export function MovimentacaoProfissionalModal({
                   disabled={enviando || jaTentouEnviar || profissionalTravado}
                   onChange={(evento) => setProfissional(evento.target.value)}
                   placeholder="Nome do profissional"
+                  // Exibido como o backend grava (STC-699/STC-700).
+                  className={CLASSE_CAMPO_IDENTIFICADOR}
                   aria-describedby={
                     profissionalTravado ? "mp-profissional-travado" : undefined
                   }

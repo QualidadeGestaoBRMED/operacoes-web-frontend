@@ -80,14 +80,21 @@ function valoresDe(documento: DocumentoUnidade): FormValues {
   };
 }
 
-// Mensagem do backend para o identificador (ex.: nome repetido no mesmo tipo
-// e unidade), para mostrar no próprio campo em vez do aviso genérico.
-function erroDoIdentificador(erro: unknown): string | null {
+// Erro 400 do backend separado em duas partes: a mensagem do identificador
+// (ex.: nome repetido no mesmo tipo e unidade), mostrada no próprio campo, e
+// as dos outros campos, que vão para o aviso.
+function separarErroDoIdentificador(
+  erro: unknown,
+): { identificador: string; outras: string[] } | null {
   if (!isAxiosError(erro) || erro.response?.status !== 400) return null;
-  const mensagens: unknown = (erro.response.data as Record<string, unknown> | undefined)
-    ?.profissional;
-  if (Array.isArray(mensagens) && typeof mensagens[0] === "string") return mensagens[0];
-  return typeof mensagens === "string" ? mensagens : null;
+  const dados = erro.response.data as Record<string, unknown> | undefined;
+  const doCampo = [dados?.profissional].flat().filter((m) => typeof m === "string");
+  if (!dados || doCampo.length === 0) return null;
+  const outras = Object.entries(dados)
+    .filter(([campo]) => campo !== "profissional")
+    .flatMap(([, mensagens]) => [mensagens].flat())
+    .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+  return { identificador: doCampo[0] as string, outras };
 }
 
 export function EditarDocumentoSection({
@@ -154,9 +161,10 @@ export function EditarDocumentoSection({
       toast.success("Documento atualizado.");
       aoSalvar();
     } catch (erro) {
-      const doIdentificador = comIdentificador ? erroDoIdentificador(erro) : null;
-      if (doIdentificador) {
-        setError("profissional", { message: doIdentificador });
+      const separado = comIdentificador ? separarErroDoIdentificador(erro) : null;
+      if (separado) {
+        setError("profissional", { message: separado.identificador });
+        if (separado.outras.length > 0) toast.error(separado.outras.join(" "));
         return;
       }
       toast.error(extrairMensagemErro(erro));
