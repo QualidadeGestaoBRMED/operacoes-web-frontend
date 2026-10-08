@@ -34,6 +34,10 @@ import {
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
+import {
+  CLASSE_CAMPO_IDENTIFICADOR,
+  normalizarIdentificador,
+} from "@/lib/identificadorDocumento";
 import { atualizarDocumentoLegalizacao, enviarEvidenciaLegalizacao } from "@/lib/legalizacao";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import { hojeISO } from "@/lib/utils";
@@ -85,10 +89,12 @@ const numeroDiaOpcional = z.preprocess(
 // Um identificador por linha (colar de uma planilha é o caso comum -- 20
 // balanças de uma vez) -- mais simples e mais rápido de preencher que um
 // componente de lista com botão de adicionar/remover por linha.
+// Normalizados como o backend grava: "Balança 01" e "BALANÇA 01" são o
+// mesmo identificador também na checagem de repetidos abaixo.
 function parseIdentificadores(texto: string): string[] {
   return texto
     .split("\n")
-    .map((linha) => linha.trim())
+    .map(normalizarIdentificador)
     .filter((linha) => linha !== "");
 }
 
@@ -815,6 +821,7 @@ export function FormCadastrarDocumentosEmLote({
               <Textarea
                 id="cel-identificadores"
                 rows={6}
+                className={CLASSE_CAMPO_IDENTIFICADOR}
                 placeholder={"Balança 01\nBalança 02\nBalança 03"}
                 {...register("identificadores_texto")}
               />
