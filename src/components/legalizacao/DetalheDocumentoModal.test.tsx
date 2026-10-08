@@ -13,7 +13,7 @@ import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 
 vi.mock("@/lib/legalizacao");
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 // Sessão padrão sem permissão de excluir; os testes da exclusão (STC-703)
 // trocam o perfil em `sessao.atual`.
 const sessao = vi.hoisted(() => {
@@ -1605,6 +1605,44 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
     await user.click(await screen.findByRole("button", { name: "Excluir" }));
 
     await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
+  });
+
+  it("documento já excluído por outra pessoa: avisa, fecha e atualiza as listas", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Not Found"), {
+        isAxiosError: true,
+        response: { status: 404, data: { detail: "Não encontrado." } },
+      }),
+    );
+    const user = userEvent.setup();
+    renderComComListaPorTras(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith("Este documento já tinha sido excluído."),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
+  });
+
+  it("enquanto as evidências carregam, a confirmação não mostra número", async () => {
+    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    vi.mocked(listarEvidenciasLegalizacao).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    await abrir();
+
+    await user.click(screen.getByRole("button", BOTAO));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("será excluído, com as evidências, o histórico");
+    expect(confirmacao).not.toHaveTextContent("0 evidências");
   });
 
   it("erro do backend aparece legível e o detalhe continua aberto", async () => {
