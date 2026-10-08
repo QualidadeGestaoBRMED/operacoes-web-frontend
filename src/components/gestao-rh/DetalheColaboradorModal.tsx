@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FERIAS_ATIVA } from "@/config/gestaoRH";
 import { useColaboradorRH } from "@/hooks/useFeriasGestaoRH";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import { hojeISO } from "@/lib/utils";
@@ -151,8 +152,21 @@ export function DetalheColaboradorModal({
                 </CampoMeta>
               </div>
 
-              {/* Ordem do mockup: Absenteísmo, Férias. key: trocar de colaborador
-                  com o modal aberto recomeça na aba de quem o chamou. */}
+              {!FERIAS_ATIVA ? (
+                // Sem férias, o absenteísmo é o único conteúdo: sem barra de
+                // abas, inclusive quando um link antigo pede a aba Férias.
+                <div className={CLASSE_CONTEUDO}>
+                  <AbaAbsenteismo
+                    key={colaborador.id}
+                    colaboradorId={colaborador.id}
+                    ativo={colaborador.ativo}
+                    periodoInicial={periodoAbsenteismo ?? mesAnteriorFechado(hojeISO())}
+                    focarAlerta={focarAlertaAbsenteismo}
+                  />
+                </div>
+              ) : (
+              /* Ordem do mockup: Absenteísmo, Férias. key: trocar de colaborador
+                  com o modal aberto recomeça na aba de quem o chamou. */
               <AbasDoColaborador key={colaborador.id} abaInicial={abaInicial}>
                 {(abaAtiva, visitadas, setAbaAtiva) => (
                   <Tabs
@@ -208,6 +222,7 @@ export function DetalheColaboradorModal({
                   </Tabs>
                 )}
               </AbasDoColaborador>
+              )}
             </div>
           </>
         )}

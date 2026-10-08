@@ -25,6 +25,8 @@ function mockSetPathname(novoValor: string) {
 const replace = vi.fn((url: string) => {
   mockSetPathname(url);
 });
+// Testes de férias: chave ligada (STC-687 desliga em produção nesta fase).
+vi.mock("@/config/gestaoRH", () => ({ FERIAS_ATIVA: true }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
   usePathname: () =>

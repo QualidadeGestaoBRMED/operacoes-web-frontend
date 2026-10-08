@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FERIAS_ATIVA } from "@/config/gestaoRH";
 import { AbaImportacao } from "./AbaImportacao";
 import { FormParametrosAbsenteismo } from "./FormParametrosAbsenteismo";
 import { FormReguaFerias } from "./FormReguaFerias";
@@ -11,7 +12,8 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
 
 /**
  * Seção "Parâmetros de Gestão RH" da Administração (só Admin). Abre na aba
- * Absenteísmo e férias, a única ligada à API; a de Importação mostra o
+ * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias), a única
+ * ligada à API; a de Importação mostra o
  * formulário desligado até a fonte dos dados ser definida. Abas sublinhadas,
  * como no detalhe do documento da Legalização; seções empilhadas na largura
  * toda, como as outras seções da Administração.
@@ -42,7 +44,7 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
             Importação
           </TabsTrigger>
           <TabsTrigger value="absenteismo-ferias" className={CLASSE_ABA}>
-            Absenteísmo e férias
+            {FERIAS_ATIVA ? "Absenteísmo e férias" : "Absenteísmo"}
           </TabsTrigger>
         </TabsList>
 
@@ -57,8 +59,12 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           className="space-y-7"
         >
           <FormParametrosAbsenteismo />
-          <Separator />
-          <FormReguaFerias />
+          {FERIAS_ATIVA && (
+            <>
+              <Separator />
+              <FormReguaFerias />
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

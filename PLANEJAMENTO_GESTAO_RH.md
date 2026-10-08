@@ -10,6 +10,8 @@
 
 > **A fonte dos dados de ponto ainda não está definida** (API do VR Pontomais x planilha/RPA). Ela afeta só a importação e o absenteísmo. Férias e parâmetros independem dela.
 
+> **Férias desligada nesta fase** (STC-687): o módulo mostra só o absenteísmo. A chave é `FERIAS_ATIVA` em `src/config/gestaoRH.ts` (`false`). Desligada: Gestão RH é link direto para o Painel de Absenteísmo (sem submenu); `/modulos/gestao-rh/ferias` redireciona para ele, levando o `?colaborador=` dos links antigos do Kanban; o modal mostra só o absenteísmo, sem abas; os Parâmetros ficam com a aba "Absenteísmo", sem a régua de férias. O código de férias segue no repositório e os testes dele rodam com a chave ligada (`vi.mock("@/config/gestaoRH")`); `FeriasDesligada.test.tsx` cobre a chave desligada. Religar: `true` aqui e reativar a agenda da varredura de férias no backend (STC-686).
+
 ### Situação por issue
 
 | Issue | Pacote | Situação |
