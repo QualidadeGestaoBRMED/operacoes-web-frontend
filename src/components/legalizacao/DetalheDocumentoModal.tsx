@@ -479,8 +479,12 @@ export function DetalheDocumentoModal({
   async function excluirDocumento() {
     if (!documento) return;
     try {
-      await excluir({ id: documento.id });
-      toast.success("Documento excluído.");
+      const { jaExcluido } = await excluir({ id: documento.id });
+      if (jaExcluido) {
+        toast.info("Este documento já tinha sido excluído.");
+      } else {
+        toast.success("Documento excluído.");
+      }
       fechar();
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -574,7 +578,12 @@ export function DetalheDocumentoModal({
   const nomeDocumento = documento
     ? `${documento.tipo_documento.nome}${documento.profissional ? ` — ${documento.profissional}` : ""}`
     : "";
-  const totalEvidencias = evidencias.length;
+  // Enquanto as evidências carregam (ou se falharem), sem número: "0
+  // evidências" num documento que tem evidência seria falso.
+  const textoEvidencias =
+    carregandoEvidencias || erroEvidencias
+      ? "as evidências"
+      : `${evidencias.length} ${evidencias.length === 1 ? "evidência" : "evidências"}`;
 
   return (
     <>
@@ -1156,9 +1165,7 @@ export function DetalheDocumentoModal({
             O documento <strong className="text-foreground">{nomeDocumento}</strong>{" "}
             da unidade{" "}
             <strong className="text-foreground">{documento?.unidade.nome}</strong> será
-            excluído, com {totalEvidencias}{" "}
-            {totalEvidencias === 1 ? "evidência" : "evidências"}, o histórico e, se
-            houver, o processo de renovação e o card no Kanban. Essa ação não pode ser
+            excluído, com {textoEvidencias}, o histórico e, se houver, o processo de renovação e o card no Kanban. Essa ação não pode ser
             desfeita.
           </>
         }

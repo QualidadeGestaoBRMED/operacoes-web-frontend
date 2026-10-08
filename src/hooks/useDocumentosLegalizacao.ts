@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import {
@@ -216,11 +217,20 @@ export function useExcluirDocumentoLegalizacao() {
   const { trigger, isMutating, error } = useSWRMutation(
     "excluir-documento-legalizacao",
     async (_chave, { arg }: { arg: { id: number } }) => {
-      await excluirDocumentoLegalizacao(arg.id);
-      return arg.id;
+      try {
+        await excluirDocumentoLegalizacao(arg.id);
+        return { id: arg.id, jaExcluido: false };
+      } catch (erro) {
+        // 404: outra pessoa excluiu antes. O resultado é o mesmo (o
+        // documento não existe mais), então as telas são atualizadas igual.
+        if (isAxiosError(erro) && erro.response?.status === 404) {
+          return { id: arg.id, jaExcluido: true };
+        }
+        throw erro;
+      }
     },
     {
-      onSuccess: (id) => {
+      onSuccess: ({ id }) => {
         // O detalhe do documento apagado não é buscado de novo (daria 404).
         void mutate(["documento-legalizacao", id], undefined, { revalidate: false });
         void mutate(ehChaveAfetadaPelaExclusao);
