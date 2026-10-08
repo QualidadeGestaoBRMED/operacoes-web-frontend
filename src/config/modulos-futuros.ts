@@ -1,4 +1,5 @@
 import { BookOpen, Building2, FileText, Gauge, type LucideIcon, Users } from "lucide-react";
+import { FERIAS_ATIVA } from "./gestaoRH";
 
 // Fonte única do roadmap de módulos -- Sidebar e Hub (ModuleTileMutado)
 // consomem esta mesma lista pra decidir o que mostrar bloqueado "em breve".
@@ -39,14 +40,21 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
   {
     nome: "Gestão RH",
     icon: Users,
-    descricao: "Férias e absenteísmo por colaborador.",
+    descricao: FERIAS_ATIVA
+      ? "Férias e absenteísmo por colaborador."
+      : "Absenteísmo por colaborador.",
     larguras: ["60%"],
     codigo: "gestao-rh",
     rota: "/modulos/gestao-rh",
-    subitens: [
-      { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
-      { label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" },
-    ],
+    // Sem férias, o módulo tem uma tela só: link direto, sem submenu.
+    ...(FERIAS_ATIVA
+      ? {
+          subitens: [
+            { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
+            { label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" },
+          ],
+        }
+      : {}),
   },
   {
     nome: "Arquitetura",
