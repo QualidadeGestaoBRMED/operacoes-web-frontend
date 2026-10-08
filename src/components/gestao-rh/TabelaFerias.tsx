@@ -14,6 +14,12 @@ import {
 } from "@/lib/gestaoRHFerias";
 import { cn, iniciaisDe } from "@/lib/utils";
 import type { LinhaPainelFerias } from "@/types/gestaoRH";
+import {
+  CLASSE_CABECALHO,
+  CLASSE_CABECALHO_FIXO,
+  CLASSE_CELULA_FIXA,
+  CLASSE_ROLAGEM_SEM_FADE_INICIAL,
+} from "./colunaFixa";
 
 const COLUNAS: { rotulo: string; largura: string; campo?: CampoOrdenavelFerias }[] = [
   { rotulo: "Colaborador", largura: "w-[18%]", campo: "colaborador" },
@@ -99,12 +105,15 @@ export function TabelaFerias({
       >
         <div
           ref={refTabela}
-          className="scrollbar-discreta scroll-fade-x h-full min-w-0 overflow-auto"
+          className={cn(
+            "scrollbar-discreta scroll-fade-x h-full min-w-0 overflow-auto",
+            CLASSE_ROLAGEM_SEM_FADE_INICIAL,
+          )}
         >
           <table className="w-full min-w-[1000px] table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                {COLUNAS.map((coluna) => {
+                {COLUNAS.map((coluna, indice) => {
                   const ativa = !!coluna.campo && ordenacao?.campo === coluna.campo;
                   const Icone = !ativa ? ArrowUpDown : ordenacao?.direcao === "asc" ? ArrowUp : ArrowDown;
                   return (
@@ -115,6 +124,7 @@ export function TabelaFerias({
                       }
                       className={cn(
                         "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
+                        indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
                         coluna.largura,
                       )}
                     >
@@ -162,11 +172,11 @@ export function TabelaFerias({
                   <tr
                     key={linha.colaborador.id}
                     onClick={() => onAbrir(linha)}
-                    className="h-[58px] cursor-pointer transition-colors hover:bg-secondary/5 [&>td]:border-b [&>td]:border-border last:[&>td]:border-b-0"
+                    className="group h-[58px] cursor-pointer transition-colors hover:bg-secondary/5 [&>td]:border-b [&>td]:border-border last:[&>td]:border-b-0"
                   >
                     {/* A <tr> segue como linha de tabela para o leitor de
                         tela; o teclado chega pelo botão com o nome. */}
-                    <td className="px-3 py-2.5">
+                    <td className={cn("px-3 py-2.5", CLASSE_CELULA_FIXA)}>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[10.5px] font-bold text-secondary-foreground">
                           {iniciaisDe(linha.colaborador.nome)}

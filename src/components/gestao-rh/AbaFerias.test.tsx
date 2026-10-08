@@ -193,6 +193,22 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(screen.getByText("20/08/2024")).toBeInTheDocument();
   });
 
+  it("no celular, matrícula e admissão vão para a linha do cabeçalho", async () => {
+    renderModal();
+
+    const linha = await screen.findByText("Matrícula 005977 · Admissão 20/08/2024");
+    expect(linha).toHaveClass("sm:hidden");
+  });
+
+  it("no celular, sem data de admissão, a linha do cabeçalho diz que não foi informada", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, data_admissao: null });
+    renderModal();
+
+    expect(
+      await screen.findByText("Matrícula 005977 · Admissão não informada"),
+    ).toHaveClass("sm:hidden");
+  });
+
   it("com mais de um período, avisa e pede o mais antigo primeiro (pagamento em dobro no vencido)", async () => {
     renderModal();
 

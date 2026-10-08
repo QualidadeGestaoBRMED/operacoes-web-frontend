@@ -126,6 +126,14 @@ export function DetalheColaboradorModal({
               <DialogDescription className="text-[12.5px] text-muted-foreground">
                 {[colaborador.cargo, colaborador.unidade.nome].filter(Boolean).join(" · ")}
               </DialogDescription>
+              {/* No celular a coluna de dados some e o que só ela mostrava vem
+                  para esta linha, para as abas ganharem a altura do modal. */}
+              <p className="text-[12.5px] text-muted-foreground sm:hidden">
+                Matrícula {colaborador.matricula_vr} · Admissão{" "}
+                {colaborador.data_admissao
+                  ? formatarDataISO(colaborador.data_admissao)
+                  : "não informada"}
+              </p>
               {!colaborador.ativo && (
                 <span className="w-fit rounded-full bg-slate-500 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase">
                   Desligado
@@ -134,7 +142,7 @@ export function DetalheColaboradorModal({
             </DialogHeader>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[230px_1fr]">
-              <div className="scrollbar-discreta flex max-h-[30vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
+              <div className="scrollbar-discreta hidden flex-col gap-4 overflow-y-auto border-r border-border p-4.5 sm:flex">
                 <CampoMeta rotulo="Unidade">{colaborador.unidade.nome}</CampoMeta>
                 {colaborador.cargo && <CampoMeta rotulo="Cargo">{colaborador.cargo}</CampoMeta>}
                 <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr}</CampoMeta>
