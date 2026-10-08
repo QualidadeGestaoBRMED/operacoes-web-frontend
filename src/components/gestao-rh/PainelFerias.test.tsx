@@ -286,6 +286,14 @@ describe("Painel de Férias", () => {
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
   });
 
+  it("mantém a coluna Colaborador fixa (sticky left-0) ao rolar a tabela para o lado", async () => {
+    renderPainel();
+
+    const celula = (await screen.findByRole("button", { name: "Eduardo Pires" })).closest("td");
+    expect(celula).toHaveClass("sticky", "left-0");
+    expect(screen.getByRole("columnheader", { name: /Colaborador/ })).toHaveClass("sticky", "left-0");
+  });
+
   it("clicar no colaborador abre o modal pela URL, sem período em foco", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPainel();

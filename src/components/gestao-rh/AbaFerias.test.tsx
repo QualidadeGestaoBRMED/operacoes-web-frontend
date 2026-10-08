@@ -200,6 +200,15 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(linha).toHaveClass("sm:hidden");
   });
 
+  it("no celular, sem data de admissão, a linha do cabeçalho diz que não foi informada", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, data_admissao: null });
+    renderModal();
+
+    expect(
+      await screen.findByText("Matrícula 005977 · Admissão não informada"),
+    ).toHaveClass("sm:hidden");
+  });
+
   it("com mais de um período, avisa e pede o mais antigo primeiro (pagamento em dobro no vencido)", async () => {
     renderModal();
 

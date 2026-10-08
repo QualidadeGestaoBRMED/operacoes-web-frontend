@@ -242,6 +242,14 @@ describe("Painel de Absenteísmo", () => {
     expect(within(screen.getAllByRole("row")[1]).getByText("Rafael Souza")).toBeInTheDocument();
   });
 
+  it("mantém a coluna Colaborador fixa (sticky left-0) ao rolar a tabela para o lado", async () => {
+    renderPainel();
+
+    const celula = (await screen.findByRole("button", { name: "Juliana Ramos" })).closest("td");
+    expect(celula).toHaveClass("sticky", "left-0");
+    expect(screen.getByRole("columnheader", { name: /Colaborador/ })).toHaveClass("sticky", "left-0");
+  });
+
   it("clicar no colaborador abre o modal pela URL", async () => {
     const user = usuario();
     renderPainel();
