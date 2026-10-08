@@ -1464,6 +1464,31 @@ describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("erro do identificador junto com o de outro campo: um no campo, o outro no aviso", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Bad Request"), {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: {
+            profissional: ["Já existe um documento deste tipo e unidade para este profissional."],
+            validade: ["Data inválida."],
+          },
+        },
+      }),
+    );
+    const user = await abrirEdicao(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Já existe um documento deste tipo e unidade para este profissional."),
+    ).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith("Data inválida.");
+  });
+
   it("tipo sem identificador não envia o campo", async () => {
     vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
     const user = await abrirEdicao(documento());

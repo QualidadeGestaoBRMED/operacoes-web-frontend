@@ -189,6 +189,13 @@ describe("MovimentacaoProfissionalModal (STC-382)", () => {
     ).toBeInTheDocument();
   });
 
+  it("campo Profissional exibido em maiúsculas, como o backend grava (STC-700)", async () => {
+    renderComponente();
+    await screen.findByRole("heading", { name: /reportar movimentação profissional/i });
+
+    expect(screen.getByLabelText("Profissional")).toHaveClass("uppercase");
+  });
+
   it("grupo Tipo de movimentação tem nome acessível associado ao Label (role=group + aria-labelledby)", async () => {
     renderComponente();
     await screen.findByRole("heading", {
