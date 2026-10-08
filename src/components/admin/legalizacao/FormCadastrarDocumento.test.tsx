@@ -1265,7 +1265,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
         expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
           expect.objectContaining({
             tipo_documento: TIPO_DOSIMETRIA.id,
-            profissional: "Dra. Maria",
+            profissional: "DRA. MARIA",
             regra_aplicada: 55,
           }),
         );
@@ -1282,7 +1282,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
       vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
         documentoCriado({
           tipo_documento: TIPO_DOSIMETRIA,
-          profissional: "Dr. João",
+          profissional: "DR. JOÃO",
         }),
       ]);
       const user = userEvent.setup();
@@ -1538,7 +1538,7 @@ describe("FormCadastrarDocumento (STC-415)", () => {
 
       await waitFor(() => {
         expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
-          expect.objectContaining({ profissional: "Dr. João" }),
+          expect.objectContaining({ profissional: "DR. JOÃO" }),
         );
       });
     });

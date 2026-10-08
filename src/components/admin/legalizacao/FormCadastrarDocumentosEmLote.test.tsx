@@ -308,7 +308,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
         janela_dia_fim: null,
         criticidade: "alta",
         gera_card_demanda: true,
-        identificadores: ["Balança 01", "Balança 02", "Balança 03"],
+        identificadores: ["BALANÇA 01", "BALANÇA 02", "BALANÇA 03"],
         responsaveis: [USUARIO_CANDIDATO.id],
       });
     });
@@ -415,7 +415,7 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
 
     await waitFor(() => {
       expect(criarDocumentosLegalizacaoEmLote).toHaveBeenCalledWith(
-        expect.objectContaining({ identificadores: ["Balança 01", "Balança 02"] }),
+        expect.objectContaining({ identificadores: ["BALANÇA 01", "BALANÇA 02"] }),
       );
     });
   });
