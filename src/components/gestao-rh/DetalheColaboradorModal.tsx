@@ -129,14 +129,10 @@ export function DetalheColaboradorModal({
               {/* No celular a coluna de dados some e o que só ela mostrava vem
                   para esta linha, para as abas ganharem a altura do modal. */}
               <p className="text-[12.5px] text-muted-foreground sm:hidden">
-                {[
-                  `Matrícula ${colaborador.matricula_vr}`,
-                  colaborador.data_admissao
-                    ? `Admissão ${formatarDataISO(colaborador.data_admissao)}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+                Matrícula {colaborador.matricula_vr} · Admissão{" "}
+                {colaborador.data_admissao
+                  ? formatarDataISO(colaborador.data_admissao)
+                  : "não informada"}
               </p>
               {!colaborador.ativo && (
                 <span className="w-fit rounded-full bg-slate-500 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase">
