@@ -5,6 +5,7 @@ import useSWRMutation from "swr/mutation";
 import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
+  excluirDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
@@ -185,6 +186,50 @@ export function useReverterDocumentoLegalizacao() {
 
   return {
     reverter: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// Telas que mostram algo apagado junto com o documento (STC-702): Matriz e
+// mapa (lista de documentos), Biblioteca (evidências vigentes), Kanban (card
+// do processo de renovação) e os avisos (alertas e notificações do documento).
+const PREFIXOS_AFETADOS_PELA_EXCLUSAO = new Set([
+  PREFIXO_CHAVE_LISTA,
+  "evidencias-vigentes",
+  "demandas",
+  "demanda",
+  "resumo-demandas",
+  "alertas-pendentes",
+  "notificacoes",
+  "notificacoes-nao-lidas",
+]);
+
+export function ehChaveAfetadaPelaExclusao(chave: unknown) {
+  const prefixo = Array.isArray(chave) ? chave[0] : chave;
+  return typeof prefixo === "string" && PREFIXOS_AFETADOS_PELA_EXCLUSAO.has(prefixo);
+}
+
+export function useExcluirDocumentoLegalizacao() {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    "excluir-documento-legalizacao",
+    async (_chave, { arg }: { arg: { id: number } }) => {
+      await excluirDocumentoLegalizacao(arg.id);
+      return arg.id;
+    },
+    {
+      onSuccess: (id) => {
+        // O detalhe do documento apagado não é buscado de novo (daria 404).
+        void mutate(["documento-legalizacao", id], undefined, { revalidate: false });
+        void mutate(ehChaveAfetadaPelaExclusao);
+      },
+    },
+  );
+
+  return {
+    excluir: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
