@@ -40,6 +40,10 @@ import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
+  CLASSE_CAMPO_IDENTIFICADOR,
+  normalizarIdentificador,
+} from "@/lib/identificadorDocumento";
+import {
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
 } from "@/lib/legalizacao";
@@ -459,11 +463,10 @@ export function FormCadastrarDocumento({
       // esperado, uma linha por profissional) -- só bloqueia se o MESMO
       // profissional já tiver documento deste tipo nesta unidade.
       //
-      // trim() aqui (achado em análise própria de falhas críticas): sem
-      // isso, " Dr. João" e "Dr. João" (o valor já salvo, sempre trimado no
-      // envio) não batiam nessa comparação, deixando passar uma duplicata
-      // real por causa só de espaço em branco.
-      const profissionalTrimado = valores.profissional?.trim() ?? "";
+      // Normalizado como o backend grava (maiúsculas, espaços simples): sem
+      // isso, "Dr. João" e o "DR. JOÃO" já salvo não batiam nesta
+      // comparação.
+      const profissionalTrimado = normalizarIdentificador(valores.profissional ?? "");
       const existentes = await listarDocumentosLegalizacao({
         unidade: valores.unidade,
         tipo_documento: valores.tipo_documento,
@@ -766,6 +769,7 @@ export function FormCadastrarDocumento({
                 <Input
                   id="cd-profissional"
                   placeholder="Nome do profissional"
+                  className={CLASSE_CAMPO_IDENTIFICADOR}
                   {...register("profissional")}
                 />
                 {errors.profissional && (

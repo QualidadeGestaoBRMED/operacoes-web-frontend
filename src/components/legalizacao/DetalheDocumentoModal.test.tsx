@@ -981,7 +981,7 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
 
-    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
 
     expect(screen.getByLabelText("Status")).toHaveTextContent("Regular");
     expect(screen.getByLabelText("Validade")).toHaveValue("2026-12-01");
@@ -1003,7 +1003,7 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     vi.mocked(buscarDocumentoLegalizacao).mockClear();
     vi.mocked(listarHistoricoLegalizacao).mockClear();
 
-    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
     await user.click(screen.getByLabelText("Status"));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
     await user.type(screen.getByLabelText("Validade"), "2027-01-01");
@@ -1034,7 +1034,7 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
 
-    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
     await user.click(screen.getByLabelText("Status"));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
     // Limpa a validade pré-preenchida antes de tentar salvar sem ela.
@@ -1053,7 +1053,7 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     renderComponente(55);
     await screen.findByText("Alvará de Funcionamento");
 
-    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
@@ -1073,7 +1073,7 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     );
     expect(screen.getByLabelText(/justificativa/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Editar status e validade" }));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
 
     expect(screen.queryByLabelText(/justificativa/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
@@ -1370,5 +1370,134 @@ describe("DetalheDocumentoModal -- editar Responsável Operacional (STC-518)", (
     // estado real (ainda responsável), não um estado otimista que já teria
     // tirado o chip antes da confirmação do backend.
     expect(screen.getByText("Time Legalização")).toBeInTheDocument();
+  });
+});
+
+describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
+  const DOSIMETRIA = tipo({ id: 8, nome: "Dosimetria", controlado_por_profissional: true });
+  const BALANCA = tipo({ id: 9, nome: "Calibração de Balança", permite_multiplas_instancias: true });
+
+  async function abrirEdicao(doc: DocumentoUnidade) {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    const user = userEvent.setup();
+    renderComponente(55);
+    // O título junta o identificador ao nome do tipo ("Dosimetria — DR. JOÃO").
+    await screen.findAllByText(new RegExp(doc.tipo_documento.nome));
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+    return user;
+  }
+
+  it("tipo sem identificador não mostra o campo", async () => {
+    await abrirEdicao(documento());
+    expect(screen.queryByLabelText("Profissional")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Identificador")).not.toBeInTheDocument();
+  });
+
+  it("tipo controlado por profissional mostra o campo preenchido, exibido em maiúsculas", async () => {
+    await abrirEdicao(documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }));
+    const campo = screen.getByLabelText("Profissional");
+    expect(campo).toHaveValue("DR. JOÃO");
+    expect(campo).toHaveClass("uppercase");
+  });
+
+  it("tipo com múltiplas instâncias chama o campo de Identificador", async () => {
+    await abrirEdicao(documento({ tipo_documento: BALANCA, profissional: "BALANÇA 01" }));
+    expect(screen.getByLabelText("Identificador")).toHaveValue("BALANÇA 01");
+  });
+
+  it("salva o identificador normalizado como o backend grava", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO SUBSTITUTO" }),
+    );
+    const user = await abrirEdicao(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }),
+    );
+
+    await user.clear(screen.getByLabelText("Profissional"));
+    await user.type(screen.getByLabelText("Profissional"), "  dr. joão   substituto ");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(
+        55,
+        expect.objectContaining({ profissional: "DR. JOÃO SUBSTITUTO" }),
+      );
+    });
+  });
+
+  it("identificador vazio não salva", async () => {
+    const user = await abrirEdicao(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }),
+    );
+
+    await user.clear(screen.getByLabelText("Profissional"));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByText("Obrigatório para este tipo de documento.")).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("nome repetido mostra a mensagem do backend no próprio campo", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Bad Request"), {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: {
+            profissional: ["Já existe um documento deste tipo e unidade para este profissional."],
+          },
+        },
+      }),
+    );
+    const user = await abrirEdicao(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }),
+    );
+
+    await user.clear(screen.getByLabelText("Profissional"));
+    await user.type(screen.getByLabelText("Profissional"), "Dra. Maria");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Já existe um documento deste tipo e unidade para este profissional."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Profissional")).toHaveAttribute("aria-invalid", "true");
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("erro do identificador junto com o de outro campo: um no campo, o outro no aviso", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Bad Request"), {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: {
+            profissional: ["Já existe um documento deste tipo e unidade para este profissional."],
+            validade: ["Data inválida."],
+          },
+        },
+      }),
+    );
+    const user = await abrirEdicao(
+      documento({ tipo_documento: DOSIMETRIA, profissional: "DR. JOÃO" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Já existe um documento deste tipo e unidade para este profissional."),
+    ).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith("Data inválida.");
+  });
+
+  it("tipo sem identificador não envia o campo", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = await abrirEdicao(documento());
+
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(atualizarDocumentoLegalizacao).toHaveBeenCalled());
+    expect(vi.mocked(atualizarDocumentoLegalizacao).mock.calls[0][1]).not.toHaveProperty(
+      "profissional",
+    );
   });
 });

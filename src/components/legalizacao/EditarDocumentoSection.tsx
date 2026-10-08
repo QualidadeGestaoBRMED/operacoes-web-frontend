@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { isAxiosError } from "axios";
 import { Pencil } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +19,11 @@ import {
 } from "@/components/ui/select";
 import { useAtualizarDocumentoLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
+import {
+  CLASSE_CAMPO_IDENTIFICADOR,
+  normalizarIdentificador,
+  usaIdentificador,
+} from "@/lib/identificadorDocumento";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import type { DocumentoUnidade, StatusDocumento } from "@/types/legalizacao";
 
@@ -33,21 +39,30 @@ const STATUS_EDITAVEIS: StatusDocumento[] = [
   "vencido",
 ];
 
-const schema = z
-  .object({
-    status: z.enum(STATUS_EDITAVEIS as [StatusDocumento, ...StatusDocumento[]], {
-      error: "Selecione o status.",
-    }),
-    validade: z.string().optional(),
-  })
-  // Mesma regra de FormCadastrarDocumento.tsx/DocumentoUnidadeWriteSerializer
-  // (backend): "Vencido" sempre exige validade.
-  .refine((v) => v.status !== "vencido" || !!v.validade, {
-    message: "Obrigatória para status 'Vencido'.",
-    path: ["validade"],
-  });
+// Identificador obrigatório só nos tipos que usam identificador, como no
+// cadastro (DocumentoUnidadeWriteSerializer.validate, backend).
+function criarSchema(exigeIdentificador: boolean) {
+  return z
+    .object({
+      status: z.enum(STATUS_EDITAVEIS as [StatusDocumento, ...StatusDocumento[]], {
+        error: "Selecione o status.",
+      }),
+      validade: z.string().optional(),
+      profissional: z.string(),
+    })
+    // Mesma regra de FormCadastrarDocumento.tsx/DocumentoUnidadeWriteSerializer
+    // (backend): "Vencido" sempre exige validade.
+    .refine((v) => v.status !== "vencido" || !!v.validade, {
+      message: "Obrigatória para status 'Vencido'.",
+      path: ["validade"],
+    })
+    .refine((v) => !exigeIdentificador || normalizarIdentificador(v.profissional) !== "", {
+      message: "Obrigatório para este tipo de documento.",
+      path: ["profissional"],
+    });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof criarSchema>>;
 
 function valoresDe(documento: DocumentoUnidade): FormValues {
   return {
@@ -61,7 +76,25 @@ function valoresDe(documento: DocumentoUnidade): FormValues {
       ? (documento.status as StatusDocumento)
       : "nao_iniciado",
     validade: documento.validade ?? "",
+    profissional: documento.profissional,
   };
+}
+
+// Erro 400 do backend separado em duas partes: a mensagem do identificador
+// (ex.: nome repetido no mesmo tipo e unidade), mostrada no próprio campo, e
+// as dos outros campos, que vão para o aviso.
+function separarErroDoIdentificador(
+  erro: unknown,
+): { identificador: string; outras: string[] } | null {
+  if (!isAxiosError(erro) || erro.response?.status !== 400) return null;
+  const dados = erro.response.data as Record<string, unknown> | undefined;
+  const doCampo = [dados?.profissional].flat().filter((m) => typeof m === "string");
+  if (!dados || doCampo.length === 0) return null;
+  const outras = Object.entries(dados)
+    .filter(([campo]) => campo !== "profissional")
+    .flatMap(([, mensagens]) => [mensagens].flat())
+    .filter((m): m is string => typeof m === "string" && m.trim() !== "");
+  return { identificador: doCampo[0] as string, outras };
 }
 
 export function EditarDocumentoSection({
@@ -78,12 +111,20 @@ export function EditarDocumentoSection({
   aoSalvar: () => void;
 }) {
   const { atualizar, isLoading } = useAtualizarDocumentoLegalizacao();
+  const comIdentificador = usaIdentificador(documento.tipo_documento);
+  const schema = useMemo(() => criarSchema(comIdentificador), [comIdentificador]);
+  // "Profissional" na Dosimetria (controlado por profissional); nos tipos de
+  // múltiplas instâncias (equipamentos), o nome do item.
+  const rotuloIdentificador = documento.tipo_documento.controlado_por_profissional
+    ? "Profissional"
+    : "Identificador";
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setError,
     formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -109,11 +150,23 @@ export function EditarDocumentoSection({
     try {
       await atualizar({
         id: documento.id,
-        payload: { status: valores.status, validade: valores.validade || null },
+        payload: {
+          status: valores.status,
+          validade: valores.validade || null,
+          ...(comIdentificador && {
+            profissional: normalizarIdentificador(valores.profissional),
+          }),
+        },
       });
       toast.success("Documento atualizado.");
       aoSalvar();
     } catch (erro) {
+      const separado = comIdentificador ? separarErroDoIdentificador(erro) : null;
+      if (separado) {
+        setError("profissional", { message: separado.identificador });
+        if (separado.outras.length > 0) toast.error(separado.outras.join(" "));
+        return;
+      }
       toast.error(extrairMensagemErro(erro));
     }
   }
@@ -123,7 +176,7 @@ export function EditarDocumentoSection({
       <button
         type="button"
         onClick={aoAbrir}
-        aria-label="Editar status e validade"
+        aria-label="Editar documento"
         className="flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
       >
         <Pencil className="size-3" />
@@ -137,6 +190,26 @@ export function EditarDocumentoSection({
       onSubmit={(evento) => void handleSubmit(aoSubmeter)(evento)}
       className="flex flex-col gap-3 rounded-md border border-border p-2.5"
     >
+      {comIdentificador && (
+        <div className="space-y-1">
+          <Label
+            htmlFor="ed-doc-identificador"
+            className="text-[10.5px] font-bold tracking-wide uppercase"
+          >
+            {rotuloIdentificador}
+          </Label>
+          <Input
+            id="ed-doc-identificador"
+            className={`h-8 text-[13px] ${CLASSE_CAMPO_IDENTIFICADOR}`}
+            aria-invalid={!!errors.profissional}
+            {...register("profissional")}
+          />
+          {errors.profissional && (
+            <p className="text-xs text-destructive">{errors.profissional.message}</p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-1">
         <Label
           htmlFor="ed-doc-status"
