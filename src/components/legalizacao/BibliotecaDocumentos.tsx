@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, FileText, FileX, MapPin, X } from "lucide-react";
+import {
+  Download,
+  FileText,
+  FileX,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -209,6 +217,39 @@ export function BibliotecaDocumentos() {
   const { previewUrl, carregandoPreview, erroPreview, tentarNovamente } =
     useEvidenciaVigentePreview(documentoSelecionadoId);
 
+  // STC-715: pré-visualização expandida na área de conteúdo inteira. Só
+  // esconde a lista e a barra de cima (CSS), sem desmontar nada: o <iframe>
+  // continua o mesmo e o PDF não recarrega (a URL assinada do R2 vale 5
+  // minutos). O modo vale até a pessoa reduzir, inclusive ao fechar e abrir
+  // outro documento; sem o painel na tela (nenhum documento aberto, ou a
+  // evidência dele sumiu no poll), a lista e a barra aparecem sempre.
+  const [expandido, setExpandido] = useState(false);
+  const mostrandoExpandido =
+    expandido && documentoSelecionado !== null && evidenciaSelecionada !== undefined;
+  // Lista escondida com display:none pode perder a rolagem: guarda a cada
+  // rolagem enquanto ela está visível e devolve ao reduzir.
+  const refLista = useRef<HTMLDivElement>(null);
+  const rolagemDaLista = useRef(0);
+
+  useLayoutEffect(() => {
+    if (!mostrandoExpandido && refLista.current) {
+      refLista.current.scrollTop = rolagemDaLista.current;
+    }
+  }, [mostrandoExpandido]);
+
+  useEffect(() => {
+    if (!mostrandoExpandido) return;
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key !== "Escape" || evento.defaultPrevented) return;
+      // Com um diálogo aberto por cima (ex.: alerta de documento), o Esc é
+      // dele: fecha o diálogo sem reduzir o PDF.
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      setExpandido(false);
+    }
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [mostrandoExpandido]);
+
   // Só no unmount de verdade (deps vazias) -- os blobs cacheados servem
   // durante toda a visita à tela, não só enquanto um documento específico
   // está selecionado (é justamente o que resolve o re-download ao trocar de
@@ -259,7 +300,13 @@ export function BibliotecaDocumentos() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-7 py-3">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3 border-b border-border px-7 py-3",
+          // Só a partir de sm, como o botão: abaixo dele não há como reduzir.
+          mostrandoExpandido && "sm:hidden",
+        )}
+      >
         <Select
           // "" (nunca undefined) -- achado em code review: alternar entre
           // undefined e uma string definida faz o Radix Select logar
@@ -290,6 +337,10 @@ export function BibliotecaDocumentos() {
       <div className="min-h-0 flex-1 overflow-hidden p-5">
         <div className="flex h-full overflow-hidden rounded-lg border border-border bg-card shadow-xs">
           <div
+            ref={refLista}
+            onScroll={(evento) => {
+              if (!mostrandoExpandido) rolagemDaLista.current = evento.currentTarget.scrollTop;
+            }}
             className={cn(
               "scrollbar-discreta min-w-0 flex-1 overflow-y-auto p-6",
               // Achado em code review: sem isto, o painel de pré-
@@ -302,6 +353,7 @@ export function BibliotecaDocumentos() {
               // enquanto o preview estiver aberto (abaixo de sm: os dois
               // alternam, um de cada vez).
               documentoSelecionado && "hidden sm:block",
+              mostrandoExpandido && "sm:hidden",
             )}
           >
             {carregando ? (
@@ -489,7 +541,10 @@ export function BibliotecaDocumentos() {
               // breakpoint, mas trava num teto (640px) pra não virar metade
               // da tela em monitor ultrawide; embaixo de sm continua tela
               // cheia, igual antes.
-              className="flex w-full shrink-0 flex-col border-border sm:w-[clamp(380px,45%,640px)] sm:border-l"
+              className={cn(
+                "flex w-full shrink-0 flex-col border-border",
+                mostrandoExpandido ? "sm:w-full" : "sm:w-[clamp(380px,45%,640px)] sm:border-l",
+              )}
             >
               <div className="flex items-start justify-between gap-2.5 border-b border-border px-5 py-4">
                 <div className="min-w-0">
@@ -502,16 +557,36 @@ export function BibliotecaDocumentos() {
                     {evidenciaSelecionada.nome_original}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0"
-                  onClick={() => setDocumentoSelecionadoId(null)}
-                  aria-label="Fechar pré-visualização"
-                >
-                  <X className="size-4" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  {/* Abaixo de sm o painel já ocupa a tela toda. */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="hidden h-7 gap-1.5 px-2 text-xs sm:inline-flex"
+                    onClick={() => setExpandido((atual) => !atual)}
+                    title={mostrandoExpandido ? "Reduzir (Esc)" : "Expandir"}
+                    aria-expanded={mostrandoExpandido}
+                    aria-keyshortcuts={mostrandoExpandido ? "Escape" : undefined}
+                  >
+                    {mostrandoExpandido ? (
+                      <Minimize2 className="size-3.5" />
+                    ) : (
+                      <Maximize2 className="size-3.5" />
+                    )}
+                    {mostrandoExpandido ? "Reduzir" : "Expandir"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    onClick={() => setDocumentoSelecionadoId(null)}
+                    aria-label="Fechar pré-visualização"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
               </div>
               <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/30">
                 {carregandoPreview ? (

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
@@ -101,9 +101,9 @@ function evidencia(overrides: Partial<EvidenciaVigente> = {}): EvidenciaVigente 
   };
 }
 
-function renderTela() {
+function renderTela(swr: Record<string, unknown> = {}) {
   return render(
-    <SWRConfig value={{ provider: () => new Map() }}>
+    <SWRConfig value={{ provider: () => new Map(), ...swr }}>
       <BibliotecaDocumentos />
     </SWRConfig>,
   );
@@ -845,5 +845,165 @@ describe("BibliotecaDocumentos -- Coordenador só vê a própria unidade (STC-51
     expect(screen.queryByText("Nenhuma unidade cadastrada.")).not.toBeInTheDocument();
     expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
     expect(listarDocumentosLegalizacao).not.toHaveBeenCalled();
+  });
+});
+
+describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () => {
+  async function abrirPreview() {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documento(),
+      documento({ id: 11, tipo_documento: tipo({ id: 2, nome: "Licença Sanitária" }) }),
+    ]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([
+      evidencia(),
+      evidencia({ documento_unidade: 11, nome_original: "licenca.pdf" }),
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: "Alvará de Funcionamento" }));
+    const iframe = await screen.findByTitle("Pré-visualização de alvara.pdf");
+    return { user, iframe };
+  }
+
+  function lista() {
+    return screen
+      .getByRole("button", { name: "Alvará de Funcionamento" })
+      .closest(".scrollbar-discreta") as HTMLElement;
+  }
+
+  function barraDeCima() {
+    return screen.getByLabelText("Unidade").closest(".border-b") as HTMLElement;
+  }
+
+  it("se a evidência some no poll com o painel expandido, a lista e a barra voltam", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    const user = userEvent.setup();
+    // Sem intervalo entre revalidações: o foco na janela faz o papel do poll.
+    renderTela({ dedupingInterval: 0, focusThrottleInterval: 0 });
+    await user.click(await screen.findByRole("button", { name: "Alvará de Funcionamento" }));
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    expect(lista()).toHaveClass("sm:hidden");
+
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([]);
+    fireEvent.focus(window);
+
+    await waitFor(() =>
+      expect(screen.queryByTitle("Pré-visualização de alvara.pdf")).not.toBeInTheDocument(),
+    );
+    // Sem evidência, o documento vira texto (não é mais botão).
+    const listaSemEvidencia = screen
+      .getByText("Alvará de Funcionamento")
+      .closest(".scrollbar-discreta");
+    expect(listaSemEvidencia).not.toHaveClass("sm:hidden");
+    expect(barraDeCima()).not.toHaveClass("sm:hidden");
+  });
+
+  it("o botão aparece com documento aberto e só a partir de sm", async () => {
+    await abrirPreview();
+
+    const botao = screen.getByRole("button", { name: "Expandir" });
+    expect(botao).toHaveClass("hidden", "sm:inline-flex");
+  });
+
+  it("expandir esconde a lista e a barra de cima; reduzir devolve, sem recarregar o PDF", async () => {
+    const { user, iframe } = await abrirPreview();
+    const src = iframe.getAttribute("src");
+
+    expect(screen.getByRole("button", { name: "Expandir" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "Expandir" })).not.toHaveAttribute(
+      "aria-keyshortcuts",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+
+    const reduzir = screen.getByRole("button", { name: "Reduzir" });
+    expect(reduzir).toHaveAttribute("aria-expanded", "true");
+    expect(reduzir).toHaveAttribute("aria-keyshortcuts", "Escape");
+    expect(lista()).toHaveClass("sm:hidden");
+    expect(barraDeCima()).toHaveClass("sm:hidden");
+    expect(barraDeCima()).not.toHaveClass("hidden");
+    expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toBe(iframe);
+    expect(iframe).toHaveAttribute("src", src);
+
+    await user.click(screen.getByRole("button", { name: "Reduzir" }));
+
+    expect(lista()).not.toHaveClass("sm:hidden");
+    expect(barraDeCima()).not.toHaveClass("sm:hidden");
+    expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toBe(iframe);
+    expect(iframe).toHaveAttribute("src", src);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("reduzir devolve a rolagem mais recente, mesmo depois de fechar e abrir outro", async () => {
+    const { user } = await abrirPreview();
+    rolarLista(100);
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    await user.click(screen.getByRole("button", { name: "Fechar pré-visualização" }));
+
+    rolarLista(400);
+    await user.click(screen.getByRole("button", { name: "Licença Sanitária" }));
+    await screen.findByTitle("Pré-visualização de licenca.pdf");
+    lista().scrollTop = 0;
+    await user.click(screen.getByRole("button", { name: "Reduzir" }));
+
+    expect(lista().scrollTop).toBe(400);
+  });
+
+  it("Esc com um diálogo aberto por cima não reduz", async () => {
+    const { user } = await abrirPreview();
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    const dialogo = document.createElement("div");
+    dialogo.setAttribute("role", "dialog");
+    document.body.appendChild(dialogo);
+
+    await user.keyboard("{Escape}");
+
+    expect(lista()).toHaveClass("sm:hidden");
+    dialogo.remove();
+  });
+
+  it("Esc reduz", async () => {
+    const { user } = await abrirPreview();
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+
+    await user.keyboard("{Escape}");
+
+    expect(lista()).not.toHaveClass("sm:hidden");
+    expect(screen.getByRole("button", { name: "Expandir" })).toBeInTheDocument();
+  });
+
+  function rolarLista(posicao: number) {
+    lista().scrollTop = posicao;
+    fireEvent.scroll(lista());
+  }
+
+  it("reduzir devolve a rolagem da lista", async () => {
+    const { user } = await abrirPreview();
+    rolarLista(240);
+
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    lista().scrollTop = 0;
+    await user.click(screen.getByRole("button", { name: "Reduzir" }));
+
+    expect(lista().scrollTop).toBe(240);
+  });
+
+  it("fechar mostra a lista, e o próximo documento abre no modo expandido", async () => {
+    const { user } = await abrirPreview();
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+
+    await user.click(screen.getByRole("button", { name: "Fechar pré-visualização" }));
+
+    expect(lista()).not.toHaveClass("sm:hidden");
+
+    await user.click(screen.getByRole("button", { name: "Licença Sanitária" }));
+    await screen.findByTitle("Pré-visualização de licenca.pdf");
+    expect(screen.getByRole("button", { name: "Reduzir" })).toBeInTheDocument();
+    expect(lista()).toHaveClass("sm:hidden");
   });
 });
