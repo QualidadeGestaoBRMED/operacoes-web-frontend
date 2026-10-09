@@ -563,6 +563,8 @@ export function BibliotecaDocumentos() {
                     className="hidden h-7 gap-1.5 px-2 text-xs sm:inline-flex"
                     onClick={() => setExpandido((atual) => !atual)}
                     title={mostrandoExpandido ? "Reduzir (Esc)" : "Expandir"}
+                    aria-expanded={mostrandoExpandido}
+                    aria-keyshortcuts={mostrandoExpandido ? "Escape" : undefined}
                   >
                     {mostrandoExpandido ? (
                       <Minimize2 className="size-3.5" />

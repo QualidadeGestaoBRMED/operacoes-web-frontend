@@ -886,8 +886,19 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
     const { user, iframe } = await abrirPreview();
     const src = iframe.getAttribute("src");
 
+    expect(screen.getByRole("button", { name: "Expandir" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "Expandir" })).not.toHaveAttribute(
+      "aria-keyshortcuts",
+    );
+
     await user.click(screen.getByRole("button", { name: "Expandir" }));
 
+    const reduzir = screen.getByRole("button", { name: "Reduzir" });
+    expect(reduzir).toHaveAttribute("aria-expanded", "true");
+    expect(reduzir).toHaveAttribute("aria-keyshortcuts", "Escape");
     expect(lista()).toHaveClass("sm:hidden");
     expect(barraDeCima()).toHaveClass("hidden");
     expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toBe(iframe);
