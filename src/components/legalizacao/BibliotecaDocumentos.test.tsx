@@ -900,14 +900,15 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
     expect(reduzir).toHaveAttribute("aria-expanded", "true");
     expect(reduzir).toHaveAttribute("aria-keyshortcuts", "Escape");
     expect(lista()).toHaveClass("sm:hidden");
-    expect(barraDeCima()).toHaveClass("hidden");
+    expect(barraDeCima()).toHaveClass("sm:hidden");
+    expect(barraDeCima()).not.toHaveClass("hidden");
     expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toBe(iframe);
     expect(iframe).toHaveAttribute("src", src);
 
     await user.click(screen.getByRole("button", { name: "Reduzir" }));
 
     expect(lista()).not.toHaveClass("sm:hidden");
-    expect(barraDeCima()).not.toHaveClass("hidden");
+    expect(barraDeCima()).not.toHaveClass("sm:hidden");
     expect(screen.getByTitle("Pré-visualização de alvara.pdf")).toBe(iframe);
     expect(iframe).toHaveAttribute("src", src);
     expect(global.fetch).toHaveBeenCalledTimes(1);

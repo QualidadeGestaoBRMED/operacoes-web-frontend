@@ -301,7 +301,8 @@ export function BibliotecaDocumentos() {
       <div
         className={cn(
           "flex flex-wrap items-center gap-3 border-b border-border px-7 py-3",
-          mostrandoExpandido && "hidden",
+          // Só a partir de sm, como o botão: abaixo dele não há como reduzir.
+          mostrandoExpandido && "sm:hidden",
         )}
       >
         <Select
