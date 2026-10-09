@@ -38,15 +38,24 @@ const VITORIA: Unidade = {
   rede: "padrao",
 };
 
-function renderFiltros(filtros: DocumentoUnidadeFiltros = {}) {
+function renderFiltros(
+  filtros: DocumentoUnidadeFiltros = {},
+  extra: Partial<{
+    emAtencao: boolean;
+    onMudarFiltros: (filtros: DocumentoUnidadeFiltros) => void;
+    onMudarEmAtencao: (emAtencao: boolean) => void;
+  }> = {},
+) {
   return render(
     <MatrizFiltros
       filtros={filtros}
-      onMudarFiltros={vi.fn()}
+      onMudarFiltros={extra.onMudarFiltros ?? vi.fn()}
       busca=""
       onMudarBusca={vi.fn()}
       categoria={undefined}
       onMudarCategoria={vi.fn()}
+      emAtencao={extra.emAtencao ?? false}
+      onMudarEmAtencao={extra.onMudarEmAtencao ?? vi.fn()}
     />,
   );
 }
@@ -147,5 +156,49 @@ describe("MatrizFiltros -- 'Limpar filtros' não conta a unidade forçada do Coo
     expect(
       screen.getByRole("button", { name: /limpar filtros/i }),
     ).toBeInTheDocument();
+  });
+});
+
+
+describe("MatrizFiltros -- opção Atenção no Status (STC-714)", () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({ user: undefined, isCoordenacaoUnidade: false } as never);
+  });
+
+  it("escolher Atenção liga o filtro só-client e limpa o status do backend", async () => {
+    const onMudarFiltros = vi.fn();
+    const onMudarEmAtencao = vi.fn();
+    const user = userEvent.setup();
+    renderFiltros({ status: "vencido" }, { onMudarFiltros, onMudarEmAtencao });
+
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(screen.getByRole("option", { name: "Atenção (a vencer ou protocolado)" }));
+
+    expect(onMudarEmAtencao).toHaveBeenCalledWith(true);
+    expect(onMudarFiltros).toHaveBeenCalledWith({ status: undefined });
+  });
+
+  it("escolher um status depois desliga a Atenção", async () => {
+    const onMudarFiltros = vi.fn();
+    const onMudarEmAtencao = vi.fn();
+    const user = userEvent.setup();
+    renderFiltros({}, { emAtencao: true, onMudarFiltros, onMudarEmAtencao });
+
+    expect(screen.getByLabelText("Status")).toHaveTextContent("Atenção (a vencer ou protocolado)");
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(screen.getByRole("option", { name: "Vencido" }));
+
+    expect(onMudarEmAtencao).toHaveBeenCalledWith(false);
+    expect(onMudarFiltros).toHaveBeenCalledWith({ status: "vencido" });
+  });
+
+  it("Atenção conta como filtro ativo e 'Limpar filtros' desliga", async () => {
+    const onMudarEmAtencao = vi.fn();
+    const user = userEvent.setup();
+    renderFiltros({}, { emAtencao: true, onMudarEmAtencao });
+
+    await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
+
+    expect(onMudarEmAtencao).toHaveBeenCalledWith(false);
   });
 });
