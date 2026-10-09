@@ -58,10 +58,10 @@ export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
           </h2>
           <p className="text-sm text-muted-foreground">
             Cadastra um tipo de documento para uma unidade, com prazo, status
-            inicial e evidência, tudo em uma única etapa. Pra tipos com
-            múltiplas instâncias por unidade (ex.: um documento de calibração
-            por equipamento), use o cadastro em lote -- N documentos de uma
-            vez, mesma regra pra todos.
+            inicial e evidência, tudo em uma única etapa. Pra cadastrar
+            vários itens de um tipo com múltiplas instâncias de uma vez (ex.:
+            um documento de calibração por equipamento), use o cadastro em
+            lote -- mesma regra pra todos.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
