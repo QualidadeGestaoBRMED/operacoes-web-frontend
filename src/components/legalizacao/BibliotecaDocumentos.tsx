@@ -224,15 +224,10 @@ export function BibliotecaDocumentos() {
   // outro documento; sem documento aberto, a lista aparece sempre.
   const [expandido, setExpandido] = useState(false);
   const mostrandoExpandido = expandido && documentoSelecionado !== null;
-  // Lista escondida com display:none pode perder a rolagem: guarda ao
-  // expandir e devolve ao reduzir.
+  // Lista escondida com display:none pode perder a rolagem: guarda a cada
+  // rolagem enquanto ela está visível e devolve ao reduzir.
   const refLista = useRef<HTMLDivElement>(null);
   const rolagemDaLista = useRef(0);
-
-  function alternarExpandido() {
-    if (!expandido) rolagemDaLista.current = refLista.current?.scrollTop ?? 0;
-    setExpandido((atual) => !atual);
-  }
 
   useLayoutEffect(() => {
     if (!mostrandoExpandido && refLista.current) {
@@ -243,7 +238,11 @@ export function BibliotecaDocumentos() {
   useEffect(() => {
     if (!mostrandoExpandido) return;
     function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape" && !evento.defaultPrevented) setExpandido(false);
+      if (evento.key !== "Escape" || evento.defaultPrevented) return;
+      // Com um diálogo aberto por cima (ex.: alerta de documento), o Esc é
+      // dele: fecha o diálogo sem reduzir o PDF.
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      setExpandido(false);
     }
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
@@ -336,6 +335,9 @@ export function BibliotecaDocumentos() {
         <div className="flex h-full overflow-hidden rounded-lg border border-border bg-card shadow-xs">
           <div
             ref={refLista}
+            onScroll={(evento) => {
+              if (!mostrandoExpandido) rolagemDaLista.current = evento.currentTarget.scrollTop;
+            }}
             className={cn(
               "scrollbar-discreta min-w-0 flex-1 overflow-y-auto p-6",
               // Achado em code review: sem isto, o painel de pré-
@@ -559,8 +561,7 @@ export function BibliotecaDocumentos() {
                     variant="ghost"
                     size="sm"
                     className="hidden h-7 gap-1.5 px-2 text-xs sm:inline-flex"
-                    onClick={alternarExpandido}
-                    aria-pressed={mostrandoExpandido}
+                    onClick={() => setExpandido((atual) => !atual)}
                     title={mostrandoExpandido ? "Reduzir (Esc)" : "Expandir"}
                   >
                     {mostrandoExpandido ? (
