@@ -51,7 +51,12 @@ vi.mock("./MatrizFiltros", () => ({
     </div>
   ),
 }));
-vi.mock("./MatrizTable", () => ({ MatrizTable: () => null }));
+// Stub mostra só quantas linhas a Lista recebeu (STC-714).
+vi.mock("./MatrizTable", () => ({
+  MatrizTable: ({ documentos }: { documentos: unknown[] }) => (
+    <div data-testid="linhas">{documentos.length}</div>
+  ),
+}));
 vi.mock("./ToggleMapaLista", () => ({ ToggleMapaLista: () => null }));
 // Stub só mostra o documentoId recebido, pra dar pra verificar sem simular
 // o modal inteiro (que tem sua própria busca de dados).
@@ -229,5 +234,76 @@ describe("MatrizConformidade -- Coordenador só filtra a própria unidade, sem o
     for (const [, opcoes] of vi.mocked(useDocumentosLegalizacao).mock.calls) {
       expect(opcoes).toMatchObject({ desabilitado: true });
     }
+  });
+});
+
+
+describe("MatrizConformidade -- situação vinda do Mapa (STC-714)", () => {
+  function emDias(dias: number): string {
+    const data = new Date();
+    data.setDate(data.getDate() + dias);
+    return data.toISOString().slice(0, 10);
+  }
+
+  function doc(id: number, status: string, validade: string | null) {
+    return {
+      id,
+      status,
+      validade,
+      unidade: NITEROI,
+      tipo_documento: { id: 1, nome: "Alvará", categoria: "regularizacao" },
+    };
+  }
+
+  function comUrl(params: Record<string, string>) {
+    vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams(params) as never);
+  }
+
+  it("situacao=atencao mostra só protocolados e a vencer", () => {
+    comUrl({ unidade: "1", categoria: "regularizacao", situacao: "atencao" });
+    vi.mocked(useDocumentosLegalizacao).mockReturnValue({
+      documentos: [
+        doc(1, "protocolado", emDias(200)),
+        doc(2, "regular", emDias(5)),
+        doc(3, "vencido", emDias(-2)),
+        doc(4, "regular", emDias(200)),
+      ],
+      carregandoPrimeiraVez: false,
+      error: null,
+      mensagemErro: null,
+    } as never);
+
+    render(<MatrizConformidade />);
+
+    expect(screen.getByTestId("linhas")).toHaveTextContent("2");
+  });
+
+  it("situacao=vencido vira o filtro Status enviado à API", () => {
+    comUrl({ unidade: "1", situacao: "vencido" });
+
+    render(<MatrizConformidade />);
+
+    expect(vi.mocked(useDocumentosLegalizacao).mock.calls[0][0]).toMatchObject({
+      unidade: 1,
+      status: "vencido",
+    });
+  });
+
+  it("situação desconhecida na URL é ignorada", () => {
+    comUrl({ unidade: "1", situacao: "qualquer" });
+    vi.mocked(useDocumentosLegalizacao).mockReturnValue({
+      documentos: [doc(1, "regular", null), doc(2, "vencido", emDias(-2))],
+      carregandoPrimeiraVez: false,
+      error: null,
+      mensagemErro: null,
+    } as never);
+
+    render(<MatrizConformidade />);
+
+    expect(vi.mocked(useDocumentosLegalizacao).mock.calls[0][0]).not.toHaveProperty(
+      "status",
+      expect.anything(),
+    );
+    expect(screen.getByTestId("linhas")).toHaveTextContent("2");
   });
 });

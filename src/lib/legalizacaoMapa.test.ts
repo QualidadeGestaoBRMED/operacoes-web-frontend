@@ -3,6 +3,10 @@ import {
   calcularGradeMapa,
   calcularResumoMapa,
   celulaDaGrade,
+  estaEmAtencao,
+  filtroDaSituacao,
+  situacaoNaUrl,
+  type BucketCelula,
 } from "./legalizacaoMapa";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 import type { Unidade } from "@/types";
@@ -259,5 +263,63 @@ describe("calcularResumoMapa", () => {
     const grade = calcularGradeMapa(docs, [NITEROI]);
     const resumo = calcularResumoMapa(docs, grade);
     expect(resumo.semPendencia).toEqual({ unidades: 0, total: 1 });
+  });
+});
+
+
+describe("situação da célula na Lista (STC-714)", () => {
+  function emDias(dias: number): string {
+    const data = new Date();
+    data.setDate(data.getDate() + dias);
+    return data.toISOString().slice(0, 10);
+  }
+
+  it("só os buckets que filtram vão para a URL", () => {
+    expect(situacaoNaUrl("vencido")).toBe("vencido");
+    expect(situacaoNaUrl("atencao")).toBe("atencao");
+    expect(situacaoNaUrl("andamento")).toBe("andamento");
+    expect(situacaoNaUrl("nao_iniciado")).toBe("nao_iniciado");
+    expect(situacaoNaUrl("encerramento")).toBe("encerramento");
+    expect(situacaoNaUrl("regular")).toBeNull();
+    expect(situacaoNaUrl("pendente")).toBeNull();
+  });
+
+  it("situação vira filtro de Status ou de Atenção; valor desconhecido não filtra", () => {
+    expect(filtroDaSituacao("vencido")).toEqual({ status: "vencido", emAtencao: false });
+    expect(filtroDaSituacao("andamento")).toEqual({ status: "em_andamento", emAtencao: false });
+    expect(filtroDaSituacao("encerramento")).toEqual({
+      status: "unidade_encerramento",
+      emAtencao: false,
+    });
+    expect(filtroDaSituacao("atencao")).toEqual({ emAtencao: true });
+    for (const invalido of [null, "regular", "pendente", "xyz", "toString"]) {
+      expect(filtroDaSituacao(invalido)).toEqual({ emAtencao: false });
+    }
+  });
+
+  it("a Lista filtrada pela situação mostra a mesma quantidade que a célula conta", () => {
+    let id = 0;
+    const doc = (overrides: Partial<DocumentoUnidade>) => documento({ id: ++id, ...overrides });
+    const casos: Record<string, DocumentoUnidade[]> = {
+      vencido: [doc({ status: "vencido", validade: emDias(-3) }), doc({ status: "protocolado" })],
+      atencao: [
+        doc({ status: "protocolado", validade: emDias(200) }),
+        doc({ status: "regular", validade: emDias(5) }),
+        doc({ status: "regular", validade: emDias(200) }),
+      ],
+      andamento: [doc({ status: "em_andamento" }), doc({ status: "nao_iniciado" })],
+      nao_iniciado: [doc({ status: "nao_iniciado" }), doc({ status: "regular" })],
+      encerramento: [doc({ status: "unidade_encerramento" }), doc({ status: "regular" })],
+    };
+
+    for (const [esperado, docs] of Object.entries(casos)) {
+      const celula = celulaDaGrade(calcularGradeMapa(docs, [NITEROI]), NITEROI.id, "regularizacao");
+      expect(celula.bucket).toBe(esperado as BucketCelula);
+      const filtro = filtroDaSituacao(situacaoNaUrl(celula.bucket));
+      const naLista = docs.filter(
+        (d) => (!filtro.status || d.status === filtro.status) && (!filtro.emAtencao || estaEmAtencao(d)),
+      );
+      expect(naLista).toHaveLength(celula.contagem);
+    }
   });
 });

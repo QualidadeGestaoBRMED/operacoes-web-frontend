@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
+import { estaEmAtencao, filtroDaSituacao } from "@/lib/legalizacaoMapa";
 import {
   documentoBateNaBusca,
   documentoBateNaCategoria,
@@ -51,9 +52,15 @@ export function MatrizConformidade() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
+  // STC-714: clique numa célula do Mapa também traz ?situacao=<bucket> --
+  // vira o filtro Status (status real) ou o filtro "Atenção" (só-client).
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
     unidade: numeroDaUrl(searchParams.get("unidade")),
+    status: filtroDaSituacao(searchParams.get("situacao")).status,
   }));
+  const [emAtencao, setEmAtencao] = useState(
+    () => filtroDaSituacao(searchParams.get("situacao")).emAtencao,
+  );
   const [categoria, setCategoria] = useState<CategoriaDocumento | undefined>(
     () => categoriaDaUrl(searchParams.get("categoria")),
   );
@@ -200,9 +207,10 @@ export function MatrizConformidade() {
   const documentosExibidos = useMemo(() => {
     const filtrados = documentos
       .filter((documento) => documentoBateNaBusca(documento, busca))
-      .filter((documento) => documentoBateNaCategoria(documento, categoria));
+      .filter((documento) => documentoBateNaCategoria(documento, categoria))
+      .filter((documento) => !emAtencao || estaEmAtencao(documento));
     return ordenarDocumentos(filtrados, ordenacao);
-  }, [documentos, busca, categoria, ordenacao]);
+  }, [documentos, busca, categoria, emAtencao, ordenacao]);
 
   // Clique no cabeçalho: 1º clique ordena crescente, 2º inverte pra
   // decrescente, 3º volta pra ordem padrão (sem ordenação). Clicar numa
@@ -245,6 +253,8 @@ export function MatrizConformidade() {
         onMudarBusca={setBusca}
         categoria={categoria}
         onMudarCategoria={setCategoria}
+        emAtencao={emAtencao}
+        onMudarEmAtencao={setEmAtencao}
         onLimparUrl={() => router.replace(pathname, { scroll: false })}
       />
 
