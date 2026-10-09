@@ -221,9 +221,11 @@ export function BibliotecaDocumentos() {
   // esconde a lista e a barra de cima (CSS), sem desmontar nada: o <iframe>
   // continua o mesmo e o PDF não recarrega (a URL assinada do R2 vale 5
   // minutos). O modo vale até a pessoa reduzir, inclusive ao fechar e abrir
-  // outro documento; sem documento aberto, a lista aparece sempre.
+  // outro documento; sem o painel na tela (nenhum documento aberto, ou a
+  // evidência dele sumiu no poll), a lista e a barra aparecem sempre.
   const [expandido, setExpandido] = useState(false);
-  const mostrandoExpandido = expandido && documentoSelecionado !== null;
+  const mostrandoExpandido =
+    expandido && documentoSelecionado !== null && evidenciaSelecionada !== undefined;
   // Lista escondida com display:none pode perder a rolagem: guarda a cada
   // rolagem enquanto ela está visível e devolve ao reduzir.
   const refLista = useRef<HTMLDivElement>(null);

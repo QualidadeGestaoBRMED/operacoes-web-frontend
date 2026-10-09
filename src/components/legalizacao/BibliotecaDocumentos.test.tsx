@@ -101,9 +101,9 @@ function evidencia(overrides: Partial<EvidenciaVigente> = {}): EvidenciaVigente 
   };
 }
 
-function renderTela() {
+function renderTela(swr: Record<string, unknown> = {}) {
   return render(
-    <SWRConfig value={{ provider: () => new Map() }}>
+    <SWRConfig value={{ provider: () => new Map(), ...swr }}>
       <BibliotecaDocumentos />
     </SWRConfig>,
   );
@@ -874,6 +874,31 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
   function barraDeCima() {
     return screen.getByLabelText("Unidade").closest(".border-b") as HTMLElement;
   }
+
+  it("se a evidência some no poll com o painel expandido, a lista e a barra voltam", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([evidencia()]);
+    const user = userEvent.setup();
+    // Sem intervalo entre revalidações: o foco na janela faz o papel do poll.
+    renderTela({ dedupingInterval: 0, focusThrottleInterval: 0 });
+    await user.click(await screen.findByRole("button", { name: "Alvará de Funcionamento" }));
+    await screen.findByTitle("Pré-visualização de alvara.pdf");
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    expect(lista()).toHaveClass("sm:hidden");
+
+    vi.mocked(listarEvidenciasVigentes).mockResolvedValue([]);
+    fireEvent.focus(window);
+
+    await waitFor(() =>
+      expect(screen.queryByTitle("Pré-visualização de alvara.pdf")).not.toBeInTheDocument(),
+    );
+    // Sem evidência, o documento vira texto (não é mais botão).
+    const listaSemEvidencia = screen
+      .getByText("Alvará de Funcionamento")
+      .closest(".scrollbar-discreta");
+    expect(listaSemEvidencia).not.toHaveClass("sm:hidden");
+    expect(barraDeCima()).not.toHaveClass("sm:hidden");
+  });
 
   it("o botão aparece com documento aberto e só a partir de sm", async () => {
     await abrirPreview();
