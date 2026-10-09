@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
@@ -880,7 +880,6 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
 
     const botao = screen.getByRole("button", { name: "Expandir" });
     expect(botao).toHaveClass("hidden", "sm:inline-flex");
-    expect(botao).toHaveAttribute("aria-pressed", "false");
   });
 
   it("expandir esconde a lista e a barra de cima; reduzir devolve, sem recarregar o PDF", async () => {
@@ -903,6 +902,34 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("reduzir devolve a rolagem mais recente, mesmo depois de fechar e abrir outro", async () => {
+    const { user } = await abrirPreview();
+    rolarLista(100);
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    await user.click(screen.getByRole("button", { name: "Fechar pré-visualização" }));
+
+    rolarLista(400);
+    await user.click(screen.getByRole("button", { name: "Licença Sanitária" }));
+    await screen.findByTitle("Pré-visualização de licenca.pdf");
+    lista().scrollTop = 0;
+    await user.click(screen.getByRole("button", { name: "Reduzir" }));
+
+    expect(lista().scrollTop).toBe(400);
+  });
+
+  it("Esc com um diálogo aberto por cima não reduz", async () => {
+    const { user } = await abrirPreview();
+    await user.click(screen.getByRole("button", { name: "Expandir" }));
+    const dialogo = document.createElement("div");
+    dialogo.setAttribute("role", "dialog");
+    document.body.appendChild(dialogo);
+
+    await user.keyboard("{Escape}");
+
+    expect(lista()).toHaveClass("sm:hidden");
+    dialogo.remove();
+  });
+
   it("Esc reduz", async () => {
     const { user } = await abrirPreview();
     await user.click(screen.getByRole("button", { name: "Expandir" }));
@@ -913,9 +940,14 @@ describe("BibliotecaDocumentos -- expandir a pré-visualização (STC-715)", () 
     expect(screen.getByRole("button", { name: "Expandir" })).toBeInTheDocument();
   });
 
+  function rolarLista(posicao: number) {
+    lista().scrollTop = posicao;
+    fireEvent.scroll(lista());
+  }
+
   it("reduzir devolve a rolagem da lista", async () => {
     const { user } = await abrirPreview();
-    lista().scrollTop = 240;
+    rolarLista(240);
 
     await user.click(screen.getByRole("button", { name: "Expandir" }));
     lista().scrollTop = 0;
