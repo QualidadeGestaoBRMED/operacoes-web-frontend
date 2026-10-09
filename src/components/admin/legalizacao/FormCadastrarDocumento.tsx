@@ -42,6 +42,7 @@ import { extrairMensagemErro } from "@/lib/erros";
 import {
   CLASSE_CAMPO_IDENTIFICADOR,
   normalizarIdentificador,
+  usaIdentificador,
 } from "@/lib/identificadorDocumento";
 import {
   enviarEvidenciaLegalizacao,
@@ -88,13 +89,14 @@ const numeroDiaOpcional = z.preprocess(
   z.coerce.number().int().min(1).max(31).optional(),
 );
 
-// STC-432: schema vira função do conjunto de tipos controlado_por_profissional
-// (Dosimetria hoje) -- "profissional" só é exigido quando o tipo escolhido
-// tiver essa flag (espelha DocumentoUnidadeWriteSerializer.validate() no
-// backend, que exige/proíbe o campo pela mesma flag). Não dá pra expressar
-// isso com um .refine() estático porque a flag mora no objeto do tipo
-// (useTiposDocumento), não em outro campo do próprio formulário.
-function criarSchema(idsControladosPorProfissional: Set<number>) {
+// Schema vira função do conjunto de tipos que usam identificador
+// (`profissional`): controlados por profissional (Dosimetria) ou de
+// múltiplas instâncias (equipamentos) -- o identificador só é exigido
+// quando o tipo escolhido usa um (espelha DocumentoUnidadeWriteSerializer.
+// validate() no backend, que exige/proíbe o campo pelas mesmas flags). Não
+// dá pra expressar isso com um .refine() estático porque as flags moram no
+// objeto do tipo (useTiposDocumento), não em outro campo do formulário.
+function criarSchema(idsComIdentificador: Set<number>) {
   return z
     .object({
       unidade: z.coerce
@@ -149,10 +151,10 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
       path: ["validade"],
     })
     // Espelha DocumentoUnidadeWriteSerializer.validate() (backend):
-    // "profissional" obrigatório pra tipos controlados por profissional...
+    // identificador obrigatório pra tipos que usam identificador...
     .refine(
       (v) =>
-        !idsControladosPorProfissional.has(v.tipo_documento) ||
+        !idsComIdentificador.has(v.tipo_documento) ||
         !!v.profissional?.trim(),
       {
         message: "Obrigatório para este tipo de documento.",
@@ -164,10 +166,10 @@ function criarSchema(idsControladosPorProfissional: Set<number>) {
     // servidor.
     .refine(
       (v) =>
-        idsControladosPorProfissional.has(v.tipo_documento) ||
+        idsComIdentificador.has(v.tipo_documento) ||
         !v.profissional?.trim(),
       {
-        message: "Só pode ser preenchido para tipos controlados por profissional.",
+        message: "Só pode ser preenchido para tipos que usam identificador.",
         path: ["profissional"],
       },
     );
@@ -222,18 +224,16 @@ export function FormCadastrarDocumento({
   const inputArquivoRef = useRef<HTMLInputElement>(null);
 
   const tiposAtivos = tiposDocumento.filter((tipo) => tipo.ativo);
-  const idsControladosPorProfissional = useMemo(
+  const idsComIdentificador = useMemo(
     () =>
       new Set(
-        tiposDocumento
-          .filter((tipo) => tipo.controlado_por_profissional)
-          .map((tipo) => tipo.id),
+        tiposDocumento.filter(usaIdentificador).map((tipo) => tipo.id),
       ),
     [tiposDocumento],
   );
   const schema = useMemo(
-    () => criarSchema(idsControladosPorProfissional),
-    [idsControladosPorProfissional],
+    () => criarSchema(idsComIdentificador),
+    [idsComIdentificador],
   );
 
   const {
@@ -296,6 +296,11 @@ export function FormCadastrarDocumento({
   const tipoSelecionado = tiposDocumento.find(
     (tipo) => tipo.id === tipoDocumentoSelecionado,
   );
+  // "Profissional" na Dosimetria (controlado por profissional); nos tipos de
+  // múltiplas instâncias (equipamentos), o nome do item.
+  const rotuloIdentificador = tipoSelecionado?.controlado_por_profissional
+    ? "Profissional"
+    : "Identificador";
 
   // Achado no dogfooding: só avisar depois de preencher o formulário
   // inteiro (no submit) que a combinação já existe era tarde demais -- nem
@@ -310,15 +315,13 @@ export function FormCadastrarDocumento({
   const idsTiposJaCadastrados = new Set(
     documentosDaUnidade.map((documento) => documento.tipo_documento.id),
   );
-  // STC-432: tipos controlado_por_profissional (Dosimetria) continuam
-  // disponíveis mesmo já cadastrados -- cada profissional é uma linha
+  // Tipos que usam identificador (Dosimetria, equipamentos) continuam
+  // disponíveis mesmo já cadastrados -- cada identificador é uma linha
   // própria, então "já tem um documento deste tipo" não esgota a unidade
-  // pra esses tipos (a checagem real de duplicata vira por profissional,
+  // pra esses tipos (a checagem real de duplicata vira por identificador,
   // ver aoSubmeter).
   const tiposDisponiveis = tiposAtivos.filter(
-    (tipo) =>
-      tipo.controlado_por_profissional ||
-      !idsTiposJaCadastrados.has(tipo.id),
+    (tipo) => usaIdentificador(tipo) || !idsTiposJaCadastrados.has(tipo.id),
   );
 
   // STC-432 (achado em análise própria de falhas críticas): pra um 2º+
@@ -447,9 +450,7 @@ export function FormCadastrarDocumento({
         return;
       }
 
-      const tipoControladoPorProfissional = idsControladosPorProfissional.has(
-        valores.tipo_documento,
-      );
+      const tipoComIdentificador = idsComIdentificador.has(valores.tipo_documento);
 
       // Achado no dogfooding: sem checar antes, uma tentativa repetida pro
       // mesmo tipo+unidade criava uma regra nova (etapa 1) que colidia com a
@@ -458,10 +459,10 @@ export function FormCadastrarDocumento({
       // aviso claro de "documento já existe". Checa aqui, antes de criar
       // qualquer coisa.
       //
-      // STC-432: pra tipos controlado_por_profissional, a duplicata real é
-      // por profissional (mesmo tipo+unidade com profissionais diferentes é
-      // esperado, uma linha por profissional) -- só bloqueia se o MESMO
-      // profissional já tiver documento deste tipo nesta unidade.
+      // Pra tipos que usam identificador, a duplicata real é por
+      // identificador (mesmo tipo+unidade com identificadores diferentes é
+      // esperado, uma linha por identificador) -- só bloqueia se o MESMO
+      // identificador já tiver documento deste tipo nesta unidade.
       //
       // Normalizado como o backend grava (maiúsculas, espaços simples): sem
       // isso, "Dr. João" e o "DR. JOÃO" já salvo não batiam nesta
@@ -471,15 +472,15 @@ export function FormCadastrarDocumento({
         unidade: valores.unidade,
         tipo_documento: valores.tipo_documento,
       });
-      const duplicado = tipoControladoPorProfissional
+      const duplicado = tipoComIdentificador
         ? existentes.some(
             (documento) => documento.profissional === profissionalTrimado,
           )
         : existentes.length > 0;
       if (duplicado) {
         toast.error(
-          tipoControladoPorProfissional
-            ? "Já existe um documento deste tipo e unidade para este profissional."
+          tipoComIdentificador
+            ? `Já existe um documento deste tipo e unidade para este ${rotuloIdentificador.toLowerCase()}.`
             : 'Já existe um documento cadastrado para esta unidade e tipo. Use "Corrigir regra existente" para atualizar.',
         );
         return;
@@ -492,7 +493,7 @@ export function FormCadastrarDocumento({
           status: "nao_aplicavel",
           justificativa_excecao: valores.justificativa_excecao,
           responsaveis: valores.responsaveis,
-          ...(tipoControladoPorProfissional && {
+          ...(tipoComIdentificador && {
             profissional: profissionalTrimado,
           }),
         });
@@ -570,7 +571,7 @@ export function FormCadastrarDocumento({
             validade: valores.validade || null,
             regra_aplicada: regra.id,
             responsaveis: valores.responsaveis,
-            ...(tipoControladoPorProfissional && {
+            ...(tipoComIdentificador && {
               profissional: profissionalTrimado,
             }),
           });
@@ -761,14 +762,18 @@ export function FormCadastrarDocumento({
               )}
             </div>
 
-            {tipoSelecionado?.controlado_por_profissional && (
+            {tipoSelecionado && usaIdentificador(tipoSelecionado) && (
               <div className="space-y-1.5">
                 <Label htmlFor="cd-profissional">
-                  Profissional <span className="text-destructive">*</span>
+                  {rotuloIdentificador} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="cd-profissional"
-                  placeholder="Nome do profissional"
+                  placeholder={
+                    tipoSelecionado.controlado_por_profissional
+                      ? "Nome do profissional"
+                      : "Ex.: Balança 01"
+                  }
                   className={CLASSE_CAMPO_IDENTIFICADOR}
                   {...register("profissional")}
                 />
@@ -778,8 +783,9 @@ export function FormCadastrarDocumento({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Este tipo de documento é controlado por profissional -- cada
-                  profissional tem uma linha própria nesta unidade.
+                  {tipoSelecionado.controlado_por_profissional
+                    ? "Este tipo de documento é controlado por profissional -- cada profissional tem uma linha própria nesta unidade."
+                    : "Este tipo de documento tem um item por identificador (ex.: cada equipamento) -- cada um tem uma linha própria nesta unidade."}
                 </p>
               </div>
             )}
