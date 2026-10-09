@@ -14,6 +14,7 @@ vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/plataforma");
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -70,6 +71,16 @@ const TIPO_DOSIMETRIA: TipoDocumentoRegulatorio = {
   permite_multiplas_instancias: false,
   ativo: true,
   created_at: "2026-01-01T00:00:00Z",
+};
+
+const TIPO_EQUIPAMENTO: TipoDocumentoRegulatorio = {
+  ...TIPO_DOSIMETRIA,
+  id: 11,
+  codigo: "calibracao-equipamentos",
+  nome: "Calibração de Equipamentos",
+  categoria: "equipamentos",
+  controlado_por_profissional: false,
+  permite_multiplas_instancias: true,
 };
 
 const USUARIO_CANDIDATO: Usuario = {
@@ -1542,6 +1553,99 @@ describe("FormCadastrarDocumento (STC-415)", () => {
         );
       });
     });
+  });
+});
+
+describe("FormCadastrarDocumento -- tipo com múltiplas instâncias (STC-704)", () => {
+  async function escolherEquipamento(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText(/tipo de documento/i));
+    await user.click(
+      await screen.findByRole("option", { name: "Calibração de Equipamentos" }),
+    );
+  }
+
+  async function preencherResto(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByLabelText(/status inicial/i));
+    await user.click(await screen.findByRole("option", { name: "Em andamento" }));
+    await user.clear(screen.getByLabelText(/início dos alertas/i));
+    await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");
+    await selecionarResponsavel(user);
+  }
+
+  beforeEach(() => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO, TIPO_EQUIPAMENTO]);
+  });
+
+  it("mostra o campo Identificador, obrigatório e exibido em maiúsculas", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await escolherEquipamento(user);
+
+    const campo = screen.getByLabelText(/identificador/i);
+    expect(campo).toHaveClass("uppercase");
+    expect(screen.queryByLabelText(/profissional/i)).not.toBeInTheDocument();
+  });
+
+  it("sem identificador não cadastra", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await escolherEquipamento(user);
+    await preencherResto(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar documento/i }));
+
+    expect(await screen.findByText("Obrigatório para este tipo de documento.")).toBeInTheDocument();
+    expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("segundo item do mesmo tipo na unidade: tipo continua disponível e envia o identificador normalizado", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documentoCriado({ tipo_documento: TIPO_EQUIPAMENTO, profissional: "BALANÇA 01" }),
+    ]);
+    vi.mocked(criarRegraDocumento).mockResolvedValue({ id: 77 } as never);
+    vi.mocked(criarDocumentoLegalizacao).mockResolvedValue(
+      documentoCriado({ tipo_documento: TIPO_EQUIPAMENTO, profissional: "BALANÇA 02" }),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await escolherEquipamento(user);
+    await user.type(screen.getByLabelText(/identificador/i), "  balança   02 ");
+    await preencherResto(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar documento/i }));
+
+    await waitFor(() => {
+      expect(criarDocumentoLegalizacao).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo_documento: TIPO_EQUIPAMENTO.id,
+          profissional: "BALANÇA 02",
+        }),
+      );
+    });
+  });
+
+  it("identificador já cadastrado na unidade (outra grafia) é barrado", async () => {
+    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([
+      documentoCriado({ tipo_documento: TIPO_EQUIPAMENTO, profissional: "BALANÇA 01" }),
+    ]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await escolherEquipamento(user);
+    await user.type(screen.getByLabelText(/identificador/i), "balança 01");
+    await preencherResto(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar documento/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Já existe um documento deste tipo e unidade para este identificador.",
+      );
+    });
+    expect(criarRegraDocumento).not.toHaveBeenCalled();
+    expect(criarDocumentoLegalizacao).not.toHaveBeenCalled();
   });
 });
 
