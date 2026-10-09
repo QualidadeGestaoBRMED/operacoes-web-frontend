@@ -10,6 +10,8 @@ import {
   LEGENDA_BUCKET_CELULA,
   ORDEM_LEGENDA_BUCKET,
   celulaDaGrade,
+  situacaoNaUrl,
+  type BucketCelula,
   type GradeMapa,
 } from "@/lib/legalizacaoMapa";
 import { cn } from "@/lib/utils";
@@ -67,8 +69,13 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
   function hrefListaFiltrada(
     unidadeId: number,
     categoria: CategoriaDocumento,
+    bucket: BucketCelula,
   ): string {
-    return `/modulos/legalizacao?unidade=${unidadeId}&categoria=${categoria}`;
+    const situacao = situacaoNaUrl(bucket);
+    return (
+      `/modulos/legalizacao?unidade=${unidadeId}&categoria=${categoria}` +
+      (situacao ? `&situacao=${situacao}` : "")
+    );
   }
 
   return (
@@ -194,7 +201,7 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                     return (
                       <Link
                         key={categoria}
-                        href={hrefListaFiltrada(unidade.id, categoria)}
+                        href={hrefListaFiltrada(unidade.id, categoria, celula.bucket)}
                         aria-label={aria}
                         className={cn(
                           "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md text-white outline-none transition-transform",

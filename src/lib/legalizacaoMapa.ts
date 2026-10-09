@@ -1,5 +1,9 @@
 import { ORDEM_CATEGORIA, prazoDocumento } from "./legalizacaoMatriz";
-import type { CategoriaDocumento, DocumentoUnidade } from "@/types/legalizacao";
+import type {
+  CategoriaDocumento,
+  DocumentoUnidade,
+  StatusDocumento,
+} from "@/types/legalizacao";
 import type { Unidade } from "@/types";
 
 // Bucket visual de UMA célula do heatmap (unidade × categoria) -- diferente
@@ -93,7 +97,7 @@ function chaveCelula(unidadeId: number, categoria: CategoriaDocumento): string {
 // já usada na Lista. "protocolado" (status real) entra no mesmo bucket
 // visual "atenção" do mockup -- os dois representam "precisa de ação em
 // breve", só com origem diferente (data vs. status).
-function estaEmAtencao(documento: DocumentoUnidade): boolean {
+export function estaEmAtencao(documento: DocumentoUnidade): boolean {
   return (
     documento.status === "protocolado" ||
     prazoDocumento(documento).urgencia === "proximo"
@@ -141,6 +145,38 @@ function calcularCelula(documentos: DocumentoUnidade[]): CelulaMapa {
     return { bucket: "encerramento", contagem: encerramento };
 
   return { bucket: "regular", contagem: documentos.length };
+}
+
+// STC-714: clicar numa célula leva à Lista filtrada pelo que ela mostra
+// (`?situacao=<bucket>`). Os buckets que são um status real viram o filtro
+// Status; "atenção" (status OU prazo) vira o filtro próprio da Lista, com a
+// mesma regra de estaEmAtencao. "regular" não filtra: todos os documentos da
+// célula estão em dia. "pendente" não tem link (célula sem documento).
+const STATUS_DA_SITUACAO: Partial<Record<BucketCelula, StatusDocumento>> = {
+  vencido: "vencido",
+  andamento: "em_andamento",
+  nao_iniciado: "nao_iniciado",
+  encerramento: "unidade_encerramento",
+};
+
+export const SITUACAO_ATENCAO = "atencao";
+
+export function situacaoNaUrl(bucket: BucketCelula): string | null {
+  return bucket === SITUACAO_ATENCAO || Object.hasOwn(STATUS_DA_SITUACAO, bucket)
+    ? bucket
+    : null;
+}
+
+// Valor da URL editável à mão: só os valores conhecidos viram filtro.
+export function filtroDaSituacao(valor: string | null): {
+  status?: StatusDocumento;
+  emAtencao: boolean;
+} {
+  if (valor === SITUACAO_ATENCAO) return { emAtencao: true };
+  if (valor && Object.hasOwn(STATUS_DA_SITUACAO, valor)) {
+    return { status: STATUS_DA_SITUACAO[valor as BucketCelula], emAtencao: false };
+  }
+  return { emAtencao: false };
 }
 
 function agruparPorCelula(

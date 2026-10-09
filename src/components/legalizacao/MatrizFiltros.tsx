@@ -29,6 +29,7 @@ import {
   ORDEM_CATEGORIA,
   ORDEM_STATUS,
 } from "@/lib/legalizacaoMatriz";
+import { SITUACAO_ATENCAO } from "@/lib/legalizacaoMapa";
 import { nomeExibicao } from "@/lib/utils";
 import type {
   CategoriaDocumento,
@@ -47,6 +48,12 @@ interface MatrizFiltrosProps {
   // pra API, com seu próprio par de props em vez de entrar em onMudarFiltros.
   categoria: CategoriaDocumento | undefined;
   onMudarCategoria: (categoria: CategoriaDocumento | undefined) => void;
+  // STC-714: "Atenção (a vencer ou protocolado)" no seletor de Status. Não é
+  // um status do backend (junta Protocolado com prazo próximo), então é
+  // filtro só-client, como categoria; quando ativo, `filtros.status` fica
+  // vazio.
+  emAtencao: boolean;
+  onMudarEmAtencao: (emAtencao: boolean) => void;
   // Opcional -- achado no code review: "Limpar filtros" só resetava o
   // estado em memória, nunca a URL (unidade/categoria chegam aqui via
   // querystring, ver comentário em MatrizConformidade.tsx). O rótulo
@@ -63,6 +70,8 @@ export function MatrizFiltros({
   onMudarBusca,
   categoria,
   onMudarCategoria,
+  emAtencao,
+  onMudarEmAtencao,
   onLimparUrl,
 }: MatrizFiltrosProps) {
   const { user, isCoordenacaoUnidade } = useAuth();
@@ -123,6 +132,7 @@ export function MatrizFiltros({
     filtros.responsavel,
     filtros.prazo_ate,
     categoria,
+    emAtencao,
   ].filter(Boolean).length;
   const temFiltrosAtivos = contagemFiltrosSelect > 0 || Boolean(busca);
 
@@ -130,6 +140,7 @@ export function MatrizFiltros({
     onMudarBusca("");
     onMudarFiltros({});
     onMudarCategoria(undefined);
+    onMudarEmAtencao(false);
     onLimparUrl?.();
   }
 
@@ -248,14 +259,18 @@ export function MatrizFiltros({
         </Select>
 
         <Select
-          value={filtros.status ?? "todos"}
-          onValueChange={(valor) =>
+          value={emAtencao ? SITUACAO_ATENCAO : (filtros.status ?? "todos")}
+          onValueChange={(valor) => {
+            const atencao = valor === SITUACAO_ATENCAO;
+            onMudarEmAtencao(atencao);
             onMudarFiltros({
               ...filtros,
               status:
-                valor === "todos" ? undefined : (valor as StatusDocumento),
-            })
-          }
+                valor === "todos" || atencao
+                  ? undefined
+                  : (valor as StatusDocumento),
+            });
+          }}
         >
           <SelectTrigger
             size="sm"
@@ -266,6 +281,9 @@ export function MatrizFiltros({
           </SelectTrigger>
           <SelectContent position="popper">
             <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value={SITUACAO_ATENCAO}>
+              Atenção (a vencer ou protocolado)
+            </SelectItem>
             {ORDEM_STATUS.map((status) => (
               <SelectItem key={status} value={status}>
                 {LABEL_STATUS[status]}
