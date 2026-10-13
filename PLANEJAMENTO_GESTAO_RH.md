@@ -8,7 +8,7 @@
 
 > **Visual: as telas reais do Atlas mandam, não os mockups.** Os mockups definem conteúdo e regras de cada tela; o desenho segue o que já existe no produto: seções empilhadas na largura toda com título, descrição e separador (Administração: Usuários, Catálogo de Legalização), abas sublinhadas (detalhe do documento da Legalização), tabelas com borda e cabeçalho cinza em maiúsculas, ação principal à direita.
 
-> **A fonte dos dados de ponto ainda não está definida** (API do VR Pontomais x planilha/RPA). Ela afeta só a importação e o absenteísmo. Férias e parâmetros independem dela.
+> **Fonte dos dados de ponto: RPA (07/10/2026).** Um robô no servidor físico baixa 3 relatórios do VR Pontomais (Jornada, Abonos, Pendências) e os envia à rota de importação; o upload manual pela aba Importação é a contingência. O frontend não fala com o robô: só mostra a origem de cada lote (manual ou robô).
 
 > **Férias desligada nesta fase** (STC-687): o módulo mostra só o absenteísmo. A chave é `FERIAS_ATIVA` em `src/config/gestaoRH.ts` (`false`). Desligada: Gestão RH é link direto para o Painel de Absenteísmo (sem submenu); `/modulos/gestao-rh/ferias` redireciona para ele, levando o `?colaborador=` dos links antigos do Kanban; o modal mostra só o absenteísmo, sem abas; os Parâmetros ficam com a aba "Absenteísmo", sem a régua de férias. O código de férias segue no repositório e os testes dele rodam com a chave ligada (`vi.mock("@/config/gestaoRH")`); `FeriasDesligada.test.tsx` cobre a chave desligada. Religar: `true` aqui e reativar a agenda da varredura de férias no backend (STC-686).
 
@@ -17,10 +17,16 @@
 | Issue | Pacote | Situação |
 | --- | --- | --- |
 | STC-597 Seção Parâmetros de Gestão RH (aba Absenteísmo e férias, Importação desligada) | P5.4 | ✅ Mergeada |
-| STC-599 Base do módulo (menu, casca do modal, tipos e hooks de férias), Painel de Férias e aba Férias do modal | P5.1/P5.2/P5.3/P5.5 | 🔄 Construída, em revisão |
-| STC-596 Painel de Absenteísmo, sobre o contrato da STC-588 com dados de exemplo locais | P5.1 | 🔄 Construída, em revisão |
-| STC-598 Aba Absenteísmo do modal, com registro de tratamento, sobre o contrato da STC-592 | P5.3/P5.5 | 🔄 Construída, em revisão |
-| STC-595 Ligar a aba Importação | P5.4 | ⛔ Depende da definição da fonte (STC-587) |
+| STC-599 Base do módulo (menu, casca do modal, tipos e hooks de férias), Painel de Férias e aba Férias do modal | P5.1/P5.2/P5.3/P5.5 | ✅ Mergeada |
+| STC-596 Painel de Absenteísmo, sobre o contrato da STC-588 com dados de exemplo locais | P5.1 | ✅ Mergeada |
+| STC-598 Aba Absenteísmo do modal, com registro de tratamento, sobre o contrato da STC-592 | P5.3/P5.5 | ✅ Mergeada |
+| STC-679 Aviso "Acionar o RH até" no formulário de programar férias | P5.3 | ✅ Mergeada |
+| STC-601 Testes e verificação visual do módulo | P6 | ✅ Concluída |
+| STC-684 Modal e tabelas dos painéis no celular | P5.1/P5.3 | ✅ Mergeada |
+| STC-687 Férias escondida por `FERIAS_ATIVA` | P5 | ✅ Mergeada |
+| STC-595 Aba Importação: 3 relatórios, um arquivo cada | P5.4 | ⏳ Destravada (rodada RPA), depende da STC-587 |
+| Aba Equipes nos Parâmetros (categoria, unidade, responsável por categoria) | P5.4 | ⏳ Nova (rodada RPA) |
+| Painel e modal com equipes sem unidade (filtro de categoria) | P5.1/P5.3 | ⏳ Nova (rodada RPA), depende da STC-588 |
 
 ---
 
@@ -102,7 +108,8 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 - Abre filtrando "Crítica e atenção" (como no mockup), já na primeira busca; escolher outra opção, inclusive "Todas", vale até sair da tela. Sem faixas cadastradas a API ignora o filtro (contrato da STC-588): a tela esconde os cards, o filtro e o selo de faixa, mas continua enviando o filtro (trocá-lo custaria uma busca a mais com o mesmo resultado). Troca de filtro esmaece cards e tabela até a resposta chegar, nos dois painéis (mesmo sinal do Kanban). Sem meta, o card não mostra meta ("no período selecionado"). Percentual com "provisório · N pendências"; sem dia previsto no período, traço em dias, percentual e conformidade.
 - Período no mesmo formato do filtro de data da Matriz (rótulos e datas numa borda só).
 - Coluna "Ocorrências" em texto ("2 faltas · 1 atestado" / "1 atraso · 1 saída antecipada >15min") no lugar das colunas "Faltas · Atestados" e "Atrasos · Saídas" do mockup: os pares de números não diziam qual era qual. Afastamentos e ausências ficam na aba do modal.
-- Linha clicável abre o modal do colaborador (`?colaborador=`); até a aba Absenteísmo existir (STC-598), abre em Férias.
+- Linha clicável abre o modal do colaborador (`?colaborador=`).
+- **Equipes sem unidade (rodada RPA):** TMO e Campanha não têm unidade do Atlas. O contrato da STC-588 passa a trazer a categoria e a equipe do VR, com `unidade` nula; a tela ganha o filtro de categoria (Unidades · TMO · Campanhas · Todos) e mostra a equipe no lugar da unidade quando não houver.
 - **Dados de exemplo locais**: `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1` no `.env.local` faz `buscarPainelAbsenteismo` devolver `lib/gestaoRHAbsenteismoExemplo.ts` (ids dos colaboradores fictícios do banco local). A condição também exige `NODE_ENV !== "production"`: no build de produção o ramo some e o módulo de exemplo não entra no pacote, mesmo com a variável ligada (conferido no build).
 
 ### P5.2 Painel de Férias — `mockup_painel_ferias_gestao_rh.html`
@@ -133,8 +140,9 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
   - régua de férias: "completou o período" só com liga/desliga; "antes do limite" e "antes do início (substituição)" com dias e liga/desliga; "limite vencido" não aparece; erro da API na linha do marco;
   - "Cancelar" e "Salvar" de cada seção desabilitados até haver alteração; recarregar a versão vigente não apaga uma edição em andamento;
   - **janela de avaliação não aparece**: entra junto com a STC-592.
-- Aba **Importação** (abre normalmente, tudo desligado, sem chamar a API, aviso "A importação será ativada quando a fonte dos dados for definida"): período, cartões dos **2 relatórios usados hoje** (espelho de ponto e pendências, em XLS; o espelho sai um centro de custo por vez, as pendências ainda a confirmar), cada um aceitando vários arquivos; histórico de lotes vazio.
-- **STC-595**: ativa a aba Importação, liga à API (STC-587) e ajusta à fonte definida (validação de layout por arquivo, ou sincronização no lugar do upload se for API).
+- Aba **Importação** (hoje desligada, sem chamar a API, com o aviso "A importação será ativada quando a fonte dos dados for definida").
+- **STC-595 (rodada RPA):** ativa a aba e liga à API (STC-587): período (padrão dia 1 do mês anterior até ontem), **três cartões (Jornada, Abonos, Pendências), um arquivo cada, com todas as equipes**, XLSX; recusa de layout com a coluna faltante; histórico de lotes com a origem (manual ou robô), linhas rejeitadas ("N · ver") e equipes novas sem categoria. É a contingência do robô.
+- **Aba Equipes (rodada RPA):** as equipes do VR com categoria (Unidade, TMO, Campanha, Fora do indicador) e unidade do Atlas editáveis, destaque para as "Sem categoria"; responsável por categoria (TMO, Campanha) na aba de parâmetros.
 
 ### P5.5 Abertura pelo card do Kanban
 
@@ -147,7 +155,8 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 **Datas:** 19–20/10 · 2 dias úteis
 
 - Já cobertos (STC-597): seção só para Admin, faixas as duas ou nenhuma, estado sem faixas, limite vazio, "completou o período" sem dias, "limite vencido" ausente, versão inicial, botões só com alteração, erro da API no campo e na linha do marco, edição preservada ao recarregar, aba Importação desligada.
-- A fazer: coluna de faixa escondida sem critérios, "provisório", ações de férias conforme `pode_*`, justificativa obrigatória, abertura por querystring na aba e período certos.
+- Já cobertos também (STC-596/598/599/601): faixa escondida sem critérios, "provisório", ações de férias, justificativa obrigatória, abertura por querystring.
+- A fazer (rodada RPA): aba Importação com os 3 relatórios, aba Equipes, filtro de categoria e unidade nula.
 - `tsc`, lint e testes limpos; conferência visual contra as telas reais do Atlas.
 
 ## Pacote P7 — Go-Live
@@ -156,6 +165,6 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 ## Fast-follow (pós Go-Live, sem prazo definido)
 
-- Fase 2 da importação (API do VR Pontomais): a aba Importação passa a mostrar a sincronização automática e deixa o upload manual como contingência.
+- Gestão de férias inteira (telas prontas atrás de `FERIAS_ATIVA`), quando a fonte de férias for definida.
 - Férias divididas em partes, se a Gestão de RH confirmar (pergunta 10).
 - Modo responsivo dos painéis (mesmo desenho decidido para o Mapa de Conformidade).
