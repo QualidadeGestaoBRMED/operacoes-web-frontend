@@ -7,6 +7,7 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   textoOcorrencias,
+  unidadeOuEquipe,
   type CampoOrdenavelAbsenteismo,
   type OrdenacaoAbsenteismo,
 } from "@/lib/gestaoRHAbsenteismo";
@@ -235,7 +236,9 @@ export function TabelaAbsenteismo({
                         </div>
                       </div>
                     </td>
-                    <td className="truncate px-3 py-2.5 text-[13px]">{linha.colaborador.unidade.nome}</td>
+                    <td className="truncate px-3 py-2.5 text-[13px]" title={linha.equipe}>
+                      {unidadeOuEquipe(linha)}
+                    </td>
                     <CelulaAbsenteismo linha={linha} />
                     <td className="truncate px-3 py-2.5 text-[12.5px] tabular-nums">
                       {/* Sem dia previsto (afastado o período todo, admitido depois):

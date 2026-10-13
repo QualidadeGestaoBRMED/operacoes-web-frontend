@@ -200,7 +200,7 @@ export function TabelaFerias({
                       </div>
                     </td>
                     <td className="truncate px-3 py-2.5 text-[13px]">
-                      {linha.colaborador.unidade.nome}
+                      {linha.colaborador.unidade?.nome ?? "Sem unidade"}
                     </td>
                     <td className="px-3 py-2.5 text-[12.5px] tabular-nums">
                       <div className="truncate">

@@ -90,7 +90,7 @@ describe("dados de exemplo seguem o contrato da STC-588", () => {
     expect(soCritica.cards).toEqual(todos.cards);
 
     const niteroi = painelAbsenteismoDeExemplo({ ...periodo, unidade: 1 });
-    expect(niteroi.linhas.every((linha) => linha.colaborador.unidade.id === 1)).toBe(true);
+    expect(niteroi.linhas.every((linha) => linha.colaborador.unidade?.id === 1)).toBe(true);
     expect(niteroi.cards.colaboradores).toBe(niteroi.linhas.length);
 
     const comPendencias = painelAbsenteismoDeExemplo({ ...periodo, com_pendencias: true });

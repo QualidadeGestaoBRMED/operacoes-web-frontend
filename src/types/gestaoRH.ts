@@ -127,7 +127,8 @@ export interface ColaboradorResumoRH {
   nome: string;
   matricula_vr: string;
   cargo: string;
-  unidade: UnidadeResumoRH;
+  /** Nula para equipes sem unidade do Atlas (TMO, Campanha). */
+  unidade: UnidadeResumoRH | null;
 }
 
 export interface ProgramacaoFerias {
@@ -196,6 +197,9 @@ export interface FiltrosPainelFerias {
 }
 
 export interface CabecalhoColaborador extends ColaboradorResumoRH {
+  /** Equipe do VR; nula enquanto o colaborador não tiver equipe. */
+  equipe?: string | null;
+  categoria?: CategoriaEquipeVR | null;
   data_admissao: string | null;
   ativo: boolean;
   alertas_pendentes: { ferias: number; absenteismo: number };
@@ -281,10 +285,14 @@ export type OcorrenciaFiltro =
   | "atraso"
   | "saida_antecipada";
 
+/** Categorias que entram no indicador (as outras ficam fora do Painel). */
+export type CategoriaPainelAbsenteismo = "unidade" | "tmo" | "campanha";
+
 export interface FiltrosPainelAbsenteismo {
   inicio: string;
   fim: string;
   unidade?: number;
+  categoria?: CategoriaPainelAbsenteismo;
   faixa?: FaixaAbsenteismo[];
   ocorrencia?: OcorrenciaFiltro[];
   com_pendencias?: boolean;
@@ -292,6 +300,9 @@ export interface FiltrosPainelAbsenteismo {
 
 export interface LinhaPainelAbsenteismo {
   colaborador: ColaboradorResumoRH;
+  /** Equipe do VR, mostrada no lugar da unidade quando não houver. */
+  equipe: string;
+  categoria: CategoriaPainelAbsenteismo;
   percentual: string | null;
   faixa: FaixaAbsenteismo | null;
   provisorio: boolean;
@@ -319,6 +330,8 @@ export interface CardsAbsenteismo {
   colaboradores: number;
   unidades: number;
   ultima_importacao: string | null;
+  /** Mesma regra do aviso aos Admins: nenhum lote concluído desde ontem. */
+  importacao_parada: boolean;
   dados_ate: string | null;
 }
 

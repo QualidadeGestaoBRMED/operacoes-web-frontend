@@ -112,7 +112,7 @@ export type OrdenacaoFerias = Ordenacao<CampoOrdenavelFerias>;
 // qualquer próximo marco; sem marco nenhum, vai para o fim.
 const CHAVES_FERIAS = {
   colaborador: (linha: LinhaPainelFerias) => linha.colaborador.nome,
-  unidade: (linha: LinhaPainelFerias) => linha.colaborador.unidade.nome,
+  unidade: (linha: LinhaPainelFerias) => linha.colaborador.unidade?.nome ?? "",
   periodo: (linha: LinhaPainelFerias) => linha.periodo.inicio_aquisitivo,
   limite: (linha: LinhaPainelFerias) => linha.periodo.limite_concessivo,
   proximo_marco: (linha: LinhaPainelFerias) =>
