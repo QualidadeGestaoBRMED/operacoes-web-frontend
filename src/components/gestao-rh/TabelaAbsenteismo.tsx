@@ -238,7 +238,7 @@ export function TabelaAbsenteismo({
                     </td>
                     {/* Nome da equipe do VR é longo ("CAMPANHA - OCUPACIONAL ..."):
                         quebra em até 2 linhas em vez de cortar no começo. */}
-                    <td className="px-3 py-2.5 text-[13px]" title={linha.equipe}>
+                    <td className="px-3 py-2.5 text-[13px]" title={unidadeOuEquipe(linha)}>
                       <span className="line-clamp-2 break-words">{unidadeOuEquipe(linha)}</span>
                     </td>
                     <CelulaAbsenteismo linha={linha} />

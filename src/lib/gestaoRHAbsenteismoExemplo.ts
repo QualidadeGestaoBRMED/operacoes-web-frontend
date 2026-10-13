@@ -107,7 +107,11 @@ const OCORRENCIA_NA_LINHA = {
   saida_antecipada: (l: LinhaPainelAbsenteismo) => l.saidas_acima_do_limite > 0,
 };
 
-/** Aplica os filtros como a API vai aplicar: unidade nos cards e nas linhas, o resto só nas linhas. */
+/**
+ * Aplica os filtros como a API: unidade nos cards e nas linhas, o resto só
+ * nas linhas. A categoria não é aplicada: os dados de exemplo são todos de
+ * equipes com unidade.
+ */
 export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): PainelAbsenteismo {
   const daUnidade = LINHAS.filter(
     (l) => filtros.unidade === undefined || l.colaborador.unidade?.id === filtros.unidade,
