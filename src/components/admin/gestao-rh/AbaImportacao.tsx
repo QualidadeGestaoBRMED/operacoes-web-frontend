@@ -222,6 +222,7 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
               type="date"
               value={periodo.inicio}
               onChange={(evento) => mudarPeriodo("inicio", evento.target.value)}
+              disabled={enviando}
               aria-invalid={!!erros.periodo_inicio}
               aria-describedby={erros.periodo_inicio ? "imp-inicio-erro" : undefined}
             />
@@ -234,6 +235,7 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
               type="date"
               value={periodo.fim}
               onChange={(evento) => mudarPeriodo("fim", evento.target.value)}
+              disabled={enviando}
               aria-invalid={!!erros.periodo_fim}
               aria-describedby={erros.periodo_fim ? "imp-fim-erro" : undefined}
             />
@@ -263,8 +265,6 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
                   type="file"
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   aria-label={`Arquivo de ${rotulo}`}
-                  aria-invalid={!!erros[valor]}
-                  aria-describedby={erros[valor] ? idErro : undefined}
                   className="sr-only"
                   tabIndex={-1}
                   onChange={(evento) => escolherArquivo(valor, evento.target.files?.[0])}
@@ -299,6 +299,10 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
                   size="sm"
                   className="mt-auto w-full"
                   disabled={enviando}
+                  // O campo de arquivo fica escondido e sem foco: quem
+                  // recebe o foco, e o erro, é o botão.
+                  aria-invalid={!!erros[valor]}
+                  aria-describedby={erros[valor] ? idErro : undefined}
                   onClick={() => entradas.current[valor]?.click()}
                 >
                   <Upload aria-hidden className="size-3.5" />
@@ -367,7 +371,6 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
                       key={lote.id}
                       lote={lote}
                       aoVerRejeitadas={() => verRejeitadas(lote)}
-                      aoIrParaEquipes={aoIrParaEquipes}
                     />
                   ))
                 )}
@@ -433,7 +436,7 @@ function ResultadoImportacao({ lote, aoVerRejeitadas, aoIrParaEquipes }: PropsDo
   );
 }
 
-function LinhaHistorico({ lote, aoVerRejeitadas, aoIrParaEquipes }: PropsDoLote) {
+function LinhaHistorico({ lote, aoVerRejeitadas }: Omit<PropsDoLote, "aoIrParaEquipes">) {
   const situacao = SITUACAO[lote.status];
   return (
     <tr className="border-b border-border align-top last:border-b-0">
@@ -462,9 +465,13 @@ function LinhaHistorico({ lote, aoVerRejeitadas, aoIrParaEquipes }: PropsDoLote)
         {lote.status === "recusada" && lote.motivo_recusa && (
           <p className="text-xs text-muted-foreground">{lote.motivo_recusa}</p>
         )}
+        {/* O lote não sabe se as equipes dele já foram classificadas: aqui
+            só a quantidade; "sem categoria" fica no resultado do envio. */}
         {lote.equipes_novas.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            <AvisoEquipesNovas quantidade={lote.equipes_novas.length} aoIrParaEquipes={aoIrParaEquipes} />
+            {lote.equipes_novas.length === 1
+              ? "1 equipe nova neste lote"
+              : `${lote.equipes_novas.length} equipes novas neste lote`}
           </p>
         )}
       </td>
