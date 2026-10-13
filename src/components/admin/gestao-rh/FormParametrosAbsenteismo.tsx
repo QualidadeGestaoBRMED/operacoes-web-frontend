@@ -103,12 +103,8 @@ const RESPONSAVEIS: {
   rotulo: string;
   id: string;
 }[] = [
-  { campo: "responsavel_tmo", rotulo: "Responsável pelas equipes de TMO", id: "pa-resp-tmo" },
-  {
-    campo: "responsavel_campanha",
-    rotulo: "Responsável pelas equipes de Campanha",
-    id: "pa-resp-campanha",
-  },
+  { campo: "responsavel_tmo", rotulo: "TMO", id: "pa-resp-tmo" },
+  { campo: "responsavel_campanha", rotulo: "Campanha", id: "pa-resp-campanha" },
 ];
 
 // Tipos sempre na ordem da tela: o react-hook-form compara listas por
@@ -289,7 +285,7 @@ export function FormParametrosAbsenteismo() {
         )}
 
         <fieldset
-          className="space-y-2"
+          className="space-y-2 border-t border-border pt-5"
           aria-invalid={!!errors.tipos_computados}
           aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
         >
@@ -328,7 +324,7 @@ export function FormParametrosAbsenteismo() {
           <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
         </fieldset>
 
-        <fieldset className="space-y-2">
+        <fieldset className="space-y-2 border-t border-border pt-5">
           <legend className="text-sm font-medium text-foreground">
             Responsáveis pelas equipes sem unidade
           </legend>
@@ -336,7 +332,7 @@ export function FormParametrosAbsenteismo() {
             TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
             equipes vão para quem estiver aqui.
           </p>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
             {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
               const erro = errors[campo]?.message;
               return (
@@ -391,7 +387,7 @@ export function FormParametrosAbsenteismo() {
           </div>
         </fieldset>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 border-t border-border pt-5">
           <Button
             type="button"
             variant="outline"
