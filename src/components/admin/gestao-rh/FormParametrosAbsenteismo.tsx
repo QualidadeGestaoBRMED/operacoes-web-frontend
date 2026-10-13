@@ -284,108 +284,114 @@ export function FormParametrosAbsenteismo() {
           )
         )}
 
-        <fieldset
-          className="space-y-2 border-t border-border pt-5"
-          aria-invalid={!!errors.tipos_computados}
-          aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
-        >
-          <legend className="text-sm font-medium text-foreground">
-            Tipos de ocorrência que contam no absenteísmo
-          </legend>
-          <Controller
-            control={control}
-            name="tipos_computados"
-            render={({ field }) => (
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {TIPOS_OCORRENCIA_COMPUTAVEIS.map((tipo) => {
-                  const marcado = field.value?.includes(tipo) ?? false;
-                  return (
-                    <label key={tipo} className="flex items-center gap-2 text-sm text-foreground">
-                      <Checkbox
-                        checked={marcado}
-                        onCheckedChange={(valor) =>
-                          field.onChange(
-                            naOrdemDaTela(
-                              valor === true
-                                ? [...(field.value ?? []), tipo]
-                                : (field.value ?? []).filter((item) => item !== tipo),
-                            ),
-                          )
-                        }
-                      />
-                      {ROTULO_TIPO_OCORRENCIA[tipo]}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          />
-          <p className="text-xs text-muted-foreground">Férias e banco de horas nunca contam.</p>
-          <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
-        </fieldset>
-
-        <fieldset className="space-y-2 border-t border-border pt-5">
-          <legend className="text-sm font-medium text-foreground">
-            Responsáveis pelas equipes sem unidade
-          </legend>
-          <p className="text-xs text-muted-foreground">
-            TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
-            equipes vão para quem estiver aqui.
-          </p>
-          <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
-            {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
-              const erro = errors[campo]?.message;
-              return (
-                <div key={campo} className="space-y-1.5">
-                  <Label htmlFor={id}>{rotulo}</Label>
-                  <Controller
-                    control={control}
-                    name={campo}
-                    render={({ field }) => {
-                      const atual = vigente[campo];
-                      // O responsável atual entra na lista mesmo se não vier
-                      // mais nela (ex.: perdeu o perfil), para o campo não
-                      // aparecer vazio.
-                      const opcoes = usuarios.filter((usuario) => usuario.perfil);
-                      const faltaAtual = atual && !opcoes.some((u) => u.id === atual.id);
-                      return (
-                        <Select
-                          value={field.value}
-                          // O Radix chama com "" ao montar dentro de um
-                          // <form>; sem ignorar, o formulário já abriria
-                          // como alterado.
-                          onValueChange={(valor) => valor && field.onChange(valor)}
-                        >
-                          <SelectTrigger
-                            id={id}
-                            aria-invalid={!!erro}
-                            aria-describedby={erro ? `${id}-erro` : undefined}
-                            className="w-full"
-                          >
-                            <SelectValue placeholder="Sem responsável" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={SEM_RESPONSAVEL}>Sem responsável</SelectItem>
-                            {faltaAtual && (
-                              <SelectItem value={String(atual.id)}>{atual.nome}</SelectItem>
-                            )}
-                            {opcoes.map((usuario) => (
-                              <SelectItem key={usuario.id} value={String(usuario.id)}>
-                                {[usuario.first_name, usuario.last_name].join(" ").trim() ||
-                                  usuario.username}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    }}
-                  />
-                  <MensagemErro id={`${id}-erro`} texto={erro} />
+        {/* A linha fica fora do fieldset: nele, o navegador desenha a legenda
+            em cima da borda. */}
+        <div className="border-t border-border pt-5">
+          <fieldset
+            className="space-y-2"
+            aria-invalid={!!errors.tipos_computados}
+            aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
+          >
+            <legend className="text-sm font-medium text-foreground">
+              Tipos de ocorrência que contam no absenteísmo
+            </legend>
+            <Controller
+              control={control}
+              name="tipos_computados"
+              render={({ field }) => (
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {TIPOS_OCORRENCIA_COMPUTAVEIS.map((tipo) => {
+                    const marcado = field.value?.includes(tipo) ?? false;
+                    return (
+                      <label key={tipo} className="flex items-center gap-2 text-sm text-foreground">
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={(valor) =>
+                            field.onChange(
+                              naOrdemDaTela(
+                                valor === true
+                                  ? [...(field.value ?? []), tipo]
+                                  : (field.value ?? []).filter((item) => item !== tipo),
+                              ),
+                            )
+                          }
+                        />
+                        {ROTULO_TIPO_OCORRENCIA[tipo]}
+                      </label>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-        </fieldset>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">Férias e banco de horas nunca contam.</p>
+            <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
+          </fieldset>
+        </div>
+
+        <div className="border-t border-border pt-5">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">
+              Responsáveis pelas equipes sem unidade
+            </legend>
+            <p className="text-xs text-muted-foreground">
+              TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
+              equipes vão para quem estiver aqui.
+            </p>
+            <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
+              {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
+                const erro = errors[campo]?.message;
+                return (
+                  <div key={campo} className="space-y-1.5">
+                    <Label htmlFor={id}>{rotulo}</Label>
+                    <Controller
+                      control={control}
+                      name={campo}
+                      render={({ field }) => {
+                        const atual = vigente[campo];
+                        // O responsável atual entra na lista mesmo se não vier
+                        // mais nela (ex.: perdeu o perfil), para o campo não
+                        // aparecer vazio.
+                        const opcoes = usuarios.filter((usuario) => usuario.perfil);
+                        const faltaAtual = atual && !opcoes.some((u) => u.id === atual.id);
+                        return (
+                          <Select
+                            value={field.value}
+                            // O Radix chama com "" ao montar dentro de um
+                            // <form>; sem ignorar, o formulário já abriria
+                            // como alterado.
+                            onValueChange={(valor) => valor && field.onChange(valor)}
+                          >
+                            <SelectTrigger
+                              id={id}
+                              aria-invalid={!!erro}
+                              aria-describedby={erro ? `${id}-erro` : undefined}
+                              className="w-full"
+                            >
+                              <SelectValue placeholder="Sem responsável" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SEM_RESPONSAVEL}>Sem responsável</SelectItem>
+                              {faltaAtual && (
+                                <SelectItem value={String(atual.id)}>{atual.nome}</SelectItem>
+                              )}
+                              {opcoes.map((usuario) => (
+                                <SelectItem key={usuario.id} value={String(usuario.id)}>
+                                  {[usuario.first_name, usuario.last_name].join(" ").trim() ||
+                                    usuario.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
+                    <MensagemErro id={`${id}-erro`} texto={erro} />
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+        </div>
 
         <div className="flex justify-end gap-2 border-t border-border pt-5">
           <Button
