@@ -235,6 +235,8 @@ describe("Painel de Absenteísmo", () => {
 
     const linha = (await screen.findByRole("button", { name: primeira.colaborador.nome })).closest("tr")!;
     expect(within(linha).getByText("TMO - PETROBRAS")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Unidade \/ equipe/ })).toBeInTheDocument();
+    expect(screen.getByText(/unidades?, mais TMO e Campanhas/)).toBeInTheDocument();
   });
 
   it("faixa \"dados desatualizados\" aparece com a importação parada e some sem ela", async () => {
