@@ -175,6 +175,8 @@ beforeEach(() => {
       tipos_computados: ["falta", "atestado"],
       meta_percentual: null,
       faixas: null,
+      responsavel_tmo: null,
+      responsavel_campanha: null,
       vigente_a_partir_de: "2000-01-01",
       salvo_por: null,
       versao_inicial: true,
