@@ -70,7 +70,13 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
       <CardIndicador
         rotulo="Colaboradores"
         valor={cards.colaboradores}
-        legenda={`em ${plural(cards.unidades, "unidade", "unidades")}`}
+        // TMO e Campanha não têm unidade: "em N unidades" sozinho diria que
+        // todos os colaboradores estão nelas.
+        legenda={
+          painel.linhas.some((linha) => !linha.colaborador.unidade)
+            ? `em ${plural(cards.unidades, "unidade", "unidades")}, mais TMO e Campanhas`
+            : `em ${plural(cards.unidades, "unidade", "unidades")}`
+        }
         cor="neutro"
         Icone={Users}
       />
