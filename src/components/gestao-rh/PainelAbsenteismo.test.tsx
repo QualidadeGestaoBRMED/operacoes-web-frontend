@@ -238,7 +238,27 @@ describe("Painel de Absenteísmo", () => {
     // Sem matrícula (relatórios do VR), a linha de baixo começa pelo cargo.
     expect(within(linha).getByText(primeira.colaborador.cargo)).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /Unidade \/ equipe/ })).toBeInTheDocument();
-    expect(screen.getByText(/unidades?, mais TMO e Campanhas/)).toBeInTheDocument();
+    // Legenda neutra: os cards não dizem quantos estão sem unidade.
+    expect(screen.getByText(`${PAINEL.cards.unidades} unidades`)).toBeInTheDocument();
+    // O texto ao passar o mouse é o mesmo da célula, unidade ou equipe.
+    expect(within(linha).getByText("TMO - PETROBRAS").closest("td")).toHaveAttribute("title", "TMO - PETROBRAS");
+    const deUnidade = screen.getByRole("button", { name: resto[0].colaborador.nome }).closest("tr")!;
+    const unidade = resto[0].colaborador.unidade!.nome;
+    expect(within(deUnidade).getByText(unidade).closest("td")).toHaveAttribute("title", unidade);
+  });
+
+  it("\"Limpar filtros\" também tira a categoria", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByLabelText("Categoria"));
+    await user.click(await screen.findByRole("option", { name: "Campanhas" }));
+    await waitFor(() => expect(ultimaBusca()?.categoria).toBe("campanha"));
+
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await waitFor(() => expect(ultimaBusca()?.categoria).toBeUndefined());
+    expect(screen.getByLabelText("Categoria")).toHaveTextContent("Todas as categorias");
   });
 
   it("faixa \"dados desatualizados\" aparece com a importação parada e some sem ela", async () => {
