@@ -730,6 +730,9 @@ describe("Aba Equipes", () => {
 
     expect(await screen.findByText("Escolha a unidade da equipe.")).toBeInTheDocument();
     expect(screen.getByLabelText("Categoria de Operações Niterói")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Unidade de Operações Niterói")).toHaveAccessibleDescription(
+      "Escolha a unidade da equipe.",
+    );
   });
 
   it("gravação recusada deixa os campos com o que está salvo", async () => {
