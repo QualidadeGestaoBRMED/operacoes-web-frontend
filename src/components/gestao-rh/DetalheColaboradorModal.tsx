@@ -132,7 +132,7 @@ export function DetalheColaboradorModal({
               {/* No celular a coluna de dados some e o que só ela mostrava vem
                   para esta linha, para as abas ganharem a altura do modal. */}
               <p className="text-[12.5px] text-muted-foreground sm:hidden">
-                Matrícula {colaborador.matricula_vr} · Admissão{" "}
+                Matrícula {colaborador.matricula_vr || "não informada"} · Admissão{" "}
                 {colaborador.data_admissao
                   ? formatarDataISO(colaborador.data_admissao)
                   : "não informada"}
@@ -153,7 +153,8 @@ export function DetalheColaboradorModal({
                   <CampoMeta rotulo="Unidade">{colaborador.unidade?.nome ?? "Sem unidade"}</CampoMeta>
                 )}
                 {colaborador.cargo && <CampoMeta rotulo="Cargo">{colaborador.cargo}</CampoMeta>}
-                <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr}</CampoMeta>
+                {/* Os relatórios do VR não trazem matrícula. */}
+                <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr || "Não informada"}</CampoMeta>
                 <CampoMeta rotulo="Admissão">
                   {colaborador.data_admissao ? formatarDataISO(colaborador.data_admissao) : "Não informada"}
                 </CampoMeta>

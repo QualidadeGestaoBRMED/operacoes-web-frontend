@@ -229,9 +229,9 @@ export function TabelaAbsenteismo({
                           >
                             {linha.colaborador.nome}
                           </button>
+                          {/* Os relatórios do VR não trazem matrícula: sem ela, só o cargo. */}
                           <div className="truncate text-[11.5px] text-muted-foreground">
-                            {linha.colaborador.matricula_vr}
-                            {linha.colaborador.cargo && ` · ${linha.colaborador.cargo}`}
+                            {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
                           </div>
                         </div>
                       </div>
