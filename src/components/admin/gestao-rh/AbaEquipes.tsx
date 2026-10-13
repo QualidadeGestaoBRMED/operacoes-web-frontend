@@ -318,6 +318,7 @@ export function AbaEquipes() {
                           <SelectTrigger
                             aria-label={`Unidade de ${equipe.nome}`}
                             aria-invalid={esperando || !!erro}
+                            aria-describedby={erro ? idErro : undefined}
                             className="w-full"
                           >
                             <SelectValue placeholder="Escolha a unidade" />
