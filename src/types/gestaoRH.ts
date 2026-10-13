@@ -15,6 +15,9 @@ export interface VersaoParametrosAbsenteismo {
   tipos_computados: TipoOcorrenciaComputavel[];
   meta_percentual: string | null;
   faixas: FaixasAbsenteismo | null;
+  /** Responsável pelas demandas de absenteísmo das equipes TMO e de Campanha. */
+  responsavel_tmo: ResponsavelCategoria | null;
+  responsavel_campanha: ResponsavelCategoria | null;
   vigente_a_partir_de: string;
   salvo_por: string | null;
   versao_inicial: boolean;
@@ -26,11 +29,45 @@ export interface ParametrosAbsenteismoResposta {
   versoes: VersaoParametrosAbsenteismo[];
 }
 
+export interface ResponsavelCategoria {
+  id: number;
+  nome: string;
+}
+
 export interface NovaVersaoParametrosPayload {
   limite_atraso_minutos: number;
   meta_percentual: string | null;
   faixas: FaixasAbsenteismo | null;
   tipos_computados: TipoOcorrenciaComputavel[];
+  /** Id do usuário; null tira o responsável. Ausente mantém o atual. */
+  responsavel_tmo?: number | null;
+  responsavel_campanha?: number | null;
+}
+
+// Equipes do VR (rotas da STC-691, só Admin).
+
+export type CategoriaEquipeVR =
+  | "unidade"
+  | "tmo"
+  | "campanha"
+  | "fora_do_indicador"
+  | "sem_categoria";
+
+export interface EquipeVR {
+  id: number;
+  nome: string;
+  categoria: CategoriaEquipeVR;
+  categoria_rotulo: string;
+  unidade: { id: number; nome: string } | null;
+  colaboradores_ativos: number;
+  /** Lote em que a equipe apareceu; nulo nas da carga inicial. */
+  criada_na_importacao: number | null;
+}
+
+export interface ReclassificarEquipePayload {
+  categoria: CategoriaEquipeVR;
+  /** Obrigatória na categoria Unidade; nula nas outras. */
+  unidade: number | null;
 }
 
 export type TipoMarcoRegua =
