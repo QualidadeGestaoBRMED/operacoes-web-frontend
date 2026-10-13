@@ -168,7 +168,8 @@ describe("Parâmetros de absenteísmo", () => {
     expect(screen.getByText(/Sem faixas cadastradas/)).toBeInTheDocument();
     expect(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)")).toHaveValue(15);
     expect(screen.getByRole("checkbox", { name: "Falta" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Afastamento" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Ausência" })).not.toBeChecked();
+    expect(screen.queryByRole("checkbox", { name: "Afastamento" })).not.toBeInTheDocument();
   });
 
   it("mostra quem salvou a versão vigente", async () => {
@@ -204,7 +205,7 @@ describe("Parâmetros de absenteísmo", () => {
     await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "5");
     await user.type(screen.getByLabelText("Faixa de atenção a partir de (%)"), "5");
     await user.type(screen.getByLabelText("Faixa crítica acima de (%)"), "8");
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() =>
@@ -212,7 +213,7 @@ describe("Parâmetros de absenteísmo", () => {
         limite_atraso_minutos: 15,
         meta_percentual: "5",
         faixas: { atencao_a_partir_de: "5", critica_acima_de: "8" },
-        tipos_computados: ["falta", "atestado", "afastamento"],
+        tipos_computados: ["falta", "atestado", "ausencia"],
       }),
     );
     expect(toast.success).toHaveBeenCalled();
@@ -225,10 +226,10 @@ describe("Parâmetros de absenteísmo", () => {
     const salvar = screen.getByRole("button", { name: "Salvar nova versão" });
     expect(salvar).toBeDisabled();
 
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     expect(salvar).toBeEnabled();
 
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     expect(salvar).toBeDisabled();
   });
 
@@ -304,7 +305,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(toast.info).toHaveBeenCalled());
@@ -385,16 +386,16 @@ describe("Parâmetros de absenteísmo", () => {
   it("mostra o erro da API no campo", async () => {
     const user = userEvent.setup();
     vi.mocked(salvarParametrosAbsenteismo).mockRejectedValue(
-      erro400({ tipos_computados: ["Férias e banco de horas nunca contam no absenteísmo."] }),
+      erro400({ tipos_computados: ["Férias, afastamento e banco de horas nunca contam no absenteísmo."] }),
     );
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     expect(
-      await screen.findByText("Férias e banco de horas nunca contam no absenteísmo."),
+      await screen.findByText("Férias, afastamento e banco de horas nunca contam no absenteísmo."),
     ).toBeInTheDocument();
     expect(toast.error).not.toHaveBeenCalled();
   });
@@ -407,7 +408,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Afastamento" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Parâmetros inválidos."));
