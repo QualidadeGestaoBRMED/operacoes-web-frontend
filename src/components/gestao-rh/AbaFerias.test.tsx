@@ -227,6 +227,15 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(screen.queryByText("Unidade")).not.toBeInTheDocument();
   });
 
+  it("sem unidade e sem equipe, a coluna mostra \"Unidade: Sem unidade\"", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, unidade: null });
+    renderModal();
+
+    expect(await screen.findByText("Sem unidade")).toBeInTheDocument();
+    expect(screen.getByText("Unidade")).toBeInTheDocument();
+    expect(screen.queryByText("Equipe")).not.toBeInTheDocument();
+  });
+
   it("com mais de um período, avisa e pede o mais antigo primeiro (pagamento em dobro no vencido)", async () => {
     renderModal();
 
