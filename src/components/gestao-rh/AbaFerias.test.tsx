@@ -211,6 +211,22 @@ describe("Modal do colaborador · aba Férias", () => {
     ).toHaveClass("sm:hidden");
   });
 
+  it("sem unidade (TMO, Campanha), o cabeçalho mostra a equipe do VR", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({
+      ...COLABORADOR,
+      unidade: null,
+      equipe: "TMO - PETROBRAS",
+      categoria: "tmo",
+    });
+    renderModal();
+
+    expect(await screen.findByRole("dialog")).toHaveAccessibleDescription(
+      `${COLABORADOR.cargo} · TMO - PETROBRAS`,
+    );
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
+    expect(screen.queryByText("Unidade")).not.toBeInTheDocument();
+  });
+
   it("com mais de um período, avisa e pede o mais antigo primeiro (pagamento em dobro no vencido)", async () => {
     renderModal();
 

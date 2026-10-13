@@ -185,6 +185,10 @@ describe("Painel de Absenteísmo", () => {
     await user.click(screen.getByLabelText("Unidade"));
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
     await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
+
+    await user.click(screen.getByLabelText("Categoria"));
+    await user.click(await screen.findByRole("option", { name: "TMO" }));
+    await waitFor(() => expect(ultimaBusca()?.categoria).toBe("tmo"));
   });
 
   it("troca de filtro esmaece cards e tabela até a resposta chegar", async () => {
@@ -210,6 +214,44 @@ describe("Painel de Absenteísmo", () => {
     await screen.findByText("Juliana Ramos");
 
     expect(screen.queryByLabelText("Unidade")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Categoria")).not.toBeInTheDocument();
+  });
+
+  it("colaborador sem unidade (TMO) mostra a equipe do VR na coluna Unidade", async () => {
+    const [primeira, ...resto] = PAINEL.linhas;
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
+      ...PAINEL,
+      linhas: [
+        {
+          ...primeira,
+          colaborador: { ...primeira.colaborador, unidade: null },
+          equipe: "TMO - PETROBRAS",
+          categoria: "tmo",
+        },
+        ...resto,
+      ],
+    });
+    renderPainel();
+
+    const linha = (await screen.findByRole("button", { name: primeira.colaborador.nome })).closest("tr")!;
+    expect(within(linha).getByText("TMO - PETROBRAS")).toBeInTheDocument();
+  });
+
+  it("faixa \"dados desatualizados\" aparece com a importação parada e some sem ela", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
+      ...PAINEL,
+      cards: { ...PAINEL.cards, importacao_parada: true, ultima_importacao: "2026-10-01T20:07:31-03:00" },
+    });
+    const { unmount } = renderPainel();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Dados desatualizados: a última importação do VR Pontomais foi em 01/10/2026.",
+    );
+    unmount();
+
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(PAINEL);
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(screen.queryByText(/Dados desatualizados/)).not.toBeInTheDocument();
   });
 
   it("período com o fim antes do início não busca e avisa", async () => {
