@@ -61,7 +61,7 @@ export function useReguaFerias() {
   };
 }
 
-const CHAVE_EQUIPES = "gestao-rh-equipes-vr";
+export const CHAVE_EQUIPES = "gestao-rh-equipes-vr";
 
 // Reclassificar devolve a equipe atualizada: ela é trocada na lista em cache,
 // sem buscar a lista de novo.

@@ -26,8 +26,15 @@ vi.mock("@/lib/gestaoRH", async (original) => ({
 }));
 vi.mock("@/lib/plataforma", () => ({ listarUnidades: vi.fn(), listarUsuarios: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// A aba Importação (testada em AbaImportacao.test.tsx) busca o histórico ao montar.
+vi.mock("@/lib/gestaoRHImportacao", async (original) => ({
+  ...(await original<typeof import("@/lib/gestaoRHImportacao")>()),
+  listarImportacoes: vi.fn().mockResolvedValue([]),
+  importarRelatorios: vi.fn(),
+}));
 
 import { toast } from "sonner";
+import { importarRelatorios } from "@/lib/gestaoRHImportacao";
 import {
   buscarParametrosAbsenteismo,
   buscarReguaFerias,
@@ -500,6 +507,44 @@ describe("Régua de férias: edição desfeita", () => {
   });
 });
 
+describe("Importação → Equipes", () => {
+  it("equipes criadas pelo lote aparecem na aba Equipes pelo atalho do resultado", async () => {
+    // A aba Equipes já carregou (vazia) antes do envio; o lote cria uma equipe.
+    vi.mocked(listarEquipesVR).mockResolvedValueOnce([]).mockResolvedValue([equipe(EQUIPE_NOVA)]);
+    vi.mocked(importarRelatorios).mockResolvedValue({
+      id: 1,
+      origem: "planilha",
+      status: "concluida",
+      motivo_recusa: "",
+      periodo_inicio: "2026-09-01",
+      periodo_fim: "2026-10-12",
+      linhas_processadas: 100,
+      linhas_rejeitadas: 0,
+      obtido_em: "2026-10-13T10:00:00Z",
+      concluido_em: "2026-10-13T10:00:06Z",
+      enviado_por: "Admin",
+      equipes_novas: [{ id: 11, nome: "Equipe nova" }],
+    });
+    const user = userEvent.setup();
+    renderTela();
+    await user.click(await screen.findByRole("tab", { name: "Importação" }));
+    for (const rotulo of ["Jornada", "Abonos", "Pendências"]) {
+      await user.upload(
+        screen.getByLabelText(`Arquivo de ${rotulo}`),
+        new File(["x"], `${rotulo}.xlsx`, {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+    }
+    await user.click(screen.getByRole("button", { name: "Importar relatórios" }));
+    await user.click(await screen.findByRole("button", { name: "classificar na aba Equipes" }));
+
+    expect(screen.getByRole("tab", { name: "Equipes" })).toHaveAttribute("aria-selected", "true");
+    const tabela = await screen.findByRole("table", { name: "Equipes do VR" });
+    expect(await within(tabela).findByText("Equipe nova")).toBeInTheDocument();
+  });
+});
+
 describe("Troca de aba", () => {
   it("ir à Importação e voltar mantém a edição", async () => {
     const user = userEvent.setup();
@@ -542,28 +587,6 @@ describe("Régua de férias: validação", () => {
     expect(dias).toHaveAttribute("aria-invalid", "true");
     expect(dias).toHaveAccessibleDescription(mensagem);
     expect(salvarReguaFerias).not.toHaveBeenCalled();
-  });
-});
-
-describe("Aba Importação", () => {
-  it("abre com o formulário desligado e o aviso, sem chamar a API", async () => {
-    const user = userEvent.setup();
-    renderTela();
-    await screen.findByText("Versão inicial");
-
-    await user.click(screen.getByRole("tab", { name: "Importação" }));
-
-    const painel = await screen.findByRole("tabpanel", { name: "Importação" });
-    expect(
-      within(painel).getByText("A importação será ativada quando a fonte dos dados for definida."),
-    ).toBeInTheDocument();
-    expect(within(painel).getByLabelText("Início do período *")).toBeDisabled();
-    expect(within(painel).getByRole("button", { name: "Importar relatórios" })).toBeDisabled();
-    expect(within(painel).getByText("Espelho de ponto")).toBeInTheDocument();
-    expect(within(painel).getByText("Pendências")).toBeInTheDocument();
-    expect(within(painel).getAllByRole("button", { name: "Selecionar" })).toHaveLength(2);
-    expect(within(painel).getByText("Nenhuma importação ainda.")).toBeInTheDocument();
-    expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
 });
 

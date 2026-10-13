@@ -14,8 +14,8 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
 /**
  * Seção "Parâmetros de Gestão RH" da Administração (só Admin). Abre na aba
  * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias). A de
- * Equipes classifica as equipes do VR; a de Importação mostra o formulário
- * desligado até a rota de importação existir (STC-595). Abas sublinhadas,
+ * Equipes classifica as equipes do VR; a de Importação é o envio manual dos
+ * relatórios do VR, contingência do robô. Abas sublinhadas,
  * como no detalhe do documento da Legalização; seções empilhadas na largura
  * toda, como as outras seções da Administração.
  */
@@ -35,7 +35,10 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
       <Tabs
         value={aba}
         onValueChange={(valor) => setAba(valor as AbaParametros)}
-        className="gap-6"
+        // Do sm para cima as abas ocupam a altura que sobra: a tabela de
+        // Equipes rola por dentro sem passar do fim da tela. As outras abas,
+        // mais altas, continuam rolando pelo contêiner de cima.
+        className="gap-6 sm:min-h-0 sm:flex-1"
       >
         <TabsList
           variant="line"
@@ -53,10 +56,15 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
         </TabsList>
 
         <TabsContent value="importacao" forceMount hidden={aba !== "importacao"}>
-          <AbaImportacao />
+          <AbaImportacao aoIrParaEquipes={() => setAba("equipes")} />
         </TabsContent>
 
-        <TabsContent value="equipes" forceMount hidden={aba !== "equipes"}>
+        <TabsContent
+          value="equipes"
+          forceMount
+          hidden={aba !== "equipes"}
+          className="sm:flex sm:min-h-0 sm:flex-col"
+        >
           <AbaEquipes />
         </TabsContent>
 

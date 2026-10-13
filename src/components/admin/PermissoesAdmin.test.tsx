@@ -50,6 +50,10 @@ vi.mock("@/lib/gestaoRH", async (original) => ({
   buscarReguaFerias: vi.fn(),
   listarEquipesVR: vi.fn().mockResolvedValue([]),
 }));
+vi.mock("@/lib/gestaoRHImportacao", async (original) => ({
+  ...(await original<typeof import("@/lib/gestaoRHImportacao")>()),
+  listarImportacoes: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { useAuth } from "@/hooks/useAuth";

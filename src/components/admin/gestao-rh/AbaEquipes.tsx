@@ -174,7 +174,7 @@ export function AbaEquipes() {
   }
 
   return (
-    <section aria-labelledby="titulo-equipes-vr" className="space-y-5">
+    <section aria-labelledby="titulo-equipes-vr" className="space-y-5 sm:flex sm:min-h-0 sm:flex-1 sm:flex-col">
       <div>
         <h2 id="titulo-equipes-vr" className="text-base font-semibold text-foreground">
           Equipes do VR
@@ -244,9 +244,10 @@ export function AbaEquipes() {
         </p>
       ) : (
         // Rolagem dentro da tabela com o cabeçalho fixo, como na tabela de
-        // usuários da Administração; no celular a altura fica livre e quem
-        // rola é a aba.
-        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:max-h-[calc(100dvh-24rem)] sm:overflow-y-auto">
+        // usuários da Administração: ela encolhe até caber no que sobra da
+        // tela, mas não cresce além das linhas (sem faixa vazia com poucas
+        // equipes). No celular a altura fica livre e quem rola é a aba.
+        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:min-h-40 sm:overflow-y-auto">
           <table aria-label="Equipes do VR" className="w-full min-w-[720px] table-fixed text-left text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
