@@ -616,6 +616,21 @@ describe("Responsáveis pelas equipes sem unidade", () => {
   });
 });
 
+describe("Responsáveis: falha ao carregar os usuários", () => {
+  it("avisa e bloqueia a troca, sem esconder o responsável atual", async () => {
+    vi.mocked(listarUsuarios).mockRejectedValue(new Error("rede"));
+    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
+      parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 7, nome: "Carla Silva" } }),
+    );
+    renderTela();
+
+    expect(await screen.findByText(/Não foi possível carregar os usuários/)).toBeInTheDocument();
+    const campo = screen.getByLabelText("TMO");
+    expect(campo).toBeDisabled();
+    await waitFor(() => expect(campo).toHaveTextContent("Carla Silva"));
+  });
+});
+
 describe("Aba Equipes", () => {
   async function abrirAba(user: ReturnType<typeof userEvent.setup>) {
     renderTela();
@@ -715,6 +730,33 @@ describe("Aba Equipes", () => {
 
     expect(await screen.findByText("Escolha a unidade da equipe.")).toBeInTheDocument();
     expect(screen.getByLabelText("Categoria de Operações Niterói")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("gravação recusada deixa os campos com o que está salvo", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe(EQUIPE_NOVA), equipe({ colaboradores_ativos: 0 })]);
+    vi.mocked(reclassificarEquipeVR).mockRejectedValue(erro400({ detail: "Falha ao salvar." }));
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    await user.click(await screen.findByLabelText("Categoria de Equipe nova"));
+    await user.click(await screen.findByRole("option", { name: "TMO" }));
+    await waitFor(() => expect(screen.getAllByText("Falha ao salvar.")).toHaveLength(1));
+    expect(screen.getByLabelText("Categoria de Equipe nova")).toHaveTextContent("Escolha a categoria");
+
+    await user.click(screen.getByLabelText("Unidade de Operações Niterói"));
+    await user.click(await screen.findByRole("option", { name: "Macaé" }));
+    await waitFor(() => expect(screen.getAllByText("Falha ao salvar.")).toHaveLength(2));
+    expect(screen.getByLabelText("Unidade de Operações Niterói")).toHaveTextContent("Niterói");
+  });
+
+  it("sem a lista de unidades, avisa e bloqueia a escolha da unidade", async () => {
+    vi.mocked(listarUnidades).mockRejectedValue(new Error("rede"));
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    expect(await screen.findByText(/Não foi possível carregar as unidades do Atlas/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Unidade de Operações Niterói")).toBeDisabled();
   });
 
   it("filtra por categoria, com a contagem de cada uma", async () => {
