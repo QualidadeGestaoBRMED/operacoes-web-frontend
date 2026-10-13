@@ -323,7 +323,9 @@ export function FormParametrosAbsenteismo() {
                 </div>
               )}
             />
-            <p className="text-xs text-muted-foreground">Férias e banco de horas nunca contam.</p>
+            <p className="text-xs text-muted-foreground">
+              Férias, afastamento e banco de horas nunca contam.
+            </p>
             <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
           </fieldset>
         </div>

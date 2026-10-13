@@ -2,7 +2,7 @@
 // (api/modulos/gestao-rh/, backend gestao_rh/serializers.py). Percentuais
 // chegam como string decimal ("5.00"), mesmo formato do DRF.
 
-export type TipoOcorrenciaComputavel = "falta" | "atestado" | "afastamento" | "ausencia";
+export type TipoOcorrenciaComputavel = "falta" | "atestado" | "ausencia";
 
 export interface FaixasAbsenteismo {
   atencao_a_partir_de: string;

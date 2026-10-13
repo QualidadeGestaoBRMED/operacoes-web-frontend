@@ -68,7 +68,6 @@ export const CATEGORIAS_EQUIPE: { valor: Exclude<CategoriaEquipeVR, "sem_categor
 export const ROTULO_TIPO_OCORRENCIA: Record<TipoOcorrenciaComputavel, string> = {
   falta: "Falta",
   atestado: "Atestado",
-  afastamento: "Afastamento",
   ausencia: "Ausência",
 };
 
