@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
 import { SWRConfig } from "swr";
@@ -21,6 +21,11 @@ vi.mock("@/lib/gestaoRH", async (original) => ({
   salvarReguaFerias: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// A aba Importação (testada em AbaImportacao.test.tsx) busca o histórico ao montar.
+vi.mock("@/lib/gestaoRHImportacao", async (original) => ({
+  ...(await original<typeof import("@/lib/gestaoRHImportacao")>()),
+  listarImportacoes: vi.fn().mockResolvedValue([]),
+}));
 
 import { toast } from "sonner";
 import {
@@ -482,27 +487,5 @@ describe("Régua de férias: validação", () => {
     expect(dias).toHaveAttribute("aria-invalid", "true");
     expect(dias).toHaveAccessibleDescription(mensagem);
     expect(salvarReguaFerias).not.toHaveBeenCalled();
-  });
-});
-
-describe("Aba Importação", () => {
-  it("abre com o formulário desligado e o aviso, sem chamar a API", async () => {
-    const user = userEvent.setup();
-    renderTela();
-    await screen.findByText("Versão inicial");
-
-    await user.click(screen.getByRole("tab", { name: "Importação" }));
-
-    const painel = await screen.findByRole("tabpanel", { name: "Importação" });
-    expect(
-      within(painel).getByText("A importação será ativada quando a fonte dos dados for definida."),
-    ).toBeInTheDocument();
-    expect(within(painel).getByLabelText("Início do período *")).toBeDisabled();
-    expect(within(painel).getByRole("button", { name: "Importar relatórios" })).toBeDisabled();
-    expect(within(painel).getByText("Espelho de ponto")).toBeInTheDocument();
-    expect(within(painel).getByText("Pendências")).toBeInTheDocument();
-    expect(within(painel).getAllByRole("button", { name: "Selecionar" })).toHaveLength(2);
-    expect(within(painel).getByText("Nenhuma importação ainda.")).toBeInTheDocument();
-    expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
   });
 });
