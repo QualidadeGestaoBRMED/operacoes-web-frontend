@@ -6,6 +6,7 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
+  ordenarLinhasAbsenteismo,
   textoOcorrencia,
   textoOcorrencias,
   tituloAlerta,
@@ -90,7 +91,7 @@ describe("dados de exemplo seguem o contrato da STC-588", () => {
     expect(soCritica.cards).toEqual(todos.cards);
 
     const niteroi = painelAbsenteismoDeExemplo({ ...periodo, unidade: 1 });
-    expect(niteroi.linhas.every((linha) => linha.colaborador.unidade.id === 1)).toBe(true);
+    expect(niteroi.linhas.every((linha) => linha.colaborador.unidade?.id === 1)).toBe(true);
     expect(niteroi.cards.colaboradores).toBe(niteroi.linhas.length);
 
     const comPendencias = painelAbsenteismoDeExemplo({ ...periodo, com_pendencias: true });
@@ -182,5 +183,23 @@ describe("aba de exemplo (ambiente local)", () => {
     expect(tratada.alertas[0].tratamento?.acao).toBe("feedback");
     expect(tratada.alertas[0].demanda_aberta).toBe(false);
     expect(tratada.historico[0].valor_novo).toBe("Feedback");
+  });
+});
+
+describe("ordenação por Unidade / equipe", () => {
+  it("mistura unidades e equipes do VR pelo texto mostrado na coluna", () => {
+    const [base] = painelAbsenteismoDeExemplo({ inicio: "2026-09-01", fim: "2026-09-30" }).linhas;
+    const linha = (id: number, unidade: string | null, equipe: string): LinhaPainelAbsenteismo => ({
+      ...base,
+      colaborador: { ...base.colaborador, id, unidade: unidade ? { id, nome: unidade } : null },
+      equipe,
+    });
+    const linhas = [
+      linha(1, "Niterói", "Operações Niterói"),
+      linha(2, null, "CAMPANHA - AERO MACAE"),
+      linha(3, "Macaé", "Operações Macaé"),
+    ];
+    const ordenadas = ordenarLinhasAbsenteismo(linhas, { campo: "unidade", direcao: "asc" });
+    expect(ordenadas.map((l) => l.colaborador.id)).toEqual([2, 3, 1]);
   });
 });

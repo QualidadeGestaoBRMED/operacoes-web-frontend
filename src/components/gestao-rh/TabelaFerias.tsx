@@ -192,15 +192,15 @@ export function TabelaFerias({
                           >
                             {linha.colaborador.nome}
                           </button>
+                          {/* Os relatórios do VR não trazem matrícula: sem ela, só o cargo. */}
                           <div className="truncate text-[11.5px] text-muted-foreground">
-                            {linha.colaborador.matricula_vr}
-                            {linha.colaborador.cargo && ` · ${linha.colaborador.cargo}`}
+                            {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="truncate px-3 py-2.5 text-[13px]">
-                      {linha.colaborador.unidade.nome}
+                      {linha.colaborador.unidade?.nome ?? "Sem unidade"}
                     </td>
                     <td className="px-3 py-2.5 text-[12.5px] tabular-nums">
                       <div className="truncate">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { AlertTriangle, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
   OCORRENCIAS_FILTRO,
+  OPCOES_CATEGORIA_PAINEL,
   ROTULO_OCORRENCIA,
   mesAnteriorFechado,
   ordenarLinhasAbsenteismo,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn, formatarDataHora, hojeISO } from "@/lib/utils";
 import type {
+  CategoriaPainelAbsenteismo,
   FaixaAbsenteismo,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
@@ -79,6 +81,7 @@ export function PainelAbsenteismo() {
     editar: editarPeriodo,
   } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
+  const [categoria, setCategoria] = useState<CategoriaPainelAbsenteismo>();
   const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
@@ -93,11 +96,12 @@ export function PainelAbsenteismo() {
       inicio: periodo.inicio,
       fim: periodo.fim,
       unidade,
+      categoria,
       faixa: OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
       ocorrencia: ocorrencia ? [ocorrencia] : undefined,
       com_pendencias: comPendencias || undefined,
     }),
-    [periodo, unidade, faixa, ocorrencia, comPendencias],
+    [periodo, unidade, categoria, faixa, ocorrencia, comPendencias],
   );
 
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
@@ -149,7 +153,7 @@ export function PainelAbsenteismo() {
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(
-    unidade || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
+    unidade || categoria || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
   );
   const cards = painel?.cards;
 
@@ -171,6 +175,23 @@ export function PainelAbsenteismo() {
           </p>
         )}
       </div>
+
+      {/* Mesma regra do aviso diário aos Admins (STC-692), para todos que
+          veem o Painel: os números podem não ter os últimos dias. */}
+      {cards?.importacao_parada && (
+        <div
+          role="status"
+          className="mx-4 mt-3 flex items-start gap-2.5 rounded-md border border-amber-600/25 bg-amber-600/5 px-3 py-2 text-[12.5px] text-foreground sm:mx-7"
+        >
+          <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0 text-amber-700" />
+          <span>
+            <strong className="font-semibold">Dados desatualizados:</strong>{" "}
+            {cards.ultima_importacao
+              ? `a última importação do VR Pontomais foi em ${formatarDataISO(cards.ultima_importacao)}.`
+              : "nenhuma importação do VR Pontomais foi concluída."}
+          </span>
+        </div>
+      )}
 
       {mensagemErro && !painel ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-sm text-destructive">
@@ -234,6 +255,29 @@ export function PainelAbsenteismo() {
               </Select>
             )}
 
+            {/* TMO e Campanha não têm unidade; Coordenação e OPEX só veem a
+                própria unidade, então o filtro é só do Admin. */}
+            {isAdminOps && (
+              <Select
+                value={categoria ?? "todas"}
+                onValueChange={(valor) =>
+                  setCategoria(valor === "todas" ? undefined : (valor as CategoriaPainelAbsenteismo))
+                }
+              >
+                <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="todas">Todas as categorias</SelectItem>
+                  {OPCOES_CATEGORIA_PAINEL.map((opcao) => (
+                    <SelectItem key={opcao.valor} value={opcao.valor}>
+                      {opcao.rotulo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             {comFaixas && (
               <Select
                 value={faixa ?? "todas"}
@@ -286,6 +330,7 @@ export function PainelAbsenteismo() {
                 onClick={() => {
                   setBusca("");
                   setUnidade(undefined);
+                  setCategoria(undefined);
                   setFaixa(undefined);
                   setOcorrencia(undefined);
                   setComPendencias(false);

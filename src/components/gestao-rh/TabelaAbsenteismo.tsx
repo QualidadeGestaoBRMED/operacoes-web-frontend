@@ -7,6 +7,7 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   textoOcorrencias,
+  unidadeOuEquipe,
   type CampoOrdenavelAbsenteismo,
   type OrdenacaoAbsenteismo,
 } from "@/lib/gestaoRHAbsenteismo";
@@ -27,11 +28,11 @@ interface Coluna {
 
 const COLUNAS: Coluna[] = [
   { rotulo: "Colaborador", largura: "w-[19%]", campo: "colaborador" },
-  { rotulo: "Unidade", largura: "w-[10%]", campo: "unidade" },
+  { rotulo: "Unidade / equipe", largura: "w-[12%]", campo: "unidade" },
   { rotulo: "Absenteísmo", largura: "w-[16%]", campo: "percentual" },
   { rotulo: "Dias trab.", largura: "w-[11%]", campo: "dias_trabalhados" },
   { rotulo: "Conformidade", largura: "w-[13%]", campo: "conformidade" },
-  { rotulo: "Ocorrências", largura: "w-[20%]", campo: "ocorrencias" },
+  { rotulo: "Ocorrências", largura: "w-[18%]", campo: "ocorrencias" },
   { rotulo: "Banco h.", largura: "w-[11%]", campo: "banco_horas" },
 ];
 
@@ -228,14 +229,18 @@ export function TabelaAbsenteismo({
                           >
                             {linha.colaborador.nome}
                           </button>
+                          {/* Os relatórios do VR não trazem matrícula: sem ela, só o cargo. */}
                           <div className="truncate text-[11.5px] text-muted-foreground">
-                            {linha.colaborador.matricula_vr}
-                            {linha.colaborador.cargo && ` · ${linha.colaborador.cargo}`}
+                            {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="truncate px-3 py-2.5 text-[13px]">{linha.colaborador.unidade.nome}</td>
+                    {/* Nome da equipe do VR é longo ("CAMPANHA - OCUPACIONAL ..."):
+                        quebra em até 2 linhas em vez de cortar no começo. */}
+                    <td className="px-3 py-2.5 text-[13px]" title={unidadeOuEquipe(linha)}>
+                      <span className="line-clamp-2 break-words">{unidadeOuEquipe(linha)}</span>
+                    </td>
                     <CelulaAbsenteismo linha={linha} />
                     <td className="truncate px-3 py-2.5 text-[12.5px] tabular-nums">
                       {/* Sem dia previsto (afastado o período todo, admitido depois):

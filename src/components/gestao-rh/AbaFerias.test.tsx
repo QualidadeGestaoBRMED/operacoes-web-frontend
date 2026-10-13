@@ -211,6 +211,39 @@ describe("Modal do colaborador · aba Férias", () => {
     ).toHaveClass("sm:hidden");
   });
 
+  it("sem unidade (TMO, Campanha), o cabeçalho mostra a equipe do VR", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({
+      ...COLABORADOR,
+      unidade: null,
+      equipe: "TMO - PETROBRAS",
+      categoria: "tmo",
+    });
+    renderModal();
+
+    expect(await screen.findByRole("dialog")).toHaveAccessibleDescription(
+      `${COLABORADOR.cargo} · TMO - PETROBRAS`,
+    );
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
+    expect(screen.queryByText("Unidade")).not.toBeInTheDocument();
+  });
+
+  it("sem matrícula (relatórios do VR), mostra \"Não informada\"", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, matricula_vr: "" });
+    renderModal();
+
+    expect(await screen.findByText("Matrícula não informada · Admissão 20/08/2024")).toHaveClass("sm:hidden");
+    expect(screen.getByText("Não informada")).toBeInTheDocument();
+  });
+
+  it("sem unidade e sem equipe, a coluna mostra \"Unidade: Sem unidade\"", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, unidade: null });
+    renderModal();
+
+    expect(await screen.findByText("Sem unidade")).toBeInTheDocument();
+    expect(screen.getByText("Unidade")).toBeInTheDocument();
+    expect(screen.queryByText("Equipe")).not.toBeInTheDocument();
+  });
+
   it("com mais de um período, avisa e pede o mais antigo primeiro (pagamento em dobro no vencido)", async () => {
     renderModal();
 

@@ -5,6 +5,7 @@ import type {
   AbsenteismoColaborador,
   AcaoTratamento,
   AlertaAbsenteismo,
+  CategoriaPainelAbsenteismo,
   FaixaAbsenteismo,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
@@ -17,23 +18,10 @@ import type {
 
 const PAINEL_URL = "/modulos/gestao-rh/absenteismo/";
 
-/**
- * Painel de Absenteísmo. No ambiente local, com
- * `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1`, devolve dados de exemplo no mesmo
- * contrato enquanto a rota real não existe (STC-588). `NODE_ENV` vira
- * constante no build: em produção o ramo some e o módulo de exemplo não
- * entra no pacote, mesmo com a variável ligada.
- */
+/** Painel de Absenteísmo (rota da STC-588). */
 export async function buscarPainelAbsenteismo(
   filtros: FiltrosPainelAbsenteismo,
 ): Promise<PainelAbsenteismo> {
-  if (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
-  ) {
-    const { painelAbsenteismoDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
-    return painelAbsenteismoDeExemplo(filtros);
-  }
   const { data } = await api.get<PainelAbsenteismo>(PAINEL_URL, {
     params: filtros,
     // Filtros que repetem (faixa, ocorrencia) vão como `faixa=a&faixa=b`, o formato do DRF.
@@ -44,7 +32,12 @@ export async function buscarPainelAbsenteismo(
 
 const COLABORADORES_URL = "/modulos/gestao-rh/colaboradores/";
 
-/** Aba Absenteísmo do modal (contrato da STC-592). Mesmos dados de exemplo locais do painel. */
+/**
+ * Aba Absenteísmo do modal (contrato da STC-592). No ambiente local, com
+ * `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1`, devolve dados de exemplo enquanto
+ * a rota não existe. `NODE_ENV` vira constante no build: em produção o ramo
+ * some e o módulo de exemplo não entra no pacote, mesmo com a variável ligada.
+ */
 export async function buscarAbsenteismoColaborador(
   colaboradorId: number,
   periodo: { inicio: string; fim: string },
@@ -244,6 +237,17 @@ export function formatarSaldoHoras(minutos: number): string {
   return `${sinal}${horas}:${resto}`;
 }
 
+/** TMO e Campanha não têm unidade do Atlas: a coluna mostra a equipe do VR. */
+export function unidadeOuEquipe(linha: LinhaPainelAbsenteismo): string {
+  return linha.colaborador.unidade?.nome ?? linha.equipe;
+}
+
+export const OPCOES_CATEGORIA_PAINEL: { valor: CategoriaPainelAbsenteismo; rotulo: string }[] = [
+  { valor: "unidade", rotulo: "Unidades" },
+  { valor: "tmo", rotulo: "TMO" },
+  { valor: "campanha", rotulo: "Campanhas" },
+];
+
 export type CampoOrdenavelAbsenteismo =
   | "colaborador"
   | "unidade"
@@ -257,7 +261,7 @@ export type OrdenacaoAbsenteismo = Ordenacao<CampoOrdenavelAbsenteismo>;
 
 const CHAVES_ABSENTEISMO = {
   colaborador: (linha: LinhaPainelAbsenteismo) => linha.colaborador.nome,
-  unidade: (linha: LinhaPainelAbsenteismo) => linha.colaborador.unidade.nome,
+  unidade: (linha: LinhaPainelAbsenteismo) => unidadeOuEquipe(linha),
   percentual: (linha: LinhaPainelAbsenteismo) =>
     linha.percentual === null ? null : Number(linha.percentual),
   dias_trabalhados: (linha: LinhaPainelAbsenteismo) => linha.dias_trabalhados,

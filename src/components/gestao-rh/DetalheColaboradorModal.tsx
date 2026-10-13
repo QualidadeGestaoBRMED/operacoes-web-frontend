@@ -125,12 +125,14 @@ export function DetalheColaboradorModal({
                 {colaborador.nome}
               </DialogTitle>
               <DialogDescription className="text-[12.5px] text-muted-foreground">
-                {[colaborador.cargo, colaborador.unidade.nome].filter(Boolean).join(" · ")}
+                {[colaborador.cargo, colaborador.unidade?.nome ?? colaborador.equipe]
+                  .filter(Boolean)
+                  .join(" · ")}
               </DialogDescription>
               {/* No celular a coluna de dados some e o que só ela mostrava vem
                   para esta linha, para as abas ganharem a altura do modal. */}
               <p className="text-[12.5px] text-muted-foreground sm:hidden">
-                Matrícula {colaborador.matricula_vr} · Admissão{" "}
+                Matrícula {colaborador.matricula_vr || "não informada"} · Admissão{" "}
                 {colaborador.data_admissao
                   ? formatarDataISO(colaborador.data_admissao)
                   : "não informada"}
@@ -144,9 +146,15 @@ export function DetalheColaboradorModal({
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[230px_1fr]">
               <div className="scrollbar-discreta hidden flex-col gap-4 overflow-y-auto border-r border-border p-4.5 sm:flex">
-                <CampoMeta rotulo="Unidade">{colaborador.unidade.nome}</CampoMeta>
+                {/* TMO e Campanha não têm unidade do Atlas: vale a equipe do VR. */}
+                {!colaborador.unidade && colaborador.equipe ? (
+                  <CampoMeta rotulo="Equipe">{colaborador.equipe}</CampoMeta>
+                ) : (
+                  <CampoMeta rotulo="Unidade">{colaborador.unidade?.nome ?? "Sem unidade"}</CampoMeta>
+                )}
                 {colaborador.cargo && <CampoMeta rotulo="Cargo">{colaborador.cargo}</CampoMeta>}
-                <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr}</CampoMeta>
+                {/* Os relatórios do VR não trazem matrícula. */}
+                <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr || "Não informada"}</CampoMeta>
                 <CampoMeta rotulo="Admissão">
                   {colaborador.data_admissao ? formatarDataISO(colaborador.data_admissao) : "Não informada"}
                 </CampoMeta>

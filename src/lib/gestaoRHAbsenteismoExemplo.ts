@@ -1,7 +1,8 @@
-// Dados de exemplo do Painel de Absenteísmo para o ambiente local, enquanto a
-// rota real não existe (STC-588). Só é carregado com
-// NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1 (ver buscarPainelAbsenteismo); fora
-// disso, não entra no pacote de produção. Os ids e as unidades são os dos
+// Dados de exemplo da aba Absenteísmo do modal para o ambiente local, enquanto
+// as rotas da STC-592 não existem. Só é carregado com
+// NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1 (ver buscarAbsenteismoColaborador);
+// fora disso, não entra no pacote de produção. As linhas do painel daqui
+// servem também de dados de teste. Os ids e as unidades são os dos
 // colaboradores fictícios do banco local, para o modal abrir de verdade.
 
 import type {
@@ -38,6 +39,8 @@ function linha(
 ): LinhaPainelAbsenteismo {
   return {
     colaborador: dados,
+    equipe: dados.unidade ? `Operações ${dados.unidade.nome}` : "",
+    categoria: "unidade",
     percentual: "0.00",
     faixa: null,
     provisorio: false,
@@ -104,10 +107,14 @@ const OCORRENCIA_NA_LINHA = {
   saida_antecipada: (l: LinhaPainelAbsenteismo) => l.saidas_acima_do_limite > 0,
 };
 
-/** Aplica os filtros como a API vai aplicar: unidade nos cards e nas linhas, o resto só nas linhas. */
+/**
+ * Aplica os filtros como a API: unidade nos cards e nas linhas, o resto só
+ * nas linhas. A categoria não é aplicada: os dados de exemplo são todos de
+ * equipes com unidade.
+ */
 export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): PainelAbsenteismo {
   const daUnidade = LINHAS.filter(
-    (l) => filtros.unidade === undefined || l.colaborador.unidade.id === filtros.unidade,
+    (l) => filtros.unidade === undefined || l.colaborador.unidade?.id === filtros.unidade,
   );
   const linhas = daUnidade.filter(
     (l) =>
@@ -133,8 +140,9 @@ export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): P
       pendencias: daUnidade.reduce((soma, l) => soma + l.pendencias, 0),
       colaboradores_provisorios: daUnidade.filter((l) => l.provisorio).length,
       colaboradores: daUnidade.length,
-      unidades: new Set(daUnidade.map((l) => l.colaborador.unidade.id)).size,
+      unidades: new Set(daUnidade.map((l) => l.colaborador.unidade?.id)).size,
       ultima_importacao: "2026-10-01T08:12:00-03:00",
+      importacao_parada: false,
       dados_ate: "2026-09-30",
     },
     linhas,
@@ -218,7 +226,7 @@ export function absenteismoColaboradorDeExemplo(
             gerado_em: `${dia({ inicio: periodo.fim }, 1)}T06:00:00-03:00`,
             demanda_id: colaboradorId * 1000,
             demanda_aberta: tratamento === null,
-            responsavel: RESPONSAVEL_POR_UNIDADE[l.colaborador.unidade.id] ?? null,
+            responsavel: (l.colaborador.unidade && RESPONSAVEL_POR_UNIDADE[l.colaborador.unidade.id]) ?? null,
             pode_registrar_tratamento: tratamento === null,
             tratamento,
           },
