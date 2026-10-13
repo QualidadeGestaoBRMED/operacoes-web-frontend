@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FERIAS_ATIVA } from "@/config/gestaoRH";
+import { AbaEquipes } from "./AbaEquipes";
 import { AbaImportacao } from "./AbaImportacao";
 import { FormParametrosAbsenteismo } from "./FormParametrosAbsenteismo";
 import { FormReguaFerias } from "./FormReguaFerias";
@@ -12,13 +13,13 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
 
 /**
  * Seção "Parâmetros de Gestão RH" da Administração (só Admin). Abre na aba
- * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias), a única
- * ligada à API; a de Importação mostra o
- * formulário desligado até a fonte dos dados ser definida. Abas sublinhadas,
+ * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias). A de
+ * Equipes classifica as equipes do VR; a de Importação mostra o formulário
+ * desligado até a rota de importação existir (STC-595). Abas sublinhadas,
  * como no detalhe do documento da Legalização; seções empilhadas na largura
  * toda, como as outras seções da Administração.
  */
-type AbaParametros = "importacao" | "absenteismo-ferias";
+type AbaParametros = "importacao" | "equipes" | "absenteismo-ferias";
 
 export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
   const [aba, setAba] = useState<AbaParametros>("absenteismo-ferias");
@@ -43,6 +44,9 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           <TabsTrigger value="importacao" className={CLASSE_ABA}>
             Importação
           </TabsTrigger>
+          <TabsTrigger value="equipes" className={CLASSE_ABA}>
+            Equipes
+          </TabsTrigger>
           <TabsTrigger value="absenteismo-ferias" className={CLASSE_ABA}>
             {FERIAS_ATIVA ? "Absenteísmo e férias" : "Absenteísmo"}
           </TabsTrigger>
@@ -50,6 +54,10 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
 
         <TabsContent value="importacao" forceMount hidden={aba !== "importacao"}>
           <AbaImportacao />
+        </TabsContent>
+
+        <TabsContent value="equipes" forceMount hidden={aba !== "equipes"}>
+          <AbaEquipes />
         </TabsContent>
 
         <TabsContent
