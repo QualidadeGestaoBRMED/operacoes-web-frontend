@@ -59,8 +59,20 @@ function textoEquipesNovas(quantidade: number): string {
     : `${quantidade} equipes novas sem categoria: classifique na aba Equipes.`;
 }
 
-/** 400 do DRF por campo; o resto (409, rede, 413) vira mensagem geral. */
+// Sem resposta do backend (rede) ou com o proxy da Vercel cortando a espera
+// (502/503/504): o backend pode ter concluído o lote mesmo assim.
+const MENSAGEM_RESULTADO_INCERTO =
+  "Não foi possível confirmar o resultado. A importação pode ter sido concluída: confira o histórico antes de enviar de novo.";
+
+function resultadoIncerto(erro: unknown): boolean {
+  if (!isAxiosError(erro)) return false;
+  const status = erro.response?.status;
+  return status === undefined || status === 502 || status === 503 || status === 504;
+}
+
+/** 400 do DRF por campo; o resto (409, 413) vira mensagem geral. */
 function errosDaResposta(erro: unknown): ErrosEnvio {
+  if (resultadoIncerto(erro)) return { geral: MENSAGEM_RESULTADO_INCERTO };
   if (isAxiosError(erro) && erro.response?.status === 400) {
     const dados: unknown = erro.response.data;
     if (dados && typeof dados === "object") {
@@ -84,7 +96,15 @@ export function AbaImportacao() {
   const [erros, setErros] = useState<ErrosEnvio>({});
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<LoteImportacao | null>(null);
+  // O lote fica guardado depois de fechar: sem isso, o modal mostraria
+  // "não encontradas" durante a animação de saída.
   const [loteRejeitadas, setLoteRejeitadas] = useState<LoteImportacao | null>(null);
+  const [rejeitadasAbertas, setRejeitadasAbertas] = useState(false);
+
+  function verRejeitadas(lote: LoteImportacao) {
+    setLoteRejeitadas(lote);
+    setRejeitadasAbertas(true);
+  }
   const entradas = useRef<Partial<Record<RelatorioVR, HTMLInputElement | null>>>({});
 
   const totalBytes = RELATORIOS_VR.reduce((soma, { valor }) => soma + (arquivos[valor]?.size ?? 0), 0);
@@ -100,10 +120,17 @@ export function AbaImportacao() {
     }
     setArquivos((atual) => ({ ...atual, [relatorio]: arquivo }));
     setErros((atual) => ({ ...atual, [relatorio]: undefined, geral: undefined }));
+    setResultado(null);
   }
 
   function removerArquivo(relatorio: RelatorioVR) {
     setArquivos((atual) => ({ ...atual, [relatorio]: undefined }));
+    setResultado(null);
+  }
+
+  function mudarPeriodo(campo: "inicio" | "fim", valor: string) {
+    setPeriodo((atual) => ({ ...atual, [campo]: valor }));
+    setResultado(null);
   }
 
   function validar(): ErrosEnvio {
@@ -140,6 +167,7 @@ export function AbaImportacao() {
       if (lote.status === "concluida") setArquivos({});
     } catch (erro) {
       setErros(errosDaResposta(erro));
+      if (resultadoIncerto(erro)) recarregar();
     } finally {
       setEnviando(false);
     }
@@ -166,7 +194,7 @@ export function AbaImportacao() {
               id="imp-inicio"
               type="date"
               value={periodo.inicio}
-              onChange={(evento) => setPeriodo((atual) => ({ ...atual, inicio: evento.target.value }))}
+              onChange={(evento) => mudarPeriodo("inicio", evento.target.value)}
               aria-invalid={!!erros.periodo_inicio}
               aria-describedby={erros.periodo_inicio ? "imp-inicio-erro" : undefined}
             />
@@ -178,7 +206,7 @@ export function AbaImportacao() {
               id="imp-fim"
               type="date"
               value={periodo.fim}
-              onChange={(evento) => setPeriodo((atual) => ({ ...atual, fim: evento.target.value }))}
+              onChange={(evento) => mudarPeriodo("fim", evento.target.value)}
               aria-invalid={!!erros.periodo_fim}
               aria-describedby={erros.periodo_fim ? "imp-fim-erro" : undefined}
             />
@@ -271,7 +299,7 @@ export function AbaImportacao() {
       </form>
 
       {resultado && (
-        <ResultadoImportacao lote={resultado} aoVerRejeitadas={() => setLoteRejeitadas(resultado)} />
+        <ResultadoImportacao lote={resultado} aoVerRejeitadas={() => verRejeitadas(resultado)} />
       )}
 
       <div className="space-y-2">
@@ -304,7 +332,7 @@ export function AbaImportacao() {
                   </tr>
                 ) : (
                   lotes.map((lote) => (
-                    <LinhaHistorico key={lote.id} lote={lote} aoVerRejeitadas={() => setLoteRejeitadas(lote)} />
+                    <LinhaHistorico key={lote.id} lote={lote} aoVerRejeitadas={() => verRejeitadas(lote)} />
                   ))
                 )}
               </tbody>
@@ -313,7 +341,11 @@ export function AbaImportacao() {
         )}
       </div>
 
-      <ModalLinhasRejeitadas lote={loteRejeitadas} aoFechar={() => setLoteRejeitadas(null)} />
+      <ModalLinhasRejeitadas
+        lote={loteRejeitadas}
+        aberto={rejeitadasAbertas}
+        aoFechar={() => setRejeitadasAbertas(false)}
+      />
     </section>
   );
 }
@@ -394,10 +426,18 @@ function LinhaHistorico({ lote, aoVerRejeitadas }: { lote: LoteImportacao; aoVer
   );
 }
 
-function ModalLinhasRejeitadas({ lote, aoFechar }: { lote: LoteImportacao | null; aoFechar: () => void }) {
+function ModalLinhasRejeitadas({
+  lote,
+  aberto,
+  aoFechar,
+}: {
+  lote: LoteImportacao | null;
+  aberto: boolean;
+  aoFechar: () => void;
+}) {
   const { linhas, isLoading, mensagemErro } = useLinhasRejeitadas(lote?.id ?? null);
   return (
-    <Dialog open={lote !== null} onOpenChange={(aberto) => !aberto && aoFechar()}>
+    <Dialog open={aberto} onOpenChange={(valor) => !valor && aoFechar()}>
       <DialogContent className="max-h-[85dvh] overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Linhas rejeitadas</DialogTitle>
