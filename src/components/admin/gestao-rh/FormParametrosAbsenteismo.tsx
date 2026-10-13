@@ -11,8 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParametrosAbsenteismo } from "@/hooks/useParametrosGestaoRH";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
@@ -52,6 +60,9 @@ const schema = z
     tipos_computados: z
       .array(z.enum(TIPOS_OCORRENCIA_COMPUTAVEIS as [TipoOcorrenciaComputavel]))
       .min(1, "Escolha ao menos um tipo."),
+    // Id do usuário em texto; SEM_RESPONSAVEL = nenhum.
+    responsavel_tmo: z.string(),
+    responsavel_campanha: z.string(),
   })
   .superRefine((valores, ctx) => {
     const atencao = valores.atencao_a_partir_de;
@@ -79,7 +90,22 @@ const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
   "limite_atraso_minutos",
   "meta_percentual",
   "tipos_computados",
+  "responsavel_tmo",
+  "responsavel_campanha",
 ]);
+
+const SEM_RESPONSAVEL = "nenhum";
+
+// Equipes sem unidade do Atlas: as demandas de absenteísmo delas vão para o
+// responsável da categoria, no lugar da coordenação da unidade.
+const RESPONSAVEIS: {
+  campo: "responsavel_tmo" | "responsavel_campanha";
+  rotulo: string;
+  id: string;
+}[] = [
+  { campo: "responsavel_tmo", rotulo: "TMO", id: "pa-resp-tmo" },
+  { campo: "responsavel_campanha", rotulo: "Campanha", id: "pa-resp-campanha" },
+];
 
 // Tipos sempre na ordem da tela: o react-hook-form compara listas por
 // posição, e desmarcar e marcar de novo não pode contar como alteração.
@@ -96,11 +122,23 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
     atencao_a_partir_de: percentualParaCampo(versao.faixas?.atencao_a_partir_de),
     critica_acima_de: percentualParaCampo(versao.faixas?.critica_acima_de),
     tipos_computados: naOrdemDaTela(versao.tipos_computados),
+    responsavel_tmo: versao.responsavel_tmo ? String(versao.responsavel_tmo.id) : SEM_RESPONSAVEL,
+    responsavel_campanha: versao.responsavel_campanha
+      ? String(versao.responsavel_campanha.id)
+      : SEM_RESPONSAVEL,
   };
+}
+
+function idDoResponsavel(valor: string): number | null {
+  return valor === SEM_RESPONSAVEL ? null : Number(valor);
 }
 
 export function FormParametrosAbsenteismo() {
   const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo();
+  const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
+  // Sem a lista, o campo só mostraria "Sem responsável" e o atual: trocar
+  // fica bloqueado até ela carregar.
+  const responsaveisBloqueados = carregandoUsuarios || !!erroUsuarios;
   const [salvando, setSalvando] = useState(false);
   const [erroFaixas, setErroFaixas] = useState<string>();
 
@@ -111,7 +149,7 @@ export function FormParametrosAbsenteismo() {
     reset,
     watch,
     setError,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
   } = useForm<ValoresEntrada & { faixas?: string }, unknown, ValoresSaida>({
     resolver: zodResolver(schema),
   });
@@ -139,6 +177,13 @@ export function FormParametrosAbsenteismo() {
             }
           : null,
         tipos_computados: valores.tipos_computados,
+        // Só os responsáveis que mudaram: ausente, o backend mantém o atual.
+        // Mandar sempre travaria o salvar quando o responsável atual foi
+        // desativado (o backend só aceita usuário ativo).
+        ...(dirtyFields.responsavel_tmo && { responsavel_tmo: idDoResponsavel(valores.responsavel_tmo) }),
+        ...(dirtyFields.responsavel_campanha && {
+          responsavel_campanha: idDoResponsavel(valores.responsavel_campanha),
+        }),
       });
       if (resultado.dados.vigente) reset(valoresDaVersao(resultado.dados.vigente));
       if (resultado.criouVersao) {
@@ -242,47 +287,125 @@ export function FormParametrosAbsenteismo() {
           )
         )}
 
-        <fieldset
-          className="space-y-2"
-          aria-invalid={!!errors.tipos_computados}
-          aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
-        >
-          <legend className="text-sm font-medium text-foreground">
-            Tipos de ocorrência que contam no absenteísmo
-          </legend>
-          <Controller
-            control={control}
-            name="tipos_computados"
-            render={({ field }) => (
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {TIPOS_OCORRENCIA_COMPUTAVEIS.map((tipo) => {
-                  const marcado = field.value?.includes(tipo) ?? false;
-                  return (
-                    <label key={tipo} className="flex items-center gap-2 text-sm text-foreground">
-                      <Checkbox
-                        checked={marcado}
-                        onCheckedChange={(valor) =>
-                          field.onChange(
-                            naOrdemDaTela(
-                              valor === true
-                                ? [...(field.value ?? []), tipo]
-                                : (field.value ?? []).filter((item) => item !== tipo),
-                            ),
-                          )
-                        }
-                      />
-                      {ROTULO_TIPO_OCORRENCIA[tipo]}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          />
-          <p className="text-xs text-muted-foreground">Férias e banco de horas nunca contam.</p>
-          <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
-        </fieldset>
+        {/* A linha fica fora do fieldset: nele, o navegador desenha a legenda
+            em cima da borda. */}
+        <div className="border-t border-border pt-5">
+          <fieldset
+            className="space-y-2"
+            aria-invalid={!!errors.tipos_computados}
+            aria-describedby={errors.tipos_computados ? "pa-tipos-erro" : undefined}
+          >
+            <legend className="text-sm font-medium text-foreground">
+              Tipos de ocorrência que contam no absenteísmo
+            </legend>
+            <Controller
+              control={control}
+              name="tipos_computados"
+              render={({ field }) => (
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {TIPOS_OCORRENCIA_COMPUTAVEIS.map((tipo) => {
+                    const marcado = field.value?.includes(tipo) ?? false;
+                    return (
+                      <label key={tipo} className="flex items-center gap-2 text-sm text-foreground">
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={(valor) =>
+                            field.onChange(
+                              naOrdemDaTela(
+                                valor === true
+                                  ? [...(field.value ?? []), tipo]
+                                  : (field.value ?? []).filter((item) => item !== tipo),
+                              ),
+                            )
+                          }
+                        />
+                        {ROTULO_TIPO_OCORRENCIA[tipo]}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Férias, afastamento e banco de horas nunca contam.
+            </p>
+            <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
+          </fieldset>
+        </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="border-t border-border pt-5">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">
+              Responsáveis pelas equipes sem unidade
+            </legend>
+            <p className="text-xs text-muted-foreground">
+              TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
+              equipes vão para quem estiver aqui.
+            </p>
+            <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
+              {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
+                const erro = errors[campo]?.message;
+                return (
+                  <div key={campo} className="space-y-1.5">
+                    <Label htmlFor={id}>{rotulo}</Label>
+                    <Controller
+                      control={control}
+                      name={campo}
+                      render={({ field }) => {
+                        const atual = vigente[campo];
+                        // O responsável atual entra na lista mesmo se não vier
+                        // mais nela (ex.: perdeu o perfil), para o campo não
+                        // aparecer vazio.
+                        const opcoes = usuarios.filter((usuario) => usuario.perfil);
+                        const faltaAtual = atual && !opcoes.some((u) => u.id === atual.id);
+                        return (
+                          <Select
+                            value={field.value}
+                            disabled={responsaveisBloqueados}
+                            // O Radix chama com "" ao montar dentro de um
+                            // <form>; sem ignorar, o formulário já abriria
+                            // como alterado.
+                            onValueChange={(valor) => valor && field.onChange(valor)}
+                          >
+                            <SelectTrigger
+                              id={id}
+                              aria-invalid={!!erro}
+                              aria-describedby={erro ? `${id}-erro` : undefined}
+                              className="w-full"
+                            >
+                              <SelectValue placeholder="Sem responsável" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SEM_RESPONSAVEL}>Sem responsável</SelectItem>
+                              {faltaAtual && (
+                                <SelectItem value={String(atual.id)}>{atual.nome}</SelectItem>
+                              )}
+                              {opcoes.map((usuario) => (
+                                <SelectItem key={usuario.id} value={String(usuario.id)}>
+                                  {[usuario.first_name, usuario.last_name].join(" ").trim() ||
+                                    usuario.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }}
+                    />
+                    <MensagemErro id={`${id}-erro`} texto={erro} />
+                  </div>
+                );
+              })}
+            </div>
+            {erroUsuarios && (
+              <p role="alert" className="text-xs text-destructive">
+                Não foi possível carregar os usuários: os responsáveis não podem ser trocados agora.
+                Recarregue a página para tentar de novo.
+              </p>
+            )}
+          </fieldset>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-border pt-5">
           <Button
             type="button"
             variant="outline"

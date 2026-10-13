@@ -4,11 +4,17 @@ import useSWR from "swr";
 import {
   buscarParametrosAbsenteismo,
   buscarReguaFerias,
+  listarEquipesVR,
+  reclassificarEquipeVR,
   salvarParametrosAbsenteismo,
   salvarReguaFerias,
 } from "@/lib/gestaoRH";
 import { extrairMensagemErro } from "@/lib/erros";
-import type { MarcoEditado, NovaVersaoParametrosPayload } from "@/types/gestaoRH";
+import type {
+  MarcoEditado,
+  NovaVersaoParametrosPayload,
+  ReclassificarEquipePayload,
+} from "@/types/gestaoRH";
 
 const CHAVE_PARAMETROS = "gestao-rh-parametros-absenteismo";
 const CHAVE_REGUA = "gestao-rh-regua-ferias";
@@ -52,5 +58,31 @@ export function useReguaFerias() {
     mensagemErro: error ? extrairMensagemErro(error) : null,
     recarregar: () => void mutate(),
     salvar,
+  };
+}
+
+const CHAVE_EQUIPES = "gestao-rh-equipes-vr";
+
+// Reclassificar devolve a equipe atualizada: ela é trocada na lista em cache,
+// sem buscar a lista de novo.
+export function useEquipesVR() {
+  const { data, error, isLoading, mutate } = useSWR(CHAVE_EQUIPES, listarEquipesVR);
+
+  async function reclassificar(id: number, payload: ReclassificarEquipePayload) {
+    const atualizada = await reclassificarEquipeVR(id, payload);
+    await mutate(
+      (lista) => lista?.map((equipe) => (equipe.id === id ? atualizada : equipe)),
+      { revalidate: false },
+    );
+    return atualizada;
+  }
+
+  return {
+    equipes: data,
+    isLoading,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
+    reclassificar,
   };
 }
