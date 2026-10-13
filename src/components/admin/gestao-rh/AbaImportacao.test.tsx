@@ -312,6 +312,26 @@ describe("Aba Importação: histórico", () => {
     expect(linhas[2]).toHaveTextContent("Abonos7Sem identificaçãoData inválida.");
   });
 
+  it("lote com muitas linhas rejeitadas mostra só as 500 primeiras", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listarImportacoes).mockResolvedValue([lote({ id: 8, linhas_rejeitadas: 1200 })]);
+    vi.mocked(listarLinhasRejeitadas).mockResolvedValue(
+      Array.from({ length: 1200 }, (_, i) => ({
+        relatorio: "jornada" as const,
+        linha: i + 2,
+        colaborador: "",
+        motivo: "Data inválida.",
+      })),
+    );
+    renderAba();
+
+    await user.click(await screen.findByRole("button", { name: /Ver 1200 linhas rejeitadas/ }));
+    const modal = await screen.findByRole("dialog", { name: "Linhas rejeitadas" });
+    expect(await within(modal).findByText("Mostrando as 500 primeiras de 1.200 linhas rejeitadas.")).toBeInTheDocument();
+    // Cabeçalho + 500 linhas.
+    expect(within(modal).getAllByRole("row")).toHaveLength(501);
+  });
+
   it("falha ao carregar o histórico permite tentar de novo", async () => {
     const user = userEvent.setup();
     vi.mocked(listarImportacoes).mockRejectedValueOnce(erroHttp(500, { detail: "Erro no servidor." }));
