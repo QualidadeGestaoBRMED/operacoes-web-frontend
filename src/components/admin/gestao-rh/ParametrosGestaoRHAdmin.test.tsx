@@ -716,6 +716,28 @@ describe("Aba Equipes", () => {
     expect(screen.getByLabelText("Categoria de Operações Niterói")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("filtra por categoria, com a contagem de cada uma", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([
+      equipe(EQUIPE_NOVA),
+      equipe(),
+      equipe({ id: 12, nome: "TMO Rio", categoria: "tmo", categoria_rotulo: "TMO", unidade: null }),
+    ]);
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    const filtros = await screen.findByRole("group", { name: "Filtrar por categoria" });
+    expect(within(filtros).getByRole("button", { name: "Todas, 3" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(filtros).getByRole("button", { name: "Sem categoria, 1" }));
+
+    const tabela = screen.getByRole("table", { name: "Equipes do VR" });
+    expect(within(tabela).getByText("Equipe nova")).toBeInTheDocument();
+    expect(within(tabela).queryByText("Operações Niterói")).not.toBeInTheDocument();
+    expect(within(tabela).queryByText("TMO Rio")).not.toBeInTheDocument();
+
+    await user.click(within(filtros).getByRole("button", { name: "Campanha, 0" }));
+    expect(screen.getByText("Nenhuma equipe encontrada com esse filtro.")).toBeInTheDocument();
+  });
+
   it("busca pelo nome sem acento", async () => {
     vi.mocked(listarEquipesVR).mockResolvedValue([
       equipe(),
