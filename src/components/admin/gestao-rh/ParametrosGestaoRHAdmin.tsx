@@ -35,7 +35,10 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
       <Tabs
         value={aba}
         onValueChange={(valor) => setAba(valor as AbaParametros)}
-        className="gap-6"
+        // Do sm para cima as abas ocupam a altura que sobra: a tabela de
+        // Equipes rola por dentro sem passar do fim da tela. As outras abas,
+        // mais altas, continuam rolando pelo contêiner de cima.
+        className="gap-6 sm:min-h-0 sm:flex-1"
       >
         <TabsList
           variant="line"
@@ -56,7 +59,12 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           <AbaImportacao aoIrParaEquipes={() => setAba("equipes")} />
         </TabsContent>
 
-        <TabsContent value="equipes" forceMount hidden={aba !== "equipes"}>
+        <TabsContent
+          value="equipes"
+          forceMount
+          hidden={aba !== "equipes"}
+          className="sm:flex sm:min-h-0 sm:flex-col"
+        >
           <AbaEquipes />
         </TabsContent>
 
