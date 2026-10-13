@@ -227,6 +227,14 @@ describe("Modal do colaborador · aba Férias", () => {
     expect(screen.queryByText("Unidade")).not.toBeInTheDocument();
   });
 
+  it("sem matrícula (relatórios do VR), mostra \"Não informada\"", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, matricula_vr: "" });
+    renderModal();
+
+    expect(await screen.findByText("Matrícula não informada · Admissão 20/08/2024")).toHaveClass("sm:hidden");
+    expect(screen.getByText("Não informada")).toBeInTheDocument();
+  });
+
   it("sem unidade e sem equipe, a coluna mostra \"Unidade: Sem unidade\"", async () => {
     vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, unidade: null });
     renderModal();

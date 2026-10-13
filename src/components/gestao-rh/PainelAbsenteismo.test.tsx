@@ -224,7 +224,7 @@ describe("Painel de Absenteísmo", () => {
       linhas: [
         {
           ...primeira,
-          colaborador: { ...primeira.colaborador, unidade: null },
+          colaborador: { ...primeira.colaborador, unidade: null, matricula_vr: "" },
           equipe: "TMO - PETROBRAS",
           categoria: "tmo",
         },
@@ -235,6 +235,8 @@ describe("Painel de Absenteísmo", () => {
 
     const linha = (await screen.findByRole("button", { name: primeira.colaborador.nome })).closest("tr")!;
     expect(within(linha).getByText("TMO - PETROBRAS")).toBeInTheDocument();
+    // Sem matrícula (relatórios do VR), a linha de baixo começa pelo cargo.
+    expect(within(linha).getByText(primeira.colaborador.cargo)).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /Unidade \/ equipe/ })).toBeInTheDocument();
     expect(screen.getByText(/unidades?, mais TMO e Campanhas/)).toBeInTheDocument();
   });
