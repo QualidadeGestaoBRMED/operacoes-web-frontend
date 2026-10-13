@@ -239,12 +239,12 @@ export function AbaEquipes() {
         // Rolagem dentro da tabela com o cabeçalho fixo, como na tabela de
         // usuários da Administração; no celular a altura fica livre e quem
         // rola é a aba.
-        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:max-h-[calc(100dvh-24rem)] sm:min-h-64 sm:overflow-y-auto">
-          <table aria-label="Equipes do VR" className="w-full min-w-[720px] text-left text-sm">
+        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:max-h-[calc(100dvh-24rem)] sm:overflow-y-auto">
+          <table aria-label="Equipes do VR" className="w-full min-w-[720px] table-fixed text-left text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
-                <th className="px-4 py-2.5 text-right">Colaboradores</th>
+                <th className="w-36 px-4 py-2.5 text-right">Colaboradores</th>
                 <th className="w-48 px-4 py-2.5">Categoria</th>
                 <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
               </tr>
