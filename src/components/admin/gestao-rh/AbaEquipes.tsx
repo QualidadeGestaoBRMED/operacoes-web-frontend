@@ -5,6 +5,7 @@ import { Info, Search } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,6 +23,14 @@ import type { CategoriaEquipeVR, EquipeVR } from "@/types/gestaoRH";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
 
 const SEM_CATEGORIA = "sem_categoria";
+const TODAS = "todas";
+
+// Filtros da lista, com "Sem categoria" logo depois de "Todas" (é o que falta fazer).
+const FILTROS: { valor: CategoriaEquipeVR | typeof TODAS; rotulo: string }[] = [
+  { valor: TODAS, rotulo: "Todas" },
+  { valor: SEM_CATEGORIA, rotulo: "Sem categoria" },
+  ...CATEGORIAS_EQUIPE,
+];
 
 function normalizar(texto: string) {
   return texto
@@ -55,12 +64,21 @@ export function AbaEquipes() {
   const [salvando, setSalvando] = useState<number | null>(null);
   const [erros, setErros] = useState<Record<number, string>>({});
   const [aConfirmar, setAConfirmar] = useState<Mudanca | null>(null);
+  const [filtro, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
 
   const unidadesAtivas = useMemo(() => unidades.filter((unidade) => unidade.ativa), [unidades]);
   const visiveis = useMemo(() => {
     const termo = normalizar(busca.trim());
-    return (equipes ?? []).filter((equipe) => !termo || normalizar(equipe.nome).includes(termo));
-  }, [equipes, busca]);
+    return (equipes ?? []).filter(
+      (equipe) =>
+        (filtro === TODAS || equipe.categoria === filtro) && (!termo || normalizar(equipe.nome).includes(termo)),
+    );
+  }, [equipes, busca, filtro]);
+  const porCategoria = useMemo(() => {
+    const contagem: Record<string, number> = { [TODAS]: equipes?.length ?? 0 };
+    for (const equipe of equipes ?? []) contagem[equipe.categoria] = (contagem[equipe.categoria] ?? 0) + 1;
+    return contagem;
+  }, [equipes]);
   // A unidade atual entra na lista mesmo desativada: sem ela, o campo
   // apareceria vazio numa equipe já classificada.
   function opcoesDeUnidade(equipe: EquipeVR) {
@@ -177,36 +195,58 @@ export function AbaEquipes() {
         </p>
       )}
 
-      <div className="relative max-w-sm">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          value={busca}
-          onChange={(evento) => setBusca(evento.target.value)}
-          placeholder="Buscar equipe"
-          aria-label="Buscar equipe"
-          className="pl-8"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            value={busca}
+            onChange={(evento) => setBusca(evento.target.value)}
+            placeholder="Buscar equipe"
+            aria-label="Buscar equipe"
+            className="pl-8"
+          />
+        </div>
+        <div role="group" aria-label="Filtrar por categoria" className="flex flex-wrap gap-1.5">
+          {FILTROS.map(({ valor, rotulo }) => (
+            <Button
+              key={valor}
+              type="button"
+              size="sm"
+              variant={filtro === valor ? "secondary" : "outline"}
+              aria-pressed={filtro === valor}
+              aria-label={`${rotulo}, ${porCategoria[valor] ?? 0}`}
+              onClick={() => setFiltro(valor)}
+              className="h-8"
+            >
+              {rotulo}
+              <span className="tabular-nums opacity-70">{porCategoria[valor] ?? 0}</span>
+            </Button>
+          ))}
+        </div>
       </div>
 
       {visiveis.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {equipes.length === 0
             ? "Nenhuma equipe do VR ainda. Elas aparecem com a primeira importação."
-            : "Nenhuma equipe encontrada com essa busca."}
+            : "Nenhuma equipe encontrada com esse filtro."}
         </p>
       ) : (
-        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border">
+        // Rolagem dentro da tabela com o cabeçalho fixo, como na tabela de
+        // usuários da Administração; no celular a altura fica livre e quem
+        // rola é a aba.
+        <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:max-h-[calc(100dvh-24rem)] sm:min-h-64 sm:overflow-y-auto">
           <table aria-label="Equipes do VR" className="w-full min-w-[720px] text-left text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="sticky left-0 z-[1] bg-muted px-4 py-2.5">Equipe</th>
+                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
                 <th className="px-4 py-2.5 text-right">Colaboradores</th>
-                <th className="px-4 py-2.5">Categoria</th>
-                <th className="px-4 py-2.5">Unidade do Atlas</th>
+                <th className="w-48 px-4 py-2.5">Categoria</th>
+                <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
               </tr>
             </thead>
             <tbody>
@@ -218,7 +258,7 @@ export function AbaEquipes() {
                 const erro = erros[equipe.id];
                 const idErro = `equipe-${equipe.id}-erro`;
                 return (
-                  <tr key={equipe.id} className="border-b border-border align-top last:border-0">
+                  <tr key={equipe.id} className="border-b border-border align-middle last:border-0">
                     <td className="sticky left-0 z-[1] bg-background px-4 py-2.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-foreground">{equipe.nome}</span>
@@ -243,7 +283,7 @@ export function AbaEquipes() {
                           aria-label={`Categoria de ${equipe.nome}`}
                           aria-invalid={!!erro}
                           aria-describedby={erro ? idErro : undefined}
-                          className="w-full min-w-[10rem]"
+                          className="w-full"
                         >
                           <SelectValue placeholder="Escolha a categoria" />
                         </SelectTrigger>
@@ -266,7 +306,7 @@ export function AbaEquipes() {
                           <SelectTrigger
                             aria-label={`Unidade de ${equipe.nome}`}
                             aria-invalid={esperando || !!erro}
-                            className="w-full min-w-[10rem]"
+                            className="w-full"
                           >
                             <SelectValue placeholder="Escolha a unidade" />
                           </SelectTrigger>
