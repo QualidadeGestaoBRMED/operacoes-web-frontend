@@ -1,9 +1,12 @@
 import { isAxiosError } from "axios";
 import api from "./api";
 import type {
+  CategoriaEquipeVR,
+  EquipeVR,
   MarcoEditado,
   NovaVersaoParametrosPayload,
   ParametrosAbsenteismoResposta,
+  ReclassificarEquipePayload,
   ReguaFeriasResposta,
   ResultadoSalvar,
   TipoMarcoEditavel,
@@ -39,10 +42,32 @@ export async function salvarReguaFerias(
   return { dados: resposta.data, criouVersao: resposta.status === 201 };
 }
 
+const EQUIPES_URL = `${MODULO_URL}equipes/`;
+
+export async function listarEquipesVR(): Promise<EquipeVR[]> {
+  const { data } = await api.get<EquipeVR[]>(EQUIPES_URL);
+  return data;
+}
+
+export async function reclassificarEquipeVR(
+  id: number,
+  payload: ReclassificarEquipePayload,
+): Promise<EquipeVR> {
+  const { data } = await api.patch<EquipeVR>(`${EQUIPES_URL}${id}/`, payload);
+  return data;
+}
+
+/** Categorias que o Admin escolhe, na ordem da tela ("sem categoria" é só de chegada). */
+export const CATEGORIAS_EQUIPE: { valor: Exclude<CategoriaEquipeVR, "sem_categoria">; rotulo: string }[] = [
+  { valor: "unidade", rotulo: "Unidade" },
+  { valor: "tmo", rotulo: "TMO" },
+  { valor: "campanha", rotulo: "Campanha" },
+  { valor: "fora_do_indicador", rotulo: "Fora do indicador" },
+];
+
 export const ROTULO_TIPO_OCORRENCIA: Record<TipoOcorrenciaComputavel, string> = {
   falta: "Falta",
   atestado: "Atestado",
-  afastamento: "Afastamento",
   ausencia: "Ausência",
 };
 
