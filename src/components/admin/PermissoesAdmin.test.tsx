@@ -48,6 +48,7 @@ vi.mock("@/lib/gestaoRH", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRH")>()),
   buscarParametrosAbsenteismo: vi.fn(),
   buscarReguaFerias: vi.fn(),
+  listarEquipesVR: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -55,7 +56,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
-import { buscarParametrosAbsenteismo, buscarReguaFerias } from "@/lib/gestaoRH";
+import { buscarParametrosAbsenteismo, buscarReguaFerias, listarEquipesVR } from "@/lib/gestaoRH";
 import {
   criarPermissao,
   listarModulos,
@@ -250,6 +251,9 @@ describe("PermissoesAdmin (STC-266)", () => {
       screen.queryByRole("heading", { name: "Parâmetros de absenteísmo" }),
     ).not.toBeInTheDocument();
     expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
+    // Nem a aba Equipes, que lista e reclassifica as equipes do VR.
+    expect(screen.queryByRole("tab", { name: "Equipes" })).not.toBeInTheDocument();
+    expect(listarEquipesVR).not.toHaveBeenCalled();
   });
 
   // STC-521: Setor de Legalização (nível 4, setor.codigo === "LEG") ganha o
