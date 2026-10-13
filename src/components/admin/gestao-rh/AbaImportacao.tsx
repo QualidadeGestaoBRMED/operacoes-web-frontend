@@ -53,10 +53,37 @@ function textoPeriodo(lote: LoteImportacao): string {
   return `${formatarDataISO(lote.periodo_inicio)} a ${formatarDataISO(lote.periodo_fim)}`;
 }
 
-function textoEquipesNovas(quantidade: number): string {
-  return quantidade === 1
-    ? "1 equipe nova sem categoria: classifique na aba Equipes."
-    : `${quantidade} equipes novas sem categoria: classifique na aba Equipes.`;
+// Tabela do modal: um lote com milhares de linhas rejeitadas travaria a
+// tela; as primeiras bastam para achar o padrão do problema.
+const LIMITE_LINHAS_REJEITADAS = 500;
+
+/** Equipes que chegaram no lote sem categoria, com o atalho para a aba Equipes. */
+function AvisoEquipesNovas({
+  quantidade,
+  aoIrParaEquipes,
+}: {
+  quantidade: number;
+  aoIrParaEquipes?: () => void;
+}) {
+  const texto =
+    quantidade === 1 ? "1 equipe nova sem categoria:" : `${quantidade} equipes novas sem categoria:`;
+  return (
+    <>
+      {texto}{" "}
+      {aoIrParaEquipes ? (
+        <button
+          type="button"
+          className="text-primary underline-offset-4 hover:underline"
+          onClick={aoIrParaEquipes}
+        >
+          classificar na aba Equipes
+        </button>
+      ) : (
+        "classifique na aba Equipes"
+      )}
+      .
+    </>
+  );
 }
 
 // Sem resposta do backend (rede) ou com o proxy da Vercel cortando a espera
@@ -89,7 +116,7 @@ function errosDaResposta(erro: unknown): ErrosEnvio {
   return { geral: extrairMensagemErro(erro) };
 }
 
-export function AbaImportacao() {
+export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => void }) {
   const { lotes, isLoading, mensagemErro, recarregar, importar } = useImportacoesVR();
   const [periodo, setPeriodo] = useState(() => periodoPadrao());
   const [arquivos, setArquivos] = useState<Partial<Record<RelatorioVR, File>>>({});
@@ -299,7 +326,11 @@ export function AbaImportacao() {
       </form>
 
       {resultado && (
-        <ResultadoImportacao lote={resultado} aoVerRejeitadas={() => verRejeitadas(resultado)} />
+        <ResultadoImportacao
+          lote={resultado}
+          aoVerRejeitadas={() => verRejeitadas(resultado)}
+          aoIrParaEquipes={aoIrParaEquipes}
+        />
       )}
 
       <div className="space-y-2">
@@ -332,7 +363,12 @@ export function AbaImportacao() {
                   </tr>
                 ) : (
                   lotes.map((lote) => (
-                    <LinhaHistorico key={lote.id} lote={lote} aoVerRejeitadas={() => verRejeitadas(lote)} />
+                    <LinhaHistorico
+                      key={lote.id}
+                      lote={lote}
+                      aoVerRejeitadas={() => verRejeitadas(lote)}
+                      aoIrParaEquipes={aoIrParaEquipes}
+                    />
                   ))
                 )}
               </tbody>
@@ -350,7 +386,13 @@ export function AbaImportacao() {
   );
 }
 
-function ResultadoImportacao({ lote, aoVerRejeitadas }: { lote: LoteImportacao; aoVerRejeitadas: () => void }) {
+interface PropsDoLote {
+  lote: LoteImportacao;
+  aoVerRejeitadas: () => void;
+  aoIrParaEquipes?: () => void;
+}
+
+function ResultadoImportacao({ lote, aoVerRejeitadas, aoIrParaEquipes }: PropsDoLote) {
   if (lote.status !== "concluida") {
     return (
       <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 px-3 py-2.5 text-sm">
@@ -381,7 +423,9 @@ function ResultadoImportacao({ lote, aoVerRejeitadas }: { lote: LoteImportacao; 
         {lote.equipes_novas.length > 0 && (
           <p className="flex items-start gap-1.5 text-muted-foreground">
             <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-secondary" />
-            {textoEquipesNovas(lote.equipes_novas.length)}
+            <span>
+              <AvisoEquipesNovas quantidade={lote.equipes_novas.length} aoIrParaEquipes={aoIrParaEquipes} />
+            </span>
           </p>
         )}
       </div>
@@ -389,7 +433,7 @@ function ResultadoImportacao({ lote, aoVerRejeitadas }: { lote: LoteImportacao; 
   );
 }
 
-function LinhaHistorico({ lote, aoVerRejeitadas }: { lote: LoteImportacao; aoVerRejeitadas: () => void }) {
+function LinhaHistorico({ lote, aoVerRejeitadas, aoIrParaEquipes }: PropsDoLote) {
   const situacao = SITUACAO[lote.status];
   return (
     <tr className="border-b border-border align-top last:border-b-0">
@@ -419,7 +463,9 @@ function LinhaHistorico({ lote, aoVerRejeitadas }: { lote: LoteImportacao; aoVer
           <p className="text-xs text-muted-foreground">{lote.motivo_recusa}</p>
         )}
         {lote.equipes_novas.length > 0 && (
-          <p className="text-xs text-muted-foreground">{textoEquipesNovas(lote.equipes_novas.length)}</p>
+          <p className="text-xs text-muted-foreground">
+            <AvisoEquipesNovas quantidade={lote.equipes_novas.length} aoIrParaEquipes={aoIrParaEquipes} />
+          </p>
         )}
       </td>
     </tr>
@@ -451,30 +497,38 @@ function ModalLinhasRejeitadas({
         ) : !linhas ? (
           <p className="text-sm text-destructive">{mensagemErro ?? "Linhas rejeitadas não encontradas."}</p>
         ) : (
-          <div className="scrollbar-discreta max-h-[60dvh] overflow-auto rounded-lg border border-border">
-            <table aria-label="Linhas rejeitadas" className="w-full min-w-[560px] text-left text-sm">
-              <thead className="sticky top-0">
-                <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  <th scope="col" className="px-4 py-2.5">Relatório</th>
-                  <th scope="col" className="px-4 py-2.5 text-right">Linha</th>
-                  <th scope="col" className="px-4 py-2.5">Colaborador</th>
-                  <th scope="col" className="px-4 py-2.5">Motivo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((linha, indice) => (
-                  <tr
-                    key={`${linha.relatorio}-${linha.linha}-${indice}`}
-                    className="border-b border-border align-top last:border-b-0"
-                  >
-                    <td className="px-4 py-2.5">{ROTULO_RELATORIO[linha.relatorio]}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{linha.linha}</td>
-                    <td className="px-4 py-2.5">{linha.colaborador || "Sem identificação"}</td>
-                    <td className="px-4 py-2.5">{linha.motivo}</td>
+          <div className="space-y-2">
+            {linhas.length > LIMITE_LINHAS_REJEITADAS && (
+              <p className="text-xs text-muted-foreground">
+                Mostrando as {LIMITE_LINHAS_REJEITADAS} primeiras de {linhas.length.toLocaleString("pt-BR")}{" "}
+                linhas rejeitadas.
+              </p>
+            )}
+            <div className="scrollbar-discreta max-h-[60dvh] overflow-auto rounded-lg border border-border">
+              <table aria-label="Linhas rejeitadas" className="w-full min-w-[560px] text-left text-sm">
+                <thead className="sticky top-0">
+                  <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <th scope="col" className="px-4 py-2.5">Relatório</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">Linha</th>
+                    <th scope="col" className="px-4 py-2.5">Colaborador</th>
+                    <th scope="col" className="px-4 py-2.5">Motivo</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {linhas.slice(0, LIMITE_LINHAS_REJEITADAS).map((linha, indice) => (
+                    <tr
+                      key={`${linha.relatorio}-${linha.linha}-${indice}`}
+                      className="border-b border-border align-top last:border-b-0"
+                    >
+                      <td className="px-4 py-2.5">{ROTULO_RELATORIO[linha.relatorio]}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{linha.linha}</td>
+                      <td className="px-4 py-2.5">{linha.colaborador || "Sem identificação"}</td>
+                      <td className="px-4 py-2.5">{linha.motivo}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </DialogContent>

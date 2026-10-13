@@ -53,7 +53,7 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
         </TabsList>
 
         <TabsContent value="importacao" forceMount hidden={aba !== "importacao"}>
-          <AbaImportacao />
+          <AbaImportacao aoIrParaEquipes={() => setAba("equipes")} />
         </TabsContent>
 
         <TabsContent value="equipes" forceMount hidden={aba !== "equipes"}>
