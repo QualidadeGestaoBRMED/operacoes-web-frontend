@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Info, Search } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,7 +36,16 @@ function normalizar(texto: string) {
  * absenteísmo; na categoria Unidade, a equipe leva uma unidade do Atlas.
  * Salva ao escolher, como a tabela de usuários da Administração. Trocar
  * para Unidade só salva depois de escolher a unidade (a API exige as duas).
+ * Tirar ou trocar a unidade de uma equipe com colaboradores pede
+ * confirmação: muda a unidade de todos eles e leva as demandas abertas para
+ * a coordenação nova.
  */
+
+interface Mudanca {
+  equipe: EquipeVR;
+  categoria: CategoriaEquipeVR;
+  unidade: number | null;
+}
 export function AbaEquipes() {
   const { equipes, isLoading, mensagemErro, recarregar, reclassificar } = useEquipesVR();
   const { unidades } = useUnidades();
@@ -44,6 +54,7 @@ export function AbaEquipes() {
   const [esperandoUnidade, setEsperandoUnidade] = useState<Set<number>>(new Set());
   const [salvando, setSalvando] = useState<number | null>(null);
   const [erros, setErros] = useState<Record<number, string>>({});
+  const [aConfirmar, setAConfirmar] = useState<Mudanca | null>(null);
 
   const unidadesAtivas = useMemo(() => unidades.filter((unidade) => unidade.ativa), [unidades]);
   const visiveis = useMemo(() => {
@@ -92,6 +103,16 @@ export function AbaEquipes() {
     }
   }
 
+  // Mudança que tira ou troca a unidade de quem já está na equipe passa
+  // pela confirmação; as outras salvam direto.
+  function mudar(mudanca: Mudanca) {
+    const { equipe, unidade } = mudanca;
+    const mexeEmQuemEstaNaEquipe =
+      equipe.unidade !== null && equipe.colaboradores_ativos > 0 && unidade !== equipe.unidade.id;
+    if (mexeEmQuemEstaNaEquipe) setAConfirmar(mudanca);
+    else void salvar(equipe, mudanca.categoria, unidade);
+  }
+
   function aoMudarCategoria(equipe: EquipeVR, valor: string) {
     const categoria = valor as CategoriaEquipeVR;
     if (categoria === "unidade" && !equipe.unidade) {
@@ -99,7 +120,29 @@ export function AbaEquipes() {
       return;
     }
     marcarEsperando(equipe.id, false);
-    void salvar(equipe, categoria, categoria === "unidade" ? (equipe.unidade?.id ?? null) : null);
+    mudar({ equipe, categoria, unidade: categoria === "unidade" ? (equipe.unidade?.id ?? null) : null });
+  }
+
+  function descricaoDaConfirmacao({ equipe, categoria, unidade }: Mudanca) {
+    const pessoas =
+      equipe.colaboradores_ativos === 1 ? "O colaborador" : `Os ${equipe.colaboradores_ativos} colaboradores`;
+    const de = equipe.unidade?.nome;
+    const para = unidadesAtivas.find((opcao) => opcao.id === unidade)?.nome;
+    if (para) {
+      return (
+        <>
+          {pessoas} de <strong>{equipe.nome}</strong> passam de {de} para <strong>{para}</strong>, e as
+          demandas abertas deles vão para a coordenação de {para}.
+        </>
+      );
+    }
+    const rotulo = CATEGORIAS_EQUIPE.find((opcao) => opcao.valor === categoria)?.rotulo;
+    return (
+      <>
+        {pessoas} de <strong>{equipe.nome}</strong> deixam a unidade {de} e passam para <strong>{rotulo}</strong>,
+        sem unidade do Atlas. As demandas abertas deles ficam onde estão.
+      </>
+    );
   }
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
@@ -217,7 +260,7 @@ export function AbaEquipes() {
                       {comUnidade ? (
                         <Select
                           value={equipe.unidade && !esperando ? String(equipe.unidade.id) : undefined}
-                          onValueChange={(valor) => void salvar(equipe, "unidade", Number(valor))}
+                          onValueChange={(valor) => mudar({ equipe, categoria: "unidade", unidade: Number(valor) })}
                           disabled={ocupada}
                         >
                           <SelectTrigger
@@ -246,6 +289,18 @@ export function AbaEquipes() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={aConfirmar !== null}
+        onOpenChange={(aberto) => !aberto && setAConfirmar(null)}
+        titulo="Mudar a unidade da equipe?"
+        descricao={aConfirmar ? descricaoDaConfirmacao(aConfirmar) : ""}
+        textoConfirmar="Confirmar"
+        onConfirmar={() => {
+          if (aConfirmar) void salvar(aConfirmar.equipe, aConfirmar.categoria, aConfirmar.unidade);
+          setAConfirmar(null);
+        }}
+      />
     </section>
   );
 }
