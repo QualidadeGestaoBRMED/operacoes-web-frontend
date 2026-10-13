@@ -30,10 +30,11 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 vi.mock("@/lib/gestaoRHImportacao", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHImportacao")>()),
   listarImportacoes: vi.fn().mockResolvedValue([]),
+  importarRelatorios: vi.fn(),
 }));
 
 import { toast } from "sonner";
-import { listarImportacoes } from "@/lib/gestaoRHImportacao";
+import { importarRelatorios } from "@/lib/gestaoRHImportacao";
 import {
   buscarParametrosAbsenteismo,
   buscarReguaFerias,
@@ -507,32 +508,40 @@ describe("Régua de férias: edição desfeita", () => {
 });
 
 describe("Importação → Equipes", () => {
-  it("equipes novas do lote levam à aba Equipes", async () => {
-    vi.mocked(listarImportacoes).mockResolvedValue([
-      {
-        id: 1,
-        origem: "robo",
-        status: "concluida",
-        motivo_recusa: "",
-        periodo_inicio: "2026-09-01",
-        periodo_fim: "2026-10-12",
-        linhas_processadas: 100,
-        linhas_rejeitadas: 0,
-        obtido_em: "2026-10-13T10:00:00Z",
-        concluido_em: "2026-10-13T10:00:06Z",
-        enviado_por: null,
-        equipes_novas: [{ id: 11, nome: "Equipe nova" }],
-      },
-    ]);
-    vi.mocked(listarEquipesVR).mockResolvedValue([equipe(EQUIPE_NOVA)]);
+  it("equipes criadas pelo lote aparecem na aba Equipes pelo atalho do resultado", async () => {
+    // A aba Equipes já carregou (vazia) antes do envio; o lote cria uma equipe.
+    vi.mocked(listarEquipesVR).mockResolvedValueOnce([]).mockResolvedValue([equipe(EQUIPE_NOVA)]);
+    vi.mocked(importarRelatorios).mockResolvedValue({
+      id: 1,
+      origem: "planilha",
+      status: "concluida",
+      motivo_recusa: "",
+      periodo_inicio: "2026-09-01",
+      periodo_fim: "2026-10-12",
+      linhas_processadas: 100,
+      linhas_rejeitadas: 0,
+      obtido_em: "2026-10-13T10:00:00Z",
+      concluido_em: "2026-10-13T10:00:06Z",
+      enviado_por: "Admin",
+      equipes_novas: [{ id: 11, nome: "Equipe nova" }],
+    });
     const user = userEvent.setup();
     renderTela();
     await user.click(await screen.findByRole("tab", { name: "Importação" }));
-
+    for (const rotulo of ["Jornada", "Abonos", "Pendências"]) {
+      await user.upload(
+        screen.getByLabelText(`Arquivo de ${rotulo}`),
+        new File(["x"], `${rotulo}.xlsx`, {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+      );
+    }
+    await user.click(screen.getByRole("button", { name: "Importar relatórios" }));
     await user.click(await screen.findByRole("button", { name: "classificar na aba Equipes" }));
 
     expect(screen.getByRole("tab", { name: "Equipes" })).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByRole("table", { name: "Equipes do VR" })).toBeVisible();
+    const tabela = await screen.findByRole("table", { name: "Equipes do VR" });
+    expect(await within(tabela).findByText("Equipe nova")).toBeInTheDocument();
   });
 });
 

@@ -99,7 +99,7 @@ describe("Aba Importação: formulário", () => {
 
     expect(await screen.findByText("Escolha o relatório de Abonos.")).toBeInTheDocument();
     expect(screen.getByText("Escolha o relatório de Pendências.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Arquivo de Abonos")).toHaveAccessibleDescription(
+    expect(screen.getByRole("button", { name: "Selecionar Abonos" })).toHaveAccessibleDescription(
       "Escolha o relatório de Abonos.",
     );
     expect(screen.getByText("jornada.xlsx")).toBeInTheDocument();
@@ -219,7 +219,7 @@ describe("Aba Importação: envio", () => {
     await user.click(screen.getByRole("button", { name: "Importar relatórios" }));
 
     expect(await screen.findByText("Arquivo maior que 15 MB.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Arquivo de Abonos")).toHaveAccessibleDescription(
+    expect(screen.getByRole("button", { name: "Trocar Abonos" })).toHaveAccessibleDescription(
       "Arquivo maior que 15 MB.",
     );
   });
@@ -288,7 +288,9 @@ describe("Aba Importação: histórico", () => {
     const [, robo, manual] = within(tabela).getAllByRole("row");
     expect(robo).toHaveTextContent("Robô");
     expect(robo).toHaveTextContent("Concluída");
-    expect(robo).toHaveTextContent("2 equipes novas sem categoria");
+    // O lote não sabe se as equipes já foram classificadas: só a quantidade.
+    expect(robo).toHaveTextContent("2 equipes novas neste lote");
+    expect(robo).not.toHaveTextContent("sem categoria");
     expect(manual).toHaveTextContent("Manual · Nathalya Almeida");
     expect(manual).toHaveTextContent("Recusada");
     expect(manual).toHaveTextContent("Abonos: falta a coluna Status.");
