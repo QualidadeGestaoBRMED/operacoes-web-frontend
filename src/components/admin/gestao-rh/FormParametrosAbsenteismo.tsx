@@ -150,7 +150,7 @@ export function FormParametrosAbsenteismo() {
     reset,
     watch,
     setError,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, dirtyFields },
   } = useForm<ValoresEntrada & { faixas?: string }, unknown, ValoresSaida>({
     resolver: zodResolver(schema),
   });
@@ -178,8 +178,13 @@ export function FormParametrosAbsenteismo() {
             }
           : null,
         tipos_computados: valores.tipos_computados,
-        responsavel_tmo: idDoResponsavel(valores.responsavel_tmo),
-        responsavel_campanha: idDoResponsavel(valores.responsavel_campanha),
+        // Só os responsáveis que mudaram: ausente, o backend mantém o atual.
+        // Mandar sempre travaria o salvar quando o responsável atual foi
+        // desativado (o backend só aceita usuário ativo).
+        ...(dirtyFields.responsavel_tmo && { responsavel_tmo: idDoResponsavel(valores.responsavel_tmo) }),
+        ...(dirtyFields.responsavel_campanha && {
+          responsavel_campanha: idDoResponsavel(valores.responsavel_campanha),
+        }),
       });
       if (resultado.dados.vigente) reset(valoresDaVersao(resultado.dados.vigente));
       if (resultado.criouVersao) {
