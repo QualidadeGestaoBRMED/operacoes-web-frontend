@@ -147,10 +147,10 @@ export function DetalheColaboradorModal({
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[230px_1fr]">
               <div className="scrollbar-discreta hidden flex-col gap-4 overflow-y-auto border-r border-border p-4.5 sm:flex">
                 {/* TMO e Campanha não têm unidade do Atlas: vale a equipe do VR. */}
-                {colaborador.unidade ? (
-                  <CampoMeta rotulo="Unidade">{colaborador.unidade.nome}</CampoMeta>
+                {!colaborador.unidade && colaborador.equipe ? (
+                  <CampoMeta rotulo="Equipe">{colaborador.equipe}</CampoMeta>
                 ) : (
-                  <CampoMeta rotulo="Equipe">{colaborador.equipe ?? "Sem unidade"}</CampoMeta>
+                  <CampoMeta rotulo="Unidade">{colaborador.unidade?.nome ?? "Sem unidade"}</CampoMeta>
                 )}
                 {colaborador.cargo && <CampoMeta rotulo="Cargo">{colaborador.cargo}</CampoMeta>}
                 <CampoMeta rotulo="Matrícula">{colaborador.matricula_vr}</CampoMeta>
