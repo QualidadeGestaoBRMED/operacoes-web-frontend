@@ -575,7 +575,7 @@ describe("Responsáveis pelas equipes sem unidade", () => {
     const user = userEvent.setup();
     renderTela();
 
-    await user.click(await screen.findByLabelText("Responsável pelas equipes de TMO"));
+    await user.click(await screen.findByLabelText("TMO"));
     expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Sem Silva" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "Carla Silva" }));
@@ -610,7 +610,7 @@ describe("Responsáveis pelas equipes sem unidade", () => {
       parametros({ ...VERSAO_INICIAL, responsavel_campanha: { id: 99, nome: "Ex Responsável" } }),
     );
     renderTela();
-    const campo = await screen.findByLabelText("Responsável pelas equipes de Campanha");
+    const campo = await screen.findByLabelText("Campanha");
     await waitFor(() => expect(campo).toHaveTextContent("Ex Responsável"));
   });
 });
