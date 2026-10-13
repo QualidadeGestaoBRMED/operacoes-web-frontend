@@ -57,7 +57,7 @@ interface Mudanca {
 }
 export function AbaEquipes() {
   const { equipes, isLoading, mensagemErro, recarregar, reclassificar } = useEquipesVR();
-  const { unidades } = useUnidades();
+  const { unidades, isLoading: carregandoUnidades, error: erroUnidades } = useUnidades();
   const [busca, setBusca] = useState("");
   // Equipes que o Admin passou para Unidade e ainda esperam a escolha da unidade.
   const [esperandoUnidade, setEsperandoUnidade] = useState<Set<number>>(new Set());
@@ -229,6 +229,13 @@ export function AbaEquipes() {
         </div>
       </div>
 
+      {erroUnidades && (
+        <p role="alert" className="text-sm text-destructive">
+          Não foi possível carregar as unidades do Atlas: a unidade das equipes não pode ser escolhida
+          agora. Recarregue a página para tentar de novo.
+        </p>
+      )}
+
       {visiveis.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {equipes.length === 0
@@ -275,8 +282,11 @@ export function AbaEquipes() {
                     </td>
                     <td className="px-4 py-2.5">
                       <Select
-                        value={categoria === SEM_CATEGORIA ? undefined : categoria}
-                        onValueChange={(valor) => aoMudarCategoria(equipe, valor)}
+                        // Controlado também sem categoria ("" mostra o
+                        // placeholder): sem isso, uma gravação recusada
+                        // deixaria o campo exibindo o que não foi salvo.
+                        value={categoria === SEM_CATEGORIA ? "" : categoria}
+                        onValueChange={(valor) => valor && aoMudarCategoria(equipe, valor)}
                         disabled={ocupada}
                       >
                         <SelectTrigger
@@ -299,9 +309,11 @@ export function AbaEquipes() {
                     <td className="px-4 py-2.5">
                       {comUnidade ? (
                         <Select
-                          value={equipe.unidade && !esperando ? String(equipe.unidade.id) : undefined}
-                          onValueChange={(valor) => mudar({ equipe, categoria: "unidade", unidade: Number(valor) })}
-                          disabled={ocupada}
+                          value={equipe.unidade && !esperando ? String(equipe.unidade.id) : ""}
+                          onValueChange={(valor) =>
+                            valor && mudar({ equipe, categoria: "unidade", unidade: Number(valor) })
+                          }
+                          disabled={ocupada || carregandoUnidades || !!erroUnidades}
                         >
                           <SelectTrigger
                             aria-label={`Unidade de ${equipe.nome}`}

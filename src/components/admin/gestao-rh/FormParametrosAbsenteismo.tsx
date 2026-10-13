@@ -135,7 +135,10 @@ function idDoResponsavel(valor: string): number | null {
 
 export function FormParametrosAbsenteismo() {
   const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo();
-  const { usuarios } = useUsuarios();
+  const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
+  // Sem a lista, o campo só mostraria "Sem responsável" e o atual: trocar
+  // fica bloqueado até ela carregar.
+  const responsaveisBloqueados = carregandoUsuarios || !!erroUsuarios;
   const [salvando, setSalvando] = useState(false);
   const [erroFaixas, setErroFaixas] = useState<string>();
 
@@ -358,6 +361,7 @@ export function FormParametrosAbsenteismo() {
                         return (
                           <Select
                             value={field.value}
+                            disabled={responsaveisBloqueados}
                             // O Radix chama com "" ao montar dentro de um
                             // <form>; sem ignorar, o formulário já abriria
                             // como alterado.
@@ -392,6 +396,12 @@ export function FormParametrosAbsenteismo() {
                 );
               })}
             </div>
+            {erroUsuarios && (
+              <p role="alert" className="text-xs text-destructive">
+                Não foi possível carregar os usuários: os responsáveis não podem ser trocados agora.
+                Recarregue a página para tentar de novo.
+              </p>
+            )}
           </fieldset>
         </div>
 
