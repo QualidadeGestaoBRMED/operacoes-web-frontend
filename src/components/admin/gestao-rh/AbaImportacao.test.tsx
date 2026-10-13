@@ -240,6 +240,42 @@ describe("Aba Importação: envio", () => {
   });
 });
 
+describe("Aba Importação: resultado incerto", () => {
+  it.each([
+    ["tempo esgotado no proxy (504)", erroHttp(504, "FUNCTION_INVOCATION_TIMEOUT")],
+    ["sem resposta (rede)", new AxiosError("Network Error", "ERR_NETWORK")],
+  ])("%s pede para conferir o histórico e o recarrega", async (_caso, erro) => {
+    const user = userEvent.setup();
+    vi.mocked(importarRelatorios).mockRejectedValue(erro);
+    renderAba();
+    await escolherOs3(user);
+    await screen.findByText("Nenhuma importação ainda.");
+    vi.mocked(listarImportacoes).mockResolvedValue([lote()]);
+    await user.click(screen.getByRole("button", { name: "Importar relatórios" }));
+
+    expect(
+      await screen.findByText(/A importação pode ter sido concluída: confira o histórico/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("FUNCTION_INVOCATION_TIMEOUT")).not.toBeInTheDocument();
+    // O lote que o backend concluiu aparece sem recarregar a página.
+    expect(await screen.findByText("Manual · Nathalya Almeida")).toBeInTheDocument();
+  });
+
+  it("escolher outro arquivo tira o resultado do envio anterior", async () => {
+    const user = userEvent.setup();
+    vi.mocked(importarRelatorios).mockResolvedValue(
+      lote({ status: "recusada", motivo_recusa: "Período diferente do informado." }),
+    );
+    renderAba();
+    await escolherOs3(user);
+    await user.click(screen.getByRole("button", { name: "Importar relatórios" }));
+    expect(await screen.findByText("Importação recusada: nada foi gravado.")).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText("Arquivo de Jornada"), arquivo("jornada-2.xlsx"));
+    expect(screen.queryByText("Importação recusada: nada foi gravado.")).not.toBeInTheDocument();
+  });
+});
+
 describe("Aba Importação: histórico", () => {
   it("mostra origem, situação, motivo da recusa e equipes novas", async () => {
     vi.mocked(listarImportacoes).mockResolvedValue([
