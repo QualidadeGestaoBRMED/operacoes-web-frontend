@@ -306,10 +306,13 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     await user.click(alerta.getByLabelText("Ação tomada *"));
     await user.click(await screen.findByRole("option", { name: "Feedback" }));
     await user.type(alerta.getByLabelText("Justificativa *"), "Conversa.");
+    const cabecalhos = vi.mocked(buscarColaboradorRH).mock.calls.length;
     await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Este alerta já foi tratado ou encerrado."));
     expect(await screen.findByText("Tratamento: Feedback")).toBeInTheDocument();
+    // O cabeçalho (alertas pendentes) também é buscado de novo.
+    await waitFor(() => expect(vi.mocked(buscarColaboradorRH).mock.calls.length).toBeGreaterThan(cabecalhos));
     expect(screen.queryByLabelText("Justificativa *")).not.toBeInTheDocument();
   });
 
