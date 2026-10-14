@@ -10,7 +10,7 @@
 
 > **Fonte dos dados de ponto: RPA (07/10/2026).** Um robô no servidor físico baixa 3 relatórios do VR Pontomais (Jornada, Abonos, Pendências) e os envia à rota de importação; o upload manual pela aba Importação é a contingência. O frontend não fala com o robô: só mostra a origem de cada lote (manual ou robô).
 
-> **Férias desligada nesta fase** (STC-687): o módulo mostra só o absenteísmo. A chave é `FERIAS_ATIVA` em `src/config/gestaoRH.ts` (`false`). Desligada: Gestão RH é link direto para o Painel de Absenteísmo (sem submenu); `/modulos/gestao-rh/ferias` redireciona para ele, levando o `?colaborador=` dos links antigos do Kanban; o modal mostra só o absenteísmo, sem abas; os Parâmetros ficam com a aba "Absenteísmo", sem a régua de férias. O código de férias segue no repositório e os testes dele rodam com a chave ligada (`vi.mock("@/config/gestaoRH")`); `FeriasDesligada.test.tsx` cobre a chave desligada. Religar: `true` aqui e reativar a agenda da varredura de férias no backend (STC-686).
+> **Férias desligada nesta fase** (STC-687): o módulo mostra só o absenteísmo. A chave é `FERIAS_ATIVA` em `src/config/gestaoRH.ts` (`false`). Desligada: o submenu de Gestão RH tem só o Painel de Absenteísmo (mais os Parâmetros, para Admin; STC-728); `/modulos/gestao-rh/ferias` redireciona para ele, levando o `?colaborador=` dos links antigos do Kanban; o modal mostra só o absenteísmo, sem abas; os Parâmetros ficam com a aba "Absenteísmo", sem a régua de férias. O código de férias segue no repositório e os testes dele rodam com a chave ligada (`vi.mock("@/config/gestaoRH")`); `FeriasDesligada.test.tsx` cobre a chave desligada. Religar: `true` aqui e reativar a agenda da varredura de férias no backend (STC-686).
 
 ### Situação por issue
 
@@ -24,6 +24,7 @@
 | STC-601 Testes e verificação visual do módulo | P6 | ✅ Concluída |
 | STC-684 Modal e tabelas dos painéis no celular | P5.1/P5.3 | ✅ Mergeada |
 | STC-687 Férias escondida por `FERIAS_ATIVA` | P5 | ✅ Mergeada |
+| STC-728 Gestão RH expansível na sidebar, com atalho para os Parâmetros | P5.1/P5.4 | 🔄 Em andamento |
 | STC-595 Aba Importação: 3 relatórios, um arquivo cada | P5.4 | ✅ Mergeada |
 | STC-694 Aba Equipes nos Parâmetros (categoria, unidade) | P5.4 | ✅ Mergeada |
 | STC-697 Painel e modal com equipes sem unidade (filtro de categoria) | P5.1/P5.3 | ✅ Mergeada |
@@ -36,7 +37,7 @@
 ## O que já está pronto
 
 - Layout base, NextAuth, middleware, API client autenticado (`lib/api.ts`), `useAuth()` com os flags de perfil (`isAdminOps`, `isAdminQG`, `isCoordenacaoUnidade`, `isSetorLeg`).
-- **Entrada "Gestão RH"** em `config/modulos-futuros.ts` com `codigo`, `rota` e os subitens Painel de Absenteísmo (STC-596) e Painel de Férias (STC-599). Continua "em breve" na Sidebar e no Hub até `Modulo.status=ativo` no backend (P7), que só acontece depois da rota real de absenteísmo (STC-588); "em breve" só esconde o menu, a rota direta abre a tela.
+- **Entrada "Gestão RH"** em `config/modulos-futuros.ts` com `codigo`, `rota` e os subitens Painel de Absenteísmo (STC-596) e Painel de Férias (STC-599, só com `FERIAS_ATIVA`). A Sidebar acrescenta "Parâmetros de Gestão RH" (`/admin/permissoes/parametros-gestao-rh`) para Admin, como o "Catálogo de Legalização"; com um subitem só (coordenação e OPEX, férias desligada), o item é link direto (STC-728). Continua "em breve" na Sidebar e no Hub até `Modulo.status=ativo` no backend (P7), que só acontece depois da rota real de absenteísmo (STC-588); "em breve" só esconde o menu, a rota direta abre a tela.
 - **Clique no card do Kanban** redireciona para `demanda.origem_url` (`components/kanban/KanbanBoard.tsx::selecionarDemanda`): sem código novo no Kanban.
 - **Seção Parâmetros de Gestão RH (STC-597)**: `components/admin/gestao-rh/`, `hooks/useParametrosGestaoRH.ts`, `lib/gestaoRH.ts` (chamadas, rótulos, `formatarDataISO`, `errosDeCampo`/`errosPorItem` para levar erros do DRF aos campos), `types/gestaoRH.ts`, `components/ui/switch.tsx`.
 - **Painel de Férias e modal do colaborador (STC-599)**: `components/gestao-rh/`, `hooks/useFeriasGestaoRH.ts` (`usePainelFerias`, `useColaboradorRH`, `useFeriasColaborador`), `lib/gestaoRHFerias.ts` (chamadas, rótulos e textos de marcos, situação e histórico).
