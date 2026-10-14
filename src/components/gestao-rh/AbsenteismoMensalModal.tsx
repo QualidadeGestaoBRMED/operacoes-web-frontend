@@ -1,14 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import {
   Dialog,
   DialogContent,
@@ -25,11 +20,14 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAbsenteismoMensal, type MesAbsenteismo } from "@/hooks/useAbsenteismoGestaoRH";
+import { formatarDataISO } from "@/lib/gestaoRH";
 import {
+  DICA_PONTOS_PERCENTUAIS,
   corDaDiferenca,
   diferencaEmPontos,
   formatarDiferenca,
   formatarPercentual,
+  mesesPorExtenso,
   nomeCurtoDoMes,
   periodoEmAndamento,
 } from "@/lib/gestaoRHAbsenteismo";
@@ -55,9 +53,16 @@ interface AbsenteismoMensalModalProps {
   visao: string;
 }
 
+/**
+ * Um ponto por mês. `fechado` desenha a linha cheia (meses que acabaram);
+ * `andamento` desenha o trecho tracejado do último mês fechado até o mês em
+ * andamento, cujo número ainda vai mudar.
+ */
 interface PontoDoMes {
   nome: string;
   percentual: number | null;
+  fechado: number | null;
+  andamento: number | null;
   parcial: boolean;
 }
 
@@ -66,25 +71,30 @@ function comDado(mes: MesAbsenteismo): boolean {
   return mes.painel?.cards.percentual_periodo != null;
 }
 
-/** "jan a ago, nov e dez": meses passados ou em andamento sem dado. */
-function mesesSemDado(meses: MesAbsenteismo[]): string | null {
-  const nomes = meses.filter((mes) => !mes.futuro && !comDado(mes)).map((mes) => nomeCurtoDoMes(mes.mes));
-  if (nomes.length === 0) return null;
-  return nomes.length === 1 ? nomes[0] : `${nomes.slice(0, -1).join(", ")} e ${nomes.at(-1)}`;
-}
-
-function Selo({ children }: { children: string }) {
-  return (
-    <span className="inline-flex rounded-full bg-amber-600/10 px-1.5 py-px text-[10px] font-bold text-amber-800 uppercase">
-      {children}
-    </span>
-  );
+function pontosDoGrafico(meses: MesAbsenteismo[], hoje: string): PontoDoMes[] {
+  const pontos = meses.map((mes) => {
+    const percentual = comDado(mes) ? Number(mes.painel!.cards.percentual_periodo) : null;
+    const parcial = periodoEmAndamento(mes, hoje);
+    return {
+      nome: nomeCurtoDoMes(mes.mes),
+      percentual,
+      fechado: parcial ? null : percentual,
+      andamento: parcial ? percentual : null,
+      parcial,
+    };
+  });
+  // O trecho tracejado sai do mês anterior ao em andamento, se ele tiver dado.
+  const indice = pontos.findIndex((ponto) => ponto.parcial && ponto.percentual !== null);
+  if (indice > 0 && pontos[indice - 1].fechado !== null) {
+    pontos[indice - 1].andamento = pontos[indice - 1].fechado;
+  }
+  return pontos;
 }
 
 /** Título de coluna abreviado no celular; o leitor de tela lê o nome completo. */
-function TituloColuna({ completo, curto }: { completo: string; curto: string }) {
+function TituloColuna({ completo, curto, dica }: { completo: string; curto: string; dica?: string }) {
   return (
-    <th scope="col" className="py-1.5 pl-3 text-right font-semibold">
+    <th scope="col" className="py-1.5 pl-3 text-right font-semibold" title={dica}>
       <span className="hidden sm:inline">{completo}</span>
       <span className="sm:hidden" aria-hidden>
         {curto}
@@ -94,10 +104,11 @@ function TituloColuna({ completo, curto }: { completo: string; curto: string }) 
   );
 }
 
-function PontoDoGrafico(props: { cx?: number; cy?: number; payload?: PontoDoMes }) {
-  const { cx, cy, payload } = props;
-  if (cx == null || cy == null || payload?.percentual == null) return null;
-  // Mês em andamento: ponto vazado, o número ainda vai mudar.
+function Ponto(props: { cx?: number; cy?: number; payload?: PontoDoMes; vazado: boolean }) {
+  const { cx, cy, payload, vazado } = props;
+  // Cada linha desenha só os pontos dela: a cheia, os meses fechados; a
+  // tracejada, o mês em andamento (vazado: o número ainda vai mudar).
+  if (cx == null || cy == null || !payload || payload.parcial !== vazado) return null;
   return (
     <circle
       cx={cx}
@@ -105,8 +116,20 @@ function PontoDoGrafico(props: { cx?: number; cy?: number; payload?: PontoDoMes 
       r={4}
       stroke="var(--color-percentual)"
       strokeWidth={2}
-      fill={payload.parcial ? "var(--background)" : "var(--color-percentual)"}
+      fill={vazado ? "var(--background)" : "var(--color-percentual)"}
     />
+  );
+}
+
+function DicaDoMes({ active, payload }: { active?: boolean; payload?: { payload: PontoDoMes }[] }) {
+  const ponto = payload?.[0]?.payload;
+  if (!active || !ponto || ponto.percentual === null) return null;
+  return (
+    <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+      <span className="font-medium">{ponto.nome}</span>
+      {ponto.parcial && <span className="text-muted-foreground"> (em andamento)</span>}:{" "}
+      <span className="font-semibold">{formatarPercentual(String(ponto.percentual))}</span>
+    </div>
   );
 }
 
@@ -130,29 +153,26 @@ export function AbsenteismoMensalModal({
     categoria,
   );
 
-  const pontos: PontoDoMes[] = (meses ?? []).map((mes) => ({
-    nome: nomeCurtoDoMes(mes.mes),
-    percentual: comDado(mes) ? Number(mes.painel!.cards.percentual_periodo) : null,
-    parcial: periodoEmAndamento(mes, hoje),
-  }));
-  // Meta da versão vigente no último mês com dado (pode mudar entre versões).
+  const pontos = meses ? pontosDoGrafico(meses, hoje) : [];
+  // Limite da versão vigente no último mês com dado (pode mudar entre versões).
   const ultimoComDado = meses?.findLast(comDado);
-  const meta = ultimoComDado?.painel?.parametros.meta_percentual ?? null;
-  const maior = Math.max(0, ...pontos.map((ponto) => ponto.percentual ?? 0), meta ? Number(meta) : 0);
+  const limite = ultimoComDado?.painel?.parametros.meta_percentual ?? null;
+  const maior = Math.max(0, ...pontos.map((ponto) => ponto.percentual ?? 0), limite ? Number(limite) : 0);
   // Marcas com passo fixo (0, 2, 4, 6...): com o teto livre, a última marca
   // ficava colada na anterior.
   const passo = maior > 10 ? 5 : maior > 4 ? 2 : 1;
   const teto = Math.max(passo, Math.ceil((maior * 1.2) / passo) * passo);
   const marcas = Array.from({ length: teto / passo + 1 }, (_, indice) => indice * passo);
   const linhas = (meses ?? []).filter(comDado);
-  const semDado = meses ? mesesSemDado(meses) : null;
+  const semDado = (meses ?? []).filter((mes) => !mes.futuro && !comDado(mes)).map((mes) => mes.mes);
 
   return (
     <Dialog open={aberto} onOpenChange={(abrir) => !abrir && onFechar()}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Absenteísmo mês a mês</DialogTitle>
-          <DialogDescription>{visao}</DialogDescription>
+          {/* O Painel só traz quem está ativo hoje: desligados não entram nos meses anteriores. */}
+          <DialogDescription title="Considera os colaboradores ativos hoje.">{visao}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-end">
@@ -199,34 +219,37 @@ export function AbsenteismoMensalModal({
                     width={36}
                     tickFormatter={(valor: number) => `${valor}%`}
                   />
-                  {meta && (
+                  {limite && (
                     <ReferenceLine
-                      y={Number(meta)}
+                      y={Number(limite)}
                       stroke="var(--destructive)"
                       strokeDasharray="4 4"
                       label={{
-                        value: `meta ${formatarPercentual(meta)}`,
+                        value: `limite ${formatarPercentual(limite)}`,
                         position: "insideTopRight",
                         fontSize: 11,
                         fill: "var(--muted-foreground)",
                       }}
                     />
                   )}
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(valor) => formatarPercentual(String(valor))}
-                        hideIndicator
-                      />
-                    }
-                  />
+                  <Tooltip content={<DicaDoMes />} cursor={false} />
                   <Line
-                    dataKey="percentual"
+                    dataKey="fechado"
                     type="linear"
                     stroke="var(--color-percentual)"
                     strokeWidth={2}
-                    dot={<PontoDoGrafico />}
-                    activeDot={{ r: 5 }}
+                    dot={<Ponto vazado={false} />}
+                    activeDot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    dataKey="andamento"
+                    type="linear"
+                    stroke="var(--color-percentual)"
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                    dot={<Ponto vazado />}
+                    activeDot={false}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -240,9 +263,11 @@ export function AbsenteismoMensalModal({
                 <caption className="sr-only">Absenteísmo de {ano} por mês</caption>
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                    <th scope="col" className="py-1.5 font-semibold">Mês</th>
+                    <th scope="col" className="py-1.5 font-semibold">
+                      Mês
+                    </th>
                     <TituloColuna completo="Absenteísmo" curto="Abs." />
-                    <TituloColuna completo="Variação" curto="Var." />
+                    <TituloColuna completo="vs. mês anterior" curto="Var." dica={DICA_PONTOS_PERCENTUAIS} />
                     <TituloColuna completo="Crítica" curto="Crít." />
                     <TituloColuna completo="Atenção" curto="Aten." />
                   </tr>
@@ -259,15 +284,19 @@ export function AbsenteismoMensalModal({
                           anterior.painel.cards.percentual_periodo,
                         )
                       : null;
-                    const faixas = painel.parametros.faixas_cadastradas;
+                    const emAndamento = periodoEmAndamento(mes, hoje);
+                    const dadosAte = painel.cards.dados_ate;
                     return (
                       <tr key={mes.mes} className="border-b border-border last:border-0">
                         <th scope="row" className="py-2 text-left font-medium">
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            {nomeCurtoDoMes(mes.mes)}
-                            {periodoEmAndamento(mes, hoje) && <Selo>Parcial</Selo>}
-                            {painel.cards.colaboradores_provisorios > 0 && <Selo>Provisório</Selo>}
-                          </span>
+                          {nomeCurtoDoMes(mes.mes)}
+                          {/* Mês em andamento: até onde vão os dados, no lugar de um selo. */}
+                          {emAndamento && (
+                            <span className="font-normal text-muted-foreground">
+                              {" "}
+                              · {dadosAte ? `até ${formatarDataISO(dadosAte).slice(0, 5)}` : "em andamento"}
+                            </span>
+                          )}
                         </th>
                         <td className="py-2 pl-3 text-right font-semibold">
                           {formatarPercentual(painel.cards.percentual_periodo)}
@@ -275,33 +304,33 @@ export function AbsenteismoMensalModal({
                         <td
                           className={cn(
                             "py-2 pl-3 text-right font-semibold whitespace-nowrap",
-                            pontosDoMes !== null ? corDaDiferenca(pontosDoMes) : "text-muted-foreground",
+                            pontosDoMes !== null && corDaDiferenca(pontosDoMes),
                           )}
                         >
-                          {pontosDoMes !== null ? formatarDiferenca(pontosDoMes) : "—"}
+                          {pontosDoMes !== null && formatarDiferenca(pontosDoMes)}
                         </td>
                         {/* Sem faixas na versão dos parâmetros do mês, ninguém é classificado. */}
-                        <td className="py-2 pl-3 text-right text-red-600">
-                          {faixas ? painel.cards.faixa_critica : "—"}
-                        </td>
-                        <td className="py-2 pl-3 text-right text-amber-700">
-                          {faixas ? painel.cards.faixa_atencao : "—"}
-                        </td>
+                        {painel.parametros.faixas_cadastradas ? (
+                          <>
+                            <td className="py-2 pl-3 text-right text-red-600">{painel.cards.faixa_critica}</td>
+                            <td className="py-2 pl-3 text-right text-amber-700">{painel.cards.faixa_atencao}</td>
+                          </>
+                        ) : (
+                          <td colSpan={2} className="py-2 pl-3 text-right text-[12px] text-muted-foreground">
+                            sem faixas
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             )}
-            {semDado && linhas.length > 0 && (
-              <p className="text-[11.5px] text-muted-foreground">Sem dados: {semDado}.</p>
+            {semDado.length > 0 && linhas.length > 0 && (
+              <p className="text-[11.5px] text-muted-foreground">Sem dados: {mesesPorExtenso(semDado)}.</p>
             )}
           </>
         )}
-
-        <p className="text-[11.5px] text-muted-foreground">
-          Considera os colaboradores ativos hoje, com os mesmos filtros de unidade e categoria do Painel.
-        </p>
       </DialogContent>
     </Dialog>
   );

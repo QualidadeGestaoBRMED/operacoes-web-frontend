@@ -306,9 +306,9 @@ export function FormParametrosAbsenteismo() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="pa-meta">Meta de absenteísmo (%)</Label>
-            <Input id="pa-meta" type="number" min={0} max={100} step="0.01" placeholder="Sem meta" aria-invalid={!!errors.meta_percentual} aria-describedby={errors.meta_percentual ? "pa-meta-erro" : undefined} {...register("meta_percentual")} />
-            <p className="text-xs text-muted-foreground">Exibida como referência no painel.</p>
+            <Label htmlFor="pa-meta">Limite de absenteísmo (%)</Label>
+            <Input id="pa-meta" type="number" min={0} max={100} step="0.01" placeholder="Sem limite" aria-invalid={!!errors.meta_percentual} aria-describedby={errors.meta_percentual ? "pa-meta-erro" : undefined} {...register("meta_percentual")} />
+            <p className="text-xs text-muted-foreground">Referência no painel: acima dele, o absenteísmo aparece em vermelho.</p>
             <MensagemErro id="pa-meta-erro" texto={errors.meta_percentual?.message} />
           </div>
 

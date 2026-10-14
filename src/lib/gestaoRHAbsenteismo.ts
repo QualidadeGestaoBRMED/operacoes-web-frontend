@@ -260,6 +260,25 @@ export function nomeCurtoDoMes(mes: number): string {
   return FORMATADOR_MES_CURTO.format(new Date(Date.UTC(2026, mes - 1, 1))).replace(".", "");
 }
 
+/**
+ * Meses por extenso, com as sequências agrupadas: [1..8, 11, 12] →
+ * "jan a ago, nov e dez"; três ou mais seguidos viram "a".
+ */
+export function mesesPorExtenso(meses: number[]): string {
+  const grupos: number[][] = [];
+  for (const mes of [...meses].sort((a, b) => a - b)) {
+    const ultimo = grupos.at(-1);
+    if (ultimo && ultimo.at(-1) === mes - 1) ultimo.push(mes);
+    else grupos.push([mes]);
+  }
+  const partes = grupos.flatMap((grupo) =>
+    grupo.length >= 3
+      ? [`${nomeCurtoDoMes(grupo[0])} a ${nomeCurtoDoMes(grupo.at(-1)!)}`]
+      : grupo.map(nomeCurtoDoMes),
+  );
+  return partes.length <= 1 ? (partes[0] ?? "") : `${partes.slice(0, -1).join(", ")} e ${partes.at(-1)}`;
+}
+
 /** Diferença em pontos percentuais, com uma casa; nula sem percentual em um dos lados. */
 export function diferencaEmPontos(atual: string | null, anterior: string | null): number | null {
   if (atual === null || anterior === null) return null;
@@ -275,11 +294,19 @@ const FORMATADOR_PONTOS = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 });
 
-/** "▲ 0,4 pp", "▼ 1,2 pp" ou "sem variação". */
+/**
+ * "▲ +0,4 p.p.", "▼ −1,2 p.p." ou "sem variação". Pontos percentuais, não
+ * porcentagem: de 3,2% para 4% são +0,8 p.p. (em porcentagem, +25%).
+ */
 export function formatarDiferenca(pontos: number): string {
   if (pontos === 0) return "sem variação";
-  return `${pontos > 0 ? "▲" : "▼"} ${FORMATADOR_PONTOS.format(Math.abs(pontos))} pp`;
+  const valor = FORMATADOR_PONTOS.format(Math.abs(pontos));
+  return pontos > 0 ? `▲ +${valor} p.p.` : `▼ −${valor} p.p.`;
 }
+
+/** Dica da variação, para quem não conhece "p.p.". */
+export const DICA_PONTOS_PERCENTUAIS =
+  "Diferença em pontos percentuais: de 3,2% para 4% são +0,8 p.p.";
 
 /** Subir o absenteísmo é piorar: vermelho; cair é melhorar: verde. */
 export function corDaDiferenca(pontos: number): string {

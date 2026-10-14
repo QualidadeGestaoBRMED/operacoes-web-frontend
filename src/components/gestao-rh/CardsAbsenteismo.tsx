@@ -1,6 +1,11 @@
 import { AlertOctagon, AlertTriangle, ClipboardClock, Percent, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { corDaDiferenca, formatarDiferenca, formatarPercentual } from "@/lib/gestaoRHAbsenteismo";
+import {
+  DICA_PONTOS_PERCENTUAIS,
+  corDaDiferenca,
+  formatarDiferenca,
+  formatarPercentual,
+} from "@/lib/gestaoRHAbsenteismo";
 import type { FaixaAbsenteismo, PainelAbsenteismo } from "@/types/gestaoRH";
 import { cn } from "@/lib/utils";
 import { CardIndicador } from "./CardIndicador";
@@ -56,14 +61,17 @@ export function CardsAbsenteismo({
         legenda={
           comparativo ? (
             <>
-              <span className={cn("font-semibold", corDaDiferenca(comparativo.pontos))}>
+              <span
+                className={cn("font-semibold", corDaDiferenca(comparativo.pontos))}
+                title={DICA_PONTOS_PERCENTUAIS}
+              >
                 {formatarDiferenca(comparativo.pontos)} vs. {comparativo.nomeAnterior}
               </span>
               {comparativo.parcial && " (parcial)"}
-              {meta && ` · meta: até ${formatarPercentual(meta)}`}
+              {meta && ` · limite: ${formatarPercentual(meta)}`}
             </>
           ) : meta ? (
-            `meta: até ${formatarPercentual(meta)}`
+            `limite: ${formatarPercentual(meta)}`
           ) : (
             "no período selecionado"
           )
