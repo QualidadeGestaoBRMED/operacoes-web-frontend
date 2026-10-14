@@ -439,3 +439,62 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
     ).not.toHaveAttribute("aria-current", "page");
   });
 });
+
+describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-728)", () => {
+  const GESTAO_RH = modulo({ id: 2, nome: "Gestão RH", codigo: "gestao-rh", status: "ativo" });
+
+  beforeEach(() => {
+    vi.mocked(listarModulos).mockResolvedValue([GESTAO_RH]);
+  });
+
+  it("Admin vê Painel de Absenteísmo e Parâmetros de Gestão RH", async () => {
+    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+      typeof useAuth
+    >);
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Painel de Absenteísmo" })).toHaveAttribute(
+      "href",
+      "/modulos/gestao-rh",
+    );
+    expect(screen.getByRole("link", { name: "Parâmetros de Gestão RH" })).toHaveAttribute(
+      "href",
+      "/admin/permissoes/parametros-gestao-rh",
+    );
+    expect(screen.getByRole("button", { name: "Expandir Gestão RH" })).toBeInTheDocument();
+  });
+
+  it("coordenação, com um subitem só, vê Gestão RH como link direto", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as ReturnType<typeof useAuth>);
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Gestão RH" })).toHaveAttribute(
+      "href",
+      "/modulos/gestao-rh",
+    );
+    expect(screen.queryByRole("button", { name: /Gestão RH/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Parâmetros de Gestão RH" })).not.toBeInTheDocument();
+  });
+
+  it("nos Parâmetros, abre expandido com só o subitem dos Parâmetros ativo", async () => {
+    vi.mocked(usePathname).mockReturnValue("/admin/permissoes/parametros-gestao-rh");
+    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+      typeof useAuth
+    >);
+    renderSidebar();
+
+    const parametros = await screen.findByRole("link", { name: "Parâmetros de Gestão RH" });
+    expect(parametros).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Painel de Absenteísmo" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("button", { name: "Recolher Gestão RH" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+});
