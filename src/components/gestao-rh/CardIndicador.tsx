@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type CorCard = "vencido" | "atencao" | "andamento" | "neutro";
@@ -37,10 +38,13 @@ const COR_ANEL: Record<CorCard, string> = {
 interface CardIndicadorProps {
   rotulo: string;
   valor: number | string;
-  legenda: string;
+  legenda: ReactNode;
   cor: CorCard;
   Icone: LucideIcon;
-  /** Com `onClick`, o card vira botão de filtro; `selecionado` marca o filtro aplicado. */
+  /**
+   * Com `onClick`, o card vira botão. Card de filtro passa `selecionado`
+   * (vira `aria-pressed`); card que abre um detalhe não passa.
+   */
   onClick?: () => void;
   selecionado?: boolean;
   /**
@@ -58,13 +62,14 @@ export function CardIndicador({
   cor,
   Icone,
   onClick,
-  selecionado = false,
+  selecionado,
   rotuloEmDuasLinhas = false,
 }: CardIndicadorProps) {
   const Elemento = onClick ? "button" : "div";
   return (
     <Elemento
-      {...(onClick && { type: "button" as const, onClick, "aria-pressed": selecionado })}
+      {...(onClick && { type: "button" as const, onClick })}
+      {...(onClick && selecionado !== undefined && { "aria-pressed": selecionado })}
       className={cn(
         "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 text-left shadow-sm",
         COR_FUNDO_CARD[cor],
