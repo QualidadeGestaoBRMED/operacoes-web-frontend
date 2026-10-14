@@ -218,7 +218,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(buscarAbsenteismoColaborador).toHaveBeenCalledTimes(1);
   });
 
-  it("indicadores, aviso de pendências e ocorrências com o que conta e o que está em aprovação", async () => {
+  it("indicadores, aviso de justificativas pendentes e ocorrências com o que conta e o que está pendente no VR", async () => {
     renderModal();
     await screen.findByText("Ocorrências do período");
 
