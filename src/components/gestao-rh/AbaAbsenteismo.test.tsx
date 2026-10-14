@@ -95,9 +95,12 @@ const TRATADA = aba({
   ],
 });
 
-function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
-  return render(
-    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+// Um provider por teste, fora do JSX: rerender() mantém o mesmo cache.
+let cacheSWR = new Map();
+
+function modalCom(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
+  return (
+    <SWRConfig value={{ provider: () => cacheSWR, dedupingInterval: 0, shouldRetryOnError: false }}>
       <DetalheColaboradorModal
         colaboradorId={8}
         periodoEmFoco={null}
@@ -106,8 +109,13 @@ function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0
         onFechar={vi.fn()}
         {...props}
       />
-    </SWRConfig>,
+    </SWRConfig>
   );
+}
+
+function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
+  cacheSWR = new Map();
+  return render(modalCom(props));
 }
 
 function usuario() {
@@ -445,6 +453,18 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
       expect(screen.getByText("Ocorrências do período")).toBeInTheDocument();
       await waitFor(() => expect(botao).toHaveFocus());
+    });
+
+    it("fechar o modal com a conversa aberta e reabrir volta para a aba", async () => {
+      const user = usuario();
+      const { rerender } = renderModal();
+      await abrirConversa(user);
+
+      rerender(modalCom({ colaboradorId: null }));
+      rerender(modalCom({}));
+
+      expect(await screen.findByRole("region", { name: "Alerta de setembro/2026" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
     });
 
     it("demanda concluída: conversa só leitura", async () => {
