@@ -113,7 +113,7 @@ function Ponto(props: { cx?: number; cy?: number; payload?: PontoDoMes; vazado: 
     <circle
       cx={cx}
       cy={cy}
-      r={4}
+      r={5}
       stroke="var(--color-percentual)"
       strokeWidth={2}
       fill={vazado ? "var(--background)" : "var(--color-percentual)"}
@@ -125,7 +125,7 @@ function DicaDoMes({ active, payload }: { active?: boolean; payload?: { payload:
   const ponto = payload?.[0]?.payload;
   if (!active || !ponto || ponto.percentual === null) return null;
   return (
-    <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="rounded-lg border border-border/50 bg-background px-3 py-2 text-sm shadow-xl">
       <span className="font-medium">{ponto.nome}</span>
       {ponto.parcial && <span className="text-muted-foreground"> (em andamento)</span>}:{" "}
       <span className="font-semibold">{formatarPercentual(String(ponto.percentual))}</span>
@@ -168,11 +168,11 @@ export function AbsenteismoMensalModal({
 
   return (
     <Dialog open={aberto} onOpenChange={(abrir) => !abrir && onFechar()}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="sm:max-w-6xl">
         <DialogHeader>
-          <DialogTitle>Absenteísmo mês a mês</DialogTitle>
+          <DialogTitle className="text-xl">Absenteísmo mês a mês</DialogTitle>
           {/* O Painel só traz quem está ativo hoje: desligados não entram nos meses anteriores. */}
-          <DialogDescription title="Considera os colaboradores ativos hoje.">{visao}</DialogDescription>
+          <DialogDescription className="text-[15px]" title="Considera os colaboradores ativos hoje.">{visao}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-end">
@@ -193,7 +193,7 @@ export function AbsenteismoMensalModal({
         {mensagemErro ? (
           <div
             role="alert"
-            className="flex flex-col items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[12.5px] text-destructive"
+            className="flex flex-col items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-[14px] text-destructive"
           >
             Não foi possível carregar o absenteísmo de {ano}.
             <Button type="button" variant="outline" size="sm" onClick={recarregar}>
@@ -201,13 +201,13 @@ export function AbsenteismoMensalModal({
             </Button>
           </div>
         ) : carregando || !meses ? (
-          <Skeleton className="h-[340px] rounded-lg" aria-label={`Carregando o absenteísmo de ${ano}`} />
+          <Skeleton className="h-[300px] rounded-lg sm:h-[400px]" aria-label={`Carregando o absenteísmo de ${ano}`} />
         ) : (
           <>
             {/* O gráfico é decorativo para leitor de tela: a tabela abaixo
                 traz os mesmos números. */}
             <div aria-hidden>
-              <ChartContainer config={CONFIG_GRAFICO} className="aspect-auto h-[300px] w-full">
+              <ChartContainer config={CONFIG_GRAFICO} className="aspect-auto h-[260px] w-full text-[11px] sm:h-[360px] sm:text-[13px]">
                 <LineChart data={pontos} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="nome" tickLine={false} axisLine={false} interval={0} tickMargin={8} />
@@ -227,7 +227,7 @@ export function AbsenteismoMensalModal({
                       label={{
                         value: `limite ${formatarPercentual(limite)}`,
                         position: "insideTopRight",
-                        fontSize: 11,
+                        fontSize: 13,
                         fill: "var(--muted-foreground)",
                       }}
                     />
@@ -257,12 +257,12 @@ export function AbsenteismoMensalModal({
             </div>
 
             {linhas.length === 0 ? (
-              <p className="text-[13px] text-muted-foreground">Sem dados de absenteísmo em {ano}.</p>
+              <p className="text-[15px] text-muted-foreground">Sem dados de absenteísmo em {ano}.</p>
             ) : (
-              <table className="w-full text-[13px]">
+              <table className="w-full text-[13px] sm:text-[15px]">
                 <caption className="sr-only">Absenteísmo de {ano} por mês</caption>
                 <thead>
-                  <tr className="border-b border-border text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  <tr className="border-b border-border text-left text-[11px] font-semibold tracking-wide sm:text-[12px] text-muted-foreground uppercase">
                     <th scope="col" className="py-1.5 font-semibold">
                       Mês
                     </th>
@@ -316,7 +316,7 @@ export function AbsenteismoMensalModal({
                             <td className="py-2 pl-3 text-right text-amber-700">{painel.cards.faixa_atencao}</td>
                           </>
                         ) : (
-                          <td colSpan={2} className="py-2 pl-3 text-right text-[12px] text-muted-foreground">
+                          <td colSpan={2} className="py-2 pl-3 text-right text-[12px] text-muted-foreground sm:text-[13.5px]">
                             sem faixas
                           </td>
                         )}
@@ -327,7 +327,7 @@ export function AbsenteismoMensalModal({
               </table>
             )}
             {semDado.length > 0 && linhas.length > 0 && (
-              <p className="text-[11.5px] text-muted-foreground">Sem dados: {mesesPorExtenso(semDado)}.</p>
+              <p className="text-[11.5px] text-muted-foreground sm:text-[13px]">Sem dados: {mesesPorExtenso(semDado)}.</p>
             )}
           </>
         )}
