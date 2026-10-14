@@ -62,12 +62,17 @@ function ColunaPeriodo({
       <div className="mt-0.5 text-[12.5px] text-muted-foreground">
         {formatarDataISO(periodo.inicio)} a {formatarDataISO(periodo.fim)}
       </div>
-      {(parcial || provisorio) && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {parcial && <Selo>Parcial</Selo>}
-          {provisorio && <Selo>Provisório</Selo>}
-        </div>
-      )}
+      {/* Linha dos selos com altura reservada lado a lado: com selo só em um
+          período, as linhas dos números desalinhavam entre as colunas. */}
+      <div
+        className={cn(
+          "flex flex-wrap gap-1.5 sm:mt-1.5 sm:min-h-5",
+          (parcial || provisorio) && "mt-1.5",
+        )}
+      >
+        {parcial && <Selo>Parcial</Selo>}
+        {provisorio && <Selo>Provisório</Selo>}
+      </div>
       <dl className="mt-3 space-y-2 text-[13px]">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-muted-foreground">Absenteísmo</dt>
@@ -122,7 +127,9 @@ export function ComparativoAbsenteismoModal({
         {anterior && (
           <p className="text-[13px] text-foreground">
             {pontos === null ? (
-              "Sem percentual em um dos períodos para comparar."
+              `Sem dados de absenteísmo no período ${
+                anterior.cards.percentual_periodo === null ? "anterior" : "selecionado"
+              } para comparar.`
             ) : (
               <>
                 <span className={cn("font-semibold", corDaDiferenca(pontos))}>
