@@ -18,6 +18,7 @@ import {
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn, formatarDataHora } from "@/lib/utils";
 import type { AcaoTratamento, AlertaAbsenteismo } from "@/types/gestaoRH";
+import { ComentarioFeed } from "@/components/demanda/ComentarioFeed";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { FormRegistrarTratamento } from "./FormRegistrarTratamento";
 import { HistoricoRH } from "./HistoricoRH";
@@ -146,6 +147,34 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
             Registrar tratamento
           </Button>
         )
+      )}
+
+      {/* Conversa entre o RH (Admin) e a coordenação, na demanda do alerta
+          (STC-722): aberta, quem vê a demanda escreve; concluída, só leitura. */}
+      {alerta.demanda_id !== null && (
+        <section
+          aria-labelledby={`alerta-${alerta.id}-conversa`}
+          className="overflow-hidden rounded-md border border-border bg-card"
+        >
+          <h4
+            id={`alerta-${alerta.id}-conversa`}
+            className="border-b border-border px-4 py-2 text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase"
+          >
+            Conversa da demanda
+          </h4>
+          <div className="flex max-h-80 flex-col">
+            <ComentarioFeed
+              demandaId={alerta.demanda_id}
+              podeComentar={alerta.demanda_aberta}
+              aviso="Não registre diagnóstico, CID ou outros dados de saúde."
+            />
+          </div>
+          {!alerta.demanda_aberta && (
+            <p className="border-t border-border px-4 py-2 text-[11.5px] text-muted-foreground">
+              Demanda concluída: a conversa fica só para leitura.
+            </p>
+          )}
+        </section>
       )}
     </section>
   );
