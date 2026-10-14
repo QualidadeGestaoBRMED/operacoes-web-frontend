@@ -19,6 +19,7 @@ import {
 import { cn, formatarDataHora } from "@/lib/utils";
 import type { AcaoTratamento, AlertaAbsenteismo } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
+import { BotaoConversa, type ConversaAberta } from "./ConversaDoAlerta";
 import { FormRegistrarTratamento } from "./FormRegistrarTratamento";
 import { HistoricoRH } from "./HistoricoRH";
 
@@ -57,10 +58,11 @@ interface CardAlertaProps {
   podeAgir: boolean;
   emFoco: boolean;
   onRegistrar: (alertaId: number, acao: AcaoTratamento, justificativa: string) => Promise<unknown>;
+  onAbrirConversa?: (conversa: ConversaAberta, origem: HTMLElement) => void;
 }
 
 const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
-  { alerta, podeAgir, emFoco, onRegistrar },
+  { alerta, podeAgir, emFoco, onRegistrar, onAbrirConversa },
   ref,
 ) {
   const [registrando, setRegistrando] = useState(false);
@@ -69,6 +71,10 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
   // colaborador da faixa crítica e o alerta foi encerrado sozinho.
   const encerrado = !tratamento && !alerta.pode_registrar_tratamento;
   const gerado = formatarDataISO(alerta.gerado_em);
+  const mostrarRegistrar =
+    !encerrado && !tratamento && !registrando && podeAgir && alerta.pode_registrar_tratamento;
+  const demandaId = alerta.demanda_id;
+  const mostrarConversa = demandaId !== null && onAbrirConversa !== undefined;
   return (
     <section
       ref={ref}
@@ -139,19 +145,37 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
           }}
           onCancelar={() => setRegistrando(false)}
         />
-      ) : (
-        podeAgir &&
-        alerta.pode_registrar_tratamento && (
-          <Button type="button" size="sm" onClick={() => setRegistrando(true)}>
-            Registrar tratamento
-          </Button>
-        )
+      ) : null}
+
+      {(mostrarRegistrar || mostrarConversa) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {mostrarRegistrar && (
+            <Button type="button" size="sm" onClick={() => setRegistrando(true)}>
+              Registrar tratamento
+            </Button>
+          )}
+          {/* Conversa entre o RH (Admin) e a coordenação na demanda do
+              alerta (STC-722), aberta sobre a área do modal. */}
+          {mostrarConversa && demandaId !== null && (
+            <BotaoConversa
+              demandaId={demandaId}
+              onAbrir={(origem) =>
+                onAbrirConversa?.(
+                  { demandaId, titulo: tituloAlerta(alerta), aberta: alerta.demanda_aberta },
+                  origem,
+                )
+              }
+            />
+          )}
+        </div>
       )}
     </section>
   );
 });
 
 interface AbaAbsenteismoProps {
+  /** Abre a conversa da demanda do alerta (painel do modal). */
+  onAbrirConversa?: (conversa: ConversaAberta, origem: HTMLElement) => void;
   colaboradorId: number;
   ativo: boolean;
   /** Período inicial: o do painel ou o do alerta (card do Kanban). */
@@ -160,7 +184,13 @@ interface AbaAbsenteismoProps {
   focarAlerta: boolean;
 }
 
-export function AbaAbsenteismo({ colaboradorId, ativo, periodoInicial, focarAlerta }: AbaAbsenteismoProps) {
+export function AbaAbsenteismo({
+  colaboradorId,
+  ativo,
+  periodoInicial,
+  focarAlerta,
+  onAbrirConversa,
+}: AbaAbsenteismoProps) {
   const { periodo, editado, valido, editar } = usePeriodoEditavel(periodoInicial);
   const { aba, isLoading, trocandoPeriodo, mensagemErro, recarregar, registrarTratamento } =
     useAbsenteismoColaborador(colaboradorId, periodo);
@@ -346,6 +376,7 @@ export function AbaAbsenteismo({ colaboradorId, ativo, periodoInicial, focarAler
           onRegistrar={(alertaId, acao, justificativa) =>
             registrarTratamento({ alerta: alertaId, acao, justificativa })
           }
+          onAbrirConversa={onAbrirConversa}
         />
       ))}
 

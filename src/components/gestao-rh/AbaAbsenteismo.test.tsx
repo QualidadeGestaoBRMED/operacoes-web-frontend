@@ -18,10 +18,19 @@ vi.mock("@/lib/gestaoRHAbsenteismo", async (original) => ({
   buscarAbsenteismoColaborador: vi.fn(),
   registrarTratamento: vi.fn(),
 }));
+vi.mock("@/lib/demandas", async (original) => ({
+  ...(await original<typeof import("@/lib/demandas")>()),
+  listarComentarios: vi.fn(),
+  criarComentario: vi.fn(),
+  buscarDemanda: vi.fn(),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { toast } from "sonner";
 import { buscarAbsenteismoColaborador, registrarTratamento } from "@/lib/gestaoRHAbsenteismo";
+import { buscarDemanda, criarComentario, listarComentarios } from "@/lib/demandas";
+import { criarDemanda } from "@/test-utils/fixtures";
+import type { Comentario } from "@/types";
 import { buscarColaboradorRH, buscarFeriasColaborador } from "@/lib/gestaoRHFerias";
 
 const COLABORADOR: CabecalhoColaborador = {
@@ -88,9 +97,12 @@ const TRATADA = aba({
   ],
 });
 
-function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
-  return render(
-    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+// Um provider por teste, fora do JSX: rerender() mantém o mesmo cache.
+let cacheSWR = new Map();
+
+function modalCom(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
+  return (
+    <SWRConfig value={{ provider: () => cacheSWR, dedupingInterval: 0, shouldRetryOnError: false }}>
       <DetalheColaboradorModal
         colaboradorId={8}
         periodoEmFoco={null}
@@ -99,8 +111,13 @@ function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0
         onFechar={vi.fn()}
         {...props}
       />
-    </SWRConfig>,
+    </SWRConfig>
   );
+}
+
+function renderModal(props: Partial<Parameters<typeof DetalheColaboradorModal>[0]> = {}) {
+  cacheSWR = new Map();
+  return render(modalCom(props));
 }
 
 function usuario() {
@@ -117,7 +134,36 @@ beforeEach(() => {
   vi.mocked(buscarAbsenteismoColaborador).mockReset();
   vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(aba());
   vi.mocked(registrarTratamento).mockReset();
+  vi.mocked(listarComentarios).mockReset();
+  vi.mocked(listarComentarios).mockResolvedValue([]);
+  vi.mocked(criarComentario).mockReset();
+  vi.mocked(buscarDemanda).mockReset();
+  vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "em_andamento" }));
 });
+
+function comentario(id: number, texto: string, nome = "Ana Admin"): Comentario {
+  const [first_name, last_name] = nome.split(" ");
+  return {
+    id,
+    texto,
+    created_at: "2026-10-06T10:00:00-03:00",
+    usuario: {
+      id: 100 + id,
+      username: nome,
+      email: "",
+      first_name,
+      last_name,
+      perfil: null,
+      unidade_id: null,
+      setor_id: null,
+      ativo: true,
+      ultimo_acesso: null,
+      foto_url: "",
+    },
+  };
+}
+
+const AVISO_SAUDE = "Não registre diagnóstico, CID ou outros dados de saúde.";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -376,5 +422,117 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByText("Ocorrências do período")).toBeInTheDocument();
+  });
+  describe("conversa da demanda", () => {
+    async function abrirConversa(user: ReturnType<typeof usuario>, comentarios = "0 comentários") {
+      const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+      const botao = await alerta.findByRole("button", { name: `Conversa da demanda, ${comentarios}` });
+      await user.click(botao);
+      return { botao, painel: within(screen.getByRole("region", { name: "Conversa · Alerta de setembro/2026" })) };
+    }
+
+    it("botão com a contagem abre o painel com a lista, o aviso e o envio", async () => {
+      vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Pode verificar as faltas?")]);
+      vi.mocked(criarComentario).mockResolvedValue(comentario(2, "Conversei com ela.", "Carla Coord"));
+      const user = usuario();
+      renderModal();
+
+      const { painel } = await abrirConversa(user, "1 comentário");
+      expect(await painel.findByText("Pode verificar as faltas?")).toBeInTheDocument();
+      expect(listarComentarios).toHaveBeenCalledWith(41);
+      expect(painel.getByText(AVISO_SAUDE)).toBeInTheDocument();
+      // O aviso é lido junto com o campo por leitor de tela.
+      expect(painel.getByPlaceholderText(/Adicionar comentário/)).toHaveAccessibleDescription(AVISO_SAUDE);
+      expect(painel.getByRole("heading", { name: "Conversa · Alerta de setembro/2026" })).toHaveFocus();
+
+      await user.type(painel.getByPlaceholderText(/Adicionar comentário/), "Conversei com ela.");
+      await user.click(painel.getByRole("button", { name: "Enviar" }));
+      await waitFor(() => expect(criarComentario).toHaveBeenCalledWith(41, "Conversei com ela."));
+    });
+
+    it("voltar fecha o painel, mantém a aba e devolve o foco ao botão", async () => {
+      const user = usuario();
+      renderModal();
+      const { botao, painel } = await abrirConversa(user);
+
+      await user.click(painel.getByRole("button", { name: "Voltar" }));
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
+      expect(screen.getByText("Ocorrências do período")).toBeInTheDocument();
+      await waitFor(() => expect(botao).toHaveFocus());
+    });
+
+    it("fechar o modal com a conversa aberta e reabrir volta para a aba", async () => {
+      const user = usuario();
+      const { rerender } = renderModal();
+      await abrirConversa(user);
+
+      rerender(modalCom({ colaboradorId: null }));
+      rerender(modalCom({}));
+
+      expect(await screen.findByRole("region", { name: "Alerta de setembro/2026" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
+    });
+
+    it("vale a situação da própria demanda: concluída depois que a aba carregou, só leitura", async () => {
+      // A aba ainda diz "demanda aberta", mas outra pessoa já concluiu.
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "concluido" }));
+      const user = usuario();
+      renderModal();
+      const { painel } = await abrirConversa(user);
+
+      expect(await painel.findByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
+      expect(painel.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
+      expect(buscarDemanda).toHaveBeenCalledWith(41);
+    });
+
+    it("Esc volta da conversa para a aba sem fechar o modal; um segundo Esc fecha", async () => {
+      const onFechar = vi.fn();
+      const user = usuario();
+      renderModal({ onFechar });
+      const { botao } = await abrirConversa(user);
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Alerta de setembro/2026" })).toBeInTheDocument();
+      expect(onFechar).not.toHaveBeenCalled();
+      await waitFor(() => expect(botao).toHaveFocus());
+
+      await user.keyboard("{Escape}");
+      expect(onFechar).toHaveBeenCalled();
+    });
+
+    it("demanda concluída: conversa só leitura", async () => {
+      vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "concluido" }));
+      vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Resolvido.")]);
+      const user = usuario();
+      renderModal();
+
+      const { painel } = await abrirConversa(user, "1 comentário");
+      expect(await painel.findByText("Resolvido.")).toBeInTheDocument();
+      expect(painel.getByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
+      expect(painel.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
+      expect(painel.queryByText(AVISO_SAUDE)).not.toBeInTheDocument();
+    });
+
+    it("sem a lista de comentários (falhou), o botão não mostra número", async () => {
+      vi.mocked(listarComentarios).mockRejectedValue(new Error("Falha de rede"));
+      renderModal();
+      const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+
+      const botao = await alerta.findByRole("button", { name: "Conversa da demanda" });
+      await waitFor(() => expect(listarComentarios).toHaveBeenCalled());
+      expect(botao).toHaveTextContent(/^Conversa$/);
+    });
+
+    it("alerta sem demanda não tem conversa", async () => {
+      vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+        aba({ alertas: [{ ...aba().alertas[0], demanda_id: null, demanda_aberta: false }] }),
+      );
+      renderModal();
+      await screen.findByRole("region", { name: "Alerta de setembro/2026" });
+      expect(screen.queryByRole("button", { name: /Conversa da demanda/ })).not.toBeInTheDocument();
+      expect(listarComentarios).not.toHaveBeenCalled();
+    });
   });
 });
