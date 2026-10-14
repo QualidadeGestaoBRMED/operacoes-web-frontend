@@ -441,6 +441,8 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       expect(await painel.findByText("Pode verificar as faltas?")).toBeInTheDocument();
       expect(listarComentarios).toHaveBeenCalledWith(41);
       expect(painel.getByText(AVISO_SAUDE)).toBeInTheDocument();
+      // O aviso é lido junto com o campo por leitor de tela.
+      expect(painel.getByPlaceholderText(/Adicionar comentário/)).toHaveAccessibleDescription(AVISO_SAUDE);
       expect(painel.getByRole("heading", { name: "Conversa · Alerta de setembro/2026" })).toHaveFocus();
 
       await user.type(painel.getByPlaceholderText(/Adicionar comentário/), "Conversei com ela.");
@@ -511,6 +513,16 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       expect(painel.getByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
       expect(painel.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
       expect(painel.queryByText(AVISO_SAUDE)).not.toBeInTheDocument();
+    });
+
+    it("sem a lista de comentários (falhou), o botão não mostra número", async () => {
+      vi.mocked(listarComentarios).mockRejectedValue(new Error("Falha de rede"));
+      renderModal();
+      const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+
+      const botao = await alerta.findByRole("button", { name: "Conversa da demanda" });
+      await waitFor(() => expect(listarComentarios).toHaveBeenCalled());
+      expect(botao).toHaveTextContent(/^Conversa$/);
     });
 
     it("alerta sem demanda não tem conversa", async () => {
