@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { extrairMensagemErro } from "@/lib/erros";
+import { errosDeCampo } from "@/lib/gestaoRH";
 import {
   buscarAbsenteismoColaborador,
   buscarPainelAbsenteismo,
@@ -49,7 +50,15 @@ export function useAbsenteismoColaborador(
   );
 
   async function registrar(payload: RegistrarTratamentoPayload) {
-    const atualizada = await registrarTratamento(colaboradorId, payload);
+    let atualizada;
+    try {
+      atualizada = await registrarTratamento(colaboradorId, payload);
+    } catch (falha) {
+      // Alerta tratado por outra pessoa ou encerrado pela importação desde
+      // que a aba carregou: a aba é buscada de novo para mostrar como está.
+      if (errosDeCampo(falha).alerta) void mutate();
+      throw falha;
+    }
     // A resposta vem no período do alerta; só substitui o cache se for o
     // período na tela agora. Senão, busca de novo o período na tela.
     const naTela = periodoNaTela.current;

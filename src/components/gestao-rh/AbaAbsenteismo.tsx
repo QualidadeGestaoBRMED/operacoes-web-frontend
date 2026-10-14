@@ -65,6 +65,10 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
 ) {
   const [registrando, setRegistrando] = useState(false);
   const tratamento = alerta.tratamento;
+  // Sem tratamento e sem como registrar: uma importação seguinte tirou o
+  // colaborador da faixa crítica e o alerta foi encerrado sozinho.
+  const encerrado = !tratamento && !alerta.pode_registrar_tratamento;
+  const gerado = formatarDataISO(alerta.gerado_em);
   return (
     <section
       ref={ref}
@@ -72,7 +76,7 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
       aria-labelledby={`alerta-${alerta.id}-titulo`}
       className={cn(
         "scroll-mt-4 space-y-3 rounded-lg border bg-card p-4 outline-none",
-        tratamento ? "border-border" : "border-red-600/30",
+        tratamento || encerrado ? "border-border" : "border-red-600/30",
         emFoco && "ring-2 ring-secondary/60",
       )}
     >
@@ -83,23 +87,37 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
           </h3>
           <p className="text-[12.5px] text-muted-foreground">
             {alerta.demanda_aberta
-              ? `Demanda aberta${alerta.responsavel ? ` para a ${alerta.responsavel}` : ""} em ${formatarDataISO(alerta.gerado_em)}`
-              : `Gerado em ${formatarDataISO(alerta.gerado_em)} · demanda concluída`}
+              ? `Demanda aberta em ${gerado}${alerta.responsavel ? ` · responsável: ${alerta.responsavel}` : ""}`
+              : `Gerado em ${gerado} · demanda concluída`}
             {!tratamento && podeAgir && alerta.pode_registrar_tratamento &&
               " · registre o tratamento para concluir"}
           </p>
         </div>
-        <span
-          className={cn(
-            "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white uppercase",
-            COR_FAIXA[alerta.faixa],
+        <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          {/* Pendência de ponto em aberto quando o alerta foi gerado: o
+              percentual podia mudar depois da aprovação. */}
+          {alerta.provisorio && (
+            <span className="inline-flex rounded-full bg-amber-600/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 uppercase">
+              Provisório
+            </span>
           )}
-        >
-          Faixa {ROTULO_FAIXA[alerta.faixa].toLowerCase()}
+          <span
+            className={cn(
+              "inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white uppercase",
+              COR_FAIXA[alerta.faixa],
+            )}
+          >
+            Faixa {ROTULO_FAIXA[alerta.faixa].toLowerCase()}
+          </span>
         </span>
       </div>
 
-      {tratamento ? (
+      {encerrado ? (
+        <p className="rounded-md border border-border bg-muted/40 p-3 text-[12.5px] text-foreground">
+          Encerrado: saiu da faixa crítica depois de uma nova importação. Não há tratamento a
+          registrar.
+        </p>
+      ) : tratamento ? (
         <div className="rounded-md border border-border bg-muted/40 p-3 text-[12.5px]">
           <p className="font-medium text-foreground">
             Tratamento: {ROTULO_ACAO_TRATAMENTO[tratamento.acao]}
