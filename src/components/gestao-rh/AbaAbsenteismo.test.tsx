@@ -412,32 +412,52 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(await screen.findByText("Ocorrências do período")).toBeInTheDocument();
   });
   describe("conversa da demanda", () => {
-    it("lista os comentários e envia com o aviso de dados de saúde", async () => {
+    async function abrirConversa(user: ReturnType<typeof usuario>, comentarios = "0 comentários") {
+      const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+      const botao = await alerta.findByRole("button", { name: `Conversa da demanda, ${comentarios}` });
+      await user.click(botao);
+      return { botao, painel: within(screen.getByRole("region", { name: "Conversa · Alerta de setembro/2026" })) };
+    }
+
+    it("botão com a contagem abre o painel com a lista, o aviso e o envio", async () => {
       vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Pode verificar as faltas?")]);
       vi.mocked(criarComentario).mockResolvedValue(comentario(2, "Conversei com ela.", "Carla Coord"));
       const user = usuario();
       renderModal();
-      const conversa = within(await screen.findByRole("region", { name: "Conversa da demanda" }));
 
-      expect(await conversa.findByText("Pode verificar as faltas?")).toBeInTheDocument();
+      const { painel } = await abrirConversa(user, "1 comentário");
+      expect(await painel.findByText("Pode verificar as faltas?")).toBeInTheDocument();
       expect(listarComentarios).toHaveBeenCalledWith(41);
-      expect(conversa.getByText(AVISO_SAUDE)).toBeInTheDocument();
+      expect(painel.getByText(AVISO_SAUDE)).toBeInTheDocument();
+      expect(painel.getByRole("heading", { name: "Conversa · Alerta de setembro/2026" })).toHaveFocus();
 
-      await user.type(conversa.getByPlaceholderText(/Adicionar comentário/), "Conversei com ela.");
-      await user.click(conversa.getByRole("button", { name: "Enviar" }));
+      await user.type(painel.getByPlaceholderText(/Adicionar comentário/), "Conversei com ela.");
+      await user.click(painel.getByRole("button", { name: "Enviar" }));
       await waitFor(() => expect(criarComentario).toHaveBeenCalledWith(41, "Conversei com ela."));
+    });
+
+    it("voltar fecha o painel, mantém a aba e devolve o foco ao botão", async () => {
+      const user = usuario();
+      renderModal();
+      const { botao, painel } = await abrirConversa(user);
+
+      await user.click(painel.getByRole("button", { name: "Voltar" }));
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
+      expect(screen.getByText("Ocorrências do período")).toBeInTheDocument();
+      await waitFor(() => expect(botao).toHaveFocus());
     });
 
     it("demanda concluída: conversa só leitura", async () => {
       vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
       vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Resolvido.")]);
+      const user = usuario();
       renderModal();
-      const conversa = within(await screen.findByRole("region", { name: "Conversa da demanda" }));
 
-      expect(await conversa.findByText("Resolvido.")).toBeInTheDocument();
-      expect(conversa.getByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
-      expect(conversa.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
-      expect(conversa.queryByText(AVISO_SAUDE)).not.toBeInTheDocument();
+      const { painel } = await abrirConversa(user, "1 comentário");
+      expect(await painel.findByText("Resolvido.")).toBeInTheDocument();
+      expect(painel.getByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
+      expect(painel.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
+      expect(painel.queryByText(AVISO_SAUDE)).not.toBeInTheDocument();
     });
 
     it("alerta sem demanda não tem conversa", async () => {
@@ -446,7 +466,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       );
       renderModal();
       await screen.findByRole("region", { name: "Alerta de setembro/2026" });
-      expect(screen.queryByRole("region", { name: "Conversa da demanda" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Conversa da demanda/ })).not.toBeInTheDocument();
       expect(listarComentarios).not.toHaveBeenCalled();
     });
   });
