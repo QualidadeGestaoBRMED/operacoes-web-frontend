@@ -32,6 +32,7 @@ import {
   textoVersaoVigente,
 } from "@/lib/gestaoRH";
 import type {
+  NovaVersaoParametrosPayload,
   TipoOcorrenciaComputavel,
   VersaoParametrosAbsenteismo,
 } from "@/types/gestaoRH";
@@ -61,11 +62,25 @@ const schema = z
     tipos_computados: z
       .array(z.enum(TIPOS_OCORRENCIA_COMPUTAVEIS as [TipoOcorrenciaComputavel]))
       .min(1, "Escolha ao menos um tipo."),
+    janela_tipo: z.enum(["desligada", "mes_anterior_fechado", "ultimos_dias"]),
+    janela_dias: z.string().trim(),
     // Id do usuário em texto; SEM_RESPONSAVEL = nenhum.
     responsavel_tmo: z.string(),
     responsavel_campanha: z.string(),
   })
   .superRefine((valores, ctx) => {
+    if (valores.janela_tipo === "ultimos_dias") {
+      const dias = Number(valores.janela_dias);
+      if (valores.janela_dias === "") {
+        ctx.addIssue({ code: "custom", path: ["janela_dias"], message: "Informe quantos dias." });
+      } else if (!Number.isInteger(dias) || dias < DIAS_DA_JANELA.min || dias > DIAS_DA_JANELA.max) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["janela_dias"],
+          message: `Número inteiro de ${DIAS_DA_JANELA.min} a ${DIAS_DA_JANELA.max} dias.`,
+        });
+      }
+    }
     const atencao = valores.atencao_a_partir_de;
     const critica = valores.critica_acima_de;
     if ((atencao === "") !== (critica === "")) {
@@ -89,6 +104,7 @@ type CampoComErro = keyof ValoresEntrada | "faixas";
 
 const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
   "limite_atraso_minutos",
+  "janela_dias",
   "meta_percentual",
   "tipos_computados",
   "responsavel_tmo",
@@ -96,6 +112,32 @@ const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
 ]);
 
 const SEM_RESPONSAVEL = "nenhum";
+
+// Mesmos limites do backend (gestao_rh/serializers.py, DIAS_DA_JANELA).
+const DIAS_DA_JANELA = { min: 7, max: 90 };
+
+type TipoJanelaNaTela = ValoresSaida["janela_tipo"];
+
+const OPCOES_JANELA: { valor: TipoJanelaNaTela; rotulo: string }[] = [
+  { valor: "desligada", rotulo: "Desligada" },
+  { valor: "mes_anterior_fechado", rotulo: "Mês anterior fechado" },
+  { valor: "ultimos_dias", rotulo: "Últimos N dias" },
+];
+
+const QUANDO_AVALIA: Record<Exclude<TipoJanelaNaTela, "desligada">, string> = {
+  mes_anterior_fechado: "Todo dia 1º, à noite, avalia o mês que acabou.",
+  ultimos_dias: "Toda segunda-feira, à noite, avalia os N dias até o domingo.",
+};
+
+function janelaParaEnvio(
+  valores: ValoresSaida,
+): NonNullable<NovaVersaoParametrosPayload["janela_avaliacao"]> | null {
+  if (valores.janela_tipo === "desligada") return null;
+  if (valores.janela_tipo === "ultimos_dias") {
+    return { tipo: "ultimos_dias", dias: Number(valores.janela_dias) };
+  }
+  return { tipo: "mes_anterior_fechado" };
+}
 
 // Equipes sem unidade do Atlas: as demandas de absenteísmo delas vão para o
 // responsável da categoria, no lugar da coordenação da unidade.
@@ -123,6 +165,8 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
     atencao_a_partir_de: percentualParaCampo(versao.faixas?.atencao_a_partir_de),
     critica_acima_de: percentualParaCampo(versao.faixas?.critica_acima_de),
     tipos_computados: naOrdemDaTela(versao.tipos_computados),
+    janela_tipo: versao.janela_avaliacao?.tipo ?? "desligada",
+    janela_dias: versao.janela_avaliacao?.dias ? String(versao.janela_avaliacao.dias) : "",
     responsavel_tmo: versao.responsavel_tmo ? String(versao.responsavel_tmo.id) : SEM_RESPONSAVEL,
     responsavel_campanha: versao.responsavel_campanha
       ? String(versao.responsavel_campanha.id)
@@ -163,6 +207,7 @@ export function FormParametrosAbsenteismo() {
   }, [vigente, isDirty, reset]);
 
   const semFaixas = !watch("atencao_a_partir_de") && !watch("critica_acima_de");
+  const tipoJanela = watch("janela_tipo");
 
   async function aoSubmeter(valores: ValoresSaida) {
     setErroFaixas(undefined);
@@ -178,6 +223,11 @@ export function FormParametrosAbsenteismo() {
             }
           : null,
         tipos_computados: valores.tipos_computados,
+        // Só se mudou, como os responsáveis: ausente, o backend mantém a
+        // atual; null desliga a avaliação.
+        ...((dirtyFields.janela_tipo || dirtyFields.janela_dias) && {
+          janela_avaliacao: janelaParaEnvio(valores),
+        }),
         // Só os responsáveis que mudaram: ausente, o backend mantém o atual.
         // Mandar sempre travaria o salvar quando o responsável atual foi
         // desativado (o backend só aceita usuário ativo).
@@ -203,6 +253,7 @@ export function FormParametrosAbsenteismo() {
       const semCampo: string[] = [];
       for (const [campo, mensagem] of Object.entries(porCampo)) {
         if (campo === "faixas") setErroFaixas(mensagem);
+        else if (campo === "janela_avaliacao") setError("janela_tipo", { message: mensagem });
         else if (CAMPOS_COM_ERRO_NA_TELA.has(campo)) {
           setError(campo as CampoComErro, { message: mensagem });
         } else semCampo.push(mensagem);
@@ -331,6 +382,71 @@ export function FormParametrosAbsenteismo() {
               Férias, afastamento e banco de horas nunca contam.
             </p>
             <MensagemErro id="pa-tipos-erro" texto={errors.tipos_computados?.message} />
+          </fieldset>
+        </div>
+
+        <div className="border-t border-border pt-5">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-foreground">Avaliação automática</legend>
+            <p className="text-xs text-muted-foreground">
+              Período avaliado para gerar alerta e demanda de quem fechou na faixa crítica. A
+              avaliação roda depois da importação do robô; se ela atrasar, o período é avaliado
+              no primeiro dia em que estiver completo. Cada período é avaliado uma vez.
+            </p>
+            <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="pa-janela">Janela de avaliação</Label>
+                <Controller
+                  control={control}
+                  name="janela_tipo"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      // Mesmo cuidado dos responsáveis: o Radix chama com ""
+                      // ao montar dentro de um <form>.
+                      onValueChange={(valor) => valor && field.onChange(valor)}
+                    >
+                      <SelectTrigger
+                        id="pa-janela"
+                        aria-invalid={!!errors.janela_tipo}
+                        aria-describedby={errors.janela_tipo ? "pa-janela-erro" : undefined}
+                        className="w-full"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPCOES_JANELA.map(({ valor, rotulo }) => (
+                          <SelectItem key={valor} value={valor}>
+                            {rotulo}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {tipoJanela && tipoJanela !== "desligada" && (
+                  <p className="text-xs text-muted-foreground">{QUANDO_AVALIA[tipoJanela]}</p>
+                )}
+                <MensagemErro id="pa-janela-erro" texto={errors.janela_tipo?.message} />
+              </div>
+              {tipoJanela === "ultimos_dias" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="pa-janela-dias">Quantos dias (N)</Label>
+                  <Input id="pa-janela-dias" type="number" min={DIAS_DA_JANELA.min} max={DIAS_DA_JANELA.max} aria-invalid={!!errors.janela_dias} aria-describedby={errors.janela_dias ? "pa-janela-dias-erro" : undefined} {...register("janela_dias")} />
+                  <p className="text-xs text-muted-foreground">
+                    De {DIAS_DA_JANELA.min} a {DIAS_DA_JANELA.max} dias.
+                  </p>
+                  <MensagemErro id="pa-janela-dias-erro" texto={errors.janela_dias?.message} />
+                </div>
+              )}
+            </div>
+            {tipoJanela === "desligada" && (
+              <p className="flex items-start gap-2 pt-1 text-sm text-muted-foreground">
+                <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary" />
+                Avaliação automática desligada: nenhum alerta nem demanda de absenteísmo é
+                gerado. O painel continua calculando qualquer período.
+              </p>
+            )}
           </fieldset>
         </div>
 
