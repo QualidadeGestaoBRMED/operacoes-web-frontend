@@ -49,6 +49,7 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
             : "andamento"
         }
         Icone={Percent}
+        rotuloEmDuasLinhas
       />
       {comFaixas && (
         <CardIndicador
@@ -57,6 +58,7 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
           legenda="geram demanda para a coordenação"
           cor="vencido"
           Icone={AlertOctagon}
+          rotuloEmDuasLinhas
           onClick={onSelecionarFaixa && (() => onSelecionarFaixa("critica"))}
           selecionado={faixaSelecionada === "critica"}
         />
@@ -68,6 +70,7 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
           legenda="acompanhados no painel"
           cor="atencao"
           Icone={AlertTriangle}
+          rotuloEmDuasLinhas
           onClick={onSelecionarFaixa && (() => onSelecionarFaixa("atencao"))}
           selecionado={faixaSelecionada === "atencao"}
         />
@@ -75,9 +78,10 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
       <CardIndicador
         rotulo="Justificativas pendentes no VR"
         valor={cards.pendencias}
-        legenda={`${plural(cards.colaboradores_provisorios, "colaborador", "colaboradores")} com justificativa pendente (valor provisório)`}
+        legenda={`${plural(cards.colaboradores_provisorios, "colaborador", "colaboradores")} com valor provisório`}
         cor="neutro"
         Icone={ClipboardClock}
+        rotuloEmDuasLinhas
       />
       <CardIndicador
         rotulo="Colaboradores"
@@ -87,6 +91,7 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
         legenda={plural(cards.unidades, "unidade", "unidades")}
         cor="neutro"
         Icone={Users}
+        rotuloEmDuasLinhas
       />
     </div>
   );

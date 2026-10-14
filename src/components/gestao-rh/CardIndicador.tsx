@@ -43,6 +43,12 @@ interface CardIndicadorProps {
   /** Com `onClick`, o card vira botão de filtro; `selecionado` marca o filtro aplicado. */
   onClick?: () => void;
   selecionado?: boolean;
+  /**
+   * Reserva duas linhas para o rótulo, quebrando em vez de cortar: na grade
+   * de 5 colunas um rótulo longo não cabe, e a altura igual mantém os
+   * números alinhados entre os cards.
+   */
+  rotuloEmDuasLinhas?: boolean;
 }
 
 export function CardIndicador({
@@ -53,6 +59,7 @@ export function CardIndicador({
   Icone,
   onClick,
   selecionado = false,
+  rotuloEmDuasLinhas = false,
 }: CardIndicadorProps) {
   const Elemento = onClick ? "button" : "div";
   return (
@@ -67,7 +74,12 @@ export function CardIndicador({
       )}
     >
       <div className="min-w-0">
-        <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:truncate">
+        <div
+          className={cn(
+            "text-[11px] font-semibold tracking-wide text-muted-foreground uppercase",
+            rotuloEmDuasLinhas ? "line-clamp-2 min-h-[2lh]" : "sm:truncate",
+          )}
+        >
           {rotulo}
         </div>
         <div className={cn("mt-1 text-2xl font-bold", COR_TEXTO[cor])}>{valor}</div>

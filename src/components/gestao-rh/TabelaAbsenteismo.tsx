@@ -105,9 +105,12 @@ function CelulaAbsenteismo({ linha }: { linha: LinhaPainelAbsenteismo }) {
         )}
       </div>
       {linha.provisorio && (
-        <div className="truncate text-[11.5px] text-muted-foreground">
-          provisório · {linha.pendencias}{" "}
-          {linha.pendencias === 1 ? "justificativa pendente no VR" : "justificativas pendentes no VR"}
+        // Coluna estreita: o texto completo fica na dica.
+        <div
+          className="truncate text-[11.5px] text-muted-foreground"
+          title={`${linha.pendencias} ${linha.pendencias === 1 ? "justificativa pendente" : "justificativas pendentes"} no VR`}
+        >
+          provisório · {linha.pendencias} {linha.pendencias === 1 ? "pendente" : "pendentes"}
         </div>
       )}
     </td>
