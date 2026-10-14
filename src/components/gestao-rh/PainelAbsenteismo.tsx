@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,12 @@ import {
   OCORRENCIAS_FILTRO,
   OPCOES_CATEGORIA_PAINEL,
   ROTULO_OCORRENCIA,
+  diferencaEmPontos,
   mesAnteriorFechado,
+  nomeDoPeriodo,
   ordenarLinhasAbsenteismo,
+  periodoAnterior,
+  periodoEmAndamento,
   type CampoOrdenavelAbsenteismo,
   type OrdenacaoAbsenteismo,
 } from "@/lib/gestaoRHAbsenteismo";
@@ -42,6 +47,12 @@ import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsAbsenteismo } from "./CardsAbsenteismo";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
+
+// Carregado só ao abrir: o gráfico (Recharts) não pesa na abertura do Painel.
+const AbsenteismoMensalModal = dynamic(
+  () => import("./AbsenteismoMensalModal").then((modulo) => modulo.AbsenteismoMensalModal),
+  { ssr: false },
+);
 
 // "Crítica e atenção" é a combinação mais usada (quem precisa de olhar) e o
 // filtro com que o painel abre quando há faixas cadastradas.
@@ -107,6 +118,47 @@ export function PainelAbsenteismo() {
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
     usePainelAbsenteismo(filtros);
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
+
+  // Comparativo com o período anterior: segunda busca à mesma rota, com os
+  // mesmos filtros de unidade e categoria. Faixa, ocorrência e busca ficam de
+  // fora porque os cards contam todos; a faixa padrão só enxuga as linhas.
+  const [hoje] = useState(hojeISO);
+  const [comparativoAberto, setComparativoAberto] = useState(false);
+  const filtrosAnteriores = useMemo<FiltrosPainelAbsenteismo>(
+    () => ({
+      ...periodoAnterior(periodo),
+      unidade,
+      categoria,
+      faixa: ["critica", "atencao"],
+    }),
+    [periodo, unidade, categoria],
+  );
+  const {
+    painel: painelAnterior,
+    trocandoFiltro: trocandoAnterior,
+    mensagemErro: mensagemErroAnterior,
+  } = usePainelAbsenteismo(filtrosAnteriores);
+  // Com um dos lados ainda do filtro antigo (ou a busca nova falhou e o SWR
+  // mantém a resposta anterior), a diferença misturaria visões.
+  const anteriorAtual =
+    !trocandoAnterior &&
+    !mensagemErroAnterior &&
+    painelAnterior?.periodo.inicio === filtrosAnteriores.inicio &&
+    painelAnterior.periodo.fim === filtrosAnteriores.fim
+      ? painelAnterior
+      : undefined;
+  const pontos =
+    painel && anteriorAtual && !trocandoFiltro
+      ? diferencaEmPontos(painel.cards.percentual_periodo, anteriorAtual.cards.percentual_periodo)
+      : null;
+  const nomeUnidade = unidades.find((item) => item.id === unidade)?.nome;
+  const nomeCategoria = OPCOES_CATEGORIA_PAINEL.find((opcao) => opcao.valor === categoria)?.rotulo;
+  const visao = [
+    isAdminOps ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade",
+    nomeCategoria,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
   // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
@@ -231,6 +283,16 @@ export function PainelAbsenteismo() {
               painel={painel}
               faixaSelecionada={faixa === "critica" || faixa === "atencao" ? faixa : undefined}
               onSelecionarFaixa={selecionarFaixa}
+              comparativo={
+                pontos !== null && anteriorAtual
+                  ? {
+                      pontos,
+                      nomeAnterior: nomeDoPeriodo(anteriorAtual.periodo, periodo),
+                      parcial: periodoEmAndamento(periodo, hoje),
+                    }
+                  : null
+              }
+              onAbrirComparativo={() => setComparativoAberto(true)}
             />
           </div>
 
@@ -373,6 +435,19 @@ export function PainelAbsenteismo() {
             onAbrir={abrir}
           />
         </>
+      )}
+
+      {/* Montado só aberto: cada abertura começa no ano do período do Painel. */}
+      {comparativoAberto && (
+        <AbsenteismoMensalModal
+          aberto
+          onFechar={() => setComparativoAberto(false)}
+          anoInicial={Number(periodo.fim.slice(0, 4))}
+          hoje={hoje}
+          unidade={unidade}
+          categoria={categoria}
+          visao={visao}
+        />
       )}
 
       <DetalheColaboradorModal

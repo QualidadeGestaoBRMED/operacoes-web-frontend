@@ -1,7 +1,13 @@
 import { AlertOctagon, AlertTriangle, ClipboardClock, Percent, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatarPercentual } from "@/lib/gestaoRHAbsenteismo";
+import {
+  DICA_PONTOS_PERCENTUAIS,
+  corDaDiferenca,
+  formatarDiferenca,
+  formatarPercentual,
+} from "@/lib/gestaoRHAbsenteismo";
 import type { FaixaAbsenteismo, PainelAbsenteismo } from "@/types/gestaoRH";
+import { cn } from "@/lib/utils";
 import { CardIndicador } from "./CardIndicador";
 
 function plural(quantidade: number, singular: string, plural: string) {
@@ -14,9 +20,19 @@ interface CardsAbsenteismoProps {
   faixaSelecionada?: FaixaAbsenteismo;
   /** Clique no card de faixa: atalho para listar só aquela faixa. */
   onSelecionarFaixa?: (faixa: FaixaAbsenteismo) => void;
+  /** Diferença para o período anterior; nula enquanto carrega ou sem dado para comparar. */
+  comparativo?: { pontos: number; nomeAnterior: string; parcial: boolean } | null;
+  /** Clique no card de absenteísmo: abre o comparativo com o período anterior. */
+  onAbrirComparativo?: () => void;
 }
 
-export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }: CardsAbsenteismoProps) {
+export function CardsAbsenteismo({
+  painel,
+  faixaSelecionada,
+  onSelecionarFaixa,
+  comparativo,
+  onAbrirComparativo,
+}: CardsAbsenteismoProps) {
   if (!painel) {
     return (
       <div className="grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5">
@@ -42,7 +58,24 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
       <CardIndicador
         rotulo="Absenteísmo"
         valor={formatarPercentual(cards.percentual_periodo)}
-        legenda={meta ? `meta: até ${formatarPercentual(meta)}` : "no período selecionado"}
+        legenda={
+          comparativo ? (
+            <>
+              <span
+                className={cn("font-semibold", corDaDiferenca(comparativo.pontos))}
+                title={DICA_PONTOS_PERCENTUAIS}
+              >
+                {formatarDiferenca(comparativo.pontos)} vs. {comparativo.nomeAnterior}
+              </span>
+              {comparativo.parcial && " (parcial)"}
+              {meta && ` · limite: ${formatarPercentual(meta)}`}
+            </>
+          ) : meta ? (
+            `limite: ${formatarPercentual(meta)}`
+          ) : (
+            "no período selecionado"
+          )
+        }
         cor={
           meta && cards.percentual_periodo && Number(cards.percentual_periodo) > Number(meta)
             ? "vencido"
@@ -50,6 +83,7 @@ export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }
         }
         Icone={Percent}
         rotuloEmDuasLinhas
+        onClick={onAbrirComparativo}
       />
       {comFaixas && (
         <CardIndicador

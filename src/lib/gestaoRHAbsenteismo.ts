@@ -172,6 +172,160 @@ export function mesAnteriorFechado(hoje: string): { inicio: string; fim: string 
   return { inicio: `${prefixo}-01`, fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}` };
 }
 
+export interface PeriodoAbsenteismo {
+  inicio: string;
+  fim: string;
+}
+
+function dataUTC(iso: string): Date {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia));
+}
+
+function isoUTC(data: Date): string {
+  return data.toISOString().slice(0, 10);
+}
+
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+/** Do dia 1 ao último dia do mesmo mês. */
+export function ehMesInteiro({ inicio, fim }: PeriodoAbsenteismo): boolean {
+  const [ano, mes] = inicio.split("-").map(Number);
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  return inicio.endsWith("-01") && fim === `${inicio.slice(0, 8)}${String(ultimoDia).padStart(2, "0")}`;
+}
+
+/**
+ * Período do comparativo: mês inteiro compara com o mês inteiro anterior
+ * (meses têm tamanhos diferentes); qualquer outro período, com o mesmo
+ * número de dias logo antes dele.
+ */
+export function periodoAnterior(periodo: PeriodoAbsenteismo): PeriodoAbsenteismo {
+  if (ehMesInteiro(periodo)) {
+    const [ano, mes] = periodo.inicio.split("-").map(Number);
+    return mesAnteriorFechado(`${ano}-${String(mes).padStart(2, "0")}-01`);
+  }
+  const inicio = dataUTC(periodo.inicio);
+  const dias = Math.round((dataUTC(periodo.fim).getTime() - inicio.getTime()) / UM_DIA_MS) + 1;
+  const fimAnterior = new Date(inicio.getTime() - UM_DIA_MS);
+  return {
+    inicio: isoUTC(new Date(fimAnterior.getTime() - (dias - 1) * UM_DIA_MS)),
+    fim: isoUTC(fimAnterior),
+  };
+}
+
+/** O fim ainda não passou: os números do período vão mudar. */
+export function periodoEmAndamento({ fim }: PeriodoAbsenteismo, hoje: string): boolean {
+  return fim >= hoje;
+}
+
+const FORMATADOR_NOME_MES = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" });
+
+/**
+ * Nome curto do período: "agosto" para mês inteiro ("dezembro/2025" quando o
+ * ano é outro que o de `referencia`), senão as datas ("30/09 a 06/10").
+ */
+export function nomeDoPeriodo(periodo: PeriodoAbsenteismo, referencia: PeriodoAbsenteismo): string {
+  if (ehMesInteiro(periodo)) {
+    const nome = FORMATADOR_NOME_MES.format(dataUTC(periodo.inicio));
+    const ano = periodo.inicio.slice(0, 4);
+    return ano === referencia.inicio.slice(0, 4) ? nome : `${nome}/${ano}`;
+  }
+  const curta = (iso: string) => formatarDataISO(iso).slice(0, 5);
+  return `${curta(periodo.inicio)} a ${curta(periodo.fim)}`;
+}
+
+/** Primeiro mês com dados de ponto no Atlas (importação do VR desde set/2026). */
+export const PRIMEIRO_MES_COM_DADOS = "2026-09-01";
+
+export interface MesDoAno extends PeriodoAbsenteismo {
+  /** 1 a 12. */
+  mes: number;
+  /** Começa depois de hoje: não é buscado. */
+  futuro: boolean;
+  /** Antes do primeiro mês com dados no Atlas: não é buscado. */
+  antesDosDados: boolean;
+}
+
+/** Os 12 meses do ano, do dia 1 ao último dia; o mês em andamento vai até o fim do mês. */
+export function mesesDoAno(ano: number, hoje: string): MesDoAno[] {
+  return Array.from({ length: 12 }, (_, indice) => {
+    const mes = indice + 1;
+    const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+    const prefixo = `${ano}-${String(mes).padStart(2, "0")}`;
+    const inicio = `${prefixo}-01`;
+    return {
+      mes,
+      inicio,
+      fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}`,
+      futuro: inicio > hoje,
+      antesDosDados: inicio < PRIMEIRO_MES_COM_DADOS,
+    };
+  });
+}
+
+const FORMATADOR_MES_CURTO = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" });
+
+/** "jan", "fev"... (sem o ponto do formato abreviado). */
+export function nomeCurtoDoMes(mes: number): string {
+  return FORMATADOR_MES_CURTO.format(new Date(Date.UTC(2026, mes - 1, 1))).replace(".", "");
+}
+
+/**
+ * Meses por extenso, com as sequências agrupadas: [1..8, 11, 12] →
+ * "jan a ago, nov e dez"; três ou mais seguidos viram "a".
+ */
+export function mesesPorExtenso(meses: number[]): string {
+  const grupos: number[][] = [];
+  for (const mes of [...meses].sort((a, b) => a - b)) {
+    const ultimo = grupos.at(-1);
+    if (ultimo && ultimo.at(-1) === mes - 1) ultimo.push(mes);
+    else grupos.push([mes]);
+  }
+  const partes = grupos.flatMap((grupo) =>
+    grupo.length >= 3
+      ? [`${nomeCurtoDoMes(grupo[0])} a ${nomeCurtoDoMes(grupo.at(-1)!)}`]
+      : grupo.map(nomeCurtoDoMes),
+  );
+  return partes.length <= 1 ? (partes[0] ?? "") : `${partes.slice(0, -1).join(", ")} e ${partes.at(-1)}`;
+}
+
+/** Diferença em pontos percentuais, com uma casa; nula sem percentual em um dos lados. */
+export function diferencaEmPontos(atual: string | null, anterior: string | null): number | null {
+  if (atual === null || anterior === null) return null;
+  // Em centésimos inteiros (a API manda duas casas): sem erro de ponto
+  // flutuante, e a meia casa arredonda para longe do zero nos dois sentidos.
+  const centesimos = Math.round(Number(atual) * 100) - Math.round(Number(anterior) * 100);
+  // `|| 0`: -0,04 arredonda para -0, que deve aparecer como sem variação.
+  return (Math.sign(centesimos) * Math.round(Math.abs(centesimos) / 10)) / 10 || 0;
+}
+
+const FORMATADOR_PONTOS = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
+
+/**
+ * "▲ +0,4 p.p.", "▼ −1,2 p.p." ou "sem variação". Pontos percentuais, não
+ * porcentagem: de 3,2% para 4% são +0,8 p.p. (em porcentagem, +25%).
+ */
+export function formatarDiferenca(pontos: number): string {
+  if (pontos === 0) return "sem variação";
+  const valor = FORMATADOR_PONTOS.format(Math.abs(pontos));
+  return pontos > 0 ? `▲ +${valor} p.p.` : `▼ −${valor} p.p.`;
+}
+
+/** Dica da variação, para quem não conhece "p.p.". */
+export const DICA_PONTOS_PERCENTUAIS =
+  "Diferença em pontos percentuais: de 3,2% para 4% são +0,8 p.p.";
+
+/** Subir o absenteísmo é piorar: vermelho; cair é melhorar: verde. */
+export function corDaDiferenca(pontos: number): string {
+  if (pontos > 0) return "text-red-600";
+  if (pontos < 0) return "text-emerald-700";
+  return "text-muted-foreground";
+}
+
 const FORMATADOR_PERCENTUAL = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 1,
