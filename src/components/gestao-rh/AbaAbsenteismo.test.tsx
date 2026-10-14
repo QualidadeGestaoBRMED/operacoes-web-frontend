@@ -22,12 +22,14 @@ vi.mock("@/lib/demandas", async (original) => ({
   ...(await original<typeof import("@/lib/demandas")>()),
   listarComentarios: vi.fn(),
   criarComentario: vi.fn(),
+  buscarDemanda: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { toast } from "sonner";
 import { buscarAbsenteismoColaborador, registrarTratamento } from "@/lib/gestaoRHAbsenteismo";
-import { criarComentario, listarComentarios } from "@/lib/demandas";
+import { buscarDemanda, criarComentario, listarComentarios } from "@/lib/demandas";
+import { criarDemanda } from "@/test-utils/fixtures";
 import type { Comentario } from "@/types";
 import { buscarColaboradorRH, buscarFeriasColaborador } from "@/lib/gestaoRHFerias";
 
@@ -135,6 +137,8 @@ beforeEach(() => {
   vi.mocked(listarComentarios).mockReset();
   vi.mocked(listarComentarios).mockResolvedValue([]);
   vi.mocked(criarComentario).mockReset();
+  vi.mocked(buscarDemanda).mockReset();
+  vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "em_andamento" }));
 });
 
 function comentario(id: number, texto: string, nome = "Ana Admin"): Comentario {
@@ -467,8 +471,37 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
     });
 
+    it("vale a situação da própria demanda: concluída depois que a aba carregou, só leitura", async () => {
+      // A aba ainda diz "demanda aberta", mas outra pessoa já concluiu.
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "concluido" }));
+      const user = usuario();
+      renderModal();
+      const { painel } = await abrirConversa(user);
+
+      expect(await painel.findByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
+      expect(painel.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
+      expect(buscarDemanda).toHaveBeenCalledWith(41);
+    });
+
+    it("Esc volta da conversa para a aba sem fechar o modal; um segundo Esc fecha", async () => {
+      const onFechar = vi.fn();
+      const user = usuario();
+      renderModal({ onFechar });
+      const { botao } = await abrirConversa(user);
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("region", { name: "Conversa · Alerta de setembro/2026" })).not.toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Alerta de setembro/2026" })).toBeInTheDocument();
+      expect(onFechar).not.toHaveBeenCalled();
+      await waitFor(() => expect(botao).toHaveFocus());
+
+      await user.keyboard("{Escape}");
+      expect(onFechar).toHaveBeenCalled();
+    });
+
     it("demanda concluída: conversa só leitura", async () => {
       vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "concluido" }));
       vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Resolvido.")]);
       const user = usuario();
       renderModal();
