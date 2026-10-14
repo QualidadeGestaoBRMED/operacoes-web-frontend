@@ -28,8 +28,8 @@
 | STC-694 Aba Equipes nos Parâmetros (categoria, unidade) | P5.4 | ✅ Mergeada |
 | STC-697 Painel e modal com equipes sem unidade (filtro de categoria) | P5.1/P5.3 | ✅ Mergeada |
 | STC-725 Responsável por TMO e Campanha só entre os Admins ativos | P5.4 | ✅ Mergeada |
-| STC-726 Janela de avaliação nos Parâmetros e aba Absenteísmo do modal nas rotas reais da STC-592 | P5.3/P5.4 | 🔄 Em andamento |
-| STC-724 Conversa da demanda na aba Absenteísmo do modal | P5.3 | ⏳ Depende da STC-723 |
+| STC-726 Janela de avaliação nos Parâmetros e aba Absenteísmo do modal nas rotas reais da STC-592 | P5.3/P5.4 | ✅ Mergeada |
+| STC-724 Conversa da demanda na aba Absenteísmo do modal (comentários da STC-723) | P5.3 | 🔄 Em andamento |
 
 ---
 
@@ -132,6 +132,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
   - "RH acionado" junto do aviso de substituição, com confirmação (não pode ser desfeito); depois de registrado, "RH acionado em <data> por <responsável>".
   - Férias já tiradas recolhidas; período em andamento como linha informativa.
 - **Aba Absenteísmo** (✅ STC-598, nas rotas reais pela STC-726): período livre (o do painel, o do alerta pelo Kanban ou o mês anterior fechado), aviso de pendências, indicadores numa faixa compacta (não os cards dos painéis), ocorrências com "conta/não conta", "em aprovação" e "acima de N min" (atestado sem dado clínico), card do alerta ("Alerta de setembro/2026") com selo "Provisório" quando havia pendência na geração e "Demanda aberta em dd/mm/aaaa · responsável: …" (coordenação, Admin da categoria ou "Admins"); "Registrar tratamento" abre no card (ação da lista proposta do SRS + justificativa obrigatória) e, depois, mostra o tratamento registrado; alerta sem tratamento e sem como registrar aparece como "Encerrado: saiu da faixa crítica depois de uma nova importação"; histórico. A resposta do tratamento vem no período do alerta: só substitui o cache se for o período na tela, senão busca de novo. Tratar um alerta que outra pessoa ou a importação já fechou devolve 400 `alerta`: a mensagem vira toast e a aba, o painel e o cabeçalho do modal são buscados de novo.
+- **Conversa da demanda** (STC-724): em cada alerta com `demanda_id`, a seção "Conversa da demanda" reaproveita o `ComentarioFeed` do Gestão de Demandas (rota `demandas/{id}/comentarios/`, liberada nas demandas de RH pela STC-723), numa caixa de altura limitada com rolagem própria, com o aviso fixo "Não registre diagnóstico, CID ou outros dados de saúde." acima do campo. Demanda concluída: só leitura. Alerta sem demanda: sem conversa.
 - **Abertura**: pelo Painel de Absenteísmo, aba Absenteísmo no período do painel (`?colaborador=`); pelo card do Kanban (`?colaborador=&inicio=&fim=`, `origem_url` da STC-592), no período do alerta, rolando e levando o foco ao card do alerta; pelo Painel de Férias, aba Férias.
 - Rótulos da interface: "período de direito", "limite para tirar", "férias tiradas" (SRS §3.1).
 
