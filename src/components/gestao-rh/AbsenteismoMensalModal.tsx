@@ -168,7 +168,7 @@ export function AbsenteismoMensalModal({
 
   return (
     <Dialog open={aberto} onOpenChange={(abrir) => !abrir && onFechar()}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Absenteísmo mês a mês</DialogTitle>
           {/* O Painel só traz quem está ativo hoje: desligados não entram nos meses anteriores. */}
@@ -201,13 +201,13 @@ export function AbsenteismoMensalModal({
             </Button>
           </div>
         ) : carregando || !meses ? (
-          <Skeleton className="h-[260px] rounded-lg" aria-label={`Carregando o absenteísmo de ${ano}`} />
+          <Skeleton className="h-[340px] rounded-lg" aria-label={`Carregando o absenteísmo de ${ano}`} />
         ) : (
           <>
             {/* O gráfico é decorativo para leitor de tela: a tabela abaixo
                 traz os mesmos números. */}
             <div aria-hidden>
-              <ChartContainer config={CONFIG_GRAFICO} className="aspect-auto h-[220px] w-full">
+              <ChartContainer config={CONFIG_GRAFICO} className="aspect-auto h-[300px] w-full">
                 <LineChart data={pontos} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="nome" tickLine={false} axisLine={false} interval={0} tickMargin={8} />
