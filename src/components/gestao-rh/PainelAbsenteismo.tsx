@@ -139,6 +139,20 @@ export function PainelAbsenteismo() {
     });
   }
 
+  const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
+
+  // Atalho dos cards de faixa: a tabela passa a bater com o número do card,
+  // que conta a unidade e a categoria filtradas e ignora os filtros que só
+  // afetam as linhas (ocorrência, justificativa pendente e busca). Clicar no
+  // card já selecionado volta para o filtro padrão.
+  function selecionarFaixa(alvo: FaixaAbsenteismo) {
+    setFaixa((atual) => (atual === alvo ? FAIXA_PADRAO : alvo));
+    setOcorrencia(undefined);
+    setComPendencias(false);
+    setBusca("");
+    refTabela.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }
+
   const linhas = useMemo(() => {
     const termo = normalizar(busca.trim());
     const filtradas = (painel?.linhas ?? []).filter(
@@ -150,7 +164,6 @@ export function PainelAbsenteismo() {
     return ordenarLinhasAbsenteismo(filtradas, ordenacao);
   }, [painel, busca, ordenacao]);
 
-  const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(
     unidade || categoria || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
@@ -214,7 +227,11 @@ export function PainelAbsenteismo() {
             </div>
           )}
           <div className={cn("transition-opacity", trocandoFiltro && "opacity-60")}>
-            <CardsAbsenteismo painel={painel} />
+            <CardsAbsenteismo
+              painel={painel}
+              faixaSelecionada={faixa === "critica" || faixa === "atencao" ? faixa : undefined}
+              onSelecionarFaixa={selecionarFaixa}
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">
@@ -321,7 +338,7 @@ export function PainelAbsenteismo() {
                 checked={comPendencias}
                 onCheckedChange={(valor) => setComPendencias(valor === true)}
               />
-              Com pendências
+              Com justificativa pendente
             </label>
 
             {temFiltros && (

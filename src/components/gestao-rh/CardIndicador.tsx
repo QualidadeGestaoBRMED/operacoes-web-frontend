@@ -27,20 +27,43 @@ const COR_FUNDO_ICONE: Record<CorCard, string> = {
   neutro: "bg-slate-500/15",
 };
 
+const COR_ANEL: Record<CorCard, string> = {
+  vencido: "ring-red-600/60",
+  atencao: "ring-amber-700/60",
+  andamento: "ring-cyan-700/60",
+  neutro: "ring-slate-500/60",
+};
+
 interface CardIndicadorProps {
   rotulo: string;
   valor: number | string;
   legenda: string;
   cor: CorCard;
   Icone: LucideIcon;
+  /** Com `onClick`, o card vira botão de filtro; `selecionado` marca o filtro aplicado. */
+  onClick?: () => void;
+  selecionado?: boolean;
 }
 
-export function CardIndicador({ rotulo, valor, legenda, cor, Icone }: CardIndicadorProps) {
+export function CardIndicador({
+  rotulo,
+  valor,
+  legenda,
+  cor,
+  Icone,
+  onClick,
+  selecionado = false,
+}: CardIndicadorProps) {
+  const Elemento = onClick ? "button" : "div";
   return (
-    <div
+    <Elemento
+      {...(onClick && { type: "button" as const, onClick, "aria-pressed": selecionado })}
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 shadow-sm",
+        "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 text-left shadow-sm",
         COR_FUNDO_CARD[cor],
+        onClick &&
+          "cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
+        selecionado && cn("ring-2", COR_ANEL[cor]),
       )}
     >
       <div className="min-w-0">
@@ -61,6 +84,6 @@ export function CardIndicador({ rotulo, valor, legenda, cor, Icone }: CardIndica
       >
         <Icone aria-hidden className="size-4" />
       </div>
-    </div>
+    </Elemento>
   );
 }

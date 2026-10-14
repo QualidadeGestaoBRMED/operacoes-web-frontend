@@ -273,9 +273,9 @@ export function AbaAbsenteismo({
           <span>
             {indicadores.pendencias}{" "}
             {indicadores.pendencias === 1
-              ? "pendência de ponto aguardando aprovação"
-              : "pendências de ponto aguardando aprovação"}{" "}
-            no SuperApp VR. O percentual pode mudar depois da aprovação.
+              ? "justificativa pendente no VR"
+              : "justificativas pendentes no VR"}
+            , aguardando aprovação no SuperApp. O percentual pode mudar depois da aprovação.
           </span>
         </div>
       )}
@@ -345,8 +345,8 @@ export function AbaAbsenteismo({
                         className={cn(
                           "rounded-full px-2 py-px text-[11px] font-medium",
                           marca === "conta no absenteísmo" && "bg-red-600/10 text-red-700",
-                          marca === "em aprovação" && "bg-amber-600/10 text-amber-800",
-                          marca !== "conta no absenteísmo" && marca !== "em aprovação" && "bg-muted text-muted-foreground",
+                          marca === "pendente no VR" && "bg-amber-600/10 text-amber-800",
+                          marca !== "conta no absenteísmo" && marca !== "pendente no VR" && "bg-muted text-muted-foreground",
                         )}
                       >
                         {marca}

@@ -69,7 +69,7 @@ const ROTULO_TIPO_OCORRENCIA: Record<TipoOcorrenciaAbsenteismo, string> = {
   falta: "Falta",
   atestado: "Atestado",
   afastamento: "Afastamento",
-  ausencia: "Ausência",
+  ausencia: "Ausência justificada",
   atraso: "Atraso",
   saida_antecipada: "Saída antecipada",
   banco_horas: "Banco de horas",
@@ -90,7 +90,7 @@ function textoMinutos(minutos: number): string {
 
 /**
  * Linha de ocorrência da aba: "04/08/2026 · Falta sem justificativa" e as
- * marcas ao lado ("conta no absenteísmo", "em aprovação", "acima de 15 min").
+ * marcas ao lado ("conta no absenteísmo", "pendente no VR", "acima de 15 min").
  */
 export function textoOcorrencia(
   ocorrencia: OcorrenciaAbsenteismo,
@@ -100,7 +100,7 @@ export function textoOcorrencia(
   let descricao = rotulo;
   if (ocorrencia.tipo === "falta" && ocorrencia.em_aprovacao) {
     // Justificativa enviada e ainda não aprovada no SuperApp VR: não está resolvida.
-    descricao = "Falta com justificativa em aprovação";
+    descricao = "Falta com justificativa pendente no VR";
   } else if (ocorrencia.tipo === "falta" && ocorrencia.justificada !== null) {
     descricao = ocorrencia.justificada ? "Falta justificada" : "Falta sem justificativa";
   } else if (ocorrencia.minutos !== null && ocorrencia.tipo !== "banco_horas") {
@@ -117,7 +117,7 @@ export function textoOcorrencia(
   } else if (ocorrencia.conta_no_absenteismo !== null) {
     marcas.push(ocorrencia.conta_no_absenteismo ? "conta no absenteísmo" : "não conta no absenteísmo");
   }
-  if (ocorrencia.em_aprovacao) marcas.push("em aprovação");
+  if (ocorrencia.em_aprovacao) marcas.push("pendente no VR");
   return { datas: datasDaOcorrencia(ocorrencia), descricao, marcas };
 }
 
@@ -155,7 +155,7 @@ export const ROTULO_OCORRENCIA: Record<OcorrenciaFiltro, string> = {
   falta: "Falta",
   atestado: "Atestado",
   afastamento: "Afastamento",
-  ausencia: "Ausência",
+  ausencia: "Ausência justificada",
   atraso: "Atraso",
   saida_antecipada: "Saída antecipada",
 };
