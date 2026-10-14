@@ -97,17 +97,22 @@ export function DetalheColaboradorModal({
   const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(colaboradorId);
   const alertasFerias = colaborador?.alertas_pendentes.ferias ?? 0;
   const alertasAbsenteismo = colaborador?.alertas_pendentes.absenteismo ?? 0;
-  // Conversa da demanda de um alerta, sobre a área de conteúdo. Guarda o
-  // colaborador: trocar de colaborador com o modal aberto fecha a conversa.
-  const [conversa, setConversa] = useState<{
-    colaboradorId: number;
-    dados: ConversaAberta;
-    origem: HTMLElement;
-  } | null>(null);
-  const conversaAberta = conversa?.colaboradorId === colaboradorId ? conversa : null;
+  // Conversa da demanda de um alerta, sobre a área de conteúdo. O modal
+  // continua montado depois de fechar (só fica sem colaborador): qualquer
+  // mudança de colaborador, inclusive fechar, fecha a conversa, para reabrir
+  // o mesmo colaborador sempre na aba.
+  const [conversa, setConversa] = useState<{ dados: ConversaAberta; origem: HTMLElement } | null>(
+    null,
+  );
+  const [colaboradorDaConversa, setColaboradorDaConversa] = useState(colaboradorId);
+  if (colaboradorDaConversa !== colaboradorId) {
+    setColaboradorDaConversa(colaboradorId);
+    setConversa(null);
+  }
+  const conversaAberta = conversa;
 
   function abrirConversa(dados: ConversaAberta, origem: HTMLElement) {
-    if (colaboradorId !== null) setConversa({ colaboradorId, dados, origem });
+    setConversa({ dados, origem });
   }
 
   function voltarDaConversa() {
