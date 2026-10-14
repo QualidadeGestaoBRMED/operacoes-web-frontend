@@ -176,7 +176,7 @@ describe("Parâmetros de absenteísmo", () => {
     expect(screen.getByText(/Sem faixas cadastradas/)).toBeInTheDocument();
     expect(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)")).toHaveValue(15);
     expect(screen.getByRole("checkbox", { name: "Falta" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Ausência" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Ausência justificada" })).not.toBeChecked();
     expect(screen.queryByRole("checkbox", { name: "Afastamento" })).not.toBeInTheDocument();
   });
 
@@ -213,7 +213,7 @@ describe("Parâmetros de absenteísmo", () => {
     await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "5");
     await user.type(screen.getByLabelText("Faixa de atenção a partir de (%)"), "5");
     await user.type(screen.getByLabelText("Faixa crítica acima de (%)"), "8");
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() =>
@@ -234,10 +234,10 @@ describe("Parâmetros de absenteísmo", () => {
     const salvar = screen.getByRole("button", { name: "Salvar nova versão" });
     expect(salvar).toBeDisabled();
 
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     expect(salvar).toBeEnabled();
 
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     expect(salvar).toBeDisabled();
   });
 
@@ -313,7 +313,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(toast.info).toHaveBeenCalled());
@@ -399,7 +399,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     expect(
@@ -416,7 +416,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.click(screen.getByRole("checkbox", { name: "Ausência" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Parâmetros inválidos."));

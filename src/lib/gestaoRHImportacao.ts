@@ -38,7 +38,7 @@ const IMPORTACOES_URL = "/modulos/gestao-rh/importacoes/";
 /** Na ordem da tela; o nome é o do modelo salvo na conta do VR. */
 export const RELATORIOS_VR: { valor: RelatorioVR; rotulo: string; dica: string }[] = [
   { valor: "jornada", rotulo: "Jornada", dica: "Espelho de ponto de todas as equipes" },
-  { valor: "abonos", rotulo: "Abonos", dica: "Atestados e ausências do período" },
+  { valor: "abonos", rotulo: "Abonos", dica: "Atestados e ausências justificadas do período" },
   { valor: "pendencias", rotulo: "Pendências", dica: "Ajustes de ponto do período" },
 ];
 

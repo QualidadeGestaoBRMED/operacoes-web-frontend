@@ -27,24 +27,59 @@ const COR_FUNDO_ICONE: Record<CorCard, string> = {
   neutro: "bg-slate-500/15",
 };
 
+const COR_ANEL: Record<CorCard, string> = {
+  vencido: "ring-red-600/60",
+  atencao: "ring-amber-700/60",
+  andamento: "ring-cyan-700/60",
+  neutro: "ring-slate-500/60",
+};
+
 interface CardIndicadorProps {
   rotulo: string;
   valor: number | string;
   legenda: string;
   cor: CorCard;
   Icone: LucideIcon;
+  /** Com `onClick`, o card vira botão de filtro; `selecionado` marca o filtro aplicado. */
+  onClick?: () => void;
+  selecionado?: boolean;
+  /**
+   * Reserva duas linhas para o rótulo, quebrando em vez de cortar: na grade
+   * de 5 colunas um rótulo longo não cabe, e a altura igual mantém os
+   * números alinhados entre os cards.
+   */
+  rotuloEmDuasLinhas?: boolean;
 }
 
-export function CardIndicador({ rotulo, valor, legenda, cor, Icone }: CardIndicadorProps) {
+export function CardIndicador({
+  rotulo,
+  valor,
+  legenda,
+  cor,
+  Icone,
+  onClick,
+  selecionado = false,
+  rotuloEmDuasLinhas = false,
+}: CardIndicadorProps) {
+  const Elemento = onClick ? "button" : "div";
   return (
-    <div
+    <Elemento
+      {...(onClick && { type: "button" as const, onClick, "aria-pressed": selecionado })}
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 shadow-sm",
+        "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 text-left shadow-sm",
         COR_FUNDO_CARD[cor],
+        onClick &&
+          "cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
+        selecionado && cn("ring-2", COR_ANEL[cor]),
       )}
     >
       <div className="min-w-0">
-        <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:truncate">
+        <div
+          className={cn(
+            "text-[11px] font-semibold tracking-wide text-muted-foreground uppercase",
+            rotuloEmDuasLinhas ? "line-clamp-2 min-h-[2lh]" : "sm:truncate",
+          )}
+        >
           {rotulo}
         </div>
         <div className={cn("mt-1 text-2xl font-bold", COR_TEXTO[cor])}>{valor}</div>
@@ -61,6 +96,6 @@ export function CardIndicador({ rotulo, valor, legenda, cor, Icone }: CardIndica
       >
         <Icone aria-hidden className="size-4" />
       </div>
-    </div>
+    </Elemento>
   );
 }

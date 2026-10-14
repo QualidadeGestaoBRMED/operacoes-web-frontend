@@ -1,14 +1,22 @@
 import { AlertOctagon, AlertTriangle, ClipboardClock, Percent, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatarPercentual } from "@/lib/gestaoRHAbsenteismo";
-import type { PainelAbsenteismo } from "@/types/gestaoRH";
+import type { FaixaAbsenteismo, PainelAbsenteismo } from "@/types/gestaoRH";
 import { CardIndicador } from "./CardIndicador";
 
 function plural(quantidade: number, singular: string, plural: string) {
   return `${quantidade} ${quantidade === 1 ? singular : plural}`;
 }
 
-export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undefined }) {
+interface CardsAbsenteismoProps {
+  painel: PainelAbsenteismo | undefined;
+  /** Faixa aplicada sozinha no filtro: o card dela aparece selecionado. */
+  faixaSelecionada?: FaixaAbsenteismo;
+  /** Clique no card de faixa: atalho para listar só aquela faixa. */
+  onSelecionarFaixa?: (faixa: FaixaAbsenteismo) => void;
+}
+
+export function CardsAbsenteismo({ painel, faixaSelecionada, onSelecionarFaixa }: CardsAbsenteismoProps) {
   if (!painel) {
     return (
       <div className="grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5">
@@ -41,6 +49,7 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
             : "andamento"
         }
         Icone={Percent}
+        rotuloEmDuasLinhas
       />
       {comFaixas && (
         <CardIndicador
@@ -49,6 +58,9 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
           legenda="geram demanda para a coordenação"
           cor="vencido"
           Icone={AlertOctagon}
+          rotuloEmDuasLinhas
+          onClick={onSelecionarFaixa && (() => onSelecionarFaixa("critica"))}
+          selecionado={faixaSelecionada === "critica"}
         />
       )}
       {comFaixas && (
@@ -58,14 +70,18 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
           legenda="acompanhados no painel"
           cor="atencao"
           Icone={AlertTriangle}
+          rotuloEmDuasLinhas
+          onClick={onSelecionarFaixa && (() => onSelecionarFaixa("atencao"))}
+          selecionado={faixaSelecionada === "atencao"}
         />
       )}
       <CardIndicador
-        rotulo="Pendências de ponto"
+        rotulo="Justificativas pendentes no VR"
         valor={cards.pendencias}
         legenda={`${plural(cards.colaboradores_provisorios, "colaborador", "colaboradores")} com valor provisório`}
         cor="neutro"
         Icone={ClipboardClock}
+        rotuloEmDuasLinhas
       />
       <CardIndicador
         rotulo="Colaboradores"
@@ -75,6 +91,7 @@ export function CardsAbsenteismo({ painel }: { painel: PainelAbsenteismo | undef
         legenda={plural(cards.unidades, "unidade", "unidades")}
         cor="neutro"
         Icone={Users}
+        rotuloEmDuasLinhas
       />
     </div>
   );
