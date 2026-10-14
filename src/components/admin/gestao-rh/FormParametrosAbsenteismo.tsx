@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParametrosAbsenteismo } from "@/hooks/useParametrosGestaoRH";
+import { NIVEL_ADMIN_OPERACOES } from "@/hooks/useAuth";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -340,7 +341,8 @@ export function FormParametrosAbsenteismo() {
             </legend>
             <p className="text-xs text-muted-foreground">
               TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
-              equipes vão para quem estiver aqui.
+              equipes vão para quem estiver aqui. Só Admins, porque só eles veem esses
+              colaboradores no módulo.
             </p>
             <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
               {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
@@ -353,10 +355,16 @@ export function FormParametrosAbsenteismo() {
                       name={campo}
                       render={({ field }) => {
                         const atual = vigente[campo];
+                        // Só Admin ativo: o backend recusa os outros (STC-594).
                         // O responsável atual entra na lista mesmo se não vier
-                        // mais nela (ex.: perdeu o perfil), para o campo não
-                        // aparecer vazio.
-                        const opcoes = usuarios.filter((usuario) => usuario.perfil);
+                        // mais nela (ex.: deixou de ser Admin), para o campo
+                        // não aparecer vazio.
+                        const opcoes = usuarios.filter(
+                          (usuario) =>
+                            usuario.ativo &&
+                            usuario.perfil !== null &&
+                            usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES,
+                        );
                         const faltaAtual = atual && !opcoes.some((u) => u.id === atual.id);
                         return (
                           <Select
