@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export function ComentarioFeed({
   const { comentarios, isLoading, mensagemErro } = useComentarios(demandaId);
   const { criar, isLoading: enviando } = useCriarComentario(demandaId);
   const [texto, setTexto] = useState("");
+  const idAviso = useId();
 
   async function enviar() {
     const valor = texto.trim();
@@ -76,7 +77,9 @@ export function ComentarioFeed({
       </div>
 
       {podeComentar && aviso && (
-        <p className="border-t border-border px-5 pt-2.5 text-xs text-muted-foreground">{aviso}</p>
+        <p id={idAviso} className="border-t border-border px-5 pt-2.5 text-xs text-muted-foreground">
+          {aviso}
+        </p>
       )}
       {podeComentar && (
         <div
@@ -87,6 +90,7 @@ export function ComentarioFeed({
             onChange={(evento) => setTexto(evento.target.value)}
             onKeyDown={aoTeclar}
             placeholder="Adicionar comentário... (Enter para enviar)"
+            aria-describedby={aviso ? idAviso : undefined}
             rows={1}
             className="max-h-28 min-h-9 resize-none"
           />

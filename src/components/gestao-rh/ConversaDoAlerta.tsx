@@ -35,20 +35,28 @@ export function BotaoConversa({
   const { data } = useSWR(["demanda", demandaId, "comentarios"], () =>
     listarComentarios(demandaId),
   );
-  const quantidade = data?.length ?? 0;
+  // Sem a lista (carregando ou falhou), sem número: "0" faria uma conversa
+  // existente parecer vazia.
+  const quantidade = data?.length;
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
       onClick={(evento) => onAbrir(evento.currentTarget)}
-      aria-label={`Conversa da demanda, ${quantidade} ${quantidade === 1 ? "comentário" : "comentários"}`}
+      aria-label={
+        quantidade === undefined
+          ? "Conversa da demanda"
+          : `Conversa da demanda, ${quantidade} ${quantidade === 1 ? "comentário" : "comentários"}`
+      }
     >
       <MessageSquare aria-hidden className="size-3.5" />
       Conversa
-      <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground tabular-nums">
-        {quantidade}
-      </span>
+      {quantidade !== undefined && (
+        <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground tabular-nums">
+          {quantidade}
+        </span>
+      )}
     </Button>
   );
 }
