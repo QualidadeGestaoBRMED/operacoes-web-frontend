@@ -3,9 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import api from "./api";
 import {
   buscarPainelAbsenteismo,
+  diferencaEmPontos,
+  ehMesInteiro,
+  formatarDiferenca,
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
+  nomeDoPeriodo,
+  periodoAnterior,
+  periodoEmAndamento,
   ordenarLinhasAbsenteismo,
   textoOcorrencia,
   textoOcorrencias,
@@ -26,6 +32,86 @@ describe("período padrão: mês anterior fechado", () => {
     ["2028-03-01", "2028-02-01", "2028-02-29"],
   ])("hoje %s → %s a %s", (hoje, inicio, fim) => {
     expect(mesAnteriorFechado(hoje)).toEqual({ inicio, fim });
+  });
+});
+
+describe("comparativo: período anterior", () => {
+  it("mês inteiro compara com o mês inteiro anterior", () => {
+    expect(periodoAnterior({ inicio: "2026-09-01", fim: "2026-09-30" })).toEqual({
+      inicio: "2026-08-01",
+      fim: "2026-08-31",
+    });
+    // Março (31 dias) com fevereiro (28 ou 29), não com os 31 dias antes.
+    expect(periodoAnterior({ inicio: "2027-03-01", fim: "2027-03-31" })).toEqual({
+      inicio: "2027-02-01",
+      fim: "2027-02-28",
+    });
+    expect(periodoAnterior({ inicio: "2028-03-01", fim: "2028-03-31" })).toEqual({
+      inicio: "2028-02-01",
+      fim: "2028-02-29",
+    });
+  });
+
+  it("virada de ano", () => {
+    expect(periodoAnterior({ inicio: "2027-01-01", fim: "2027-01-31" })).toEqual({
+      inicio: "2026-12-01",
+      fim: "2026-12-31",
+    });
+    expect(periodoAnterior({ inicio: "2027-01-01", fim: "2027-01-07" })).toEqual({
+      inicio: "2026-12-25",
+      fim: "2026-12-31",
+    });
+  });
+
+  it("outros períodos: o mesmo número de dias logo antes", () => {
+    expect(periodoAnterior({ inicio: "2026-10-07", fim: "2026-10-13" })).toEqual({
+      inicio: "2026-09-30",
+      fim: "2026-10-06",
+    });
+    // Mês em andamento, até hoje: não é mês inteiro.
+    expect(periodoAnterior({ inicio: "2026-10-01", fim: "2026-10-14" })).toEqual({
+      inicio: "2026-09-17",
+      fim: "2026-09-30",
+    });
+    expect(periodoAnterior({ inicio: "2026-10-14", fim: "2026-10-14" })).toEqual({
+      inicio: "2026-10-13",
+      fim: "2026-10-13",
+    });
+  });
+
+  it("mês inteiro só do dia 1 ao último dia do mesmo mês", () => {
+    expect(ehMesInteiro({ inicio: "2026-02-01", fim: "2026-02-28" })).toBe(true);
+    expect(ehMesInteiro({ inicio: "2026-09-01", fim: "2026-09-29" })).toBe(false);
+    expect(ehMesInteiro({ inicio: "2026-09-02", fim: "2026-09-30" })).toBe(false);
+    expect(ehMesInteiro({ inicio: "2026-09-01", fim: "2026-10-31" })).toBe(false);
+  });
+
+  it("em andamento enquanto o fim não passou", () => {
+    expect(periodoEmAndamento({ inicio: "2026-10-01", fim: "2026-10-31" }, "2026-10-14")).toBe(true);
+    expect(periodoEmAndamento({ inicio: "2026-10-01", fim: "2026-10-14" }, "2026-10-14")).toBe(true);
+    expect(periodoEmAndamento({ inicio: "2026-09-01", fim: "2026-09-30" }, "2026-10-14")).toBe(false);
+  });
+
+  it("nome do período: mês (com o ano só se for outro) ou as datas", () => {
+    const setembro = { inicio: "2026-09-01", fim: "2026-09-30" };
+    expect(nomeDoPeriodo({ inicio: "2026-08-01", fim: "2026-08-31" }, setembro)).toBe("agosto");
+    expect(
+      nomeDoPeriodo({ inicio: "2025-12-01", fim: "2025-12-31" }, { inicio: "2026-01-01", fim: "2026-01-31" }),
+    ).toBe("dezembro/2025");
+    expect(nomeDoPeriodo({ inicio: "2026-09-30", fim: "2026-10-06" }, setembro)).toBe("30/09 a 06/10");
+  });
+
+  it("diferença em pontos, com uma casa, e sem percentual não compara", () => {
+    expect(diferencaEmPontos("4.00", "3.60")).toBe(0.4);
+    expect(diferencaEmPontos("3.20", "4.85")).toBe(-1.7);
+    expect(diferencaEmPontos("3.20", "3.20")).toBe(0);
+    expect(diferencaEmPontos("3.20", "3.24")).toBe(0);
+    expect(diferencaEmPontos("4.85", "3.20")).toBe(1.7);
+    expect(diferencaEmPontos(null, "3.20")).toBeNull();
+    expect(diferencaEmPontos("3.20", null)).toBeNull();
+    expect(formatarDiferenca(0.4)).toBe("▲ 0,4 pp");
+    expect(formatarDiferenca(-1.7)).toBe("▼ 1,7 pp");
+    expect(formatarDiferenca(0)).toBe("sem variação");
   });
 });
 
