@@ -15,6 +15,8 @@ export interface VersaoParametrosAbsenteismo {
   tipos_computados: TipoOcorrenciaComputavel[];
   meta_percentual: string | null;
   faixas: FaixasAbsenteismo | null;
+  /** Janela da avaliação automática; nula, a avaliação está desligada. */
+  janela_avaliacao: JanelaAvaliacao | null;
   /** Responsável pelas demandas de absenteísmo das equipes TMO e de Campanha. */
   responsavel_tmo: ResponsavelCategoria | null;
   responsavel_campanha: ResponsavelCategoria | null;
@@ -22,6 +24,14 @@ export interface VersaoParametrosAbsenteismo {
   salvo_por: string | null;
   versao_inicial: boolean;
   created_at: string;
+}
+
+export type TipoJanelaAvaliacao = "mes_anterior_fechado" | "ultimos_dias";
+
+/** "Mês anterior fechado" vem com `dias: null`; "últimos N dias", com N de 7 a 90. */
+export interface JanelaAvaliacao {
+  tipo: TipoJanelaAvaliacao;
+  dias: number | null;
 }
 
 export interface ParametrosAbsenteismoResposta {
@@ -39,6 +49,8 @@ export interface NovaVersaoParametrosPayload {
   meta_percentual: string | null;
   faixas: FaixasAbsenteismo | null;
   tipos_computados: TipoOcorrenciaComputavel[];
+  /** Null desliga a avaliação automática. Ausente mantém a atual. */
+  janela_avaliacao?: { tipo: TipoJanelaAvaliacao; dias?: number } | null;
   /** Id do usuário; null tira o responsável. Ausente mantém o atual. */
   responsavel_tmo?: number | null;
   responsavel_campanha?: number | null;
@@ -369,10 +381,17 @@ export interface AlertaAbsenteismo {
   periodo_inicio: string;
   periodo_fim: string;
   faixa: FaixaAbsenteismo;
+  /** Havia pendência de ponto em aberto quando o alerta foi gerado. */
+  provisorio: boolean;
   gerado_em: string;
   demanda_id: number | null;
   demanda_aberta: boolean;
+  /** Quem está com a demanda hoje: a coordenação, o Admin da categoria ou "Admins". */
   responsavel: string | null;
+  /**
+   * Falso com `tratamento` nulo: o alerta foi encerrado por uma importação
+   * seguinte (saiu da faixa crítica).
+   */
   pode_registrar_tratamento: boolean;
   tratamento: { acao: AcaoTratamento; justificativa: string; por: string | null; em: string } | null;
 }

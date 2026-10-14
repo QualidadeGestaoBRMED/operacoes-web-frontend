@@ -5,7 +5,7 @@ import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnidades } from "@/hooks/useUnidades";
-import { painelAbsenteismoDeExemplo } from "@/lib/gestaoRHAbsenteismoExemplo";
+import { painelAbsenteismoDeExemplo } from "@/test-utils/painelAbsenteismoExemplo";
 import type { PainelAbsenteismo as Painel } from "@/types/gestaoRH";
 import { PainelAbsenteismo } from "./PainelAbsenteismo";
 

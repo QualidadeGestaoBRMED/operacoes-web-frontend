@@ -51,6 +51,7 @@ const VERSAO_INICIAL: VersaoParametrosAbsenteismo = {
   tipos_computados: ["falta", "atestado"],
   meta_percentual: null,
   faixas: null,
+  janela_avaliacao: null,
   responsavel_tmo: null,
   responsavel_campanha: null,
   vigente_a_partir_de: "2000-01-01",
@@ -587,6 +588,90 @@ describe("Régua de férias: validação", () => {
     expect(dias).toHaveAttribute("aria-invalid", "true");
     expect(dias).toHaveAccessibleDescription(mensagem);
     expect(salvarReguaFerias).not.toHaveBeenCalled();
+  });
+});
+
+describe("Janela de avaliação", () => {
+  const salvo = { dados: parametros(VERSAO_INICIAL), criouVersao: true };
+
+  it("sem janela, aparece desligada com o aviso e não vai no envio se não mudou", async () => {
+    vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue(salvo);
+    const user = userEvent.setup();
+    renderTela();
+
+    expect(await screen.findByLabelText("Janela de avaliação")).toHaveTextContent("Desligada");
+    expect(screen.getByText(/Avaliação automática desligada/)).toBeInTheDocument();
+    const limite = screen.getByLabelText("Limite de atraso e saída antecipada (minutos)");
+    await user.clear(limite);
+    await user.type(limite, "20");
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+
+    await waitFor(() => expect(salvarParametrosAbsenteismo).toHaveBeenCalled());
+    expect(vi.mocked(salvarParametrosAbsenteismo).mock.calls[0][0]).not.toHaveProperty("janela_avaliacao");
+  });
+
+  it("últimos N dias exige N de 7 a 90 e envia o tipo e os dias", async () => {
+    vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue(salvo);
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByLabelText("Janela de avaliação"));
+    await user.click(await screen.findByRole("option", { name: "Últimos N dias" }));
+    expect(screen.getByText(/Toda segunda-feira, à noite/)).toBeInTheDocument();
+    expect(screen.queryByText(/Avaliação automática desligada/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+    expect(await screen.findByText("Informe quantos dias.")).toBeInTheDocument();
+
+    const dias = screen.getByLabelText("Quantos dias (N)");
+    await user.type(dias, "5");
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+    expect(await screen.findByText("Número inteiro de 7 a 90 dias.")).toBeInTheDocument();
+    expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
+
+    await user.clear(dias);
+    await user.type(dias, "14");
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+    await waitFor(() =>
+      expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(
+        expect.objectContaining({ janela_avaliacao: { tipo: "ultimos_dias", dias: 14 } }),
+      ),
+    );
+  });
+
+  it("desligar a janela atual envia null", async () => {
+    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
+      parametros({ ...VERSAO_INICIAL, janela_avaliacao: { tipo: "mes_anterior_fechado", dias: null } }),
+    );
+    vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue(salvo);
+    const user = userEvent.setup();
+    renderTela();
+
+    expect(await screen.findByLabelText("Janela de avaliação")).toHaveTextContent("Mês anterior fechado");
+    expect(screen.getByText(/Todo dia 1º, à noite/)).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Janela de avaliação"));
+    await user.click(await screen.findByRole("option", { name: "Desligada" }));
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+
+    await waitFor(() =>
+      expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(
+        expect.objectContaining({ janela_avaliacao: null }),
+      ),
+    );
+  });
+
+  it("erro da API na janela aparece no campo", async () => {
+    vi.mocked(salvarParametrosAbsenteismo).mockRejectedValue(
+      erro400({ janela_avaliacao: { dias: ["Certifique-se de que este valor seja menor ou igual a 90."] } }),
+    );
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByLabelText("Janela de avaliação"));
+    await user.click(await screen.findByRole("option", { name: "Mês anterior fechado" }));
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+
+    expect(await screen.findByText(/menor ou igual a 90/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Janela de avaliação")).toHaveAttribute("aria-invalid", "true");
   });
 });
 

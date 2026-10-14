@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { extrairMensagemErro } from "@/lib/erros";
+import { errosDeCampo } from "@/lib/gestaoRH";
 import {
   buscarAbsenteismoColaborador,
   buscarPainelAbsenteismo,
@@ -48,8 +49,28 @@ export function useAbsenteismoColaborador(
     { keepPreviousData: true },
   );
 
+  // Painel e cabeçalho do modal (alertas pendentes) mudam junto com o alerta.
+  function revalidarPainelECabecalho() {
+    void mutateGlobal(
+      (chave) => Array.isArray(chave) && chave[0] === "gestao-rh-painel-absenteismo",
+    );
+    void mutateGlobal(["gestao-rh-colaborador", colaboradorId]);
+  }
+
   async function registrar(payload: RegistrarTratamentoPayload) {
-    const atualizada = await registrarTratamento(colaboradorId, payload);
+    let atualizada;
+    try {
+      atualizada = await registrarTratamento(colaboradorId, payload);
+    } catch (falha) {
+      // Alerta tratado por outra pessoa ou encerrado pela importação desde
+      // que a aba carregou: a aba, o painel e o cabeçalho são buscados de
+      // novo para mostrar como estão.
+      if (errosDeCampo(falha).alerta) {
+        void mutate();
+        revalidarPainelECabecalho();
+      }
+      throw falha;
+    }
     // A resposta vem no período do alerta; só substitui o cache se for o
     // período na tela agora. Senão, busca de novo o período na tela.
     const naTela = periodoNaTela.current;
@@ -59,10 +80,7 @@ export function useAbsenteismoColaborador(
     await (mesmoPeriodo
       ? mutateGlobal(chave, atualizada, { revalidate: false })
       : mutateGlobal(chave));
-    void mutateGlobal(
-      (chave) => Array.isArray(chave) && chave[0] === "gestao-rh-painel-absenteismo",
-    );
-    void mutateGlobal(["gestao-rh-colaborador", colaboradorId]);
+    revalidarPainelECabecalho();
     return atualizada;
   }
 

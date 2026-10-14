@@ -63,6 +63,7 @@ function aba(extra: Partial<AbsenteismoColaborador> = {}): AbsenteismoColaborado
         periodo_inicio: "2026-09-01",
         periodo_fim: "2026-09-30",
         faixa: "critica",
+        provisorio: false,
         gerado_em: "2026-10-01T06:00:00-03:00",
         demanda_id: 41,
         demanda_aberta: true,
@@ -197,7 +198,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     const user = usuario();
     renderModal();
     const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
-    expect(alerta.getByText(/Demanda aberta para a Coordenação Niterói em 01\/10\/2026/)).toBeInTheDocument();
+    expect(alerta.getByText(/Demanda aberta em 01\/10\/2026 · responsável: Coordenação Niterói/)).toBeInTheDocument();
 
     await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
     await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
@@ -268,16 +269,54 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(alerta.getByLabelText("Justificativa *")).toHaveAttribute("aria-invalid", "true");
   });
 
-  it("sem permissão da API ou com o colaborador desligado, não oferece registrar", async () => {
+  it("alerta encerrado pela importação aparece encerrado, sem registrar", async () => {
     vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
-      aba({ alertas: [{ ...aba().alertas[0], pode_registrar_tratamento: false }] }),
+      aba({ alertas: [{ ...aba().alertas[0], demanda_aberta: false, pode_registrar_tratamento: false }] }),
     );
-    const { unmount } = renderModal();
-    await screen.findByRole("region", { name: "Alerta de setembro/2026" });
-    expect(screen.queryByRole("button", { name: "Registrar tratamento" })).not.toBeInTheDocument();
-    unmount();
+    renderModal();
+    const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+    expect(alerta.getByText(/Encerrado: saiu da faixa crítica depois de uma nova importação/)).toBeInTheDocument();
+    expect(alerta.getByText(/demanda concluída/)).toBeInTheDocument();
+    expect(alerta.queryByRole("button", { name: "Registrar tratamento" })).not.toBeInTheDocument();
+  });
 
-    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(aba());
+  it("alerta provisório e responsável das equipes sem unidade", async () => {
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+      aba({ alertas: [{ ...aba().alertas[0], provisorio: true, responsavel: "Admins" }] }),
+    );
+    renderModal();
+    const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+    expect(alerta.getByText("Provisório")).toBeInTheDocument();
+    expect(alerta.getByText(/responsável: Admins/)).toBeInTheDocument();
+  });
+
+  it("alerta já fechado por outra pessoa: mostra o erro e recarrega a aba", async () => {
+    vi.mocked(registrarTratamento).mockRejectedValue(
+      new AxiosError("Bad Request", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        data: { alerta: "Este alerta já foi tratado ou encerrado." },
+      } as AxiosResponse),
+    );
+    const user = usuario();
+    renderModal();
+    const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
+
+    await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
+    await user.click(alerta.getByLabelText("Ação tomada *"));
+    await user.click(await screen.findByRole("option", { name: "Feedback" }));
+    await user.type(alerta.getByLabelText("Justificativa *"), "Conversa.");
+    const cabecalhos = vi.mocked(buscarColaboradorRH).mock.calls.length;
+    await user.click(alerta.getByRole("button", { name: "Registrar tratamento" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Este alerta já foi tratado ou encerrado."));
+    expect(await screen.findByText("Tratamento: Feedback")).toBeInTheDocument();
+    // O cabeçalho (alertas pendentes) também é buscado de novo.
+    await waitFor(() => expect(vi.mocked(buscarColaboradorRH).mock.calls.length).toBeGreaterThan(cabecalhos));
+    expect(screen.queryByLabelText("Justificativa *")).not.toBeInTheDocument();
+  });
+
+  it("com o colaborador desligado, não oferece registrar", async () => {
     vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, ativo: false });
     renderModal();
     await screen.findByRole("region", { name: "Alerta de setembro/2026" });
