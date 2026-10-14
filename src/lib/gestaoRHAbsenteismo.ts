@@ -32,23 +32,11 @@ export async function buscarPainelAbsenteismo(
 
 const COLABORADORES_URL = "/modulos/gestao-rh/colaboradores/";
 
-/**
- * Aba Absenteísmo do modal (contrato da STC-592). No ambiente local, com
- * `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1`, devolve dados de exemplo enquanto
- * a rota não existe. `NODE_ENV` vira constante no build: em produção o ramo
- * some e o módulo de exemplo não entra no pacote, mesmo com a variável ligada.
- */
+/** Aba Absenteísmo do modal (contrato da STC-592). */
 export async function buscarAbsenteismoColaborador(
   colaboradorId: number,
   periodo: { inicio: string; fim: string },
 ): Promise<AbsenteismoColaborador> {
-  if (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
-  ) {
-    const { absenteismoColaboradorDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
-    return absenteismoColaboradorDeExemplo(colaboradorId, periodo);
-  }
   const { data } = await api.get<AbsenteismoColaborador>(
     `${COLABORADORES_URL}${colaboradorId}/absenteismo/`,
     { params: periodo },
@@ -61,13 +49,6 @@ export async function registrarTratamento(
   colaboradorId: number,
   payload: RegistrarTratamentoPayload,
 ): Promise<AbsenteismoColaborador> {
-  if (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO === "1"
-  ) {
-    const { registrarTratamentoDeExemplo } = await import("./gestaoRHAbsenteismoExemplo");
-    return registrarTratamentoDeExemplo(colaboradorId, payload);
-  }
   const { data } = await api.post<AbsenteismoColaborador>(
     `${COLABORADORES_URL}${colaboradorId}/tratamentos/`,
     payload,

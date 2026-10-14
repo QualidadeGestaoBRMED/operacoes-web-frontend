@@ -63,6 +63,7 @@ function aba(extra: Partial<AbsenteismoColaborador> = {}): AbsenteismoColaborado
         periodo_inicio: "2026-09-01",
         periodo_fim: "2026-09-30",
         faixa: "critica",
+        provisorio: false,
         gerado_em: "2026-10-01T06:00:00-03:00",
         demanda_id: 41,
         demanda_aberta: true,

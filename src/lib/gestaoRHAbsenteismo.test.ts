@@ -11,11 +11,7 @@ import {
   textoOcorrencias,
   tituloAlerta,
 } from "./gestaoRHAbsenteismo";
-import {
-  absenteismoColaboradorDeExemplo,
-  painelAbsenteismoDeExemplo,
-  registrarTratamentoDeExemplo,
-} from "./gestaoRHAbsenteismoExemplo";
+import { painelAbsenteismoDeExemplo } from "@/test-utils/painelAbsenteismoExemplo";
 import { textoHistorico } from "./gestaoRHFerias";
 import type {
   AlertaAbsenteismo,
@@ -164,25 +160,6 @@ describe("histórico de absenteísmo", () => {
     ["alerta_absenteismo_encerrado", "", "Alerta encerrado: saiu da faixa na nova carga"],
   ])("%s", (acao, valor_novo, texto) => {
     expect(textoHistorico({ ...registro, acao, valor_novo })).toBe(texto);
-  });
-});
-
-describe("aba de exemplo (ambiente local)", () => {
-  it("bate com o painel e registra o tratamento até recarregar", () => {
-    const periodo = { inicio: "2026-09-01", fim: "2026-09-30" };
-    const juliana = absenteismoColaboradorDeExemplo(8, periodo);
-    expect(juliana.indicadores.percentual).toBe("13.60");
-    expect(juliana.alertas).toHaveLength(1);
-    expect(juliana.alertas[0].pode_registrar_tratamento).toBe(true);
-
-    const tratada = registrarTratamentoDeExemplo(8, {
-      alerta: juliana.alertas[0].id,
-      acao: "feedback",
-      justificativa: "Conversa.",
-    });
-    expect(tratada.alertas[0].tratamento?.acao).toBe("feedback");
-    expect(tratada.alertas[0].demanda_aberta).toBe(false);
-    expect(tratada.historico[0].valor_novo).toBe("Feedback");
   });
 });
 
