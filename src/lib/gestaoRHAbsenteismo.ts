@@ -238,7 +238,11 @@ export function nomeDoPeriodo(periodo: PeriodoAbsenteismo, referencia: PeriodoAb
 /** Diferença em pontos percentuais, com uma casa; nula sem percentual em um dos lados. */
 export function diferencaEmPontos(atual: string | null, anterior: string | null): number | null {
   if (atual === null || anterior === null) return null;
-  return Math.round((Number(atual) - Number(anterior)) * 10) / 10;
+  // Em centésimos inteiros (a API manda duas casas): sem erro de ponto
+  // flutuante, e a meia casa arredonda para longe do zero nos dois sentidos.
+  const centesimos = Math.round(Number(atual) * 100) - Math.round(Number(anterior) * 100);
+  // `|| 0`: -0,04 arredonda para -0, que deve aparecer como sem variação.
+  return (Math.sign(centesimos) * Math.round(Math.abs(centesimos) / 10)) / 10 || 0;
 }
 
 const FORMATADOR_PONTOS = new Intl.NumberFormat("pt-BR", {
