@@ -210,7 +210,7 @@ describe("Parâmetros de absenteísmo", () => {
     renderTela();
     await screen.findByText("Versão inicial");
 
-    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "5");
+    await user.type(screen.getByLabelText("Limite de absenteísmo (%)"), "5");
     await user.type(screen.getByLabelText("Faixa de atenção a partir de (%)"), "5");
     await user.type(screen.getByLabelText("Faixa crítica acima de (%)"), "8");
     await user.click(screen.getByRole("checkbox", { name: "Ausência justificada" }));
@@ -290,7 +290,7 @@ describe("Parâmetros de absenteísmo", () => {
     const user = userEvent.setup();
     renderTela({ dedupingInterval: 0, focusThrottleInterval: 0, shouldRetryOnError: false });
     await screen.findByText("Versão inicial");
-    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+    await user.type(screen.getByLabelText("Limite de absenteísmo (%)"), "7");
 
     vi.mocked(buscarParametrosAbsenteismo).mockRejectedValue(new Error("Falha de rede"));
     vi.mocked(buscarReguaFerias).mockRejectedValue(new Error("Falha de rede"));
@@ -298,7 +298,7 @@ describe("Parâmetros de absenteísmo", () => {
 
     await waitFor(() => expect(buscarParametrosAbsenteismo).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(buscarReguaFerias).toHaveBeenCalledTimes(2));
-    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByLabelText("Limite de absenteísmo (%)")).toHaveValue(7);
     expect(screen.getByText("Régua de alertas de férias")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tentar novamente" })).not.toBeInTheDocument();
   });
@@ -356,7 +356,7 @@ describe("Parâmetros de absenteísmo", () => {
     const user = userEvent.setup();
     renderTela({ dedupingInterval: 0, focusThrottleInterval: 0 });
     await screen.findByText("Versão inicial");
-    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+    await user.type(screen.getByLabelText("Limite de absenteísmo (%)"), "7");
 
     // Outro Admin salvou: a tela revalida ao voltar o foco.
     vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
@@ -374,7 +374,7 @@ describe("Parâmetros de absenteísmo", () => {
     expect(
       await screen.findByText("Versão vigente desde 05/10/2026, por Outro Admin"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByLabelText("Limite de absenteísmo (%)")).toHaveValue(7);
     expect(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)")).toHaveValue(15);
   });
 
@@ -551,16 +551,16 @@ describe("Troca de aba", () => {
     const user = userEvent.setup();
     renderTela();
     await screen.findByText("Versão inicial");
-    await user.type(screen.getByLabelText("Meta de absenteísmo (%)"), "7");
+    await user.type(screen.getByLabelText("Limite de absenteísmo (%)"), "7");
     const dias = screen.getByLabelText("Dias: dias antes do limite para tirar");
     await user.clear(dias);
     await user.type(dias, "60");
 
     await user.click(screen.getByRole("tab", { name: "Importação" }));
-    expect(screen.getByLabelText("Meta de absenteísmo (%)")).not.toBeVisible();
+    expect(screen.getByLabelText("Limite de absenteísmo (%)")).not.toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Absenteísmo e férias" }));
 
-    expect(screen.getByLabelText("Meta de absenteísmo (%)")).toHaveValue(7);
+    expect(screen.getByLabelText("Limite de absenteísmo (%)")).toHaveValue(7);
     expect(screen.getByLabelText("Dias: dias antes do limite para tirar")).toHaveValue(60);
   });
 });

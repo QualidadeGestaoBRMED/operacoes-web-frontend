@@ -10,6 +10,7 @@ import {
   formatarSaldoHoras,
   mesAnteriorFechado,
   mesesDoAno,
+  mesesPorExtenso,
   nomeCurtoDoMes,
   nomeDoPeriodo,
   periodoAnterior,
@@ -116,6 +117,14 @@ describe("comparativo: período anterior", () => {
     expect(nomeCurtoDoMes(12)).toBe("dez");
   });
 
+  it("meses por extenso, com três ou mais seguidos agrupados", () => {
+    expect(mesesPorExtenso([1, 2, 3, 4, 5, 6, 7, 8])).toBe("jan a ago");
+    expect(mesesPorExtenso([1, 2, 3, 4, 5, 6, 7, 8, 11, 12])).toBe("jan a ago, nov e dez");
+    expect(mesesPorExtenso([3])).toBe("mar");
+    expect(mesesPorExtenso([5, 1, 2])).toBe("jan, fev e mai");
+    expect(mesesPorExtenso([])).toBe("");
+  });
+
   it("diferença em pontos, com uma casa, e sem percentual não compara", () => {
     expect(diferencaEmPontos("4.00", "3.60")).toBe(0.4);
     expect(diferencaEmPontos("3.20", "4.85")).toBe(-1.7);
@@ -124,8 +133,8 @@ describe("comparativo: período anterior", () => {
     expect(diferencaEmPontos("4.85", "3.20")).toBe(1.7);
     expect(diferencaEmPontos(null, "3.20")).toBeNull();
     expect(diferencaEmPontos("3.20", null)).toBeNull();
-    expect(formatarDiferenca(0.4)).toBe("▲ 0,4 pp");
-    expect(formatarDiferenca(-1.7)).toBe("▼ 1,7 pp");
+    expect(formatarDiferenca(0.4)).toBe("▲ +0,4 p.p.");
+    expect(formatarDiferenca(-1.7)).toBe("▼ −1,7 p.p.");
     expect(formatarDiferenca(0)).toBe("sem variação");
   });
 });

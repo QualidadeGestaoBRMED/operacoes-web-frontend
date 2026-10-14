@@ -99,7 +99,7 @@ afterEach(() => {
 });
 
 describe("Painel de Absenteísmo", () => {
-  it("abre no mês anterior fechado, com cards, meta e data dos dados", async () => {
+  it("abre no mês anterior fechado, com cards, limite e data dos dados", async () => {
     renderPainel();
 
     expect(await screen.findByText("Juliana Ramos")).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("Painel de Absenteísmo", () => {
       ocorrencia: undefined,
       com_pendencias: undefined,
     });
-    expect(screen.getByText("meta: até 5%")).toBeInTheDocument();
+    expect(screen.getByText("limite: 5%")).toBeInTheDocument();
     expect(screen.getByText(/dados até 30\/09\/2026/)).toBeInTheDocument();
     expect(screen.getByText("Faixa crítica")).toBeInTheDocument();
     expect(screen.getByText("8 colaboradores")).toBeInTheDocument();
@@ -449,15 +449,15 @@ describe("comparativo com o período anterior", () => {
     responderPorPeriodo({ "2026-09-01": "4.00", "2026-08-01": "3.60" });
     renderPainel();
 
-    expect(await screen.findByText("▲ 0,4 pp vs. agosto")).toHaveClass("text-red-600");
-    expect(screen.getByText(/· meta: até 5%/)).toBeInTheDocument();
+    expect(await screen.findByText("▲ +0,4 p.p. vs. agosto")).toHaveClass("text-red-600");
+    expect(screen.getByText(/· limite: 5%/)).toBeInTheDocument();
   });
 
   it("queda: diferença em verde", async () => {
     responderPorPeriodo({ "2026-09-01": "3.20", "2026-08-01": "4.85" });
     renderPainel();
 
-    expect(await screen.findByText("▼ 1,7 pp vs. agosto")).toHaveClass("text-emerald-700");
+    expect(await screen.findByText("▼ −1,7 p.p. vs. agosto")).toHaveClass("text-emerald-700");
   });
 
   it("período anterior sem dados ou com falha: legenda como antes", async () => {
@@ -465,7 +465,7 @@ describe("comparativo com o período anterior", () => {
     const { unmount } = renderPainel();
     await screen.findByText("Juliana Ramos");
     await waitFor(() => expect(buscasDoPeriodo("2026-08-01")).toHaveLength(1));
-    expect(screen.getByText("meta: até 5%")).toBeInTheDocument();
+    expect(screen.getByText("limite: 5%")).toBeInTheDocument();
     expect(screen.queryByText(/vs\./)).not.toBeInTheDocument();
     unmount();
 
@@ -476,7 +476,7 @@ describe("comparativo com o período anterior", () => {
     renderPainel();
     await screen.findByText("Juliana Ramos");
     await waitFor(() => expect(buscasDoPeriodo("2026-08-01").length).toBeGreaterThan(1));
-    expect(screen.getByText("meta: até 5%")).toBeInTheDocument();
+    expect(screen.getByText("limite: 5%")).toBeInTheDocument();
   });
 
   it("mês em andamento: compara com o mês inteiro anterior e marca parcial", async () => {
@@ -487,7 +487,7 @@ describe("comparativo com o período anterior", () => {
     fireEvent.change(screen.getByLabelText("até"), { target: { value: "2026-10-31" } });
     fireEvent.change(screen.getByLabelText("Período"), { target: { value: "2026-10-01" } });
 
-    await screen.findByText("▲ 0,4 pp vs. setembro");
+    await screen.findByText("▲ +0,4 p.p. vs. setembro");
     expect(screen.getByText(/\(parcial\)/)).toBeInTheDocument();
   });
 });
@@ -497,7 +497,14 @@ describe("absenteísmo mês a mês", () => {
     const base = painelAbsenteismoDeExemplo({ inicio, fim });
     return {
       ...base,
-      cards: { ...base.cards, percentual_periodo: percentual, faixa_critica: 3, faixa_atencao: 2 },
+      cards: {
+        ...base.cards,
+        percentual_periodo: percentual,
+        faixa_critica: 3,
+        faixa_atencao: 2,
+        // Hoje é 06/10/2026: a última importação trouxe até o dia 5.
+        dados_ate: fim < "2026-10-05" ? fim : "2026-10-05",
+      },
     };
   }
 
@@ -509,7 +516,7 @@ describe("absenteísmo mês a mês", () => {
 
   async function abrirModal(user: ReturnType<typeof usuario>) {
     await screen.findByText("Juliana Ramos");
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
+    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*limite/ }));
     return within(await screen.findByRole("dialog", { name: "Absenteísmo mês a mês" }));
   }
 
@@ -550,20 +557,22 @@ describe("absenteísmo mês a mês", () => {
     expect(modal.getAllByRole("rowheader")).toHaveLength(3);
     const agosto = linhaDoMes(modal, "ago");
     expect(agosto.getByText("3,6%")).toBeInTheDocument();
-    // Julho sem dado: agosto não tem variação.
-    expect(agosto.getAllByText("—")).toHaveLength(1);
+    // Julho sem dado: agosto fica sem variação (célula vazia).
+    expect(agosto.queryByText(/p\.p\./)).not.toBeInTheDocument();
     const setembro = linhaDoMes(modal, "set");
-    expect(setembro.getByText("▲ 0,4 pp")).toHaveClass("text-red-600");
+    expect(setembro.getByText("▲ +0,4 p.p.")).toHaveClass("text-red-600");
     const outubro = linhaDoMes(modal, "out");
-    expect(outubro.getByText("▼ 0,5 pp")).toHaveClass("text-emerald-700");
-    expect(outubro.getByText("Parcial")).toBeInTheDocument();
-    expect(setembro.queryByText("Parcial")).not.toBeInTheDocument();
+    expect(outubro.getByText("▼ −0,5 p.p.")).toHaveClass("text-emerald-700");
+    // Mês em andamento: até onde vão os dados, no lugar de um selo.
+    expect(outubro.getByText(/até 05\/10/)).toBeInTheDocument();
+    expect(setembro.queryByText(/até/)).not.toBeInTheDocument();
+    expect(modal.queryByText(/Provisório|Parcial/)).not.toBeInTheDocument();
     expect(outubro.getByText("3")).toBeInTheDocument();
     expect(outubro.getByText("2")).toBeInTheDocument();
-    expect(modal.getByText("Sem dados: jan, fev, mar, abr, mai, jun e jul.")).toBeInTheDocument();
+    expect(modal.getByText("Sem dados: jan a jul.")).toBeInTheDocument();
   });
 
-  it("sem faixas cadastradas na versão do mês, crítica e atenção com traço", async () => {
+  it("sem faixas cadastradas na versão do mês, crítica e atenção dizem isso", async () => {
     const user = usuario();
     vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
       const painel = painelDoMes(filtros.inicio, filtros.fim, filtros.inicio === "2026-09-01" ? "4.00" : null);
@@ -573,7 +582,7 @@ describe("absenteísmo mês a mês", () => {
     const modal = await abrirModal(user);
     await modal.findByRole("table");
 
-    expect(linhaDoMes(modal, "set").getAllByText("—")).toHaveLength(3);
+    expect(linhaDoMes(modal, "set").getByText("sem faixas")).toBeInTheDocument();
   });
 
   it("ano sem dados avisa; o seletor troca o ano", async () => {
