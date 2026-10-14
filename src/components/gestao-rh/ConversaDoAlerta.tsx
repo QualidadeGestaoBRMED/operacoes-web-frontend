@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { ComentarioFeed } from "@/components/demanda/ComentarioFeed";
 import { Button } from "@/components/ui/button";
+import { useDemanda } from "@/hooks/useDemandas";
 import { listarComentarios } from "@/lib/demandas";
 
 // Conversa entre o RH (Admin) e a coordenação na demanda do alerta de
@@ -15,7 +16,7 @@ export interface ConversaAberta {
   demandaId: number;
   /** "Alerta de setembro/2026" */
   titulo: string;
-  /** Demanda concluída: só leitura. */
+  /** Situação no clique; o painel acompanha a demanda depois disso. */
   aberta: boolean;
 }
 
@@ -64,6 +65,13 @@ export function PainelConversa({
   useEffect(() => {
     titulo.current?.focus();
   }, []);
+  // A demanda pode ser concluída com o painel aberto (tratamento registrado
+  // por outra pessoa): a situação vem da própria demanda, com o mesmo polling
+  // do Kanban; até a primeira resposta, vale a do clique.
+  const { demanda } = useDemanda(conversa.demandaId);
+  const aberta = demanda
+    ? demanda.status !== "concluido" && demanda.status !== "lixeira"
+    : conversa.aberta;
 
   return (
     <section
@@ -86,10 +94,10 @@ export function PainelConversa({
       </div>
       <ComentarioFeed
         demandaId={conversa.demandaId}
-        podeComentar={conversa.aberta}
+        podeComentar={aberta}
         aviso={AVISO_DADOS_DE_SAUDE}
       />
-      {!conversa.aberta && (
+      {!aberta && (
         <p className="border-t border-border px-5 py-3 text-xs text-muted-foreground">
           Demanda concluída: a conversa fica só para leitura.
         </p>

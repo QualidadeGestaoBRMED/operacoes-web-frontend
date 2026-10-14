@@ -125,6 +125,14 @@ export function DetalheColaboradorModal({
   return (
     <Dialog open={colaboradorId !== null} onOpenChange={(aberto) => !aberto && onFechar()}>
       <DialogContent
+        // Com a conversa aberta, Esc volta à aba (sem perder o modal nem o
+        // contexto); com a aba na tela, fecha o modal como sempre.
+        onEscapeKeyDown={(evento) => {
+          if (conversaAberta) {
+            evento.preventDefault();
+            voltarDaConversa();
+          }
+        }}
         showCloseButton
         className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
