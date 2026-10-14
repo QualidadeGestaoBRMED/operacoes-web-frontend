@@ -222,7 +222,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     renderModal();
     await screen.findByText("Ocorrências do período");
 
-    expect(screen.getByText(/2 pendências de ponto aguardando aprovação no SuperApp VR/)).toBeInTheDocument();
+    expect(screen.getByText(/2 justificativas pendentes no VR, aguardando aprovação no SuperApp/)).toBeInTheDocument();
     expect(screen.getByText("13,6%")).toBeInTheDocument();
     expect(screen.getByText("faixa crítica · provisório")).toBeInTheDocument();
     expect(screen.getByText("15 de 21")).toBeInTheDocument();
@@ -235,7 +235,7 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(within(afastamento).getByText("não conta no absenteísmo")).toBeInTheDocument();
     const saida = screen.getByText(/Saída antecipada de 20 minutos/).closest("li") as HTMLElement;
     expect(within(saida).getByText("acima de 15 min")).toBeInTheDocument();
-    expect(within(saida).getByText("em aprovação")).toBeInTheDocument();
+    expect(within(saida).getByText("pendente no VR")).toBeInTheDocument();
     expect(screen.getByText("Atestados aparecem só com tipo e período, sem dados clínicos.")).toBeInTheDocument();
   });
 

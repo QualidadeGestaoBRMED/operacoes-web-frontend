@@ -118,7 +118,7 @@ function ocorrencia(extra: Partial<OcorrenciaAbsenteismo>): OcorrenciaAbsenteism
 describe("texto das ocorrências da aba", () => {
   it.each<[Partial<OcorrenciaAbsenteismo>, string, string[]]>([
     [{}, "Falta sem justificativa", ["conta no absenteísmo"]],
-    [{ justificada: true, em_aprovacao: true }, "Falta com justificativa em aprovação", ["conta no absenteísmo", "em aprovação"]],
+    [{ justificada: true, em_aprovacao: true }, "Falta com justificativa pendente no VR", ["conta no absenteísmo", "pendente no VR"]],
     [{ justificada: true }, "Falta justificada", ["conta no absenteísmo"]],
     [{ tipo: "afastamento", fim: "2026-09-05", dias: 2, conta_no_absenteismo: false, justificada: null }, "Afastamento · 2 dias", ["não conta no absenteísmo"]],
     [{ tipo: "atestado", justificada: null }, "Atestado", ["conta no absenteísmo"]],

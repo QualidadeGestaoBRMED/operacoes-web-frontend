@@ -116,7 +116,7 @@ describe("Painel de Absenteísmo", () => {
     const juliana = within((await screen.findByText("Juliana Ramos")).closest("tr") as HTMLElement);
     expect(juliana.getByText("13,6%")).toBeInTheDocument();
     expect(juliana.getByText("Crítica")).toBeInTheDocument();
-    expect(juliana.getByText("provisório · 2 pendências")).toBeInTheDocument();
+    expect(juliana.getByText("provisório · 2 justificativas pendentes no VR")).toBeInTheDocument();
     expect(juliana.getByText("15 de 21")).toBeInTheDocument();
     expect(juliana.getByText("2 faltas · 1 atestado")).toBeInTheDocument();
     expect(juliana.getByText(/1 atraso · 1 saída antecipada/)).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe("Painel de Absenteísmo", () => {
     await user.click(await screen.findByRole("option", { name: "Todas as faixas" }));
     await waitFor(() => expect(ultimaBusca()?.faixa).toBeUndefined());
     // A escolha da pessoa vale: o filtro padrão não volta.
-    await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
     await waitFor(() => expect(ultimaBusca()?.com_pendencias).toBe(true));
     expect(ultimaBusca()?.faixa).toBeUndefined();
   });
@@ -179,7 +179,7 @@ describe("Painel de Absenteísmo", () => {
     await user.click(await screen.findByRole("option", { name: "Atraso" }));
     await waitFor(() => expect(ultimaBusca()?.ocorrencia).toEqual(["atraso"]));
 
-    await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
     await waitFor(() => expect(ultimaBusca()?.com_pendencias).toBe(true));
 
     await user.click(screen.getByLabelText("Unidade"));
@@ -191,6 +191,47 @@ describe("Painel de Absenteísmo", () => {
     await waitFor(() => expect(ultimaBusca()?.categoria).toBe("tmo"));
   });
 
+  it("card de faixa aplica só aquela faixa, mantém a unidade e limpa os filtros de linha", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(screen.getByLabelText("Ocorrência"));
+    await user.click(await screen.findByRole("option", { name: "Atraso" }));
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
+    await user.type(screen.getByLabelText("Buscar colaborador"), "juliana");
+    await waitFor(() => expect(ultimaBusca()?.com_pendencias).toBe(true));
+
+    const critica = screen.getByRole("button", { name: /^Faixa crítica/ });
+    expect(critica).toHaveAttribute("aria-pressed", "false");
+    await user.click(critica);
+
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica"]));
+    expect(ultimaBusca()).toMatchObject({ unidade: 1, ocorrencia: undefined, com_pendencias: undefined });
+    expect(screen.getByLabelText("Faixa")).toHaveTextContent("Só crítica");
+    expect(screen.getByLabelText("Buscar colaborador")).toHaveValue("");
+    expect(critica).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Faixa de atenção/ })).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(screen.getByRole("button", { name: /^Faixa de atenção/ }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["atencao"]));
+
+    // Clicar no card já selecionado volta para o filtro padrão.
+    await user.click(screen.getByRole("button", { name: /^Faixa de atenção/ }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica", "atencao"]));
+    expect(screen.getByRole("button", { name: /^Faixa de atenção/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("card de justificativas pendentes no VR com os colaboradores de valor provisório", async () => {
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    expect(screen.getByText("Justificativas pendentes no VR")).toBeInTheDocument();
+    expect(screen.getByText(/com justificativa pendente \(valor provisório\)$/)).toBeInTheDocument();
+  });
+
   it("troca de filtro esmaece cards e tabela até a resposta chegar", async () => {
     const user = usuario();
     renderPainel();
@@ -200,7 +241,7 @@ describe("Painel de Absenteísmo", () => {
       () => new Promise((resolve) => (responder = resolve)),
     );
 
-    await user.click(screen.getByRole("checkbox", { name: "Com pendências" }));
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
 
     const moldura = () => screen.getByRole("table").closest("[aria-busy]");
     await waitFor(() => expect(moldura()).toHaveAttribute("aria-busy", "true"));
