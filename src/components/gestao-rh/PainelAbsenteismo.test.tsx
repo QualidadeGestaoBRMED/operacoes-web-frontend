@@ -486,7 +486,7 @@ describe("comparativo com o período anterior", () => {
 
     await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
     const modal = within(await screen.findByRole("dialog"));
-    expect(await modal.findByText("Sem percentual em um dos períodos para comparar.")).toBeInTheDocument();
+    expect(await modal.findByText("Sem dados de absenteísmo no período anterior para comparar.")).toBeInTheDocument();
   });
 
   it("sem faixas cadastradas no período anterior, as faixas dele ficam com traço", async () => {
