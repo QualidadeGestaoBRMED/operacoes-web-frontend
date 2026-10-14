@@ -629,6 +629,30 @@ describe("Responsáveis pelas equipes sem unidade", () => {
     expect(vi.mocked(salvarParametrosAbsenteismo).mock.calls[0][0]).not.toHaveProperty("responsavel_tmo");
   });
 
+  it("lista só Admins ativos, e o atual que deixou de ser Admin continua no campo", async () => {
+    const coordenador = { ...pessoa(20, "Coord"), perfil: { id: 3, nome: "Unidade", nivel: 3 } } as Usuario;
+    const inativo = { ...pessoa(21, "Inativo"), ativo: false } as Usuario;
+    vi.mocked(listarUsuarios).mockResolvedValue([...USUARIOS, coordenador, inativo]);
+    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
+      parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 20, nome: "Coord Silva" } }),
+    );
+    const user = userEvent.setup();
+    renderTela();
+
+    const campo = await screen.findByLabelText("TMO");
+    await waitFor(() => expect(campo).toHaveTextContent("Coord Silva"));
+    await user.click(campo);
+    expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Inativo Silva" })).not.toBeInTheDocument();
+    // O atual aparece uma vez (por ser o atual), não como opção da lista de Admins.
+    expect(screen.getAllByRole("option", { name: "Coord Silva" })).toHaveLength(1);
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByLabelText("Campanha"));
+    expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Coord Silva" })).not.toBeInTheDocument();
+  });
+
   it("responsável atual que saiu da lista continua aparecendo", async () => {
     vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
       parametros({ ...VERSAO_INICIAL, responsavel_campanha: { id: 99, nome: "Ex Responsável" } }),

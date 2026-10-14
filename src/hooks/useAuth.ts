@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 
 const NIVEL_ADMIN_QG = 1;
-const NIVEL_ADMIN_OPERACOES = 2;
+export const NIVEL_ADMIN_OPERACOES = 2;
 const NIVEL_UNIDADE = 3;
 const NIVEL_SETOR = 4;
 
