@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,9 +45,14 @@ import type {
 } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsAbsenteismo } from "./CardsAbsenteismo";
-import { ComparativoAbsenteismoModal } from "./ComparativoAbsenteismoModal";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
+
+// Carregado só ao abrir: o gráfico (Recharts) não pesa na abertura do Painel.
+const AbsenteismoMensalModal = dynamic(
+  () => import("./AbsenteismoMensalModal").then((modulo) => modulo.AbsenteismoMensalModal),
+  { ssr: false },
+);
 
 // "Crítica e atenção" é a combinação mais usada (quem precisa de olhar) e o
 // filtro com que o painel abre quando há faixas cadastradas.
@@ -131,7 +137,6 @@ export function PainelAbsenteismo() {
     painel: painelAnterior,
     trocandoFiltro: trocandoAnterior,
     mensagemErro: mensagemErroAnterior,
-    recarregar: recarregarAnterior,
   } = usePainelAbsenteismo(filtrosAnteriores);
   // Com um dos lados ainda do filtro antigo (ou a busca nova falhou e o SWR
   // mantém a resposta anterior), a diferença misturaria visões.
@@ -432,16 +437,16 @@ export function PainelAbsenteismo() {
         </>
       )}
 
-      {painel && (
-        <ComparativoAbsenteismoModal
-          aberto={comparativoAberto}
+      {/* Montado só aberto: cada abertura começa no ano do período do Painel. */}
+      {comparativoAberto && (
+        <AbsenteismoMensalModal
+          aberto
           onFechar={() => setComparativoAberto(false)}
-          atual={painel}
-          anterior={anteriorAtual}
-          mensagemErroAnterior={mensagemErroAnterior}
-          onRecarregarAnterior={recarregarAnterior}
-          visao={visao}
+          anoInicial={Number(periodo.fim.slice(0, 4))}
           hoje={hoje}
+          unidade={unidade}
+          categoria={categoria}
+          visao={visao}
         />
       )}
 

@@ -235,6 +235,31 @@ export function nomeDoPeriodo(periodo: PeriodoAbsenteismo, referencia: PeriodoAb
   return `${curta(periodo.inicio)} a ${curta(periodo.fim)}`;
 }
 
+export interface MesDoAno extends PeriodoAbsenteismo {
+  /** 1 a 12. */
+  mes: number;
+  /** Começa depois de hoje: não é buscado. */
+  futuro: boolean;
+}
+
+/** Os 12 meses do ano, do dia 1 ao último dia; o mês em andamento vai até o fim do mês. */
+export function mesesDoAno(ano: number, hoje: string): MesDoAno[] {
+  return Array.from({ length: 12 }, (_, indice) => {
+    const mes = indice + 1;
+    const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+    const prefixo = `${ano}-${String(mes).padStart(2, "0")}`;
+    const inicio = `${prefixo}-01`;
+    return { mes, inicio, fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}`, futuro: inicio > hoje };
+  });
+}
+
+const FORMATADOR_MES_CURTO = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" });
+
+/** "jan", "fev"... (sem o ponto do formato abreviado). */
+export function nomeCurtoDoMes(mes: number): string {
+  return FORMATADOR_MES_CURTO.format(new Date(Date.UTC(2026, mes - 1, 1))).replace(".", "");
+}
+
 /** Diferença em pontos percentuais, com uma casa; nula sem percentual em um dos lados. */
 export function diferencaEmPontos(atual: string | null, anterior: string | null): number | null {
   if (atual === null || anterior === null) return null;

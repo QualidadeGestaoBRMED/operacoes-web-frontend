@@ -7,9 +7,16 @@ import { errosDeCampo } from "@/lib/gestaoRH";
 import {
   buscarAbsenteismoColaborador,
   buscarPainelAbsenteismo,
+  mesesDoAno,
   registrarTratamento,
+  type MesDoAno,
 } from "@/lib/gestaoRHAbsenteismo";
-import type { FiltrosPainelAbsenteismo, RegistrarTratamentoPayload } from "@/types/gestaoRH";
+import type {
+  CategoriaPainelAbsenteismo,
+  FiltrosPainelAbsenteismo,
+  PainelAbsenteismo,
+  RegistrarTratamentoPayload,
+} from "@/types/gestaoRH";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 
 export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
@@ -25,6 +32,52 @@ export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
     // do filtro anterior): mesmo sinal do Kanban.
     trocandoFiltro: useValidandoPorTrocaDeChave(filtros, isValidating),
     isLoading,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+    recarregar: () => void mutate(),
+  };
+}
+
+export interface MesAbsenteismo extends MesDoAno {
+  /** Nulo nos meses futuros (não buscados). */
+  painel: PainelAbsenteismo | null;
+}
+
+/**
+ * Absenteísmo mês a mês de um ano, com a unidade e a categoria do Painel: uma
+ * busca à rota do Painel por mês até o mês atual, em paralelo. Só busca com
+ * `ativo` (o modal aberto). A faixa padrão só enxuga as linhas da resposta;
+ * os cards contam todos.
+ */
+export function useAbsenteismoMensal(
+  ativo: boolean,
+  ano: number,
+  hoje: string,
+  unidade: number | undefined,
+  categoria: CategoriaPainelAbsenteismo | undefined,
+) {
+  const { data, error, isLoading, mutate } = useSWR(
+    ativo ? ["gestao-rh-absenteismo-mensal", ano, hoje, unidade, categoria] : null,
+    () =>
+      Promise.all(
+        mesesDoAno(ano, hoje).map(
+          async (mes): Promise<MesAbsenteismo> => ({
+            ...mes,
+            painel: mes.futuro
+              ? null
+              : await buscarPainelAbsenteismo({
+                  inicio: mes.inicio,
+                  fim: mes.fim,
+                  unidade,
+                  categoria,
+                  faixa: ["critica", "atencao"],
+                }),
+          }),
+        ),
+      ),
+  );
+  return {
+    meses: data,
+    carregando: isLoading,
     mensagemErro: error ? extrairMensagemErro(error) : null,
     recarregar: () => void mutate(),
   };
