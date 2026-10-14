@@ -18,10 +18,17 @@ vi.mock("@/lib/gestaoRHAbsenteismo", async (original) => ({
   buscarAbsenteismoColaborador: vi.fn(),
   registrarTratamento: vi.fn(),
 }));
+vi.mock("@/lib/demandas", async (original) => ({
+  ...(await original<typeof import("@/lib/demandas")>()),
+  listarComentarios: vi.fn(),
+  criarComentario: vi.fn(),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { toast } from "sonner";
 import { buscarAbsenteismoColaborador, registrarTratamento } from "@/lib/gestaoRHAbsenteismo";
+import { criarComentario, listarComentarios } from "@/lib/demandas";
+import type { Comentario } from "@/types";
 import { buscarColaboradorRH, buscarFeriasColaborador } from "@/lib/gestaoRHFerias";
 
 const COLABORADOR: CabecalhoColaborador = {
@@ -117,7 +124,34 @@ beforeEach(() => {
   vi.mocked(buscarAbsenteismoColaborador).mockReset();
   vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(aba());
   vi.mocked(registrarTratamento).mockReset();
+  vi.mocked(listarComentarios).mockReset();
+  vi.mocked(listarComentarios).mockResolvedValue([]);
+  vi.mocked(criarComentario).mockReset();
 });
+
+function comentario(id: number, texto: string, nome = "Ana Admin"): Comentario {
+  const [first_name, last_name] = nome.split(" ");
+  return {
+    id,
+    texto,
+    created_at: "2026-10-06T10:00:00-03:00",
+    usuario: {
+      id: 100 + id,
+      username: nome,
+      email: "",
+      first_name,
+      last_name,
+      perfil: null,
+      unidade_id: null,
+      setor_id: null,
+      ativo: true,
+      ultimo_acesso: null,
+      foto_url: "",
+    },
+  };
+}
+
+const AVISO_SAUDE = "Não registre diagnóstico, CID ou outros dados de saúde.";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -376,5 +410,44 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByText("Ocorrências do período")).toBeInTheDocument();
+  });
+  describe("conversa da demanda", () => {
+    it("lista os comentários e envia com o aviso de dados de saúde", async () => {
+      vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Pode verificar as faltas?")]);
+      vi.mocked(criarComentario).mockResolvedValue(comentario(2, "Conversei com ela.", "Carla Coord"));
+      const user = usuario();
+      renderModal();
+      const conversa = within(await screen.findByRole("region", { name: "Conversa da demanda" }));
+
+      expect(await conversa.findByText("Pode verificar as faltas?")).toBeInTheDocument();
+      expect(listarComentarios).toHaveBeenCalledWith(41);
+      expect(conversa.getByText(AVISO_SAUDE)).toBeInTheDocument();
+
+      await user.type(conversa.getByPlaceholderText(/Adicionar comentário/), "Conversei com ela.");
+      await user.click(conversa.getByRole("button", { name: "Enviar" }));
+      await waitFor(() => expect(criarComentario).toHaveBeenCalledWith(41, "Conversei com ela."));
+    });
+
+    it("demanda concluída: conversa só leitura", async () => {
+      vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
+      vi.mocked(listarComentarios).mockResolvedValue([comentario(1, "Resolvido.")]);
+      renderModal();
+      const conversa = within(await screen.findByRole("region", { name: "Conversa da demanda" }));
+
+      expect(await conversa.findByText("Resolvido.")).toBeInTheDocument();
+      expect(conversa.getByText(/Demanda concluída: a conversa fica só para leitura/)).toBeInTheDocument();
+      expect(conversa.queryByPlaceholderText(/Adicionar comentário/)).not.toBeInTheDocument();
+      expect(conversa.queryByText(AVISO_SAUDE)).not.toBeInTheDocument();
+    });
+
+    it("alerta sem demanda não tem conversa", async () => {
+      vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+        aba({ alertas: [{ ...aba().alertas[0], demanda_id: null, demanda_aberta: false }] }),
+      );
+      renderModal();
+      await screen.findByRole("region", { name: "Alerta de setembro/2026" });
+      expect(screen.queryByRole("region", { name: "Conversa da demanda" })).not.toBeInTheDocument();
+      expect(listarComentarios).not.toHaveBeenCalled();
+    });
   });
 });
