@@ -20,6 +20,7 @@ import type { Periodo } from "@/hooks/usePeriodoEditavel";
 import { mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
 import { AbaAbsenteismo } from "./AbaAbsenteismo";
 import { AbaFerias } from "./AbaFerias";
+import { PainelConversa, type ConversaAberta } from "./ConversaDoAlerta";
 
 function CampoMeta({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
@@ -96,6 +97,25 @@ export function DetalheColaboradorModal({
   const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(colaboradorId);
   const alertasFerias = colaborador?.alertas_pendentes.ferias ?? 0;
   const alertasAbsenteismo = colaborador?.alertas_pendentes.absenteismo ?? 0;
+  // Conversa da demanda de um alerta, sobre a área de conteúdo. Guarda o
+  // colaborador: trocar de colaborador com o modal aberto fecha a conversa.
+  const [conversa, setConversa] = useState<{
+    colaboradorId: number;
+    dados: ConversaAberta;
+    origem: HTMLElement;
+  } | null>(null);
+  const conversaAberta = conversa?.colaboradorId === colaboradorId ? conversa : null;
+
+  function abrirConversa(dados: ConversaAberta, origem: HTMLElement) {
+    if (colaboradorId !== null) setConversa({ colaboradorId, dados, origem });
+  }
+
+  function voltarDaConversa() {
+    const origem = conversaAberta?.origem;
+    setConversa(null);
+    // Devolve o foco ao botão que abriu, depois que a aba volta a aceitar foco.
+    requestAnimationFrame(() => origem?.focus());
+  }
 
   return (
     <Dialog open={colaboradorId !== null} onOpenChange={(aberto) => !aberto && onFechar()}>
@@ -160,6 +180,10 @@ export function DetalheColaboradorModal({
                 </CampoMeta>
               </div>
 
+              {/* A aba continua montada sob a conversa (período e rolagem
+                  ficam como estavam); inert tira ela do foco enquanto isso. */}
+              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              <div inert={conversaAberta !== null} className="flex min-h-0 min-w-0 flex-1 flex-col">
               {!FERIAS_ATIVA ? (
                 // Sem férias, o absenteísmo é o único conteúdo: sem barra de
                 // abas, inclusive quando um link antigo pede a aba Férias.
@@ -170,6 +194,7 @@ export function DetalheColaboradorModal({
                     ativo={colaborador.ativo}
                     periodoInicial={periodoAbsenteismo ?? mesAnteriorFechado(hojeISO())}
                     focarAlerta={focarAlertaAbsenteismo}
+                    onAbrirConversa={abrirConversa}
                   />
                 </div>
               ) : (
@@ -209,6 +234,7 @@ export function DetalheColaboradorModal({
                           ativo={colaborador.ativo}
                           periodoInicial={periodoAbsenteismo ?? mesAnteriorFechado(hojeISO())}
                           focarAlerta={focarAlertaAbsenteismo}
+                          onAbrirConversa={abrirConversa}
                         />
                       )}
                     </TabsContent>
@@ -231,6 +257,11 @@ export function DetalheColaboradorModal({
                 )}
               </AbasDoColaborador>
               )}
+              </div>
+              {conversaAberta && (
+                <PainelConversa conversa={conversaAberta.dados} onVoltar={voltarDaConversa} />
+              )}
+              </div>
             </div>
           </>
         )}
