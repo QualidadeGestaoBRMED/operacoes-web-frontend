@@ -38,15 +38,22 @@ export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
 }
 
 export interface MesAbsenteismo extends MesDoAno {
-  /** Nulo nos meses futuros (não buscados). */
+  /** Nulo nos meses não buscados (futuros ou antes dos dados do Atlas). */
   painel: PainelAbsenteismo | null;
 }
 
+// Buscas simultâneas do mês a mês. O backend de produção roda com um processo
+// só e a rota do Painel é a mais pesada do módulo: doze de uma vez seguravam
+// as requisições dos outros usuários; em lotes, elas entram entre um e outro.
+const MESES_POR_LOTE = 3;
+
 /**
  * Absenteísmo mês a mês de um ano, com a unidade e a categoria do Painel: uma
- * busca à rota do Painel por mês até o mês atual, em paralelo. Só busca com
- * `ativo` (o modal aberto). A faixa padrão só enxuga as linhas da resposta;
- * os cards contam todos.
+ * busca à rota do Painel por mês, do primeiro mês com dados ao mês atual, em
+ * lotes. Só busca com `ativo` (o modal aberto), e não busca de novo ao voltar
+ * para a aba nem ao reabrir o modal: os números mudam uma vez por dia, com a
+ * importação. A faixa padrão só enxuga as linhas da resposta; os cards
+ * contam todos.
  */
 export function useAbsenteismoMensal(
   ativo: boolean,
@@ -57,23 +64,25 @@ export function useAbsenteismoMensal(
 ) {
   const { data, error, isLoading, mutate } = useSWR(
     ativo ? ["gestao-rh-absenteismo-mensal", ano, hoje, unidade, categoria] : null,
-    () =>
-      Promise.all(
-        mesesDoAno(ano, hoje).map(
-          async (mes): Promise<MesAbsenteismo> => ({
-            ...mes,
-            painel: mes.futuro
-              ? null
-              : await buscarPainelAbsenteismo({
-                  inicio: mes.inicio,
-                  fim: mes.fim,
-                  unidade,
-                  categoria,
-                  faixa: ["critica", "atencao"],
-                }),
+    async () => {
+      const meses: MesAbsenteismo[] = mesesDoAno(ano, hoje).map((mes) => ({ ...mes, painel: null }));
+      const aBuscar = meses.filter((mes) => !mes.futuro && !mes.antesDosDados);
+      for (let inicio = 0; inicio < aBuscar.length; inicio += MESES_POR_LOTE) {
+        await Promise.all(
+          aBuscar.slice(inicio, inicio + MESES_POR_LOTE).map(async (mes) => {
+            mes.painel = await buscarPainelAbsenteismo({
+              inicio: mes.inicio,
+              fim: mes.fim,
+              unidade,
+              categoria,
+              faixa: ["critica", "atencao"],
+            });
           }),
-        ),
-      ),
+        );
+      }
+      return meses;
+    },
+    { revalidateOnFocus: false, revalidateIfStale: false },
   );
   return {
     meses: data,

@@ -235,11 +235,16 @@ export function nomeDoPeriodo(periodo: PeriodoAbsenteismo, referencia: PeriodoAb
   return `${curta(periodo.inicio)} a ${curta(periodo.fim)}`;
 }
 
+/** Primeiro mês com dados de ponto no Atlas (importação do VR desde set/2026). */
+export const PRIMEIRO_MES_COM_DADOS = "2026-09-01";
+
 export interface MesDoAno extends PeriodoAbsenteismo {
   /** 1 a 12. */
   mes: number;
   /** Começa depois de hoje: não é buscado. */
   futuro: boolean;
+  /** Antes do primeiro mês com dados no Atlas: não é buscado. */
+  antesDosDados: boolean;
 }
 
 /** Os 12 meses do ano, do dia 1 ao último dia; o mês em andamento vai até o fim do mês. */
@@ -249,7 +254,13 @@ export function mesesDoAno(ano: number, hoje: string): MesDoAno[] {
     const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
     const prefixo = `${ano}-${String(mes).padStart(2, "0")}`;
     const inicio = `${prefixo}-01`;
-    return { mes, inicio, fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}`, futuro: inicio > hoje };
+    return {
+      mes,
+      inicio,
+      fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}`,
+      futuro: inicio > hoje,
+      antesDosDados: inicio < PRIMEIRO_MES_COM_DADOS,
+    };
   });
 }
 

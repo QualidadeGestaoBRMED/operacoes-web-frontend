@@ -30,12 +30,12 @@ import {
   mesesPorExtenso,
   nomeCurtoDoMes,
   periodoEmAndamento,
+  PRIMEIRO_MES_COM_DADOS,
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn } from "@/lib/utils";
 import type { CategoriaPainelAbsenteismo } from "@/types/gestaoRH";
 
-// Primeiro ano com dados de ponto no Atlas (importação do VR desde set/2026).
-const PRIMEIRO_ANO = 2026;
+const PRIMEIRO_ANO = Number(PRIMEIRO_MES_COM_DADOS.slice(0, 4));
 
 const CONFIG_GRAFICO = {
   percentual: { label: "Absenteísmo", color: "var(--secondary)" },
