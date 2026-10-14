@@ -80,8 +80,10 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
         emFoco && "ring-2 ring-secondary/60",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      {/* No celular os selos vão para a linha de cima: ao lado, espremiam o
+          título e o texto numa coluna estreita. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
           <h3 id={`alerta-${alerta.id}-titulo`} className="text-[14px] font-semibold text-foreground">
             {tituloAlerta(alerta)}
           </h3>
@@ -93,7 +95,7 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
               " · registre o tratamento para concluir"}
           </p>
         </div>
-        <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+        <span className="order-first flex shrink-0 flex-wrap gap-1.5 sm:order-none sm:justify-end">
           {/* Pendência de ponto em aberto quando o alerta foi gerado: o
               percentual podia mudar depois da aprovação. */}
           {alerta.provisorio && (
