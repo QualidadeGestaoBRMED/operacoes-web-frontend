@@ -445,26 +445,12 @@ describe("comparativo com o período anterior", () => {
     expect(buscasDoPeriodo("2026-08-01")).toHaveLength(anteriores);
   });
 
-  it("subida: card com a diferença em vermelho e modal com os dois períodos", async () => {
-    const user = usuario();
+  it("subida: card com a diferença em vermelho, junto da meta", async () => {
     responderPorPeriodo({ "2026-09-01": "4.00", "2026-08-01": "3.60" });
     renderPainel();
 
-    const diferenca = await screen.findByText("▲ 0,4 pp vs. agosto");
-    expect(diferenca).toHaveClass("text-red-600");
+    expect(await screen.findByText("▲ 0,4 pp vs. agosto")).toHaveClass("text-red-600");
     expect(screen.getByText(/· meta: até 5%/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*vs\. agosto/ }));
-    const modal = within(await screen.findByRole("dialog", { name: "Comparativo com o período anterior" }));
-    expect(modal.getByText("Todas as unidades")).toBeInTheDocument();
-    expect(modal.getByText("▲ 0,4 pp")).toBeInTheDocument();
-    expect(modal.getByText(/em relação a agosto/)).toBeInTheDocument();
-    expect(modal.getByText("01/08/2026 a 31/08/2026")).toBeInTheDocument();
-    expect(modal.getByText("01/09/2026 a 30/09/2026")).toBeInTheDocument();
-    expect(modal.getByText("3,6%")).toBeInTheDocument();
-    expect(modal.getByText("4%")).toBeInTheDocument();
-    expect(modal.getAllByText("3")).toHaveLength(2);
-    expect(modal.queryByText("Parcial")).not.toBeInTheDocument();
   });
 
   it("queda: diferença em verde", async () => {
@@ -474,40 +460,26 @@ describe("comparativo com o período anterior", () => {
     expect(await screen.findByText("▼ 1,7 pp vs. agosto")).toHaveClass("text-emerald-700");
   });
 
-  it("período anterior sem dados: legenda como antes e o modal avisa", async () => {
-    const user = usuario();
+  it("período anterior sem dados ou com falha: legenda como antes", async () => {
     responderPorPeriodo({ "2026-09-01": "4.00" });
-    renderPainel();
+    const { unmount } = renderPainel();
     await screen.findByText("Juliana Ramos");
     await waitFor(() => expect(buscasDoPeriodo("2026-08-01")).toHaveLength(1));
-
     expect(screen.getByText("meta: até 5%")).toBeInTheDocument();
     expect(screen.queryByText(/vs\./)).not.toBeInTheDocument();
+    unmount();
 
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
-    const modal = within(await screen.findByRole("dialog"));
-    expect(await modal.findByText("Sem dados de absenteísmo no período anterior para comparar.")).toBeInTheDocument();
-  });
-
-  it("sem faixas cadastradas no período anterior, as faixas dele ficam com traço", async () => {
-    const user = usuario();
     vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
-      const painel = painelDe(filtros.inicio, filtros.fim, filtros.inicio === "2026-08-01" ? "3.60" : "4.00");
-      return filtros.inicio === "2026-08-01"
-        ? { ...painel, parametros: { ...painel.parametros, faixas_cadastradas: false } }
-        : painel;
+      if (filtros.inicio === "2026-08-01") throw new Error("Falha de rede");
+      return painelDe(filtros.inicio, filtros.fim, "4.00");
     });
     renderPainel();
-    await screen.findByText("▲ 0,4 pp vs. agosto");
-
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
-    const modal = within(await screen.findByRole("dialog"));
-    expect(modal.getByText("Sem faixas cadastradas neste período.")).toBeInTheDocument();
-    expect(modal.getAllByText("—")).toHaveLength(2);
+    await screen.findByText("Juliana Ramos");
+    await waitFor(() => expect(buscasDoPeriodo("2026-08-01").length).toBeGreaterThan(1));
+    expect(screen.getByText("meta: até 5%")).toBeInTheDocument();
   });
 
   it("mês em andamento: compara com o mês inteiro anterior e marca parcial", async () => {
-    const user = usuario();
     responderPorPeriodo({ "2026-10-01": "4.00", "2026-09-01": "3.60" });
     renderPainel();
     await screen.findByText("Juliana Ramos");
@@ -517,28 +489,125 @@ describe("comparativo com o período anterior", () => {
 
     await screen.findByText("▲ 0,4 pp vs. setembro");
     expect(screen.getByText(/\(parcial\)/)).toBeInTheDocument();
+  });
+});
+
+describe("absenteísmo mês a mês", () => {
+  function painelDoMes(inicio: string, fim: string, percentual: string | null): Painel {
+    const base = painelAbsenteismoDeExemplo({ inicio, fim });
+    return {
+      ...base,
+      cards: { ...base.cards, percentual_periodo: percentual, faixa_critica: 3, faixa_atencao: 2 },
+    };
+  }
+
+  function responder(percentuais: Record<string, string | null>) {
+    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) =>
+      painelDoMes(filtros.inicio, filtros.fim, percentuais[filtros.inicio] ?? null),
+    );
+  }
+
+  async function abrirModal(user: ReturnType<typeof usuario>) {
+    await screen.findByText("Juliana Ramos");
     await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
-    const modal = within(await screen.findByRole("dialog"));
-    expect(modal.getByText("Parcial")).toBeInTheDocument();
+    return within(await screen.findByRole("dialog", { name: "Absenteísmo mês a mês" }));
+  }
+
+  function linhaDoMes(modal: ReturnType<typeof within>, mes: string) {
+    return within(modal.getByRole("rowheader", { name: new RegExp(`^${mes}`) }).closest("tr") as HTMLElement);
+  }
+
+  it("busca cada mês do ano até o atual, com a unidade e a categoria do Painel", async () => {
+    const user = usuario();
+    responder({ "2026-08-01": "3.60", "2026-09-01": "4.00", "2026-10-01": "4.50" });
+    renderPainel();
+    await user.click(await screen.findByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    const modal = await abrirModal(user);
+    await modal.findByRole("table");
+
+    expect(modal.getByText("Niterói")).toBeInTheDocument();
+    expect(buscasDoPeriodo("2026-01-01").at(-1)).toEqual({
+      inicio: "2026-01-01",
+      fim: "2026-01-31",
+      unidade: 1,
+      categoria: undefined,
+      faixa: ["critica", "atencao"],
+    });
+    expect(buscasDoPeriodo("2026-10-01").at(-1)?.fim).toBe("2026-10-31");
+    // Meses futuros não são buscados.
+    expect(buscasDoPeriodo("2026-11-01")).toHaveLength(0);
+    expect(buscasDoPeriodo("2026-12-01")).toHaveLength(0);
   });
 
-  it("falha no período anterior: o card fica como antes e o modal oferece tentar de novo", async () => {
+  it("tabela com os meses com dado, a variação para o mês anterior e os meses sem dado", async () => {
+    const user = usuario();
+    responder({ "2026-08-01": "3.60", "2026-09-01": "4.00", "2026-10-01": "3.50" });
+    renderPainel();
+    const modal = await abrirModal(user);
+    await modal.findByRole("table");
+
+    expect(modal.getAllByRole("rowheader")).toHaveLength(3);
+    const agosto = linhaDoMes(modal, "ago");
+    expect(agosto.getByText("3,6%")).toBeInTheDocument();
+    // Julho sem dado: agosto não tem variação.
+    expect(agosto.getAllByText("—")).toHaveLength(1);
+    const setembro = linhaDoMes(modal, "set");
+    expect(setembro.getByText("▲ 0,4 pp")).toHaveClass("text-red-600");
+    const outubro = linhaDoMes(modal, "out");
+    expect(outubro.getByText("▼ 0,5 pp")).toHaveClass("text-emerald-700");
+    expect(outubro.getByText("Parcial")).toBeInTheDocument();
+    expect(setembro.queryByText("Parcial")).not.toBeInTheDocument();
+    expect(outubro.getByText("3")).toBeInTheDocument();
+    expect(outubro.getByText("2")).toBeInTheDocument();
+    expect(modal.getByText("Sem dados: jan, fev, mar, abr, mai, jun e jul.")).toBeInTheDocument();
+  });
+
+  it("sem faixas cadastradas na versão do mês, crítica e atenção com traço", async () => {
     const user = usuario();
     vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
-      if (filtros.inicio === "2026-08-01") throw new Error("Falha de rede");
-      return painelDe(filtros.inicio, filtros.fim, "4.00");
+      const painel = painelDoMes(filtros.inicio, filtros.fim, filtros.inicio === "2026-09-01" ? "4.00" : null);
+      return { ...painel, parametros: { ...painel.parametros, faixas_cadastradas: false } };
     });
     renderPainel();
-    await screen.findByText("Juliana Ramos");
+    const modal = await abrirModal(user);
+    await modal.findByRole("table");
 
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*meta/ }));
-    const modal = within(await screen.findByRole("dialog"));
-    expect(await modal.findByText("Não foi possível carregar o período anterior.")).toBeInTheDocument();
+    expect(linhaDoMes(modal, "set").getAllByText("—")).toHaveLength(3);
+  });
 
-    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) =>
-      painelDe(filtros.inicio, filtros.fim, filtros.inicio === "2026-08-01" ? "3.60" : "4.00"),
-    );
+  it("ano sem dados avisa; o seletor troca o ano", async () => {
+    vi.setSystemTime(new Date(2027, 1, 10, 9, 0));
+    const user = usuario();
+    responder({ "2026-09-01": "4.00" });
+    renderPainel();
+    const modal = await abrirModal(user);
+
+    // Painel em janeiro de 2027: abre no ano do período.
+    expect(await modal.findByText("Sem dados de absenteísmo em 2027.")).toBeInTheDocument();
+    expect(buscasDoPeriodo("2027-03-01")).toHaveLength(0);
+
+    await user.click(modal.getByLabelText("Ano"));
+    await user.click(await screen.findByRole("option", { name: "2026" }));
+    await modal.findByRole("table");
+    expect(linhaDoMes(modal, "set").getByText("4%")).toBeInTheDocument();
+    // Dezembro de 2026: uma busca da legenda do card (mês anterior a janeiro
+    // de 2027) e uma do ano de 2026 no modal.
+    expect(buscasDoPeriodo("2026-12-01")).toHaveLength(2);
+  });
+
+  it("falha na busca: avisa e tenta de novo", async () => {
+    const user = usuario();
+    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
+      if (filtros.inicio === "2026-03-01") throw new Error("Falha de rede");
+      return painelDoMes(filtros.inicio, filtros.fim, "4.00");
+    });
+    renderPainel();
+    const modal = await abrirModal(user);
+
+    expect(await modal.findByText("Não foi possível carregar o absenteísmo de 2026.")).toBeInTheDocument();
+    responder({ "2026-09-01": "4.00" });
     await user.click(modal.getByRole("button", { name: "Tentar novamente" }));
-    expect(await modal.findByText("▲ 0,4 pp")).toBeInTheDocument();
+    expect(await modal.findByRole("table")).toBeInTheDocument();
   });
 });

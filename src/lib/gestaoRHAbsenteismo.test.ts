@@ -9,6 +9,8 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
+  mesesDoAno,
+  nomeCurtoDoMes,
   nomeDoPeriodo,
   periodoAnterior,
   periodoEmAndamento,
@@ -99,6 +101,19 @@ describe("comparativo: período anterior", () => {
       nomeDoPeriodo({ inicio: "2025-12-01", fim: "2025-12-31" }, { inicio: "2026-01-01", fim: "2026-01-31" }),
     ).toBe("dezembro/2025");
     expect(nomeDoPeriodo({ inicio: "2026-09-30", fim: "2026-10-06" }, setembro)).toBe("30/09 a 06/10");
+  });
+
+  it("meses do ano: do dia 1 ao último dia, futuros marcados", () => {
+    const meses = mesesDoAno(2028, "2028-10-14");
+    expect(meses).toHaveLength(12);
+    expect(meses[0]).toEqual({ mes: 1, inicio: "2028-01-01", fim: "2028-01-31", futuro: false });
+    expect(meses[1].fim).toBe("2028-02-29");
+    // Mês em andamento é buscado até o fim do mês; o seguinte não.
+    expect(meses[9]).toEqual({ mes: 10, inicio: "2028-10-01", fim: "2028-10-31", futuro: false });
+    expect(meses[10].futuro).toBe(true);
+    expect(nomeCurtoDoMes(1)).toBe("jan");
+    expect(nomeCurtoDoMes(3)).toBe("mar");
+    expect(nomeCurtoDoMes(12)).toBe("dez");
   });
 
   it("diferença em pontos, com uma casa, e sem percentual não compara", () => {
