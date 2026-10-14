@@ -17,11 +17,10 @@ export interface ModuloFuturo {
   // a checagem de "existe página construída" é decisão do frontend.
   codigo?: string;
   rota?: string;
-  // STC-496: só Legalização tem hoje -- item de sidebar expansível, revela
-  // as rotas abaixo em vez de um link único. Não é um mecanismo genérico
-  // pra qualquer módulo ainda, só o que essa issue pediu; outro módulo que
-  // precisar disso no futuro também ganha o campo, sem precisar de novo
-  // tipo/abstração.
+  // STC-496: item de sidebar expansível, revela as rotas abaixo em vez de um
+  // link único (Legalização e Gestão RH). A Sidebar ainda acrescenta os
+  // atalhos de Administração por perfil; com um subitem só no fim, vira link
+  // direto.
   subitens?: { label: string; rota: string }[];
 }
 
@@ -46,15 +45,12 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     larguras: ["60%"],
     codigo: "gestao-rh",
     rota: "/modulos/gestao-rh",
-    // Sem férias, o módulo tem uma tela só: link direto, sem submenu.
-    ...(FERIAS_ATIVA
-      ? {
-          subitens: [
-            { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
-            { label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" },
-          ],
-        }
-      : {}),
+    // Sem férias, só o Painel de Absenteísmo; a Sidebar acrescenta os
+    // Parâmetros para Admin (STC-728).
+    subitens: [
+      { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
+      ...(FERIAS_ATIVA ? [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" }] : []),
+    ],
   },
   {
     nome: "Arquitetura",

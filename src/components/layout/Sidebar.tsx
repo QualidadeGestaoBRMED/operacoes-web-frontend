@@ -35,6 +35,48 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
     ...modulosNavegacao.filter((modulo) => !modulo.ativo),
   ];
 
+  // Subitens do módulo na sidebar, com os atalhos de Administração por
+  // perfil. Um subitem só no fim: link direto, sem submenu.
+  function subitensDoModulo(modulo: (typeof modulosAtivos)[number]) {
+    const base = modulo.subitens ?? [];
+    // STC-514: Coordenador ganha acesso ao Catálogo de Legalização
+    // (Admin > Cadastro de documentos), mas só o bloco de
+    // Legalização faz sentido pra ele -- entra como 3º subitem
+    // aqui em vez de replicar o bloco "Administração" de baixo.
+    // STC-519: Admin (QG/Operações) já podia acessar o mesmo
+    // catálogo pelo bloco "Administração" de baixo (isAdminOps),
+    // só sem esse rótulo/atalho direto -- passa a ganhar o mesmo
+    // 3º subitem que o Coordenador já tinha, em vez de precisar
+    // entrar em "Administração" e escolher a seção no select.
+    // STC-521: Setor de Legalização (isSetorLeg) ganha o mesmo
+    // atalho, mesmo motivo do Coordenador -- já pode escrever no
+    // catálogo pela API, faltava só o caminho até a tela.
+    // Rota PRÓPRIA (/admin/permissoes/catalogo-legalizacao, não
+    // /admin/permissoes com query string -- achado em revisão de
+    // falhas críticas): sem isso, pathname.startsWith() (usado
+    // tanto aqui quanto no PermissoesAdmin.tsx pra saber qual aba
+    // abrir) não distinguia este atalho do link "Administração"
+    // (mesmo pathname bare) -- destacava "Catálogo de Legalização"
+    // como ativo mesmo com Usuários na tela, e trocar de link sem
+    // reload deixava a aba presa no valor anterior (mesma
+    // instância de PermissoesAdmin reaproveitada pelo Next.js).
+    if (modulo.codigo === "legalizacao" && (isCoordenacaoUnidade || isAdminOps || isSetorLeg)) {
+      return [
+        ...base,
+        { label: "Catálogo de Legalização", rota: "/admin/permissoes/catalogo-legalizacao" },
+      ];
+    }
+    // STC-728: Parâmetros de Gestão RH (Importação, Equipes, Absenteísmo),
+    // só do Admin, como a própria tela; mesma rota própria do Catálogo.
+    if (modulo.codigo === "gestao-rh" && isAdminOps) {
+      return [
+        ...base,
+        { label: "Parâmetros de Gestão RH", rota: "/admin/permissoes/parametros-gestao-rh" },
+      ];
+    }
+    return base;
+  }
+
   return (
     // h-full: achado no dogfooding do overlay mobile -- sem altura própria,
     // o <aside> só cobria a altura do próprio conteúdo (logo+nav+bloco
@@ -74,46 +116,15 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
         {/* rota as string: useModulosNavegacao só marca ativo=true quando
             rota também está preenchida (ver ModuloNavegacao.ativo) --
             garantia do hook, não repetida aqui em runtime. */}
-        {modulosAtivos.map((modulo) =>
-          modulo.subitens ? (
+        {modulosAtivos.map((modulo) => {
+          const subitens = subitensDoModulo(modulo);
+          return subitens.length > 1 ? (
             <SidebarLinkExpansivel
               key={modulo.nome}
               href={modulo.rota as string}
               icon={modulo.icon}
               label={modulo.nome}
-              // STC-514: Coordenador ganha acesso ao Catálogo de Legalização
-              // (Admin > Cadastro de documentos), mas só o bloco de
-              // Legalização faz sentido pra ele -- entra como 3º subitem
-              // aqui em vez de replicar o bloco "Administração" de baixo.
-              // STC-519: Admin (QG/Operações) já podia acessar o mesmo
-              // catálogo pelo bloco "Administração" de baixo (isAdminOps),
-              // só sem esse rótulo/atalho direto -- passa a ganhar o mesmo
-              // 3º subitem que o Coordenador já tinha, em vez de precisar
-              // entrar em "Administração" e escolher a seção no select.
-              // STC-521: Setor de Legalização (isSetorLeg) ganha o mesmo
-              // atalho, mesmo motivo do Coordenador -- já pode escrever no
-              // catálogo pela API, faltava só o caminho até a tela.
-              // Rota PRÓPRIA (/admin/permissoes/catalogo-legalizacao, não
-              // /admin/permissoes com query string -- achado em revisão de
-              // falhas críticas): sem isso, pathname.startsWith() (usado
-              // tanto aqui quanto no PermissoesAdmin.tsx pra saber qual aba
-              // abrir) não distinguia este atalho do link "Administração"
-              // (mesmo pathname bare) -- destacava "Catálogo de Legalização"
-              // como ativo mesmo com Usuários na tela, e trocar de link sem
-              // reload deixava a aba presa no valor anterior (mesma
-              // instância de PermissoesAdmin reaproveitada pelo Next.js).
-              subitens={
-                modulo.codigo === "legalizacao" &&
-                (isCoordenacaoUnidade || isAdminOps || isSetorLeg)
-                  ? [
-                      ...modulo.subitens,
-                      {
-                        label: "Catálogo de Legalização",
-                        rota: "/admin/permissoes/catalogo-legalizacao",
-                      },
-                    ]
-                  : modulo.subitens
-              }
+              subitens={subitens}
               pathname={pathname}
               onClick={onNavegar}
             />
@@ -126,8 +137,8 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               active={pathname.startsWith(modulo.rota as string)}
               onClick={onNavegar}
             />
-          ),
-        )}
+          );
+        })}
 
         <div className="my-2.5 h-px bg-sidebar-border/40" />
 
