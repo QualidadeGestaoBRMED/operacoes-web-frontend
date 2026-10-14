@@ -49,14 +49,26 @@ export function useAbsenteismoColaborador(
     { keepPreviousData: true },
   );
 
+  // Painel e cabeçalho do modal (alertas pendentes) mudam junto com o alerta.
+  function revalidarPainelECabecalho() {
+    void mutateGlobal(
+      (chave) => Array.isArray(chave) && chave[0] === "gestao-rh-painel-absenteismo",
+    );
+    void mutateGlobal(["gestao-rh-colaborador", colaboradorId]);
+  }
+
   async function registrar(payload: RegistrarTratamentoPayload) {
     let atualizada;
     try {
       atualizada = await registrarTratamento(colaboradorId, payload);
     } catch (falha) {
       // Alerta tratado por outra pessoa ou encerrado pela importação desde
-      // que a aba carregou: a aba é buscada de novo para mostrar como está.
-      if (errosDeCampo(falha).alerta) void mutate();
+      // que a aba carregou: a aba, o painel e o cabeçalho são buscados de
+      // novo para mostrar como estão.
+      if (errosDeCampo(falha).alerta) {
+        void mutate();
+        revalidarPainelECabecalho();
+      }
       throw falha;
     }
     // A resposta vem no período do alerta; só substitui o cache se for o
@@ -68,10 +80,7 @@ export function useAbsenteismoColaborador(
     await (mesmoPeriodo
       ? mutateGlobal(chave, atualizada, { revalidate: false })
       : mutateGlobal(chave));
-    void mutateGlobal(
-      (chave) => Array.isArray(chave) && chave[0] === "gestao-rh-painel-absenteismo",
-    );
-    void mutateGlobal(["gestao-rh-colaborador", colaboradorId]);
+    revalidarPainelECabecalho();
     return atualizada;
   }
 
