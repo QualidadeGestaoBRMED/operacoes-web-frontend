@@ -100,7 +100,7 @@ export function textoOcorrencia(
   let descricao = rotulo;
   if (ocorrencia.tipo === "falta" && ocorrencia.em_aprovacao) {
     // Justificativa enviada e ainda não aprovada no SuperApp VR: não está resolvida.
-    descricao = "Falta com justificativa pendente no VR";
+    descricao = "Falta com justificativa";
   } else if (ocorrencia.tipo === "falta" && ocorrencia.justificada !== null) {
     descricao = ocorrencia.justificada ? "Falta justificada" : "Falta sem justificativa";
   } else if (ocorrencia.minutos !== null && ocorrencia.tipo !== "banco_horas") {
