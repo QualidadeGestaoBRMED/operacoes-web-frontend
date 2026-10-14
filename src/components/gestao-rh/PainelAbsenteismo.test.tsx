@@ -116,7 +116,10 @@ describe("Painel de Absenteísmo", () => {
     const juliana = within((await screen.findByText("Juliana Ramos")).closest("tr") as HTMLElement);
     expect(juliana.getByText("13,6%")).toBeInTheDocument();
     expect(juliana.getByText("Crítica")).toBeInTheDocument();
-    expect(juliana.getByText("provisório · 2 justificativas pendentes no VR")).toBeInTheDocument();
+    expect(juliana.getByText("provisório · 2 pendentes")).toHaveAttribute(
+      "title",
+      "2 justificativas pendentes no VR",
+    );
     expect(juliana.getByText("15 de 21")).toBeInTheDocument();
     expect(juliana.getByText("2 faltas · 1 atestado")).toBeInTheDocument();
     expect(juliana.getByText(/1 atraso · 1 saída antecipada/)).toBeInTheDocument();
@@ -229,7 +232,7 @@ describe("Painel de Absenteísmo", () => {
     await screen.findByText("Juliana Ramos");
 
     expect(screen.getByText("Justificativas pendentes no VR")).toBeInTheDocument();
-    expect(screen.getByText(/com justificativa pendente \(valor provisório\)$/)).toBeInTheDocument();
+    expect(screen.getByText(/colaboradores? com valor provisório$/)).toBeInTheDocument();
   });
 
   it("troca de filtro esmaece cards e tabela até a resposta chegar", async () => {
