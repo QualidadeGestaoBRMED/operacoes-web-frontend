@@ -12,9 +12,12 @@ import { formatarDataHora, iniciaisDe, nomeOuRemovido } from "@/lib/utils";
 export function ComentarioFeed({
   demandaId,
   podeComentar,
+  aviso,
 }: {
   demandaId: number;
   podeComentar: boolean;
+  /** Texto fixo acima do campo de envio (ex.: o que não registrar ali). */
+  aviso?: string;
 }) {
   const { comentarios, isLoading, mensagemErro } = useComentarios(demandaId);
   const { criar, isLoading: enviando } = useCriarComentario(demandaId);
@@ -72,8 +75,13 @@ export function ComentarioFeed({
         )}
       </div>
 
+      {podeComentar && aviso && (
+        <p className="border-t border-border px-5 pt-2.5 text-xs text-muted-foreground">{aviso}</p>
+      )}
       {podeComentar && (
-        <div className="flex items-end gap-2.5 border-t border-border px-5 py-3">
+        <div
+          className={`flex items-end gap-2.5 px-5 py-3 ${aviso ? "" : "border-t border-border"}`}
+        >
           <Textarea
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
