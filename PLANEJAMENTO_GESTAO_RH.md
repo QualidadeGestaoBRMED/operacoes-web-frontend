@@ -24,9 +24,12 @@
 | STC-601 Testes e verificação visual do módulo | P6 | ✅ Concluída |
 | STC-684 Modal e tabelas dos painéis no celular | P5.1/P5.3 | ✅ Mergeada |
 | STC-687 Férias escondida por `FERIAS_ATIVA` | P5 | ✅ Mergeada |
-| STC-595 Aba Importação: 3 relatórios, um arquivo cada | P5.4 | ⏳ Destravada (rodada RPA), depende da STC-587 |
-| Aba Equipes nos Parâmetros (categoria, unidade, responsável por categoria) | P5.4 | ⏳ Nova (rodada RPA) |
-| Painel e modal com equipes sem unidade (filtro de categoria) | P5.1/P5.3 | ⏳ Nova (rodada RPA), depende da STC-588 |
+| STC-595 Aba Importação: 3 relatórios, um arquivo cada | P5.4 | ✅ Mergeada |
+| STC-694 Aba Equipes nos Parâmetros (categoria, unidade) | P5.4 | ✅ Mergeada |
+| STC-697 Painel e modal com equipes sem unidade (filtro de categoria) | P5.1/P5.3 | ✅ Mergeada |
+| STC-725 Responsável por TMO e Campanha só entre os Admins ativos | P5.4 | ✅ Mergeada |
+| STC-726 Janela de avaliação nos Parâmetros e aba Absenteísmo do modal nas rotas reais da STC-592 | P5.3/P5.4 | 🔄 Em andamento |
+| STC-724 Conversa da demanda na aba Absenteísmo do modal | P5.3 | ⏳ Depende da STC-723 |
 
 ---
 
@@ -65,9 +68,9 @@ frontend/src/
 ├── hooks/
 │   ├── useParametrosGestaoRH.ts               → ✅ useParametrosAbsenteismo, useReguaFerias
 │   ├── useFeriasGestaoRH.ts                   → ✅ usePainelFerias, useColaboradorRH, useFeriasColaborador
-│   └── useAbsenteismoGestaoRH.ts              → ✅ usePainelAbsenteismo
+│   └── useAbsenteismoGestaoRH.ts              → ✅ usePainelAbsenteismo, useAbsenteismoColaborador
 ├── lib/gestaoRH.ts · lib/gestaoRHFerias.ts · lib/gestaoRHAbsenteismo.ts  → ✅ parâmetros · férias · absenteísmo
-├── lib/gestaoRHAbsenteismoExemplo.ts      → dados de exemplo do painel, só no ambiente local (ver P5.1)
+├── test-utils/painelAbsenteismoExemplo.ts → linhas de exemplo do Painel de Absenteísmo, só para os testes
 └── types/gestaoRH.ts                     → ✅ parâmetros, férias e painel de absenteísmo
 ```
 
@@ -79,16 +82,16 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 | Rota | Método | Uso | Situação |
 | --- | --- | --- | --- |
-| `parametros/` · `regua-ferias/` | GET, POST | Seção Parâmetros (só Admin). POST devolve 201 com versão nova ou 200 sem mudança | ✅ |
+| `parametros/` · `regua-ferias/` | GET, POST | Seção Parâmetros (só Admin). POST devolve 201 com versão nova ou 200 sem mudança. `janela_avaliacao`: `{tipo, dias}` (`dias` nulo no mês anterior fechado, 7 a 90 nos últimos N dias); ausente no POST mantém a atual, `null` desliga | ✅ |
 | `ferias/?janela_dias=&unidade=&status=` | GET | Painel de Férias: `linhas` + `cards` | ✅ |
 | `colaboradores/{id}/` | GET | Cabeçalho do modal (nome, cargo, unidade, matrícula, admissão, `alertas_pendentes` por aba) | ✅ |
 | `colaboradores/{id}/ferias/` | GET | Aba Férias | ✅ |
 | `ferias/{id}/` | PATCH | `acao=programar` (`data_inicio`, `data_fim`, `necessita_substituicao`) ou `acao=adiar` (`justificativa`); devolve a aba Férias atualizada | ✅ |
 | `ferias/{id}/rh-acionado/` | POST | "RH acionado"; devolve a aba Férias atualizada | ✅ |
-| `absenteismo/?inicio=&fim=&unidade=&faixa=&ocorrencia=&com_pendencias=` | GET | Painel de Absenteísmo: `periodo`, `parametros`, `cards`, `linhas`. Contrato fixado na STC-588 (faixa e ocorrência repetem: `faixa=a&faixa=b`) | contrato ✅ · rota a fazer (STC-588) |
-| `colaboradores/{id}/absenteismo/?inicio=&fim=` | GET | Aba Absenteísmo: `periodo`, `parametros`, `indicadores`, `ocorrencias`, `alertas`, `historico`. Contrato fixado na STC-592 | contrato ✅ · rota a fazer (STC-592) |
-| `colaboradores/{id}/tratamentos/` | POST | `alerta`, `acao` (`feedback`, `advertencia`, `desligamento`, `sem_medida`, proposta do SRS), `justificativa`; devolve a aba no período do alerta | contrato ✅ · rota a fazer (STC-592) |
-| `importacoes/` e afins | | Importação | ⛔ depende da fonte (STC-587) |
+| `absenteismo/?inicio=&fim=&unidade=&faixa=&ocorrencia=&com_pendencias=` | GET | Painel de Absenteísmo: `periodo`, `parametros`, `cards`, `linhas`. Contrato fixado na STC-588 (faixa e ocorrência repetem: `faixa=a&faixa=b`) | ✅ |
+| `colaboradores/{id}/absenteismo/?inicio=&fim=` | GET | Aba Absenteísmo: `periodo`, `parametros`, `indicadores`, `ocorrencias`, `alertas`, `historico`. Contrato fixado na STC-592; cada alerta traz também `provisorio`, e `responsavel` é quem está com a demanda hoje | ✅ |
+| `colaboradores/{id}/tratamentos/` | POST | `alerta`, `acao` (`feedback`, `advertencia`, `desligamento`, `sem_medida`, proposta do SRS), `justificativa`; devolve a aba no período do alerta. Alerta já tratado ou encerrado: 400 `{"alerta": "..."}` | ✅ |
+| `importacoes/` e afins | | Importação | ✅ (STC-587) |
 
 `{id}` em `ferias/{id}/` é o do período de férias. Acesso: Admin Q&G e Admin Operações tudo; coordenação e OPEX só a própria unidade (fora dela, 404); demais perfis 403. Percentuais chegam como string decimal ("5.00").
 
@@ -109,7 +112,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 - Período no mesmo formato do filtro de data da Matriz (rótulos e datas numa borda só).
 - Coluna "Ocorrências" em texto ("2 faltas · 1 atestado" / "1 atraso · 1 saída antecipada >15min") no lugar das colunas "Faltas · Atestados" e "Atrasos · Saídas" do mockup: os pares de números não diziam qual era qual. Afastamentos e ausências ficam na aba do modal.
 - Linha clicável abre o modal do colaborador (`?colaborador=`).
-- **Dados de exemplo locais**: `NEXT_PUBLIC_GESTAO_RH_DADOS_EXEMPLO=1` no `.env.local` faz a aba Absenteísmo do modal (`buscarAbsenteismoColaborador`, `registrarTratamento`) devolver `lib/gestaoRHAbsenteismoExemplo.ts` enquanto as rotas da STC-592 não existem (ids dos colaboradores fictícios do banco local). O Painel já usa a rota real (STC-588); as linhas de exemplo seguem como dados de teste. A condição também exige `NODE_ENV !== "production"`: no build de produção o ramo some e o módulo de exemplo não entra no pacote, mesmo com a variável ligada (conferido no build).
+- **Dados de exemplo**: o Painel e a aba Absenteísmo do modal usam só as rotas reais (STC-588, STC-592). As linhas de exemplo do Painel ficam em `test-utils/painelAbsenteismoExemplo.ts`, só como dados de teste.
 - **Equipes sem unidade (rodada RPA, STC-697)**: TMO e Campanha não têm unidade do Atlas; o colaborador vem com `unidade` nula. A coluna "Unidade / equipe" do Painel e o cabeçalho do modal mostram a equipe do VR (`equipe`, no cabeçalho pela STC-721). Filtro de categoria (Unidades · TMO · Campanhas · Todas) só para Admin: Coordenação e OPEX já recebem só a própria unidade. Faixa "dados desatualizados" no topo do Painel quando `cards.importacao_parada`, para todos que veem o Painel. O Painel de Férias mostra "Sem unidade" para eles, porque a linha de Férias não traz a equipe (Férias desligado nesta fase).
 
 ### P5.2 Painel de Férias — `mockup_painel_ferias_gestao_rh.html`
@@ -128,7 +131,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
   - Adiar: justificativa obrigatória; só período pendente e dentro do limite. Mostrar "adiada em <data> por <quem>" (`adiamento`).
   - "RH acionado" junto do aviso de substituição, com confirmação (não pode ser desfeito); depois de registrado, "RH acionado em <data> por <responsável>".
   - Férias já tiradas recolhidas; período em andamento como linha informativa.
-- **Aba Absenteísmo** (✅ STC-598, sobre o contrato da STC-592, com os mesmos dados de exemplo locais do painel): período livre (o do painel, o do alerta pelo Kanban ou o mês anterior fechado), aviso de pendências, indicadores numa faixa compacta (não os cards dos painéis), ocorrências com "conta/não conta", "em aprovação" e "acima de N min" (atestado sem dado clínico), card do alerta ("Alerta de setembro/2026") com "Registrar tratamento" abrindo no card (ação da lista proposta do SRS + justificativa obrigatória) e, depois, o tratamento registrado; histórico. A resposta do tratamento vem no período do alerta: só substitui o cache se for o período na tela, senão busca de novo.
+- **Aba Absenteísmo** (✅ STC-598, nas rotas reais pela STC-726): período livre (o do painel, o do alerta pelo Kanban ou o mês anterior fechado), aviso de pendências, indicadores numa faixa compacta (não os cards dos painéis), ocorrências com "conta/não conta", "em aprovação" e "acima de N min" (atestado sem dado clínico), card do alerta ("Alerta de setembro/2026") com selo "Provisório" quando havia pendência na geração e "Demanda aberta em dd/mm/aaaa · responsável: …" (coordenação, Admin da categoria ou "Admins"); "Registrar tratamento" abre no card (ação da lista proposta do SRS + justificativa obrigatória) e, depois, mostra o tratamento registrado; alerta sem tratamento e sem como registrar aparece como "Encerrado: saiu da faixa crítica depois de uma nova importação"; histórico. A resposta do tratamento vem no período do alerta: só substitui o cache se for o período na tela, senão busca de novo. Tratar um alerta que outra pessoa ou a importação já fechou devolve 400 `alerta`: a mensagem vira toast e a aba é buscada de novo.
 - **Abertura**: pelo Painel de Absenteísmo, aba Absenteísmo no período do painel (`?colaborador=`); pelo card do Kanban (`?colaborador=&inicio=&fim=`, `origem_url` da STC-592), no período do alerta, rolando e levando o foco ao card do alerta; pelo Painel de Férias, aba Férias.
 - Rótulos da interface: "período de direito", "limite para tirar", "férias tiradas" (SRS §3.1).
 
@@ -139,7 +142,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
   - parâmetros de absenteísmo numa linha (limite de atraso e saída antecipada, meta, faixa de atenção, faixa crítica), tipos que contam, selo "Versão vigente desde dd/mm/aaaa, por Fulano" ou "Versão inicial" (sem lista de versões); aviso informativo quando não há faixas; limite vazio é obrigatório (não vira 0);
   - régua de férias: "completou o período" só com liga/desliga; "antes do limite" e "antes do início (substituição)" com dias e liga/desliga; "limite vencido" não aparece; erro da API na linha do marco;
   - "Cancelar" e "Salvar" de cada seção desabilitados até haver alteração; recarregar a versão vigente não apaga uma edição em andamento;
-  - **janela de avaliação não aparece**: entra junto com a STC-592.
+  - **avaliação automática** (STC-726): janela "Desligada" (padrão, com aviso de que nenhum alerta nem demanda é gerado), "Mês anterior fechado" ou "Últimos N dias" com N de 7 a 90; o texto de ajuda diz quando roda (dia 1º ou segunda-feira, à noite, depois da importação do robô). Só vai no envio se mudou, como os responsáveis; "Desligada" envia `null`.
 - Aba **Importação** (hoje desligada, sem chamar a API, com o aviso "A importação será ativada quando a fonte dos dados for definida").
 - **STC-595 (rodada RPA):** ativa a aba e liga à API (STC-587): período (padrão dia 1 do mês anterior até ontem), **três cartões (Jornada, Abonos, Pendências), um arquivo cada, com todas as equipes**, XLSX; recusa de layout com a coluna faltante; histórico de lotes com a origem (manual ou robô), linhas rejeitadas ("N · ver") e equipes novas sem categoria. É a contingência do robô.
 - **Aba Equipes (rodada RPA):** as equipes do VR com categoria (Unidade, TMO, Campanha, Fora do indicador) e unidade do Atlas editáveis, destaque para as "Sem categoria"; responsável por categoria (TMO, Campanha) na aba de parâmetros.
@@ -156,7 +159,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 - Já cobertos (STC-597): seção só para Admin, faixas as duas ou nenhuma, estado sem faixas, limite vazio, "completou o período" sem dias, "limite vencido" ausente, versão inicial, botões só com alteração, erro da API no campo e na linha do marco, edição preservada ao recarregar, aba Importação desligada.
 - Já cobertos também (STC-596/598/599/601): faixa escondida sem critérios, "provisório", ações de férias, justificativa obrigatória, abertura por querystring.
-- A fazer (rodada RPA): aba Importação com os 3 relatórios, aba Equipes, filtro de categoria e unidade nula.
+- Já cobertos também (rodada RPA e STC-726): aba Importação com os 3 relatórios, aba Equipes, filtro de categoria e unidade nula, responsável só Admin, janela de avaliação (padrão desligada, N de 7 a 90, `null` ao desligar), alerta provisório e encerrado, erro 400 ao tratar alerta já fechado.
 - `tsc`, lint e testes limpos; conferência visual contra as telas reais do Atlas.
 
 ## Pacote P7 — Go-Live
