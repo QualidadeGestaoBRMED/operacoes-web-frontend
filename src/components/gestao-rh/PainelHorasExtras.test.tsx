@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import type { LinhaHorasExtras, PainelHorasExtras as Painel } from "@/types/gestaoRH";
 import { PainelHorasExtras } from "./PainelHorasExtras";
@@ -15,6 +16,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
 vi.mock("@/lib/gestaoRHHorasExtras", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHHorasExtras")>()),
   buscarPainelHorasExtras: vi.fn(),
@@ -136,6 +138,7 @@ beforeEach(() => {
     isLoading: false,
     error: undefined,
   });
+  vi.mocked(useMediaQuery).mockReturnValue(false);
   vi.mocked(buscarPainelHorasExtras).mockReset();
   vi.mocked(buscarPainelHorasExtras).mockResolvedValue(painel());
 });
@@ -212,6 +215,18 @@ describe("Painel de Horas Extras", () => {
     await usuario.click(tabela().getByRole("button", { name: /^Colaborador/ }));
     expect(nomesNaTabela()).toEqual(["Ana Souza", "Bruno Lima", "Juliana Ramos"]);
     expect(screen.getByText("3 colaboradores")).toBeInTheDocument();
+  });
+
+  it("tabela numa moldura de 10 linhas, rolando por dentro; no celular, a página rola", async () => {
+    const { unmount } = renderPainel();
+    await screen.findByRole("table");
+    expect(screen.getByTestId("rolagem-horas-extras").style.maxHeight).toBe("623.5px");
+    unmount();
+
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    renderPainel();
+    await screen.findByRole("table");
+    expect(screen.getByTestId("rolagem-horas-extras").style.maxHeight).toBe("");
   });
 
   it("busca filtra a tabela", async () => {
