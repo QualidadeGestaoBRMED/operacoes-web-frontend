@@ -310,7 +310,9 @@ interface GraficosHorasExtrasProps {
 export function GraficosHorasExtras({ painel, selecionado, onSelecionar }: GraficosHorasExtrasProps) {
   // Uma unidade só (Admin com a unidade filtrada, coordenação e OPEX, que só
   // recebem a própria): o gráfico por unidade teria uma barra, e o por cargo
-  // mostra em que função a hora extra se concentra.
+  // mostra em que função a hora extra se concentra. Decidido pelos dados, de
+  // propósito: cobre os perfis sem filtro de unidade, e um período em que só
+  // uma unidade teve hora extra também fica melhor por cargo que com uma barra.
   const umaUnidade = painel.por_unidade.length <= 1;
   const colaboradores = painel.linhas.map((linha) => ({
     nome: linha.colaborador.nome,

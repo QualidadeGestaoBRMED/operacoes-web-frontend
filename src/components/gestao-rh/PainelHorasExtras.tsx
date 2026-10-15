@@ -134,6 +134,9 @@ export function PainelHorasExtras() {
 
   function selecionar(linha: LinhaHorasExtras | null) {
     setSelecao(linha ? { id: linha.colaborador.id, filtros } : null);
+    // Uma busca digitada antes, que não casa com o escolhido, deixaria a
+    // tabela vazia sob "Mostrando só ...".
+    if (linha) setBusca("");
   }
 
   const linhas = useMemo(() => {
@@ -258,7 +261,7 @@ export function PainelHorasExtras() {
           {painel && !painel.com_dado ? (
             <EstadoVazio
               titulo="Sem dado de hora extra neste período"
-              texto="O período foi importado antes de o relatório do VR trazer as horas extras (outubro de 2026). Elas aparecem nos períodos importados depois disso, ou depois de reimportar este período."
+              texto="O período foi importado antes de o relatório do VR trazer as horas extras. Elas aparecem nos períodos importados depois disso, ou depois de reimportar este período."
             />
           ) : semHoraExtra ? (
             <EstadoVazio
