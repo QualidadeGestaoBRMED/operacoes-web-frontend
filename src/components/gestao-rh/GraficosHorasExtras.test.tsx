@@ -1,4 +1,4 @@
-import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,35 +6,7 @@ import type { LinhaHorasExtras, PainelHorasExtras } from "@/types/gestaoRH";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { GraficosHorasExtras } from "./GraficosHorasExtras";
 
-// O jsdom não mede layout e o Recharts não desenha as barras: cada <Bar>
-// vira um botão por item, com o mesmo onClick que o Recharts chamaria
-// (escondidos do leitor de tela, como o gráfico).
-vi.mock("recharts", () => {
-  const Dados = createContext<{ nome: string }[]>([]);
-  return {
-    BarChart: ({ data, children }: { data: { nome: string }[]; children: ReactNode }) => (
-      <Dados.Provider value={data}>{children}</Dados.Provider>
-    ),
-    Bar: function Bar({
-      dataKey,
-      onClick,
-    }: {
-      dataKey: string;
-      onClick?: (dado: { payload: { nome: string } }) => void;
-    }) {
-      const dados = useContext(Dados);
-      return dados.map((item) => (
-        <button key={item.nome} type="button" onClick={() => onClick?.({ payload: item })}>
-          {dataKey}:{item.nome}
-        </button>
-      ));
-    },
-    CartesianGrid: () => null,
-    Tooltip: () => null,
-    XAxis: () => null,
-    YAxis: () => null,
-  };
-});
+vi.mock("recharts", () => import("@/test-utils/rechartsDeTeste"));
 vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children, style }: { children: ReactNode; style?: CSSProperties }) => (
     <div data-testid="area-do-grafico" style={style}>
@@ -101,26 +73,57 @@ function barras(fator: "fator_1" | "fator_2", alvo: Pick<typeof screen, "queryAl
 }
 
 describe("GraficosHorasExtras", () => {
-  it("barra do colaborador, nos dois fatores, abre o modal dele", async () => {
-    const abrir = vi.fn();
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={abrir} />);
+  it("barra do colaborador, nos dois fatores, seleciona; no já selecionado, limpa", async () => {
+    const selecionar = vi.fn();
+    const { rerender } = render(
+      <GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={selecionar} />,
+    );
 
     await userEvent.click(screen.getByRole("button", { name: "fator_1:Bruno Lima", hidden: true }));
-    expect(abrir).toHaveBeenLastCalledWith(PAINEL.linhas[1]);
+    expect(selecionar).toHaveBeenLastCalledWith(PAINEL.linhas[1]);
     await userEvent.click(screen.getByRole("button", { name: "fator_2:Juliana Ramos", hidden: true }));
-    expect(abrir).toHaveBeenLastCalledWith(PAINEL.linhas[0]);
+    expect(selecionar).toHaveBeenLastCalledWith(PAINEL.linhas[0]);
+
+    rerender(<GraficosHorasExtras painel={PAINEL} selecionado={PAINEL.linhas[0]} onSelecionar={selecionar} />);
+    await userEvent.click(screen.getByRole("button", { name: "fator_1:Juliana Ramos", hidden: true }));
+    expect(selecionar).toHaveBeenLastCalledWith(null);
   });
 
-  it("barra da unidade não abre nada", async () => {
-    const abrir = vi.fn();
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={abrir} />);
+  it("barra da unidade não seleciona nada", async () => {
+    const selecionar = vi.fn();
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={selecionar} />);
 
     await userEvent.click(screen.getByRole("button", { name: "fator_1:TMO Rio", hidden: true }));
-    expect(abrir).not.toHaveBeenCalled();
+    expect(selecionar).not.toHaveBeenCalled();
+  });
+
+  it("com um colaborador selecionado: a barra dele em destaque e, ao lado, só a unidade dele", () => {
+    // Bruno é do TMO Rio (sem unidade): o grupo é a equipe.
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={PAINEL.linhas[1]} onSelecionar={vi.fn()} />);
+
+    const opacidade = (nome: string) =>
+      screen.getByRole("button", { name: `fator_1:${nome}`, hidden: true }).dataset.opacidade;
+    expect(opacidade("Bruno Lima")).toBe("1");
+    expect(opacidade("Juliana Ramos")).toBe("0.3");
+    const unidades = grafico(/Unidade \/ equipe do colaborador/);
+    expect(unidades.getByRole("heading")).toHaveTextContent("Unidade / equipe do colaborador em horas extras");
+    expect(barras("fator_1", unidades)).toEqual(["TMO Rio"]);
+  });
+
+  it("com uma unidade só, o gráfico ao lado mostra só o cargo do selecionado", () => {
+    const painel = {
+      ...PAINEL,
+      por_unidade: PAINEL.por_unidade.slice(0, 1),
+      linhas: [linha(1, "A", 120, 0, "MOTORISTA"), linha(2, "B", 200, 0, "TECNICO DE ENFERMAGEM I")],
+    } as PainelHorasExtras;
+    render(<GraficosHorasExtras painel={painel} selecionado={painel.linhas[0]} onSelecionar={vi.fn()} />);
+
+    const cargos = grafico(/Cargo do colaborador/);
+    expect(barras("fator_1", cargos)).toEqual(["MOTORISTA"]);
   });
 
   it("sem fator escolhido: os dois fatores empilhados, ordem pelo total", () => {
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
 
     const colaboradores = grafico(/colaboradores/);
     expect(colaboradores.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
@@ -130,7 +133,7 @@ describe("GraficosHorasExtras", () => {
   });
 
   it("escolher um fator mostra só ele, com o ranking por ele; clicar de novo volta aos dois", async () => {
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
     const colaboradores = () => grafico(/colaboradores/);
 
     await userEvent.click(colaboradores().getByRole("button", { name: "50%" }));
@@ -150,7 +153,7 @@ describe("GraficosHorasExtras", () => {
   });
 
   it("cada gráfico escolhe o fator sozinho", async () => {
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
 
     await userEvent.click(screen.getAllByRole("button", { name: "100%" })[1]);
     expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
@@ -169,7 +172,7 @@ describe("GraficosHorasExtras", () => {
         linha(4, "D", 0, 30, " "),
       ],
     } as PainelHorasExtras;
-    render(<GraficosHorasExtras painel={painel} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={painel} selecionado={null} onSelecionar={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Top 3 cargos em horas extras" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /unidades/ })).not.toBeInTheDocument();
@@ -184,13 +187,13 @@ describe("GraficosHorasExtras", () => {
   it("lado a lado, os dois com a altura do que tem mais barras; empilhados, cada um com a sua", () => {
     // Colaboradores: 3 barras; unidades: 2.
     vi.mocked(useMediaQuery).mockReturnValue(true);
-    const { unmount } = render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    const { unmount } = render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
     const ladoALado = screen.getAllByTestId("area-do-grafico").map((area) => area.style.height);
     expect(ladoALado).toEqual(["134px", "134px"]);
     unmount();
 
     vi.mocked(useMediaQuery).mockReturnValue(false);
-    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
     expect(screen.getAllByTestId("area-do-grafico").map((area) => area.style.height)).toEqual([
       "134px",
       "100px",

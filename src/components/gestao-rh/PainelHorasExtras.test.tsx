@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
+vi.mock("recharts", () => import("@/test-utils/rechartsDeTeste"));
 vi.mock("@/lib/gestaoRHHorasExtras", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHHorasExtras")>()),
   buscarPainelHorasExtras: vi.fn(),
@@ -266,6 +267,42 @@ describe("Painel de Horas Extras", () => {
     renderPainel();
     await screen.findByRole("table");
     expect(screen.getByTestId("rolagem-horas-extras").style.maxHeight).toBe("");
+  });
+
+  it("clicar na barra do colaborador mostra só ele na tabela; clicar de novo, ou em Mostrar todos, volta", async () => {
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByRole("table");
+    const barra = (nome: string) => screen.getByRole("button", { name: `fator_1:${nome}`, hidden: true });
+
+    await usuario.click(barra("Bruno Lima"));
+    expect(nomesNaTabela()).toEqual(["Bruno Lima"]);
+    expect(screen.getByRole("status")).toHaveTextContent("Mostrando só Bruno Lima");
+    // O clique no gráfico não abre o modal; a linha da tabela continua abrindo.
+    expect(replace).not.toHaveBeenCalled();
+
+    await usuario.click(barra("Bruno Lima"));
+    expect(nomesNaTabela()).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
+
+    await usuario.click(barra("Ana Souza"));
+    await usuario.click(screen.getByRole("button", { name: "Mostrar todos" }));
+    expect(nomesNaTabela()).toHaveLength(3);
+  });
+
+  it("período trocado sem hora extra do selecionado: a seleção some", async () => {
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    vi.mocked(buscarPainelHorasExtras).mockImplementation(async (filtros) =>
+      filtros.inicio === "2026-08-01" ? painel({ linhas: painel().linhas.slice(0, 1) }) : painel(),
+    );
+    renderPainel();
+    await screen.findByRole("table");
+
+    await usuario.click(screen.getByRole("button", { name: "fator_1:Bruno Lima", hidden: true }));
+    expect(nomesNaTabela()).toEqual(["Bruno Lima"]);
+
+    fireEvent.change(screen.getByLabelText("Período"), { target: { value: "2026-08-01" } });
+    await waitFor(() => expect(nomesNaTabela()).toEqual(["Juliana Ramos"]));
+    expect(screen.queryByText(/Mostrando só/)).not.toBeInTheDocument();
   });
 
   it("busca filtra a tabela", async () => {
