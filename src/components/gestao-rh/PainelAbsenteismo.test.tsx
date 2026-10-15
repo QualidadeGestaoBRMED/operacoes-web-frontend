@@ -561,17 +561,27 @@ describe("absenteísmo mês a mês", () => {
     expect(vi.mocked(buscarPainelAbsenteismo).mock.calls.length).toBe(buscasAoPainel);
   });
 
-  it("reabrir o modal no mesmo ano não busca de novo", async () => {
+  it("reabrir mostra o que já tinha e atualiza em segundo plano", async () => {
     const user = usuario();
-    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(mensalDe(2026, { 9: "4.00" }));
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValueOnce(mensalDe(2026, { 9: "4.00" }));
     renderPainel();
     const modal = await abrirModal(user);
     await modal.findByRole("table");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    await (await abrirModal(user)).findByRole("table");
-    expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(1);
+    // Mudança feita em outra tela (ex.: turno variável ligado): setembro caiu.
+    let responder: (mensal: AbsenteismoMensal) => void = () => {};
+    vi.mocked(buscarAbsenteismoMensal).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+    const reaberto = await abrirModal(user);
+    // Na hora, o que já tinha; uma busca nova por abertura.
+    expect(reaberto.getByText("4%")).toBeInTheDocument();
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(2);
+
+    responder(mensalDe(2026, { 9: "2.60" }));
+    expect(await reaberto.findByText("2,6%")).toBeInTheDocument();
   });
 
   it("tabela com os meses com dado, a variação para o mês anterior e os meses sem dado", async () => {
