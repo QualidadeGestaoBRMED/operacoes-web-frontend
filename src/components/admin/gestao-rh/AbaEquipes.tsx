@@ -15,11 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useEquipesVR } from "@/hooks/useParametrosGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { CATEGORIAS_EQUIPE, errosDeCampo } from "@/lib/gestaoRH";
-import type { CategoriaEquipeVR, EquipeVR } from "@/types/gestaoRH";
+import type { CategoriaEquipeVR, EquipeVR, ReclassificarEquipePayload } from "@/types/gestaoRH";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
 
 const SEM_CATEGORIA = "sem_categoria";
@@ -47,7 +48,8 @@ function normalizar(texto: string) {
  * para Unidade só salva depois de escolher a unidade (a API exige as duas).
  * Tirar ou trocar a unidade de uma equipe com colaboradores pede
  * confirmação: muda a unidade de todos eles e leva as demandas abertas para
- * a coordenação nova.
+ * a coordenação nova. O turno variável (absenteísmo pela carga horária do
+ * dia, não pela escala) também salva ao marcar.
  */
 
 interface Mudanca {
@@ -97,7 +99,12 @@ export function AbaEquipes() {
     });
   }
 
-  async function salvar(equipe: EquipeVR, categoria: CategoriaEquipeVR, unidade: number | null) {
+  // Salva a mudança da equipe; o erro da API fica na linha dela.
+  async function enviar(
+    equipe: EquipeVR,
+    payload: ReclassificarEquipePayload,
+    sucesso: (atualizada: EquipeVR) => string,
+  ) {
     setSalvando(equipe.id);
     setErros((atual) => {
       const semEsta = { ...atual };
@@ -105,20 +112,34 @@ export function AbaEquipes() {
       return semEsta;
     });
     try {
-      const atualizada = await reclassificar(equipe.id, { categoria, unidade });
-      marcarEsperando(equipe.id, false);
-      toast.success(
-        atualizada.unidade
-          ? `${atualizada.nome}: ${atualizada.categoria_rotulo} · ${atualizada.unidade.nome}.`
-          : `${atualizada.nome}: ${atualizada.categoria_rotulo}.`,
-      );
+      const atualizada = await reclassificar(equipe.id, payload);
+      toast.success(sucesso(atualizada));
+      return true;
     } catch (erro) {
       const porCampo = errosDeCampo(erro);
       const mensagem = Object.values(porCampo).join(" ") || extrairMensagemErro(erro);
       setErros((atual) => ({ ...atual, [equipe.id]: mensagem }));
+      return false;
     } finally {
       setSalvando(null);
     }
+  }
+
+  async function salvar(equipe: EquipeVR, categoria: CategoriaEquipeVR, unidade: number | null) {
+    const salvou = await enviar(equipe, { categoria, unidade }, (atualizada) =>
+      atualizada.unidade
+        ? `${atualizada.nome}: ${atualizada.categoria_rotulo} · ${atualizada.unidade.nome}.`
+        : `${atualizada.nome}: ${atualizada.categoria_rotulo}.`,
+    );
+    if (salvou) marcarEsperando(equipe.id, false);
+  }
+
+  function mudarTurnoVariavel(equipe: EquipeVR, turnoVariavel: boolean) {
+    void enviar(equipe, { turno_variavel: turnoVariavel }, (atualizada) =>
+      atualizada.turno_variavel
+        ? `${atualizada.nome}: turno variável ligado.`
+        : `${atualizada.nome}: turno variável desligado.`,
+    );
   }
 
   // Mudança que tira ou troca a unidade de quem já está na equipe passa
@@ -184,6 +205,13 @@ export function AbaEquipes() {
           Equipes da categoria Unidade levam a unidade do Atlas; as de TMO e Campanha não têm
           unidade, e as demandas delas vão para o responsável definido na aba Absenteísmo.
         </p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          <strong className="font-medium text-foreground">Turno variável:</strong> para equipes que
+          trabalham fora da escala dentro da carga do dia (ex.: técnico de raio X e motorista de
+          campanha). O absenteísmo do dia passa a ser pela carga horária cumprida, sem atraso nem
+          saída contra a escala; o que faltar da carga aparece como jornada incompleta. Vale também
+          para os períodos já importados.
+        </p>
       </div>
 
       {semCategoria > 0 && (
@@ -248,13 +276,14 @@ export function AbaEquipes() {
         // tela, mas não cresce além das linhas (sem faixa vazia com poucas
         // equipes). No celular a altura fica livre e quem rola é a aba.
         <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:min-h-40 sm:overflow-y-auto">
-          <table aria-label="Equipes do VR" className="w-full min-w-[720px] table-fixed text-left text-sm">
+          <table aria-label="Equipes do VR" className="w-full min-w-[860px] table-fixed text-left text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
                 <th className="w-36 px-4 py-2.5 text-right">Colaboradores</th>
                 <th className="w-48 px-4 py-2.5">Categoria</th>
                 <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
+                <th className="w-36 px-4 py-2.5">Turno variável</th>
               </tr>
             </thead>
             <tbody>
@@ -335,6 +364,15 @@ export function AbaEquipes() {
                       ) : (
                         <span className="text-muted-foreground">Sem unidade</span>
                       )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Switch
+                        checked={equipe.turno_variavel}
+                        onCheckedChange={(marcado) => mudarTurnoVariavel(equipe, marcado)}
+                        disabled={ocupada}
+                        aria-label={`Turno variável de ${equipe.nome}`}
+                        aria-describedby={erro ? idErro : undefined}
+                      />
                     </td>
                   </tr>
                 );

@@ -74,12 +74,16 @@ export interface EquipeVR {
   colaboradores_ativos: number;
   /** Lote em que a equipe apareceu; nulo nas da carga inicial. */
   criada_na_importacao: number | null;
+  /** Absenteísmo do dia pela carga horária cumprida, não pela escala. */
+  turno_variavel: boolean;
 }
 
+/** PATCH da equipe: campo ausente mantém o valor atual. */
 export interface ReclassificarEquipePayload {
-  categoria: CategoriaEquipeVR;
+  categoria?: CategoriaEquipeVR;
   /** Obrigatória na categoria Unidade; nula nas outras. */
-  unidade: number | null;
+  unidade?: number | null;
+  turno_variavel?: boolean;
 }
 
 export type TipoMarcoRegua =
@@ -295,7 +299,8 @@ export type OcorrenciaFiltro =
   | "afastamento"
   | "ausencia"
   | "atraso"
-  | "saida_antecipada";
+  | "saida_antecipada"
+  | "jornada_incompleta";
 
 /** Categorias que entram no indicador (as outras ficam fora do Painel). */
 export type CategoriaPainelAbsenteismo = "unidade" | "tmo" | "campanha";
@@ -328,6 +333,8 @@ export interface LinhaPainelAbsenteismo {
   ausencias: number;
   atrasos_acima_do_limite: number;
   saidas_acima_do_limite: number;
+  /** Equipe de turno variável: dias em que faltou mais que o limite da carga do dia. */
+  jornadas_incompletas: number;
   banco_horas_saldo_minutos: number;
   banco_horas_uso_minutos: number;
   demanda_aberta: boolean;

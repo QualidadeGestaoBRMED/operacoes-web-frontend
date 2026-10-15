@@ -45,6 +45,7 @@ function linha(
     ausencias: 0,
     atrasos_acima_do_limite: 0,
     saidas_acima_do_limite: 0,
+    jornadas_incompletas: 0,
     banco_horas_saldo_minutos: 0,
     banco_horas_uso_minutos: 0,
     demanda_aberta: false,
@@ -96,6 +97,7 @@ const OCORRENCIA_NA_LINHA = {
   ausencia: (l: LinhaPainelAbsenteismo) => l.ausencias > 0,
   atraso: (l: LinhaPainelAbsenteismo) => l.atrasos_acima_do_limite > 0,
   saida_antecipada: (l: LinhaPainelAbsenteismo) => l.saidas_acima_do_limite > 0,
+  jornada_incompleta: (l: LinhaPainelAbsenteismo) => l.jornadas_incompletas > 0,
 };
 
 /**
