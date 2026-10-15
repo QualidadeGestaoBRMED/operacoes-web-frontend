@@ -333,8 +333,11 @@ export interface LinhaPainelAbsenteismo {
   ausencias: number;
   atrasos_acima_do_limite: number;
   saidas_acima_do_limite: number;
-  /** Equipe de turno variável: dias em que faltou mais que o limite da carga do dia. */
-  jornadas_incompletas: number;
+  /**
+   * Equipe de turno variável: dias em que faltou mais que o limite da carga do
+   * dia. Opcional: backend anterior à STC-734 não manda o campo.
+   */
+  jornadas_incompletas?: number;
   banco_horas_saldo_minutos: number;
   banco_horas_uso_minutos: number;
   demanda_aberta: boolean;
