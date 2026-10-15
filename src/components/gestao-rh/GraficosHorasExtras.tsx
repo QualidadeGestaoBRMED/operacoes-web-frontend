@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { formatarHoras, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHorasExtras";
+import { formatarHoras, formatarHorasDoEixo, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHorasExtras";
 import { cn } from "@/lib/utils";
 import type { FatorHoraExtra, LinhaHorasExtras, MinutosDoFator, PainelHorasExtras } from "@/types/gestaoRH";
 
@@ -223,7 +223,7 @@ function GraficoDeBarras({
                 tickLine={false}
                 axisLine={false}
                 allowDecimals={false}
-                tickFormatter={(horas: number) => `${horas}h`}
+                tickFormatter={formatarHorasDoEixo}
               />
               <YAxis
                 type="category"

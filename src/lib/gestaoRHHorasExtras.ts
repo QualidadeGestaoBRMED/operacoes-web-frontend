@@ -19,11 +19,22 @@ export async function buscarPainelHorasExtras(
   return data;
 }
 
-/** 1490 → "24h50"; 120 → "2h"; 0 → "0h". Como o painel anterior da Nathalya. */
+const FORMATADOR_HORAS = new Intl.NumberFormat("pt-BR");
+
+/**
+ * Horas e minutos, como o VR conta: 1490 → "24h50"; 120 → "2h"; 81352 →
+ * "1.355h52" (ponto de milhar, para os totais do período). Horas decimais
+ * ("105,7 h") parecem minutos ("105h70") e não batem com o VR.
+ */
 export function formatarHoras(minutos: number): string {
-  const horas = Math.floor(minutos / 60);
+  const horas = FORMATADOR_HORAS.format(Math.floor(minutos / 60));
   const resto = minutos % 60;
   return resto ? `${horas}h${String(resto).padStart(2, "0")}` : `${horas}h`;
+}
+
+/** Marca do eixo dos gráficos, em horas inteiras: 1500 → "1.500h". */
+export function formatarHorasDoEixo(horas: number): string {
+  return `${FORMATADOR_HORAS.format(horas)}h`;
 }
 
 /** "50%" pelo percentual que a rota leu do VR; "Fator 1" sem ele. */
