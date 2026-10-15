@@ -172,6 +172,11 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByText("70% do total")).toBeInTheDocument();
     expect(screen.getByText("30% do total")).toBeInTheDocument();
     expect(screen.getByText("com hora extra no período")).toBeInTheDocument();
+    // O VR também credita essas horas no banco de quem tem banco de horas.
+    expect(screen.getByText("no período selecionado").closest("[title]")).toHaveAttribute(
+      "title",
+      expect.stringContaining("o VR também credita essas horas no saldo"),
+    );
   });
 
   it("nas pontas, a parte do total não arredonda para 0% nem para 100%", async () => {
