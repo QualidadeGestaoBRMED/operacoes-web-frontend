@@ -134,6 +134,7 @@ function equipe(extra: Partial<EquipeVR> = {}): EquipeVR {
     unidade: { id: 1, nome: "Niterói" },
     colaboradores_ativos: 12,
     criada_na_importacao: null,
+    turno_variavel: false,
     ...extra,
   };
 }
@@ -849,6 +850,43 @@ describe("Aba Equipes", () => {
 
     await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(11, { categoria: "unidade", unidade: 2 }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("turno variável liga e desliga na hora, sem mexer na categoria nem na unidade", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    vi.mocked(reclassificarEquipeVR).mockResolvedValueOnce(equipe({ turno_variavel: true }));
+    const user = userEvent.setup();
+    await abrirAba(user);
+    expect(screen.getByText(/O absenteísmo do dia passa a ser pela carga horária cumprida/)).toBeInTheDocument();
+
+    const interruptor = await screen.findByRole("switch", { name: "Turno variável de Operações Niterói" });
+    expect(interruptor).not.toBeChecked();
+    await user.click(interruptor);
+
+    await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(10, { turno_variavel: true }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("Operações Niterói: turno variável ligado.");
+    await waitFor(() => expect(interruptor).toBeChecked());
+
+    vi.mocked(reclassificarEquipeVR).mockResolvedValueOnce(equipe({ turno_variavel: false }));
+    await user.click(interruptor);
+    await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenLastCalledWith(10, { turno_variavel: false }));
+    expect(toast.success).toHaveBeenLastCalledWith("Operações Niterói: turno variável desligado.");
+    await waitFor(() => expect(interruptor).not.toBeChecked());
+  });
+
+  it("turno variável recusado fica como estava, com o erro na linha", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    vi.mocked(reclassificarEquipeVR).mockRejectedValue(erro400({ detail: "Falha ao salvar." }));
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    const interruptor = await screen.findByRole("switch", { name: "Turno variável de Operações Niterói" });
+    await user.click(interruptor);
+
+    expect(await screen.findByText("Falha ao salvar.")).toBeInTheDocument();
+    expect(interruptor).not.toBeChecked();
+    expect(interruptor).toHaveAccessibleDescription("Falha ao salvar.");
   });
 
   it("erro da API aparece na linha da equipe", async () => {
