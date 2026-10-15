@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PainelHorasExtras } from "@/types/gestaoRH";
-import { formatarHoras, rotuloDoFator } from "./gestaoRHHorasExtras";
+import { formatarHoras, formatarHorasDoEixo, rotuloDoFator } from "./gestaoRHHorasExtras";
 
 describe("formatarHoras", () => {
   it.each([
@@ -9,8 +9,17 @@ describe("formatarHoras", () => {
     [120, "2h"],
     [1490, "24h50"],
     [25610, "426h50"],
+    [60000, "1.000h"],
+    [81352, "1.355h52"],
   ])("%i minutos → %s", (minutos, esperado) => {
     expect(formatarHoras(minutos)).toBe(esperado);
+  });
+});
+
+describe("formatarHorasDoEixo", () => {
+  it("horas inteiras com ponto de milhar", () => {
+    expect(formatarHorasDoEixo(150)).toBe("150h");
+    expect(formatarHorasDoEixo(1500)).toBe("1.500h");
   });
 });
 
