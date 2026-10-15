@@ -38,8 +38,10 @@ export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
 /**
  * Absenteísmo mês a mês de um ano, com a unidade e a categoria do Painel:
  * uma busca à rota agregada (STC-748) por ano. Só busca com `ativo` (o modal
- * aberto), e não busca de novo ao voltar para a aba nem ao reabrir o modal:
- * os números mudam uma vez por dia, com a importação.
+ * aberto). Reabrir mostra na hora o que já tinha e busca a versão atual em
+ * segundo plano: importação, parâmetros ou turno variável mudados em outra
+ * tela da mesma sessão aparecem sem recarregar a página. Voltar para a aba
+ * não busca de novo.
  */
 export function useAbsenteismoMensal(
   ativo: boolean,
@@ -50,7 +52,7 @@ export function useAbsenteismoMensal(
   const { data, error, isLoading, mutate } = useSWR(
     ativo ? ["gestao-rh-absenteismo-mensal", ano, unidade, categoria] : null,
     () => buscarAbsenteismoMensal({ ano, unidade, categoria }),
-    { revalidateOnFocus: false, revalidateIfStale: false },
+    { revalidateOnFocus: false },
   );
   return {
     mensal: data,
