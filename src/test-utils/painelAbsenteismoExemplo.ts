@@ -97,7 +97,7 @@ const OCORRENCIA_NA_LINHA = {
   ausencia: (l: LinhaPainelAbsenteismo) => l.ausencias > 0,
   atraso: (l: LinhaPainelAbsenteismo) => l.atrasos_acima_do_limite > 0,
   saida_antecipada: (l: LinhaPainelAbsenteismo) => l.saidas_acima_do_limite > 0,
-  jornada_incompleta: (l: LinhaPainelAbsenteismo) => l.jornadas_incompletas > 0,
+  jornada_incompleta: (l: LinhaPainelAbsenteismo) => (l.jornadas_incompletas ?? 0) > 0,
 };
 
 /**
