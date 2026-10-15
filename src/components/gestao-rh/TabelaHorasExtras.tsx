@@ -17,6 +17,14 @@ import {
   CLASSE_ROLAGEM_SEM_FADE_INICIAL,
 } from "./colunaFixa";
 
+// Moldura com 10 linhas inteiras e o cabeçalho; rolagem por dentro, como nas
+// outras tabelas do Gestão RH. Alturas medidas no navegador: a linha tem
+// h-[58px] mais a borda; o nome de equipe em duas linhas cabe nela.
+const LINHAS_VISIVEIS = 10;
+const ALTURA_DA_LINHA = 58.25;
+const ALTURA_DO_CABECALHO = 41;
+const ALTURA_DA_MOLDURA = LINHAS_VISIVEIS * ALTURA_DA_LINHA + ALTURA_DO_CABECALHO;
+
 interface Coluna {
   rotulo: string;
   largura: string;
@@ -29,6 +37,8 @@ interface TabelaHorasExtrasProps {
   carregandoPrimeiraVez: boolean;
   ordenacao: OrdenacaoHorasExtras | null;
   onOrdenar: (campo: CampoOrdenavelHorasExtras) => void;
+  /** Celular: a página rola inteira, sem a moldura de altura travada. */
+  rolagemNaPagina?: boolean;
   /** Filtro trocado e a resposta nova ainda não chegou. */
   atualizando?: boolean;
   onAbrir: (linha: LinhaHorasExtras) => void;
@@ -40,6 +50,7 @@ export function TabelaHorasExtras({
   carregandoPrimeiraVez,
   ordenacao,
   onOrdenar,
+  rolagemNaPagina = false,
   atualizando = false,
   onAbrir,
 }: TabelaHorasExtrasProps) {
@@ -62,8 +73,10 @@ export function TabelaHorasExtras({
         )}
       >
         <div
+          data-testid="rolagem-horas-extras"
+          style={{ maxHeight: rolagemNaPagina ? undefined : ALTURA_DA_MOLDURA }}
           className={cn(
-            "scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto",
+            "scrollbar-discreta scroll-fade-x min-w-0 overflow-auto",
             CLASSE_ROLAGEM_SEM_FADE_INICIAL,
           )}
         >
@@ -80,9 +93,8 @@ export function TabelaHorasExtras({
                         ativa ? (ordenacao?.direcao === "asc" ? "ascending" : "descending") : undefined
                       }
                       className={cn(
-                        "border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
+                        "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
                         indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
-                        indice === 0 && "sticky",
                         coluna.largura,
                       )}
                     >

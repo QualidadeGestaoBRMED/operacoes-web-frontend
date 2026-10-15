@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePainelHorasExtras } from "@/hooks/useHorasExtrasGestaoRH";
 import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
 import { OPCOES_CATEGORIA_PAINEL, mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
 import {
@@ -129,6 +130,7 @@ export function PainelHorasExtras() {
     return ordenarLinhasHorasExtras(filtradas, ordenacao);
   }, [painel, busca, ordenacao]);
 
+  const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(unidade || categoria);
   const semHoraExtra = painel?.com_dado && painel.linhas.length === 0;
 
@@ -286,6 +288,7 @@ export function PainelHorasExtras() {
                 carregandoPrimeiraVez={carregandoPrimeiraVez}
                 ordenacao={ordenacao}
                 onOrdenar={alternarOrdenacao}
+                rolagemNaPagina={ehMobile}
                 atualizando={trocandoFiltro}
                 onAbrir={abrir}
               />
