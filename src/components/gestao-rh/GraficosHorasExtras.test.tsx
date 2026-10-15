@@ -1,8 +1,9 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { LinhaHorasExtras, PainelHorasExtras } from "@/types/gestaoRH";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { GraficosHorasExtras } from "./GraficosHorasExtras";
 
 // O jsdom não mede layout e o Recharts não desenha as barras: cada <Bar>
@@ -35,8 +36,13 @@ vi.mock("recharts", () => {
   };
 });
 vi.mock("@/components/ui/chart", () => ({
-  ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  ChartContainer: ({ children, style }: { children: ReactNode; style?: CSSProperties }) => (
+    <div data-testid="area-do-grafico" style={style}>
+      {children}
+    </div>
+  ),
 }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
 
 function linha(id: number, nome: string, minutos: number, minutos100 = 0, cargo = ""): LinhaHorasExtras {
   return {
@@ -173,5 +179,21 @@ describe("GraficosHorasExtras", () => {
     await userEvent.click(grafico(/cargos/).getByRole("button", { name: "100%" }));
     expect(screen.getByRole("heading", { name: "Top 2 cargos em horas extras 100%" })).toBeInTheDocument();
     expect(barras("fator_2", grafico(/cargos/))).toEqual(["MOTORISTA", "Sem cargo"]);
+  });
+
+  it("lado a lado, os dois com a altura do que tem mais barras; empilhados, cada um com a sua", () => {
+    // Colaboradores: 3 barras; unidades: 2.
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    const { unmount } = render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    const ladoALado = screen.getAllByTestId("area-do-grafico").map((area) => area.style.height);
+    expect(ladoALado).toEqual(["134px", "134px"]);
+    unmount();
+
+    vi.mocked(useMediaQuery).mockReturnValue(false);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
+    expect(screen.getAllByTestId("area-do-grafico").map((area) => area.style.height)).toEqual([
+      "134px",
+      "100px",
+    ]);
   });
 });
