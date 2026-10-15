@@ -10,7 +10,10 @@ import type { FatorHoraExtra, LinhaHorasExtras, MinutosDoFator, PainelHorasExtra
 
 const MAXIMO_DE_BARRAS = 10;
 const FATORES: FatorHoraExtra[] = ["1", "2"];
+// Espaço de cada barra no eixo; a barra em si fica com a mesma espessura
+// quando sobra espaço (menos barras que o gráfico ao lado).
 const ALTURA_DA_BARRA = 34;
+const ESPESSURA_DA_BARRA = 26;
 // Os nomes vêm do VR em maiúsculas, mais largos: o corte em caracteres
 // precisa caber na largura do eixo, menor no celular para sobrar barra.
 const ROTULO = { largura: 170, caracteres: 19 };
@@ -179,12 +182,18 @@ function GraficoDeBarras({
   doQue,
   itens,
   painel,
+  alturaEmBarras,
   onClicar,
 }: {
   /** "colaboradores", "unidades / equipes": entra no título. */
   doQue: string;
   itens: Item[];
   painel: PainelHorasExtras;
+  /**
+   * Altura do gráfico em barras: lado a lado, a do gráfico com mais barras,
+   * para os eixos ficarem na mesma linha; as barras a menos se espaçam.
+   */
+  alturaEmBarras: number | null;
   onClicar?: (barra: Barra) => void;
 }) {
   const [fator, setFator] = useState<FatorHoraExtra | null>(null);
@@ -214,7 +223,7 @@ function GraficoDeBarras({
           <ChartContainer
             config={config}
             className="aspect-auto w-full text-[12px]"
-            style={{ height: barras.length * ALTURA_DA_BARRA + 32 }}
+            style={{ height: Math.max(barras.length, alturaEmBarras ?? 0) * ALTURA_DA_BARRA + 32 }}
           >
             <BarChart data={barras} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid horizontal={false} />
@@ -243,6 +252,7 @@ function GraficoDeBarras({
                   fill={`var(--color-fator_${item})`}
                   // Cantos arredondados só na ponta da barra.
                   radius={item === visiveis.at(-1) ? [0, 4, 4, 0] : undefined}
+                  maxBarSize={ESPESSURA_DA_BARRA}
                   isAnimationActive={false}
                   onClick={clicar}
                   className={onClicar && "cursor-pointer"}
@@ -272,6 +282,14 @@ export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHora
     total_minutos: linha.total_minutos,
     linha,
   }));
+  const segundo = umaUnidade ? porCargo(painel.linhas) : painel.por_unidade;
+  // Lado a lado (telas largas), os dois com a altura do que tem mais barras;
+  // empilhados, cada um com a sua.
+  const ladoALado = useMediaQuery("(min-width: 1280px)");
+  const comHoras = (itens: Item[]) => itens.filter((item) => item.total_minutos > 0).length;
+  const alturaEmBarras = ladoALado
+    ? Math.min(MAXIMO_DE_BARRAS, Math.max(comHoras(colaboradores), comHoras(segundo)))
+    : null;
 
   return (
     <div className="grid gap-3 px-4 sm:px-7 xl:grid-cols-2">
@@ -279,14 +297,17 @@ export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHora
         doQue="colaboradores"
         itens={colaboradores}
         painel={painel}
+        alturaEmBarras={alturaEmBarras}
         onClicar={(item) => item.linha && onAbrirColaborador(item.linha)}
       />
       {/* `key`: o fator escolhido em um não passa para o outro. */}
-      {umaUnidade ? (
-        <GraficoDeBarras key="cargos" doQue="cargos" itens={porCargo(painel.linhas)} painel={painel} />
-      ) : (
-        <GraficoDeBarras key="unidades" doQue="unidades / equipes" itens={painel.por_unidade} painel={painel} />
-      )}
+      <GraficoDeBarras
+        key={umaUnidade ? "cargos" : "unidades"}
+        doQue={umaUnidade ? "cargos" : "unidades / equipes"}
+        itens={segundo}
+        painel={painel}
+        alturaEmBarras={alturaEmBarras}
+      />
     </div>
   );
 }
