@@ -34,7 +34,8 @@
 | STC-736 Justificativas pendentes no VR, cards de faixa como atalho e Ausência justificada (Semanal 14/10) | P5.1/P5.3/P5.4 | ✅ Mergeada |
 | STC-737 Comparativo do absenteísmo com o período anterior (Semanal 14/10) | P5.1 | ✅ Mergeada |
 | STC-735 Turno variável na aba Equipes e jornada incompleta no Painel e no modal (Semanal 14/10) | P5.1/P5.3/P5.4 | ✅ Mergeada |
-| STC-749 Absenteísmo mês a mês pela rota agregada da STC-748 | P5.1 | 🔄 Em andamento |
+| STC-749 Absenteísmo mês a mês pela rota agregada da STC-748 | P5.1 | ✅ Mergeada |
+| STC-740 Painel de Horas Extras (rota da STC-739) | P5.1 | 🔄 Em andamento |
 
 ---
 
@@ -121,6 +122,14 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 - Linha clicável abre o modal do colaborador (`?colaborador=`).
 - **Dados de exemplo**: o Painel e a aba Absenteísmo do modal usam só as rotas reais (STC-588, STC-592). As linhas de exemplo do Painel ficam em `test-utils/painelAbsenteismoExemplo.ts`, só como dados de teste.
 - **Equipes sem unidade (rodada RPA, STC-697)**: TMO e Campanha não têm unidade do Atlas; o colaborador vem com `unidade` nula. A coluna "Unidade / equipe" do Painel e o cabeçalho do modal mostram a equipe do VR (`equipe`, no cabeçalho pela STC-721). Filtro de categoria (Unidades · TMO · Campanhas · Todas) só para Admin: Coordenação e OPEX já recebem só a própria unidade. Faixa "dados desatualizados" no topo do Painel quando `cards.importacao_parada`, para todos que veem o Painel. O Painel de Férias mostra "Sem unidade" para eles, porque a linha de Férias não traz a equipe (Férias desligado nesta fase).
+
+### Painel de Horas Extras (STC-740)
+
+- Subitem **"Horas Extras"** no submenu do Gestão RH (para todos que veem o módulo); rota `/modulos/gestao-rh/horas-extras` (`PainelHorasExtras`), uma busca a `GET /horas-extras/` (STC-739) por filtro (`usePainelHorasExtras`). Mesmo visual do Painel de Absenteísmo: período livre (padrão: mês anterior fechado), filtros de unidade e categoria só para Admin, abaixo dos cards.
+- Cards: total, um por fator com o percentual que a rota leu do VR ("Horas extras 50%", "Horas extras 100%"; sem percentual, "Fator 1") e colaboradores com hora extra. Horas como no painel anterior da Nathalya ("426h50", `formatarHoras`).
+- Gráficos (`GraficosHorasExtras`, carregado sob demanda com `next/dynamic`, como o mês a mês): barras horizontais empilhadas por fator, com legenda, top 10 por colaborador e por unidade / equipe ("top 10 de 203 do período · 50% + 100%"; "todos do período" com até 10). Nome no eixo cortado com reticências (menos caracteres no celular) e inteiro na dica; a dica da barra traz os dois fatores e o total. Clicar na barra do colaborador abre o modal dele, como a linha da tabela. O gráfico por unidade some com a unidade filtrada. Ocultos para leitor de tela: a tabela traz os mesmos números.
+- Tabela só de quem fez hora extra: colaborador, unidade / equipe, os dois fatores, total e dias com hora extra, ordenável; busca por nome ou matrícula (só na tabela). A página rola inteira (gráficos e tabela), sem a moldura de altura travada do Painel de Absenteísmo. Linha abre o modal do colaborador na aba Absenteísmo, no período da tela (aba de hora extra no modal fora de escopo).
+- Estados: "Sem hora extra no período" (com dado, ninguém fez hora extra); "Sem dado de hora extra neste período" (`com_dado` falso: período importado antes de o VR trazer as horas extras), com os cards em traço em vez de zero; aviso "Período parcial" (`parcial`) acima dos cards.
 
 ### P5.2 Painel de Férias — `mockup_painel_ferias_gestao_rh.html`
 
