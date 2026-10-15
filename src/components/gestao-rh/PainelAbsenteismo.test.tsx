@@ -200,9 +200,9 @@ describe("Painel de Absenteísmo", () => {
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
     await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
 
-    await user.click(screen.getByLabelText("Categoria"));
-    await user.click(await screen.findByRole("option", { name: "TMO" }));
-    await waitFor(() => expect(ultimaBusca()?.categoria).toBe("tmo"));
+    // Só a rede própria entra no Painel: não há filtro de categoria.
+    expect(screen.queryByLabelText("Categoria")).not.toBeInTheDocument();
+    expect(ultimaBusca()).not.toHaveProperty("categoria");
   });
 
   it("card de faixa aplica só aquela faixa, mantém a unidade e limpa os filtros de linha", async () => {
@@ -289,7 +289,7 @@ describe("Painel de Absenteísmo", () => {
     expect(screen.queryByLabelText("Categoria")).not.toBeInTheDocument();
   });
 
-  it("colaborador sem unidade (TMO) mostra a equipe do VR na coluna Unidade", async () => {
+  it("colaborador ainda sem unidade mostra a equipe do VR na coluna Unidade", async () => {
     const [primeira, ...resto] = PAINEL.linhas;
     vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
       ...PAINEL,
@@ -298,7 +298,6 @@ describe("Painel de Absenteísmo", () => {
           ...primeira,
           colaborador: { ...primeira.colaborador, unidade: null, matricula_vr: "" },
           equipe: "TMO - PETROBRAS",
-          categoria: "tmo",
         },
         ...resto,
       ],
@@ -309,7 +308,7 @@ describe("Painel de Absenteísmo", () => {
     expect(within(linha).getByText("TMO - PETROBRAS")).toBeInTheDocument();
     // Sem matrícula (relatórios do VR), a linha de baixo começa pelo cargo.
     expect(within(linha).getByText(primeira.colaborador.cargo)).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Unidade \/ equipe/ })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Unidade" })).toBeInTheDocument();
     // Legenda neutra: os cards não dizem quantos estão sem unidade.
     expect(screen.getByText(`${PAINEL.cards.unidades} unidades`)).toBeInTheDocument();
     // O texto ao passar o mouse é o mesmo da célula, unidade ou equipe.
@@ -319,18 +318,18 @@ describe("Painel de Absenteísmo", () => {
     expect(within(deUnidade).getByText(unidade).closest("td")).toHaveAttribute("title", unidade);
   });
 
-  it("\"Limpar filtros\" também tira a categoria", async () => {
+  it("\"Limpar filtros\" também tira a unidade", async () => {
     const user = usuario();
     renderPainel();
     await screen.findByText("Juliana Ramos");
 
-    await user.click(screen.getByLabelText("Categoria"));
-    await user.click(await screen.findByRole("option", { name: "Campanhas" }));
-    await waitFor(() => expect(ultimaBusca()?.categoria).toBe("campanha"));
+    await user.click(screen.getByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
 
     await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
-    await waitFor(() => expect(ultimaBusca()?.categoria).toBeUndefined());
-    expect(screen.getByLabelText("Categoria")).toHaveTextContent("Todas as categorias");
+    await waitFor(() => expect(ultimaBusca()?.unidade).toBeUndefined());
+    expect(screen.getByLabelText("Unidade")).toHaveTextContent("Todas as unidades");
   });
 
   it("faixa \"dados desatualizados\" aparece com a importação parada e some sem ela", async () => {
@@ -441,7 +440,7 @@ describe("comparativo com o período anterior", () => {
     );
   }
 
-  it("busca o mês anterior com a unidade e a categoria, sem os filtros de linha", async () => {
+  it("busca o mês anterior com a unidade, sem os filtros de linha", async () => {
     const user = usuario();
     responderPorPeriodo({ "2026-09-01": "4.00", "2026-08-01": "3.60" });
     renderPainel();
@@ -451,7 +450,6 @@ describe("comparativo com o período anterior", () => {
       inicio: "2026-08-01",
       fim: "2026-08-31",
       unidade: undefined,
-      categoria: undefined,
       faixa: ["critica", "atencao"],
     });
 
@@ -551,7 +549,7 @@ describe("absenteísmo mês a mês", () => {
     return within(modal.getByRole("rowheader", { name: new RegExp(`^${mes}`) }).closest("tr") as HTMLElement);
   }
 
-  it("uma busca à rota agregada, com o ano, a unidade e a categoria do Painel", async () => {
+  it("uma busca à rota agregada, com o ano e a unidade do Painel", async () => {
     const user = usuario();
     vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(mensalDe(2026, { 9: "4.00", 10: "4.50" }));
     renderPainel();
@@ -563,7 +561,7 @@ describe("absenteísmo mês a mês", () => {
 
     expect(modal.getByText("Niterói")).toBeInTheDocument();
     expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(1);
-    expect(buscarAbsenteismoMensal).toHaveBeenCalledWith({ ano: 2026, unidade: 1, categoria: undefined });
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledWith({ ano: 2026, unidade: 1 });
     // O mês a mês não busca mais o Painel mês a mês.
     expect(vi.mocked(buscarPainelAbsenteismo).mock.calls.length).toBe(buscasAoPainel);
   });
