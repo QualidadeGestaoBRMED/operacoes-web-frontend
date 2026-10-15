@@ -396,6 +396,13 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByRole("table")).toBeInTheDocument();
   });
 
+  it("filtro de unidade só com as unidades da rede própria (sem as de Operações Especiais)", async () => {
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(useUnidades).toHaveBeenCalledWith("padrao");
+    expect(useUnidades).not.toHaveBeenCalledWith();
+  });
+
   it("coordenação: sem os filtros de unidade e categoria, e com o gráfico por cargo", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     // A rota devolve só a unidade da coordenação.

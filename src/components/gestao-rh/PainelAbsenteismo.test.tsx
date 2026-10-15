@@ -273,6 +273,13 @@ describe("Painel de Absenteísmo", () => {
     await waitFor(() => expect(moldura()).toBeNull());
   });
 
+  it("filtro de unidade só com as unidades da rede própria (sem as de Operações Especiais)", async () => {
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(useUnidades).toHaveBeenCalledWith("padrao");
+    expect(useUnidades).not.toHaveBeenCalledWith();
+  });
+
   it("filtro de unidade só para Admin", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     renderPainel();
