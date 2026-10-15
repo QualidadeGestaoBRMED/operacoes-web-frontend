@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SWRConfig } from "swr";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -126,6 +126,12 @@ function nomesNaTabela() {
     .slice(1)
     .map((linhaDaTabela) => within(linhaDaTabela).getByRole("button").textContent);
 }
+
+// Os gráficos carregam à parte (next/dynamic): com o módulo já carregado, o
+// primeiro teste que os espera não depende do tempo de importação.
+beforeAll(async () => {
+  await import("./GraficosHorasExtras");
+});
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
