@@ -4,13 +4,14 @@ import { formatarHoras, formatarHorasDoEixo, rotuloDoFator } from "./gestaoRHHor
 
 describe("formatarHoras", () => {
   it.each([
-    [0, "0h"],
-    [45, "0h45"],
-    [120, "2h"],
-    [1490, "24h50"],
-    [25610, "426h50"],
-    [60000, "1.000h"],
-    [81352, "1.355h52"],
+    [0, "0:00:00"],
+    [5875, "97:55:00"],
+    [45, "0:45:00"],
+    [120, "2:00:00"],
+    [1490, "24:50:00"],
+    [25610, "426:50:00"],
+    [60000, "1.000:00:00"],
+    [81352, "1.355:52:00"],
   ])("%i minutos → %s", (minutos, esperado) => {
     expect(formatarHoras(minutos)).toBe(esperado);
   });

@@ -158,7 +158,7 @@ describe("Painel de Horas Extras", () => {
   it("abre no mês anterior fechado, com os cards nos percentuais da rota", async () => {
     renderPainel();
 
-    expect(await screen.findByText("6h45")).toBeInTheDocument();
+    expect(await screen.findByText("6:45:00")).toBeInTheDocument();
     expect(buscarPainelHorasExtras).toHaveBeenCalledWith({
       inicio: "2026-09-01",
       fim: "2026-09-30",
@@ -166,7 +166,7 @@ describe("Painel de Horas Extras", () => {
       categoria: undefined,
     });
     expect(screen.getByText("Horas extras 50%")).toBeInTheDocument();
-    expect(screen.getByText("4h45")).toBeInTheDocument();
+    expect(screen.getByText("4:45:00")).toBeInTheDocument();
     expect(screen.getByText("Horas extras 100%")).toBeInTheDocument();
     // 285 e 120 dos 405 minutos.
     expect(screen.getByText("70% do total")).toBeInTheDocument();
@@ -242,9 +242,9 @@ describe("Painel de Horas Extras", () => {
     await screen.findByRole("table");
 
     const juliana = tabela().getByRole("button", { name: "Juliana Ramos" }).closest("tr")!;
-    expect(within(juliana).getByText("1h30")).toBeInTheDocument();
-    expect(within(juliana).getByText("2h")).toBeInTheDocument();
-    expect(within(juliana).getByText("3h30")).toBeInTheDocument();
+    expect(within(juliana).getByText("1:30:00")).toBeInTheDocument();
+    expect(within(juliana).getByText("2:00:00")).toBeInTheDocument();
+    expect(within(juliana).getByText("3:30:00")).toBeInTheDocument();
     expect(tabela().getByText("TMO Rio")).toBeInTheDocument();
     // Ordem da API: mais horas primeiro.
     expect(nomesNaTabela()).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
@@ -313,7 +313,7 @@ describe("Painel de Horas Extras", () => {
     renderPainel();
 
     expect(await screen.findByText("Sem hora extra no período")).toBeInTheDocument();
-    expect(screen.getAllByText("0h")).toHaveLength(3);
+    expect(screen.getAllByText("0:00:00")).toHaveLength(3);
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryByText(/colaboradores em horas extras/)).not.toBeInTheDocument();
   });
@@ -345,7 +345,7 @@ describe("Painel de Horas Extras", () => {
     expect(screen.queryByText("Sem hora extra no período")).not.toBeInTheDocument();
     // Os quatro números e as legendas dos dois fatores.
     expect(screen.getAllByText("—")).toHaveLength(6);
-    expect(screen.queryByText("0h")).not.toBeInTheDocument();
+    expect(screen.queryByText("0:00:00")).not.toBeInTheDocument();
     // Sem o percentual do VR, o fator aparece pelo número.
     expect(screen.getByText("Horas extras Fator 1")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
