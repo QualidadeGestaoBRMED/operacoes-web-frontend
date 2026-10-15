@@ -52,6 +52,14 @@ function normalizar(texto: string) {
  * dia, não pela escala) também salva ao marcar.
  */
 
+// Campo da linha que a gravação recusada marca como inválido.
+type CampoDaEquipe = "classificacao" | "turno_variavel";
+
+interface ErroDaEquipe {
+  mensagem: string;
+  campo: CampoDaEquipe;
+}
+
 interface Mudanca {
   equipe: EquipeVR;
   categoria: CategoriaEquipeVR;
@@ -64,8 +72,9 @@ export function AbaEquipes() {
   // Equipes que o Admin passou para Unidade e ainda esperam a escolha da unidade.
   const [esperandoUnidade, setEsperandoUnidade] = useState<Set<number>>(new Set());
   const [salvando, setSalvando] = useState<number | null>(null);
-  const [erros, setErros] = useState<Record<number, string>>({});
+  const [erros, setErros] = useState<Record<number, ErroDaEquipe>>({});
   const [aConfirmar, setAConfirmar] = useState<Mudanca | null>(null);
+  const [turnoAConfirmar, setTurnoAConfirmar] = useState<EquipeVR | null>(null);
   const [filtro, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
 
   const unidadesAtivas = useMemo(() => unidades.filter((unidade) => unidade.ativa), [unidades]);
@@ -103,6 +112,7 @@ export function AbaEquipes() {
   async function enviar(
     equipe: EquipeVR,
     payload: ReclassificarEquipePayload,
+    campo: CampoDaEquipe,
     sucesso: (atualizada: EquipeVR) => string,
   ) {
     setSalvando(equipe.id);
@@ -118,7 +128,7 @@ export function AbaEquipes() {
     } catch (erro) {
       const porCampo = errosDeCampo(erro);
       const mensagem = Object.values(porCampo).join(" ") || extrairMensagemErro(erro);
-      setErros((atual) => ({ ...atual, [equipe.id]: mensagem }));
+      setErros((atual) => ({ ...atual, [equipe.id]: { mensagem, campo } }));
       return false;
     } finally {
       setSalvando(null);
@@ -126,7 +136,7 @@ export function AbaEquipes() {
   }
 
   async function salvar(equipe: EquipeVR, categoria: CategoriaEquipeVR, unidade: number | null) {
-    const salvou = await enviar(equipe, { categoria, unidade }, (atualizada) =>
+    const salvou = await enviar(equipe, { categoria, unidade }, "classificacao", (atualizada) =>
       atualizada.unidade
         ? `${atualizada.nome}: ${atualizada.categoria_rotulo} · ${atualizada.unidade.nome}.`
         : `${atualizada.nome}: ${atualizada.categoria_rotulo}.`,
@@ -134,12 +144,19 @@ export function AbaEquipes() {
     if (salvou) marcarEsperando(equipe.id, false);
   }
 
-  function mudarTurnoVariavel(equipe: EquipeVR, turnoVariavel: boolean) {
-    void enviar(equipe, { turno_variavel: turnoVariavel }, (atualizada) =>
+  function salvarTurnoVariavel(equipe: EquipeVR, turnoVariavel: boolean) {
+    void enviar(equipe, { turno_variavel: turnoVariavel }, "turno_variavel", (atualizada) =>
       atualizada.turno_variavel
         ? `${atualizada.nome}: turno variável ligado.`
         : `${atualizada.nome}: turno variável desligado.`,
     );
+  }
+
+  // Ligar recalcula os períodos já importados e pode encerrar alertas na
+  // próxima importação: pede confirmação. Desligar salva direto.
+  function mudarTurnoVariavel(equipe: EquipeVR, turnoVariavel: boolean) {
+    if (turnoVariavel) setTurnoAConfirmar(equipe);
+    else salvarTurnoVariavel(equipe, false);
   }
 
   // Mudança que tira ou troca a unidade de quem já está na equipe passa
@@ -292,7 +309,9 @@ export function AbaEquipes() {
                 const categoria = esperando ? "unidade" : equipe.categoria;
                 const comUnidade = categoria === "unidade";
                 const ocupada = salvando === equipe.id;
-                const erro = erros[equipe.id];
+                const erro = erros[equipe.id]?.mensagem;
+                const erroNaClassificacao = erros[equipe.id]?.campo === "classificacao";
+                const erroNoTurno = erros[equipe.id]?.campo === "turno_variavel";
                 const idErro = `equipe-${equipe.id}-erro`;
                 return (
                   <tr key={equipe.id} className="border-b border-border align-middle last:border-0">
@@ -321,8 +340,8 @@ export function AbaEquipes() {
                       >
                         <SelectTrigger
                           aria-label={`Categoria de ${equipe.nome}`}
-                          aria-invalid={!!erro}
-                          aria-describedby={erro ? idErro : undefined}
+                          aria-invalid={erroNaClassificacao}
+                          aria-describedby={erroNaClassificacao ? idErro : undefined}
                           className="w-full"
                         >
                           <SelectValue placeholder="Escolha a categoria" />
@@ -347,8 +366,8 @@ export function AbaEquipes() {
                         >
                           <SelectTrigger
                             aria-label={`Unidade de ${equipe.nome}`}
-                            aria-invalid={esperando || !!erro}
-                            aria-describedby={erro ? idErro : undefined}
+                            aria-invalid={esperando || erroNaClassificacao}
+                            aria-describedby={erroNaClassificacao ? idErro : undefined}
                             className="w-full"
                           >
                             <SelectValue placeholder="Escolha a unidade" />
@@ -371,7 +390,8 @@ export function AbaEquipes() {
                         onCheckedChange={(marcado) => mudarTurnoVariavel(equipe, marcado)}
                         disabled={ocupada}
                         aria-label={`Turno variável de ${equipe.nome}`}
-                        aria-describedby={erro ? idErro : undefined}
+                        aria-invalid={erroNoTurno}
+                        aria-describedby={erroNoTurno ? idErro : undefined}
                       />
                     </td>
                   </tr>
@@ -391,6 +411,28 @@ export function AbaEquipes() {
         onConfirmar={() => {
           if (aConfirmar) void salvar(aConfirmar.equipe, aConfirmar.categoria, aConfirmar.unidade);
           setAConfirmar(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={turnoAConfirmar !== null}
+        onOpenChange={(aberto) => !aberto && setTurnoAConfirmar(null)}
+        titulo="Ligar o turno variável?"
+        descricao={
+          turnoAConfirmar ? (
+            <>
+              O absenteísmo de <strong>{turnoAConfirmar.nome}</strong> passa a ser pela carga horária do
+              dia, também nos períodos já importados. Alertas da equipe que deixarem de estar na faixa
+              crítica podem ser encerrados na próxima importação.
+            </>
+          ) : (
+            ""
+          )
+        }
+        textoConfirmar="Ligar"
+        onConfirmar={() => {
+          if (turnoAConfirmar) salvarTurnoVariavel(turnoAConfirmar, true);
+          setTurnoAConfirmar(null);
         }}
       />
     </section>
