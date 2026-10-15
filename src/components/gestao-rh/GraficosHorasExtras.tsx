@@ -193,7 +193,7 @@ function GraficoDeBarras({
   destacado,
   onClicar,
 }: {
-  /** "colaboradores", "unidades / equipes": entra no título. */
+  /** "colaboradores", "unidades": entra no título. */
   doQue: string;
   /** No lugar do "Top N ...", com o colaborador selecionado. */
   titulo?: string;
@@ -286,17 +286,14 @@ function GraficoDeBarras({
   );
 }
 
-/** Grupo do segundo gráfico a que o colaborador pertence: o cargo ou a unidade (a equipe, sem unidade). */
+/** Grupo do segundo gráfico a que o colaborador pertence: o cargo ou a unidade. */
 function doColaborador(linha: LinhaHorasExtras, umaUnidade: boolean) {
   if (umaUnidade) {
     const cargo = linha.colaborador.cargo.trim() || "Sem cargo";
     return (item: Item) => item.nome === cargo;
   }
-  const unidade = linha.colaborador.unidade;
-  return (item: Item) => {
-    const grupo = item as unknown as UnidadeHorasExtras;
-    return unidade ? grupo.unidade_id === unidade.id : grupo.unidade_id === null && grupo.nome === linha.equipe;
-  };
+  const unidade = linha.colaborador.unidade?.id;
+  return (item: Item) => (item as unknown as UnidadeHorasExtras).unidade_id === unidade;
 }
 
 interface GraficosHorasExtrasProps {
@@ -323,7 +320,7 @@ export function GraficosHorasExtras({ painel, selecionado, onSelecionar }: Grafi
   const segundo = umaUnidade ? porCargo(painel.linhas) : painel.por_unidade;
   // Com um colaborador selecionado, o gráfico ao lado mostra só o grupo dele.
   const segundoNaTela = selecionado ? segundo.filter(doColaborador(selecionado, umaUnidade)) : segundo;
-  const doSegundo = umaUnidade ? "cargos" : "unidades / equipes";
+  const doSegundo = umaUnidade ? "cargos" : "unidades";
   // Lado a lado (telas largas), os dois com a altura do que tem mais barras;
   // empilhados, cada um com a sua.
   const ladoALado = useMediaQuery("(min-width: 1280px)");
@@ -349,7 +346,7 @@ export function GraficosHorasExtras({ painel, selecionado, onSelecionar }: Grafi
       <GraficoDeBarras
         key={doSegundo}
         doQue={doSegundo}
-        titulo={selecionado ? (umaUnidade ? "Cargo do colaborador" : "Unidade / equipe do colaborador") : undefined}
+        titulo={selecionado ? (umaUnidade ? "Cargo do colaborador" : "Unidade do colaborador") : undefined}
         itens={segundoNaTela}
         painel={painel}
         alturaEmBarras={alturaEmBarras}

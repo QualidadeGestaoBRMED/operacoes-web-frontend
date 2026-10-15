@@ -28,7 +28,7 @@ interface Coluna {
 
 const COLUNAS: Coluna[] = [
   { rotulo: "Colaborador", largura: "w-[19%]", campo: "colaborador" },
-  { rotulo: "Unidade / equipe", largura: "w-[12%]", campo: "unidade" },
+  { rotulo: "Unidade", largura: "w-[12%]", campo: "unidade" },
   { rotulo: "Absenteísmo", largura: "w-[16%]", campo: "percentual" },
   { rotulo: "Dias trab.", largura: "w-[11%]", campo: "dias_trabalhados" },
   { rotulo: "Conformidade", largura: "w-[13%]", campo: "conformidade" },

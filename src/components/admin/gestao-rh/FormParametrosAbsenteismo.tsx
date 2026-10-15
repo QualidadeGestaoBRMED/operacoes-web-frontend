@@ -20,8 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParametrosAbsenteismo } from "@/hooks/useParametrosGestaoRH";
-import { NIVEL_ADMIN_OPERACOES } from "@/hooks/useAuth";
-import { useUsuarios } from "@/hooks/useUsuarios";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
@@ -64,9 +62,6 @@ const schema = z
       .min(1, "Escolha ao menos um tipo."),
     janela_tipo: z.enum(["desligada", "mes_anterior_fechado", "ultimos_dias"]),
     janela_dias: z.string().trim(),
-    // Id do usuário em texto; SEM_RESPONSAVEL = nenhum.
-    responsavel_tmo: z.string(),
-    responsavel_campanha: z.string(),
   })
   .superRefine((valores, ctx) => {
     if (valores.janela_tipo === "ultimos_dias") {
@@ -107,11 +102,7 @@ const CAMPOS_COM_ERRO_NA_TELA = new Set<string>([
   "janela_dias",
   "meta_percentual",
   "tipos_computados",
-  "responsavel_tmo",
-  "responsavel_campanha",
 ]);
-
-const SEM_RESPONSAVEL = "nenhum";
 
 // Mesmos limites do backend (gestao_rh/serializers.py, DIAS_DA_JANELA).
 const DIAS_DA_JANELA = { min: 7, max: 90 };
@@ -139,17 +130,6 @@ function janelaParaEnvio(
   return { tipo: "mes_anterior_fechado" };
 }
 
-// Equipes sem unidade do Atlas: as demandas de absenteísmo delas vão para o
-// responsável da categoria, no lugar da coordenação da unidade.
-const RESPONSAVEIS: {
-  campo: "responsavel_tmo" | "responsavel_campanha";
-  rotulo: string;
-  id: string;
-}[] = [
-  { campo: "responsavel_tmo", rotulo: "TMO", id: "pa-resp-tmo" },
-  { campo: "responsavel_campanha", rotulo: "Campanha", id: "pa-resp-campanha" },
-];
-
 // Tipos sempre na ordem da tela: o react-hook-form compara listas por
 // posição, e desmarcar e marcar de novo não pode contar como alteração.
 function naOrdemDaTela(tipos: readonly string[]): TipoOcorrenciaComputavel[] {
@@ -167,23 +147,11 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
     tipos_computados: naOrdemDaTela(versao.tipos_computados),
     janela_tipo: versao.janela_avaliacao?.tipo ?? "desligada",
     janela_dias: versao.janela_avaliacao?.dias ? String(versao.janela_avaliacao.dias) : "",
-    responsavel_tmo: versao.responsavel_tmo ? String(versao.responsavel_tmo.id) : SEM_RESPONSAVEL,
-    responsavel_campanha: versao.responsavel_campanha
-      ? String(versao.responsavel_campanha.id)
-      : SEM_RESPONSAVEL,
   };
-}
-
-function idDoResponsavel(valor: string): number | null {
-  return valor === SEM_RESPONSAVEL ? null : Number(valor);
 }
 
 export function FormParametrosAbsenteismo() {
   const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo();
-  const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
-  // Sem a lista, o campo só mostraria "Sem responsável" e o atual: trocar
-  // fica bloqueado até ela carregar.
-  const responsaveisBloqueados = carregandoUsuarios || !!erroUsuarios;
   const [salvando, setSalvando] = useState(false);
   const [erroFaixas, setErroFaixas] = useState<string>();
 
@@ -223,17 +191,10 @@ export function FormParametrosAbsenteismo() {
             }
           : null,
         tipos_computados: valores.tipos_computados,
-        // Só se mudou, como os responsáveis: ausente, o backend mantém a
-        // atual; null desliga a avaliação.
+        // Só se mudou: ausente, o backend mantém a atual; null desliga a
+        // avaliação.
         ...((dirtyFields.janela_tipo || dirtyFields.janela_dias) && {
           janela_avaliacao: janelaParaEnvio(valores),
-        }),
-        // Só os responsáveis que mudaram: ausente, o backend mantém o atual.
-        // Mandar sempre travaria o salvar quando o responsável atual foi
-        // desativado (o backend só aceita usuário ativo).
-        ...(dirtyFields.responsavel_tmo && { responsavel_tmo: idDoResponsavel(valores.responsavel_tmo) }),
-        ...(dirtyFields.responsavel_campanha && {
-          responsavel_campanha: idDoResponsavel(valores.responsavel_campanha),
         }),
       });
       if (resultado.dados.vigente) reset(valoresDaVersao(resultado.dados.vigente));
@@ -445,85 +406,6 @@ export function FormParametrosAbsenteismo() {
                 <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary" />
                 Avaliação automática desligada: nenhum alerta nem demanda de absenteísmo é
                 gerado. O painel continua calculando qualquer período.
-              </p>
-            )}
-          </fieldset>
-        </div>
-
-        <div className="border-t border-border pt-5">
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-foreground">
-              Responsáveis pelas equipes sem unidade
-            </legend>
-            <p className="text-xs text-muted-foreground">
-              TMO e Campanha não têm coordenação de unidade: as demandas de absenteísmo dessas
-              equipes vão para quem estiver aqui. Só Admins, porque só eles veem esses
-              colaboradores no módulo.
-            </p>
-            <div className="grid gap-5 pt-2 sm:grid-cols-2 xl:grid-cols-4">
-              {RESPONSAVEIS.map(({ campo, rotulo, id }) => {
-                const erro = errors[campo]?.message;
-                return (
-                  <div key={campo} className="space-y-1.5">
-                    <Label htmlFor={id}>{rotulo}</Label>
-                    <Controller
-                      control={control}
-                      name={campo}
-                      render={({ field }) => {
-                        const atual = vigente[campo];
-                        // Só Admin ativo: o backend recusa os outros (STC-594).
-                        // O responsável atual entra na lista mesmo se não vier
-                        // mais nela (ex.: deixou de ser Admin), para o campo
-                        // não aparecer vazio.
-                        const opcoes = usuarios.filter(
-                          (usuario) =>
-                            usuario.ativo &&
-                            usuario.perfil !== null &&
-                            usuario.perfil.nivel <= NIVEL_ADMIN_OPERACOES,
-                        );
-                        const faltaAtual = atual && !opcoes.some((u) => u.id === atual.id);
-                        return (
-                          <Select
-                            value={field.value}
-                            disabled={responsaveisBloqueados}
-                            // O Radix chama com "" ao montar dentro de um
-                            // <form>; sem ignorar, o formulário já abriria
-                            // como alterado.
-                            onValueChange={(valor) => valor && field.onChange(valor)}
-                          >
-                            <SelectTrigger
-                              id={id}
-                              aria-invalid={!!erro}
-                              aria-describedby={erro ? `${id}-erro` : undefined}
-                              className="w-full"
-                            >
-                              <SelectValue placeholder="Sem responsável" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={SEM_RESPONSAVEL}>Sem responsável</SelectItem>
-                              {faltaAtual && (
-                                <SelectItem value={String(atual.id)}>{atual.nome}</SelectItem>
-                              )}
-                              {opcoes.map((usuario) => (
-                                <SelectItem key={usuario.id} value={String(usuario.id)}>
-                                  {[usuario.first_name, usuario.last_name].join(" ").trim() ||
-                                    usuario.username}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      }}
-                    />
-                    <MensagemErro id={`${id}-erro`} texto={erro} />
-                  </div>
-                );
-              })}
-            </div>
-            {erroUsuarios && (
-              <p role="alert" className="text-xs text-destructive">
-                Não foi possível carregar os usuários: os responsáveis não podem ser trocados agora.
-                Recarregue a página para tentar de novo.
               </p>
             )}
           </fieldset>

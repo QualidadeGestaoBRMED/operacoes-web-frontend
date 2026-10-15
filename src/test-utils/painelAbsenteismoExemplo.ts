@@ -31,7 +31,6 @@ function linha(
   return {
     colaborador: dados,
     equipe: dados.unidade ? `Operações ${dados.unidade.nome}` : "",
-    categoria: "unidade",
     percentual: "0.00",
     faixa: null,
     provisorio: false,
@@ -102,8 +101,7 @@ const OCORRENCIA_NA_LINHA = {
 
 /**
  * Aplica os filtros como a API: unidade nos cards e nas linhas, o resto só
- * nas linhas. A categoria não é aplicada: os dados de exemplo são todos de
- * equipes com unidade.
+ * nas linhas.
  */
 export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): PainelAbsenteismo {
   const daUnidade = LINHAS.filter(

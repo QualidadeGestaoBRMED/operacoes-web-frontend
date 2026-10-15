@@ -24,7 +24,6 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
   OCORRENCIAS_FILTRO,
-  OPCOES_CATEGORIA_PAINEL,
   ROTULO_OCORRENCIA,
   diferencaEmPontos,
   mesAnteriorFechado,
@@ -37,7 +36,6 @@ import {
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn, formatarDataHora, hojeISO } from "@/lib/utils";
 import type {
-  CategoriaPainelAbsenteismo,
   FaixaAbsenteismo,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
@@ -93,7 +91,6 @@ export function PainelAbsenteismo() {
     editar: editarPeriodo,
   } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
-  const [categoria, setCategoria] = useState<CategoriaPainelAbsenteismo>();
   const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
@@ -108,12 +105,11 @@ export function PainelAbsenteismo() {
       inicio: periodo.inicio,
       fim: periodo.fim,
       unidade,
-      categoria,
       faixa: OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
       ocorrencia: ocorrencia ? [ocorrencia] : undefined,
       com_pendencias: comPendencias || undefined,
     }),
-    [periodo, unidade, categoria, faixa, ocorrencia, comPendencias],
+    [periodo, unidade, faixa, ocorrencia, comPendencias],
   );
 
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
@@ -121,7 +117,7 @@ export function PainelAbsenteismo() {
   const comFaixas = painel?.parametros.faixas_cadastradas ?? false;
 
   // Comparativo com o período anterior: segunda busca à mesma rota, com os
-  // mesmos filtros de unidade e categoria. Faixa, ocorrência e busca ficam de
+  // mesmo filtro de unidade. Faixa, ocorrência e busca ficam de
   // fora porque os cards contam todos; a faixa padrão só enxuga as linhas.
   const [hoje] = useState(hojeISO);
   const [comparativoAberto, setComparativoAberto] = useState(false);
@@ -129,10 +125,9 @@ export function PainelAbsenteismo() {
     () => ({
       ...periodoAnterior(periodo),
       unidade,
-      categoria,
       faixa: ["critica", "atencao"],
     }),
-    [periodo, unidade, categoria],
+    [periodo, unidade],
   );
   const {
     painel: painelAnterior,
@@ -153,13 +148,7 @@ export function PainelAbsenteismo() {
       ? diferencaEmPontos(painel.cards.percentual_periodo, anteriorAtual.cards.percentual_periodo)
       : null;
   const nomeUnidade = unidades.find((item) => item.id === unidade)?.nome;
-  const nomeCategoria = OPCOES_CATEGORIA_PAINEL.find((opcao) => opcao.valor === categoria)?.rotulo;
-  const visao = [
-    isAdminOps ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade",
-    nomeCategoria,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const visao = isAdminOps ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade";
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
   // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
@@ -195,7 +184,7 @@ export function PainelAbsenteismo() {
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
   // Atalho dos cards de faixa: a tabela passa a bater com o número do card,
-  // que conta a unidade e a categoria filtradas e ignora os filtros que só
+  // que conta a unidade filtrada e ignora os filtros que só
   // afetam as linhas (ocorrência, justificativa pendente e busca). Clicar no
   // card já selecionado volta para o filtro padrão.
   function selecionarFaixa(alvo: FaixaAbsenteismo) {
@@ -219,7 +208,7 @@ export function PainelAbsenteismo() {
 
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(
-    unidade || categoria || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
+    unidade || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
   );
   const cards = painel?.cards;
 
@@ -335,29 +324,6 @@ export function PainelAbsenteismo() {
               </Select>
             )}
 
-            {/* TMO e Campanha não têm unidade; Coordenação e OPEX só veem a
-                própria unidade, então o filtro é só do Admin. */}
-            {isAdminOps && (
-              <Select
-                value={categoria ?? "todas"}
-                onValueChange={(valor) =>
-                  setCategoria(valor === "todas" ? undefined : (valor as CategoriaPainelAbsenteismo))
-                }
-              >
-                <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="todas">Todas as categorias</SelectItem>
-                  {OPCOES_CATEGORIA_PAINEL.map((opcao) => (
-                    <SelectItem key={opcao.valor} value={opcao.valor}>
-                      {opcao.rotulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
             {comFaixas && (
               <Select
                 value={faixa ?? "todas"}
@@ -410,7 +376,6 @@ export function PainelAbsenteismo() {
                 onClick={() => {
                   setBusca("");
                   setUnidade(undefined);
-                  setCategoria(undefined);
                   setFaixa(undefined);
                   setOcorrencia(undefined);
                   setComPendencias(false);
@@ -446,7 +411,6 @@ export function PainelAbsenteismo() {
           anoInicial={Number(periodo.fim.slice(0, 4))}
           hoje={hoje}
           unidade={unidade}
-          categoria={categoria}
           visao={visao}
         />
       )}

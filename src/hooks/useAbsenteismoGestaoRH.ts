@@ -10,11 +10,7 @@ import {
   buscarPainelAbsenteismo,
   registrarTratamento,
 } from "@/lib/gestaoRHAbsenteismo";
-import type {
-  CategoriaPainelAbsenteismo,
-  FiltrosPainelAbsenteismo,
-  RegistrarTratamentoPayload,
-} from "@/types/gestaoRH";
+import type { FiltrosPainelAbsenteismo, RegistrarTratamentoPayload } from "@/types/gestaoRH";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 
 export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
@@ -36,7 +32,7 @@ export function usePainelAbsenteismo(filtros: FiltrosPainelAbsenteismo) {
 }
 
 /**
- * Absenteísmo mês a mês de um ano, com a unidade e a categoria do Painel:
+ * Absenteísmo mês a mês de um ano, com a unidade do Painel:
  * uma busca à rota agregada (STC-748) por ano. Só busca com `ativo` (o modal
  * aberto). Reabrir mostra na hora o que já tinha e busca a versão atual em
  * segundo plano: importação, parâmetros ou turno variável mudados em outra
@@ -47,11 +43,10 @@ export function useAbsenteismoMensal(
   ativo: boolean,
   ano: number,
   unidade: number | undefined,
-  categoria: CategoriaPainelAbsenteismo | undefined,
 ) {
   const { data, error, isLoading, mutate } = useSWR(
-    ativo ? ["gestao-rh-absenteismo-mensal", ano, unidade, categoria] : null,
-    () => buscarAbsenteismoMensal({ ano, unidade, categoria }),
+    ativo ? ["gestao-rh-absenteismo-mensal", ano, unidade] : null,
+    () => buscarAbsenteismoMensal({ ano, unidade }),
     { revalidateOnFocus: false },
   );
   return {

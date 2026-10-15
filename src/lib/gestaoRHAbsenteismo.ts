@@ -6,7 +6,6 @@ import type {
   AbsenteismoMensal,
   AcaoTratamento,
   AlertaAbsenteismo,
-  CategoriaPainelAbsenteismo,
   FaixaAbsenteismo,
   FiltrosAbsenteismoMensal,
   FiltrosPainelAbsenteismo,
@@ -363,16 +362,10 @@ export function formatarSaldoHoras(minutos: number): string {
   return `${sinal}${horas}:${resto}`;
 }
 
-/** TMO e Campanha não têm unidade do Atlas: a coluna mostra a equipe do VR. */
+/** Colaborador ainda sem unidade do Atlas: a coluna mostra a equipe do VR. */
 export function unidadeOuEquipe(linha: Pick<LinhaPainelAbsenteismo, "colaborador" | "equipe">): string {
   return linha.colaborador.unidade?.nome ?? linha.equipe;
 }
-
-export const OPCOES_CATEGORIA_PAINEL: { valor: CategoriaPainelAbsenteismo; rotulo: string }[] = [
-  { valor: "unidade", rotulo: "Unidades" },
-  { valor: "tmo", rotulo: "TMO" },
-  { valor: "campanha", rotulo: "Campanhas" },
-];
 
 export type CampoOrdenavelAbsenteismo =
   | "colaborador"

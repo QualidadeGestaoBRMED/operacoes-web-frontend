@@ -20,18 +20,14 @@ import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
-import { OPCOES_CATEGORIA_PAINEL, mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
+import { mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
 import {
   ordenarLinhasHorasExtras,
   type CampoOrdenavelHorasExtras,
   type OrdenacaoHorasExtras,
 } from "@/lib/gestaoRHHorasExtras";
 import { cn, hojeISO } from "@/lib/utils";
-import type {
-  CategoriaPainelAbsenteismo,
-  FiltrosPainelHorasExtras,
-  LinhaHorasExtras,
-} from "@/types/gestaoRH";
+import type { FiltrosPainelHorasExtras, LinhaHorasExtras } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsHorasExtras } from "./CardsHorasExtras";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
@@ -85,20 +81,19 @@ export function PainelHorasExtras() {
     editar: editarPeriodo,
   } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
-  const [categoria, setCategoria] = useState<CategoriaPainelAbsenteismo>();
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoHorasExtras | null>(null);
   // Colaborador escolhido no gráfico ou na tabela: a tabela mostra só ele e o
   // gráfico ao lado, só o cargo (ou a unidade) dele. Guardada com os filtros
-  // em que foi feita: trocar período, unidade ou categoria a descarta, sem
+  // em que foi feita: trocar período ou unidade a descarta, sem
   // voltar sozinha se o filtro anterior voltar.
   const [selecao, setSelecao] = useState<{ id: number; filtros: FiltrosPainelHorasExtras } | null>(
     null,
   );
 
   const filtros = useMemo<FiltrosPainelHorasExtras>(
-    () => ({ inicio: periodo.inicio, fim: periodo.fim, unidade, categoria }),
-    [periodo, unidade, categoria],
+    () => ({ inicio: periodo.inicio, fim: periodo.fim, unidade }),
+    [periodo, unidade],
   );
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
     usePainelHorasExtras(filtros);
@@ -152,7 +147,7 @@ export function PainelHorasExtras() {
   }, [painel, busca, ordenacao, selecionado]);
 
   const ehMobile = useMediaQuery("(max-width: 639px)");
-  const temFiltros = Boolean(unidade || categoria);
+  const temFiltros = Boolean(unidade);
   const semHoraExtra = painel?.com_dado && painel.linhas.length === 0;
 
   return (
@@ -204,8 +199,8 @@ export function PainelHorasExtras() {
             <CardsHorasExtras painel={painel} />
           </div>
 
-          {/* Coordenação e OPEX já recebem só a própria unidade da API; TMO e
-              Campanha não têm unidade, então os filtros são só do Admin. */}
+          {/* Coordenação e OPEX já recebem só a própria unidade da API: o
+              filtro é só do Admin. */}
           {isAdminOps && (
             <div className="flex flex-wrap items-center gap-3 px-4 pt-4 sm:px-7">
               <Select
@@ -224,30 +219,11 @@ export function PainelHorasExtras() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={categoria ?? "todas"}
-                onValueChange={(valor) =>
-                  setCategoria(valor === "todas" ? undefined : (valor as CategoriaPainelAbsenteismo))
-                }
-              >
-                <SelectTrigger size="sm" className="h-8 w-full sm:w-auto" aria-label="Categoria">
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="todas">Todas as categorias</SelectItem>
-                  {OPCOES_CATEGORIA_PAINEL.map((opcao) => (
-                    <SelectItem key={opcao.valor} value={opcao.valor}>
-                      {opcao.rotulo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               {temFiltros && (
                 <button
                   type="button"
                   onClick={() => {
                     setUnidade(undefined);
-                    setCategoria(undefined);
                   }}
                   className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
                 >
