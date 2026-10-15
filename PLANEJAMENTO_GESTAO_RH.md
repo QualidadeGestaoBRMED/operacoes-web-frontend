@@ -131,6 +131,8 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 - Tabela só de quem fez hora extra: colaborador, unidade / equipe, os dois fatores, total e dias com hora extra, ordenável; busca por nome ou matrícula (só na tabela). Tabela numa moldura de 10 linhas inteiras (alturas medidas no navegador), com o cabeçalho fixo e a rolagem por dentro, para a página não ficar imensa com 200 colaboradores; sem paginação, que nenhuma tabela do Atlas tem (a busca e a ordenação acham a pessoa). No celular, sem a moldura: a página rola inteira, como no Painel de Absenteísmo. Linha abre o modal do colaborador na aba Absenteísmo, no período da tela (aba de hora extra no modal fora de escopo).
 - Estados: "Sem hora extra no período" (com dado, ninguém fez hora extra); "Sem dado de hora extra neste período" (`com_dado` falso: período importado antes de o VR trazer as horas extras), com os cards em traço em vez de zero; aviso "Período parcial" (`parcial`) acima dos cards.
 
+- **Code review automático (1ª rodada):** 5 pontos. Corrigidos: seleção do colaborador só pelo mouse (botão de filtro na linha da tabela) e seleção guardada depois de trocar o filtro (presa aos filtros em que foi feita). Sem ação, com justificativa: gráfico por cargo decidido pelos dados (cobre coordenação e OPEX), título "Top N" com o número real e contrato da rota garantido pela STC-739.
+
 ### P5.2 Painel de Férias — `mockup_painel_ferias_gestao_rh.html`
 
 - ✅ STC-599. Rota `/modulos/gestao-rh/ferias`. "Marcos nos próximos" 30, 60, 90 (padrão) ou 180 dias, com a legenda "Quem tem demanda aberta ou limite vencido aparece sempre"; busca por nome (sem acento) ou matrícula; filtro de status; filtro de unidade só para Admin (coordenação e OPEX já recebem só a própria unidade).
