@@ -253,7 +253,6 @@ export function PainelHorasExtras() {
                 {painel && (
                   <GraficosHorasExtras
                     painel={painel}
-                    comUnidadeFiltrada={unidade !== undefined}
                     onAbrirColaborador={abrir}
                   />
                 )}

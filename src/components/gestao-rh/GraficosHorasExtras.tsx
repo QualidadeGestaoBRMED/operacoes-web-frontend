@@ -258,12 +258,14 @@ function GraficoDeBarras({
 
 interface GraficosHorasExtrasProps {
   painel: PainelHorasExtras;
-  /** Unidade filtrada: no lugar do gráfico por unidade (que teria uma barra só), o por cargo. */
-  comUnidadeFiltrada: boolean;
   onAbrirColaborador: (linha: LinhaHorasExtras) => void;
 }
 
-export function GraficosHorasExtras({ painel, comUnidadeFiltrada, onAbrirColaborador }: GraficosHorasExtrasProps) {
+export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHorasExtrasProps) {
+  // Uma unidade só (Admin com a unidade filtrada, coordenação e OPEX, que só
+  // recebem a própria): o gráfico por unidade teria uma barra, e o por cargo
+  // mostra em que função a hora extra se concentra.
+  const umaUnidade = painel.por_unidade.length <= 1;
   const colaboradores = painel.linhas.map((linha) => ({
     nome: linha.colaborador.nome,
     minutos_por_fator: linha.minutos_por_fator,
@@ -280,7 +282,7 @@ export function GraficosHorasExtras({ painel, comUnidadeFiltrada, onAbrirColabor
         onClicar={(item) => item.linha && onAbrirColaborador(item.linha)}
       />
       {/* `key`: o fator escolhido em um não passa para o outro. */}
-      {comUnidadeFiltrada ? (
+      {umaUnidade ? (
         <GraficoDeBarras key="cargos" doQue="cargos" itens={porCargo(painel.linhas)} painel={painel} />
       ) : (
         <GraficoDeBarras key="unidades" doQue="unidades / equipes" itens={painel.por_unidade} painel={painel} />
