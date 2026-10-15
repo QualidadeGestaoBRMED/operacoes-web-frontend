@@ -1,0 +1,64 @@
+import api from "./api";
+import { unidadeOuEquipe } from "./gestaoRHAbsenteismo";
+import { ordenarPor, type Ordenacao } from "./ordenacao";
+import type {
+  FatorHoraExtra,
+  FiltrosPainelHorasExtras,
+  LinhaHorasExtras,
+  MinutosDoFator,
+  PainelHorasExtras,
+} from "@/types/gestaoRH";
+
+const PAINEL_URL = "/modulos/gestao-rh/horas-extras/";
+
+/** Painel de Horas Extras (rota da STC-739). */
+export async function buscarPainelHorasExtras(
+  filtros: FiltrosPainelHorasExtras,
+): Promise<PainelHorasExtras> {
+  const { data } = await api.get<PainelHorasExtras>(PAINEL_URL, { params: filtros });
+  return data;
+}
+
+/** 1490 → "24h50"; 120 → "2h"; 0 → "0h". Como o painel anterior da Nathalya. */
+export function formatarHoras(minutos: number): string {
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  return resto ? `${horas}h${String(resto).padStart(2, "0")}` : `${horas}h`;
+}
+
+/** "50%" pelo percentual que a rota leu do VR; "Fator 1" sem ele. */
+export function rotuloDoFator(fator: FatorHoraExtra, painel: PainelHorasExtras | undefined): string {
+  const percentual = painel?.fatores.find((item) => item.fator === fator)?.percentual;
+  return percentual ? `${percentual.replace(".", ",")}%` : `Fator ${fator}`;
+}
+
+export function minutosDoFator(minutos: MinutosDoFator[], fator: FatorHoraExtra): number {
+  return minutos.find((item) => item.fator === fator)?.minutos ?? 0;
+}
+
+export type CampoOrdenavelHorasExtras =
+  | "colaborador"
+  | "unidade"
+  | "fator_1"
+  | "fator_2"
+  | "total"
+  | "dias";
+
+export type OrdenacaoHorasExtras = Ordenacao<CampoOrdenavelHorasExtras>;
+
+const CHAVES_HORAS_EXTRAS = {
+  colaborador: (linha: LinhaHorasExtras) => linha.colaborador.nome,
+  unidade: (linha: LinhaHorasExtras) => unidadeOuEquipe(linha),
+  fator_1: (linha: LinhaHorasExtras) => minutosDoFator(linha.minutos_por_fator, "1"),
+  fator_2: (linha: LinhaHorasExtras) => minutosDoFator(linha.minutos_por_fator, "2"),
+  total: (linha: LinhaHorasExtras) => linha.total_minutos,
+  dias: (linha: LinhaHorasExtras) => linha.dias_com_hora_extra,
+};
+
+/** Sem ordenação escolhida, mantém a ordem da API (mais horas primeiro). */
+export function ordenarLinhasHorasExtras(
+  linhas: LinhaHorasExtras[],
+  ordenacao: OrdenacaoHorasExtras | null,
+): LinhaHorasExtras[] {
+  return ordenarPor(linhas, ordenacao, CHAVES_HORAS_EXTRAS);
+}

@@ -364,7 +364,7 @@ export function formatarSaldoHoras(minutos: number): string {
 }
 
 /** TMO e Campanha não têm unidade do Atlas: a coluna mostra a equipe do VR. */
-export function unidadeOuEquipe(linha: LinhaPainelAbsenteismo): string {
+export function unidadeOuEquipe(linha: Pick<LinhaPainelAbsenteismo, "colaborador" | "equipe">): string {
   return linha.colaborador.unidade?.nome ?? linha.equipe;
 }
 
