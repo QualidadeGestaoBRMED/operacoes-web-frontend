@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, UserCheck } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ListFilter, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { unidadeOuEquipe } from "@/lib/gestaoRHAbsenteismo";
 import {
@@ -42,6 +42,10 @@ interface TabelaHorasExtrasProps {
   /** Filtro trocado e a resposta nova ainda não chegou. */
   atualizando?: boolean;
   onAbrir: (linha: LinhaHorasExtras) => void;
+  /** Colaborador mostrado sozinho (escolhido no gráfico ou pelo filtro da linha). */
+  selecionado: LinhaHorasExtras | null;
+  /** Filtro da linha: o mesmo efeito do clique na barra do gráfico, pelo teclado. */
+  onSelecionar: (linha: LinhaHorasExtras | null) => void;
 }
 
 export function TabelaHorasExtras({
@@ -53,6 +57,8 @@ export function TabelaHorasExtras({
   rolagemNaPagina = false,
   atualizando = false,
   onAbrir,
+  selecionado,
+  onSelecionar,
 }: TabelaHorasExtrasProps) {
   const colunas: Coluna[] = [
     { rotulo: "Colaborador", largura: "w-[28%]", campo: "colaborador" },
@@ -168,6 +174,28 @@ export function TabelaHorasExtras({
                             {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
                           </div>
                         </div>
+                        {/* No computador, aparece no hover e no foco (no celular, sempre);
+                            fica visível enquanto ativo. */}
+                        <button
+                          type="button"
+                          aria-pressed={linha === selecionado}
+                          aria-label={
+                            linha === selecionado ? "Mostrar todos" : `Mostrar só ${linha.colaborador.nome}`
+                          }
+                          title={linha === selecionado ? "Mostrar todos" : "Mostrar só este colaborador"}
+                          onClick={(evento) => {
+                            evento.stopPropagation();
+                            onSelecionar(linha === selecionado ? null : linha);
+                          }}
+                          className={cn(
+                            "ml-auto flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none",
+                            linha === selecionado
+                              ? "bg-secondary/10 text-secondary opacity-100"
+                              : "sm:opacity-0 sm:group-hover:opacity-100",
+                          )}
+                        >
+                          <ListFilter aria-hidden className="size-4" />
+                        </button>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-[13px]" title={unidadeOuEquipe(linha)}>
