@@ -38,16 +38,16 @@ vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-function linha(id: number, nome: string, minutos: number): LinhaHorasExtras {
+function linha(id: number, nome: string, minutos: number, minutos100 = 0): LinhaHorasExtras {
   return {
     colaborador: { id, nome, matricula_vr: "", cargo: "", unidade: null },
     equipe: "TMO Rio",
     categoria: "tmo",
     minutos_por_fator: [
       { fator: "1", minutos },
-      { fator: "2", minutos: 0 },
+      { fator: "2", minutos: minutos100 },
     ],
-    total_minutos: minutos,
+    total_minutos: minutos + minutos100,
     dias_com_hora_extra: 1,
   };
 }
@@ -57,7 +57,8 @@ const PAINEL = {
     { fator: "1", percentual: "50" },
     { fator: "2", percentual: "100" },
   ],
-  linhas: [linha(8, "Juliana Ramos", 120), linha(9, "Bruno Lima", 60)],
+  // Juliana tem mais horas no total; Bruno, mais a 50%. Ana não tem 50%.
+  linhas: [linha(8, "Juliana Ramos", 30, 240), linha(9, "Bruno Lima", 60), linha(10, "Ana Souza", 0, 45)],
   por_unidade: [
     {
       unidade_id: null,
@@ -70,6 +71,14 @@ const PAINEL = {
     },
   ],
 } as PainelHorasExtras;
+
+function barras(fator: "fator_1" | "fator_2") {
+  return screen
+    .queryAllByRole("button", { hidden: true })
+    .map((botao) => botao.textContent ?? "")
+    .filter((texto) => texto.startsWith(`${fator}:`))
+    .map((texto) => texto.slice(fator.length + 1));
+}
 
 describe("GraficosHorasExtras", () => {
   it("barra do colaborador, nos dois fatores, abre o modal dele", async () => {
@@ -90,11 +99,40 @@ describe("GraficosHorasExtras", () => {
     expect(abrir).not.toHaveBeenCalled();
   });
 
-  it("legenda com os percentuais da rota", () => {
+  it("sem fator escolhido: os dois fatores empilhados, ordem pelo total", () => {
     render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
 
-    expect(screen.getAllByText("50%")).toHaveLength(1);
-    expect(screen.getAllByText("100%")).toHaveLength(1);
-    expect(screen.queryByText("Horas extras por unidade / equipe")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
+    expect(barras("fator_1")).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
+    expect(barras("fator_2")).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
+    expect(screen.getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("escolher um fator mostra só ele, com o ranking por ele; clicar de novo volta aos dois", async () => {
+    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "50%" }));
+    expect(screen.getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Top 2 colaboradores em horas extras 50%" })).toBeInTheDocument();
+    // Ranking pelos minutos a 50%, sem quem não tem 50%.
+    expect(barras("fator_1")).toEqual(["Bruno Lima", "Juliana Ramos"]);
+    expect(barras("fator_2")).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "100%" }));
+    expect(screen.getByRole("heading", { name: "Top 2 colaboradores em horas extras 100%" })).toBeInTheDocument();
+    expect(barras("fator_2")).toEqual(["Juliana Ramos", "Ana Souza"]);
+    expect(barras("fator_1")).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: "100%" }));
+    expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
+  });
+
+  it("cada gráfico escolhe o fator sozinho", async () => {
+    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
+
+    await userEvent.click(screen.getAllByRole("button", { name: "100%" })[1]);
+    expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
+    // A unidade não tem 100%: o gráfico avisa em vez de ficar vazio.
+    expect(screen.getByText("Nenhuma hora extra 100% no período.")).toBeInTheDocument();
   });
 });

@@ -162,12 +162,11 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByText("com hora extra no período")).toBeInTheDocument();
   });
 
-  it("gráficos com o recorte e os fatores do período no subtítulo", async () => {
+  it("gráficos por colaborador e por unidade / equipe", async () => {
     renderPainel();
 
-    expect(await screen.findByText("Horas extras por colaborador")).toBeInTheDocument();
-    expect(screen.getByText("Horas extras por unidade / equipe")).toBeInTheDocument();
-    expect(screen.getAllByText("todos do período · 50% + 100%")).toHaveLength(2);
+    expect(await screen.findByText("Top 3 colaboradores em horas extras")).toBeInTheDocument();
+    expect(screen.getByText("Top 2 unidades / equipes em horas extras")).toBeInTheDocument();
   });
 
   it("com mais de 10 colaboradores, o gráfico mostra o top 10", async () => {
@@ -177,13 +176,13 @@ describe("Painel de Horas Extras", () => {
     vi.mocked(buscarPainelHorasExtras).mockResolvedValue(painel({ linhas }));
     renderPainel();
 
-    expect(await screen.findByText("top 10 de 12 do período · 50% + 100%")).toBeInTheDocument();
+    expect(await screen.findByText("Top 10 colaboradores em horas extras")).toBeInTheDocument();
   });
 
   it("unidade filtrada: o gráfico por unidade some", async () => {
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPainel();
-    await screen.findByText("Horas extras por unidade / equipe");
+    await screen.findByText("Top 2 unidades / equipes em horas extras");
 
     await usuario.click(screen.getByRole("combobox", { name: "Unidade" }));
     await usuario.click(await screen.findByRole("option", { name: "Niterói" }));
@@ -191,8 +190,8 @@ describe("Painel de Horas Extras", () => {
     await waitFor(() =>
       expect(buscarPainelHorasExtras).toHaveBeenLastCalledWith(expect.objectContaining({ unidade: 1 })),
     );
-    expect(screen.queryByText("Horas extras por unidade / equipe")).not.toBeInTheDocument();
-    expect(screen.getByText("Horas extras por colaborador")).toBeInTheDocument();
+    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
+    expect(screen.getByText(/colaboradores em horas extras/)).toBeInTheDocument();
   });
 
   it("tabela com os fatores, o total e os dias, ordenável", async () => {
@@ -262,7 +261,7 @@ describe("Painel de Horas Extras", () => {
     expect(await screen.findByText("Sem hora extra no período")).toBeInTheDocument();
     expect(screen.getAllByText("0h")).toHaveLength(3);
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("Horas extras por colaborador")).not.toBeInTheDocument();
+    expect(screen.queryByText(/colaboradores em horas extras/)).not.toBeInTheDocument();
   });
 
   it("período importado antes das horas extras: aviso, e cards com traço em vez de zero", async () => {
