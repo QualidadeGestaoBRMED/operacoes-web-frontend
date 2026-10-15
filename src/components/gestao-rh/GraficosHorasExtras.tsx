@@ -26,12 +26,22 @@ interface Barra {
   minutos_2: number;
   total: number;
   linha?: LinhaHorasExtras;
+  colaboradores?: number;
 }
 
-function barra(nome: string, minutos: MinutosDoFator[], total: number, linha?: LinhaHorasExtras): Barra {
-  const minutos_1 = minutosDoFator(minutos, "1");
-  const minutos_2 = minutosDoFator(minutos, "2");
-  return { nome, fator_1: minutos_1 / 60, fator_2: minutos_2 / 60, minutos_1, minutos_2, total, linha };
+function barra(item: Item): Barra {
+  const minutos_1 = minutosDoFator(item.minutos_por_fator, "1");
+  const minutos_2 = minutosDoFator(item.minutos_por_fator, "2");
+  return {
+    nome: item.nome,
+    fator_1: minutos_1 / 60,
+    fator_2: minutos_2 / 60,
+    minutos_1,
+    minutos_2,
+    total: item.total_minutos,
+    linha: item.linha,
+    colaboradores: item.colaboradores,
+  };
 }
 
 function cortar(nome: string, limite: number): string {
@@ -71,6 +81,15 @@ function Dica({
         {rotuloDoFator("2", painel)}: <span className="font-semibold text-foreground">{formatarHoras(item.minutos_2)}</span>
       </div>
       <div className="mt-1 border-t border-border pt-1 font-semibold">Total: {formatarHoras(item.total)}</div>
+      {/* Por cargo: muita gente com pouca hora extra ou pouca gente com muita. */}
+      {item.colaboradores !== undefined && (
+        <div className="text-muted-foreground">
+          {item.colaboradores} {item.colaboradores === 1 ? "colaborador" : "colaboradores"} · média{" "}
+          <span className="font-semibold text-foreground">
+            {formatarHoras(Math.round(item.total / item.colaboradores))}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -120,6 +139,30 @@ interface Item {
   minutos_por_fator: MinutosDoFator[];
   total_minutos: number;
   linha?: LinhaHorasExtras;
+  /** Agrupamento por cargo: quantos colaboradores do cargo fizeram hora extra. */
+  colaboradores?: number;
+}
+
+/**
+ * Soma por cargo dos colaboradores com hora extra (o cargo como vem do VR).
+ * Com a unidade filtrada, mostra em que função a hora extra se concentra.
+ */
+function porCargo(linhas: LinhaHorasExtras[]): Item[] {
+  const grupos = new Map<string, { minutos: Record<FatorHoraExtra, number>; total: number; colaboradores: number }>();
+  for (const linha of linhas) {
+    const cargo = linha.colaborador.cargo.trim() || "Sem cargo";
+    const grupo = grupos.get(cargo) ?? { minutos: { "1": 0, "2": 0 }, total: 0, colaboradores: 0 };
+    for (const fator of FATORES) grupo.minutos[fator] += minutosDoFator(linha.minutos_por_fator, fator);
+    grupo.total += linha.total_minutos;
+    grupo.colaboradores += 1;
+    grupos.set(cargo, grupo);
+  }
+  return [...grupos].map(([nome, grupo]) => ({
+    nome,
+    minutos_por_fator: FATORES.map((fator) => ({ fator, minutos: grupo.minutos[fator] })),
+    total_minutos: grupo.total,
+    colaboradores: grupo.colaboradores,
+  }));
 }
 
 /** Os 10 com mais horas: no total ou, com um fator escolhido, nele (sem quem tem zero nele). */
@@ -129,7 +172,7 @@ function maiores(itens: Item[], fator: FatorHoraExtra | null): Barra[] {
     .filter((item) => minutos(item) > 0)
     .toSorted((a, b) => minutos(b) - minutos(a) || a.nome.localeCompare(b.nome))
     .slice(0, MAXIMO_DE_BARRAS)
-    .map((item) => barra(item.nome, item.minutos_por_fator, item.total_minutos, item.linha));
+    .map(barra);
 }
 
 function GraficoDeBarras({
@@ -215,7 +258,7 @@ function GraficoDeBarras({
 
 interface GraficosHorasExtrasProps {
   painel: PainelHorasExtras;
-  /** Unidade filtrada: o gráfico por unidade teria uma barra só e some. */
+  /** Unidade filtrada: no lugar do gráfico por unidade (que teria uma barra só), o por cargo. */
   comUnidadeFiltrada: boolean;
   onAbrirColaborador: (linha: LinhaHorasExtras) => void;
 }
@@ -236,12 +279,11 @@ export function GraficosHorasExtras({ painel, comUnidadeFiltrada, onAbrirColabor
         painel={painel}
         onClicar={(item) => item.linha && onAbrirColaborador(item.linha)}
       />
-      {!comUnidadeFiltrada && (
-        <GraficoDeBarras
-          doQue="unidades / equipes"
-          itens={painel.por_unidade}
-          painel={painel}
-        />
+      {/* `key`: o fator escolhido em um não passa para o outro. */}
+      {comUnidadeFiltrada ? (
+        <GraficoDeBarras key="cargos" doQue="cargos" itens={porCargo(painel.linhas)} painel={painel} />
+      ) : (
+        <GraficoDeBarras key="unidades" doQue="unidades / equipes" itens={painel.por_unidade} painel={painel} />
       )}
     </div>
   );
