@@ -529,6 +529,7 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
 
 - **Achado em code review**: o efeito de pré-preenchimento dependia do array inteiro devolvido por `useSetores()` -- como o hook devolve `data ?? []` (referência nova a cada render enquanto ainda carrega), o efeito reset disparava repetidas vezes até o fetch resolver, arriscando apagar edições em andamento. Corrigido trocando a dependência pra `setores.length` (estável durante o carregamento).
 - **Ponto de atenção aceito, não corrigido** (registrado em `Plano de Ação - Legalização.md` §9, não no código, a pedido do usuário): a pré-seleção em modo edição casa o setor pelo **nome** (o backend só expõe o nome em leitura) contra a lista de setores -- `Setor.nome` não é único no banco, então nomes duplicados poderiam pré-selecionar o setor errado. Risco aceito (nomes duplicados são incomuns na prática); revisitar só se doer de verdade.
+- **Texto de ajuda com a área responsável (STC-759, 15/10/2026)**: os candidatos a responsável passaram a incluir também as pessoas da área responsável do tipo (STC-758, backend). A ajuda do campo agora diz "Além da unidade e da área responsável, pessoas deste setor também poderão ser escolhidas como Responsável Operacional nos documentos deste tipo." A lista de responsáveis no cadastro já vem da API, sem outra mudança.
 
 ### P4.30 Reaproveita regra existente ao cadastrar documento único, evita erro de unicidade com regra órfã (STC-527) — sem mockup próprio
 

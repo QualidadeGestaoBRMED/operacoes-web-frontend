@@ -232,6 +232,15 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
     });
   });
 
+  it("ajuda do setor de apoio cita a unidade e a área responsável (STC-759)", () => {
+    renderForm(vi.fn());
+    expect(
+      screen.getByText(
+        "Além da unidade e da área responsável, pessoas deste setor também poderão ser escolhidas como Responsável Operacional nos documentos deste tipo.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("envia o setor de apoio escolhido (STC-526)", async () => {
     vi.mocked(criarTipoDocumento).mockResolvedValue({
       id: 4,

@@ -364,9 +364,9 @@ export function FormNovoTipoDocumento({
                 )}
               />
               <p className="text-xs text-muted-foreground">
-                Além da unidade, pessoas deste setor também poderão ser
-                escolhidas como Responsável Operacional nos documentos deste
-                tipo.
+                Além da unidade e da área responsável, pessoas deste setor
+                também poderão ser escolhidas como Responsável Operacional nos
+                documentos deste tipo.
               </p>
             </div>
 
