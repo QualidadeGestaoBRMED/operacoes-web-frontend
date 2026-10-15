@@ -39,6 +39,7 @@ vi.mock("./DetalheColaboradorModal", () => ({
 import { buscarPainelHorasExtras } from "@/lib/gestaoRHHorasExtras";
 
 const NITEROI = { id: 1, nome: "Niterói" };
+const MACAE = { id: 2, nome: "Macaé" };
 const replace = vi.fn();
 
 function linha(
@@ -47,12 +48,11 @@ function linha(
   fator1: number,
   fator2: number,
   dias: number,
-  unidade: typeof NITEROI | null = NITEROI,
+  unidade: typeof NITEROI = NITEROI,
 ): LinhaHorasExtras {
   return {
     colaborador: { id, nome, matricula_vr: "", cargo: "Técnico", unidade },
-    equipe: unidade ? `Operações ${unidade.nome}` : "TMO Rio",
-    categoria: unidade ? "unidade" : "tmo",
+    equipe: `Operações ${unidade.nome}`,
     minutos_por_fator: [
       { fator: "1", minutos: fator1 },
       { fator: "2", minutos: fator2 },
@@ -65,7 +65,7 @@ function linha(
 function painel(dados: Partial<Painel> = {}): Painel {
   const linhas = [
     linha(8, "Juliana Ramos", 90, 120, 3),
-    linha(9, "Bruno Lima", 150, 0, 2, null),
+    linha(9, "Bruno Lima", 150, 0, 2, MACAE),
     linha(10, "Ana Souza", 45, 0, 1),
   ];
   return {
@@ -96,8 +96,8 @@ function painel(dados: Partial<Painel> = {}): Painel {
         total_minutos: 255,
       },
       {
-        unidade_id: null,
-        nome: "TMO Rio",
+        unidade_id: 2,
+        nome: "Macaé",
         minutos_por_fator: [
           { fator: "1", minutos: 150 },
           { fator: "2", minutos: 0 },
@@ -165,7 +165,6 @@ describe("Painel de Horas Extras", () => {
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,
-      categoria: undefined,
     });
     expect(screen.getByText("Horas extras 50%")).toBeInTheDocument();
     expect(screen.getByText("4:45:00")).toBeInTheDocument();
@@ -178,6 +177,11 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByText("no período selecionado").closest("[title]")).toHaveAttribute(
       "title",
       expect.stringContaining("o VR também credita essas horas no saldo"),
+    );
+    // Turno variável (STC-756): os totais deixam de bater com o VR de propósito.
+    expect(screen.getByText("no período selecionado").closest("[title]")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Nas equipes com turno variável, só o que passou da carga do dia."),
     );
   });
 
@@ -200,11 +204,11 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByText("mais de 99% do total")).toBeInTheDocument();
   });
 
-  it("gráficos por colaborador e por unidade / equipe", async () => {
+  it("gráficos por colaborador e por unidade", async () => {
     renderPainel();
 
     expect(await screen.findByText("Top 3 colaboradores em horas extras")).toBeInTheDocument();
-    expect(screen.getByText("Top 2 unidades / equipes em horas extras")).toBeInTheDocument();
+    expect(screen.getByText("Top 2 unidades em horas extras")).toBeInTheDocument();
   });
 
   it("com mais de 10 colaboradores, o gráfico mostra o top 10", async () => {
@@ -224,7 +228,7 @@ describe("Painel de Horas Extras", () => {
       filtros.unidade ? painel({ por_unidade: painel().por_unidade.slice(0, 1) }) : painel(),
     );
     renderPainel();
-    await screen.findByText("Top 2 unidades / equipes em horas extras");
+    await screen.findByText("Top 2 unidades em horas extras");
 
     await usuario.click(screen.getByRole("combobox", { name: "Unidade" }));
     await usuario.click(await screen.findByRole("option", { name: "Niterói" }));
@@ -234,7 +238,7 @@ describe("Painel de Horas Extras", () => {
     );
     // Os três colaboradores do exemplo têm o mesmo cargo.
     expect(await screen.findByText("Top 1 cargos em horas extras")).toBeInTheDocument();
-    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unidades em horas extras/)).not.toBeInTheDocument();
     expect(screen.getByText(/colaboradores em horas extras/)).toBeInTheDocument();
   });
 
@@ -247,7 +251,7 @@ describe("Painel de Horas Extras", () => {
     expect(within(juliana).getByText("1:30:00")).toBeInTheDocument();
     expect(within(juliana).getByText("2:00:00")).toBeInTheDocument();
     expect(within(juliana).getByText("3:30:00")).toBeInTheDocument();
-    expect(tabela().getByText("TMO Rio")).toBeInTheDocument();
+    expect(tabela().getByText("Macaé")).toBeInTheDocument();
     // Ordem da API: mais horas primeiro.
     expect(nomesNaTabela()).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
 
@@ -454,7 +458,7 @@ describe("Painel de Horas Extras", () => {
     expect(useUnidades).not.toHaveBeenCalledWith();
   });
 
-  it("coordenação: sem os filtros de unidade e categoria, e com o gráfico por cargo", async () => {
+  it("coordenação: sem o filtro de unidade, e com o gráfico por cargo", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     // A rota devolve só a unidade da coordenação.
     vi.mocked(buscarPainelHorasExtras).mockResolvedValue(
@@ -464,9 +468,8 @@ describe("Painel de Horas Extras", () => {
     await screen.findByRole("table");
 
     expect(screen.queryByRole("combobox", { name: "Unidade" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Categoria" })).not.toBeInTheDocument();
     expect(await screen.findByText("Top 1 cargos em horas extras")).toBeInTheDocument();
-    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unidades em horas extras/)).not.toBeInTheDocument();
   });
 
   it("erro na primeira busca: mensagem e tentar de novo", async () => {

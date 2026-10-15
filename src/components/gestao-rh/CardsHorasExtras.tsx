@@ -41,7 +41,7 @@ export function CardsHorasExtras({ painel }: { painel: PainelHorasExtras | undef
         legenda="no período selecionado"
         cor="andamento"
         Icone={Clock}
-        dica="Horas além da jornada, como o VR classifica. Para quem tem banco de horas, o VR também credita essas horas no saldo."
+        dica="Horas além da jornada, como o VR classifica. Para quem tem banco de horas, o VR também credita essas horas no saldo. Nas equipes com turno variável, só o que passou da carga do dia."
       />
       {painel.fatores.map(({ fator }) => (
         <CardIndicador

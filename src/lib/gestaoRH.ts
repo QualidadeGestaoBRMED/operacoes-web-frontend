@@ -60,8 +60,7 @@ export async function reclassificarEquipeVR(
 /** Categorias que o Admin escolhe, na ordem da tela ("sem categoria" é só de chegada). */
 export const CATEGORIAS_EQUIPE: { valor: Exclude<CategoriaEquipeVR, "sem_categoria">; rotulo: string }[] = [
   { valor: "unidade", rotulo: "Unidade" },
-  { valor: "tmo", rotulo: "TMO" },
-  { valor: "campanha", rotulo: "Campanha" },
+  { valor: "operacoes_especiais", rotulo: "Operações Especiais" },
   { valor: "fora_do_indicador", rotulo: "Fora do indicador" },
 ];
 

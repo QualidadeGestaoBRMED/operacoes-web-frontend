@@ -17,9 +17,6 @@ export interface VersaoParametrosAbsenteismo {
   faixas: FaixasAbsenteismo | null;
   /** Janela da avaliação automática; nula, a avaliação está desligada. */
   janela_avaliacao: JanelaAvaliacao | null;
-  /** Responsável pelas demandas de absenteísmo das equipes TMO e de Campanha. */
-  responsavel_tmo: ResponsavelCategoria | null;
-  responsavel_campanha: ResponsavelCategoria | null;
   vigente_a_partir_de: string;
   salvo_por: string | null;
   versao_inicial: boolean;
@@ -39,11 +36,6 @@ export interface ParametrosAbsenteismoResposta {
   versoes: VersaoParametrosAbsenteismo[];
 }
 
-export interface ResponsavelCategoria {
-  id: number;
-  nome: string;
-}
-
 export interface NovaVersaoParametrosPayload {
   limite_atraso_minutos: number;
   meta_percentual: string | null;
@@ -51,17 +43,13 @@ export interface NovaVersaoParametrosPayload {
   tipos_computados: TipoOcorrenciaComputavel[];
   /** Null desliga a avaliação automática. Ausente mantém a atual. */
   janela_avaliacao?: { tipo: TipoJanelaAvaliacao; dias?: number } | null;
-  /** Id do usuário; null tira o responsável. Ausente mantém o atual. */
-  responsavel_tmo?: number | null;
-  responsavel_campanha?: number | null;
 }
 
 // Equipes do VR (rotas da STC-691, só Admin).
 
 export type CategoriaEquipeVR =
   | "unidade"
-  | "tmo"
-  | "campanha"
+  | "operacoes_especiais"
   | "fora_do_indicador"
   | "sem_categoria";
 
@@ -81,7 +69,10 @@ export interface EquipeVR {
 /** PATCH da equipe: campo ausente mantém o valor atual. */
 export interface ReclassificarEquipePayload {
   categoria?: CategoriaEquipeVR;
-  /** Obrigatória na categoria Unidade; nula nas outras. */
+  /**
+   * Unidade: obrigatória, da rede própria. Operações Especiais: opcional, da
+   * rede OPEX. Nas outras, nula.
+   */
   unidade?: number | null;
   turno_variavel?: boolean;
 }
@@ -143,7 +134,7 @@ export interface ColaboradorResumoRH {
   nome: string;
   matricula_vr: string;
   cargo: string;
-  /** Nula para equipes sem unidade do Atlas (TMO, Campanha). */
+  /** Nula enquanto o colaborador não tiver unidade do Atlas. */
   unidade: UnidadeResumoRH | null;
 }
 
@@ -302,14 +293,10 @@ export type OcorrenciaFiltro =
   | "saida_antecipada"
   | "jornada_incompleta";
 
-/** Categorias que entram no indicador (as outras ficam fora do Painel). */
-export type CategoriaPainelAbsenteismo = "unidade" | "tmo" | "campanha";
-
 export interface FiltrosPainelAbsenteismo {
   inicio: string;
   fim: string;
   unidade?: number;
-  categoria?: CategoriaPainelAbsenteismo;
   faixa?: FaixaAbsenteismo[];
   ocorrencia?: OcorrenciaFiltro[];
   com_pendencias?: boolean;
@@ -317,9 +304,8 @@ export interface FiltrosPainelAbsenteismo {
 
 export interface LinhaPainelAbsenteismo {
   colaborador: ColaboradorResumoRH;
-  /** Equipe do VR, mostrada no lugar da unidade quando não houver. */
+  /** Equipe do VR, mostrada se o colaborador ainda não tiver unidade. */
   equipe: string;
-  categoria: CategoriaPainelAbsenteismo;
   percentual: string | null;
   faixa: FaixaAbsenteismo | null;
   provisorio: boolean;
@@ -385,7 +371,6 @@ export interface AbsenteismoMensal {
 export interface FiltrosAbsenteismoMensal {
   ano: number;
   unidade?: number;
-  categoria?: CategoriaPainelAbsenteismo;
 }
 
 export interface PainelAbsenteismo {
@@ -427,7 +412,7 @@ export interface AlertaAbsenteismo {
   gerado_em: string;
   demanda_id: number | null;
   demanda_aberta: boolean;
-  /** Quem está com a demanda hoje: a coordenação, o Admin da categoria ou "Admins". */
+  /** Quem está com a demanda hoje: a coordenação, o Admin que ficou com ela ou "Admins". */
   responsavel: string | null;
   /**
    * Falso com `tratamento` nulo: o alerta foi encerrado por uma importação
@@ -471,7 +456,6 @@ export interface FiltrosPainelHorasExtras {
   inicio: string;
   fim: string;
   unidade?: number;
-  categoria?: CategoriaPainelAbsenteismo;
 }
 
 export interface MinutosDoFator {
@@ -481,17 +465,15 @@ export interface MinutosDoFator {
 
 export interface LinhaHorasExtras {
   colaborador: ColaboradorResumoRH;
-  /** Equipe do VR, mostrada no lugar da unidade quando não houver. */
+  /** Equipe do VR, mostrada se o colaborador ainda não tiver unidade. */
   equipe: string;
-  categoria: CategoriaPainelAbsenteismo;
   minutos_por_fator: MinutosDoFator[];
   total_minutos: number;
   dias_com_hora_extra: number;
 }
 
 export interface UnidadeHorasExtras {
-  /** Nulo em TMO e Campanha: o grupo é a equipe do VR. */
-  unidade_id: number | null;
+  unidade_id: number;
   nome: string;
   minutos_por_fator: MinutosDoFator[];
   total_minutos: number;

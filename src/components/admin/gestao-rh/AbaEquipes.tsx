@@ -25,6 +25,8 @@ import { ErroAoCarregar, MensagemErro } from "./mensagens";
 
 const SEM_CATEGORIA = "sem_categoria";
 const TODAS = "todas";
+// Operações Especiais aceita ficar sem unidade enquanto a ligação não é definida.
+const SEM_UNIDADE_OPEX = "sem_unidade";
 
 // Filtros da lista, com "Sem categoria" logo depois de "Todas" (é o que falta fazer).
 const FILTROS: { valor: CategoriaEquipeVR | typeof TODAS; rotulo: string }[] = [
@@ -43,9 +45,11 @@ function normalizar(texto: string) {
 /**
  * Aba Equipes dos Parâmetros de Gestão RH (só Admin): a categoria de cada
  * equipe do VR decide se os colaboradores dela entram no indicador de
- * absenteísmo; na categoria Unidade, a equipe leva uma unidade do Atlas.
- * Salva ao escolher, como a tabela de usuários da Administração. Trocar
- * para Unidade só salva depois de escolher a unidade (a API exige as duas).
+ * absenteísmo. Unidade leva uma unidade da rede própria (obrigatória);
+ * Operações Especiais, uma unidade da rede OPEX (opcional) e fica fora dos
+ * painéis da rede própria. Salva ao escolher, como a tabela de usuários da
+ * Administração. Trocar para Unidade só salva depois de escolher a unidade
+ * (a API exige as duas).
  * Tirar ou trocar a unidade de uma equipe com colaboradores pede
  * confirmação: muda a unidade de todos eles e leva as demandas abertas para
  * a coordenação nova. O turno variável (absenteísmo pela carga horária do
@@ -67,7 +71,10 @@ interface Mudanca {
 }
 export function AbaEquipes() {
   const { equipes, isLoading, mensagemErro, recarregar, reclassificar } = useEquipesVR();
-  const { unidades, isLoading: carregandoUnidades, error: erroUnidades } = useUnidades();
+  const redePropria = useUnidades("padrao");
+  const redeOpex = useUnidades("opex");
+  const carregandoUnidades = redePropria.isLoading || redeOpex.isLoading;
+  const erroUnidades = redePropria.error ?? redeOpex.error;
   const [busca, setBusca] = useState("");
   // Equipes que o Admin passou para Unidade e ainda esperam a escolha da unidade.
   const [esperandoUnidade, setEsperandoUnidade] = useState<Set<number>>(new Set());
@@ -77,7 +84,14 @@ export function AbaEquipes() {
   const [turnoAConfirmar, setTurnoAConfirmar] = useState<EquipeVR | null>(null);
   const [filtro, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
 
-  const unidadesAtivas = useMemo(() => unidades.filter((unidade) => unidade.ativa), [unidades]);
+  const ativasDaRedePropria = useMemo(
+    () => redePropria.unidades.filter((unidade) => unidade.ativa),
+    [redePropria.unidades],
+  );
+  const ativasDaRedeOpex = useMemo(
+    () => redeOpex.unidades.filter((unidade) => unidade.ativa),
+    [redeOpex.unidades],
+  );
   const visiveis = useMemo(() => {
     const termo = normalizar(busca.trim());
     return (equipes ?? []).filter(
@@ -90,12 +104,14 @@ export function AbaEquipes() {
     for (const equipe of equipes ?? []) contagem[equipe.categoria] = (contagem[equipe.categoria] ?? 0) + 1;
     return contagem;
   }, [equipes]);
-  // A unidade atual entra na lista mesmo desativada: sem ela, o campo
-  // apareceria vazio numa equipe já classificada.
-  function opcoesDeUnidade(equipe: EquipeVR) {
-    const atual = equipe.unidade;
-    if (!atual || unidadesAtivas.some((unidade) => unidade.id === atual.id)) return unidadesAtivas;
-    return [...unidadesAtivas, atual];
+  // Só as unidades da rede da categoria. A unidade atual entra na lista
+  // mesmo desativada: sem ela, o campo apareceria vazio numa equipe já
+  // classificada.
+  function opcoesDeUnidade(equipe: EquipeVR, categoria: CategoriaEquipeVR) {
+    const ativas = categoria === "operacoes_especiais" ? ativasDaRedeOpex : ativasDaRedePropria;
+    const atual = categoria === equipe.categoria ? equipe.unidade : null;
+    if (!atual || ativas.some((unidade) => unidade.id === atual.id)) return ativas;
+    return [...ativas, atual];
   }
   const semCategoria = (equipes ?? []).filter((equipe) => equipe.categoria === SEM_CATEGORIA).length;
 
@@ -169,21 +185,28 @@ export function AbaEquipes() {
     else void salvar(equipe, mudanca.categoria, unidade);
   }
 
+  // Cada categoria só aceita unidade da sua rede: ao trocar de categoria, a
+  // unidade atual (da outra rede) não serve. Unidade espera a escolha;
+  // Operações Especiais salva sem unidade, e a unidade OPEX vem depois.
   function aoMudarCategoria(equipe: EquipeVR, valor: string) {
     const categoria = valor as CategoriaEquipeVR;
-    if (categoria === "unidade" && !equipe.unidade) {
+    if (categoria === equipe.categoria) {
+      marcarEsperando(equipe.id, false);
+      return;
+    }
+    if (categoria === "unidade") {
       marcarEsperando(equipe.id, true);
       return;
     }
     marcarEsperando(equipe.id, false);
-    mudar({ equipe, categoria, unidade: categoria === "unidade" ? (equipe.unidade?.id ?? null) : null });
+    mudar({ equipe, categoria, unidade: null });
   }
 
   function descricaoDaConfirmacao({ equipe, categoria, unidade }: Mudanca) {
     const pessoas =
       equipe.colaboradores_ativos === 1 ? "O colaborador" : `Os ${equipe.colaboradores_ativos} colaboradores`;
     const de = equipe.unidade?.nome;
-    const para = unidadesAtivas.find((opcao) => opcao.id === unidade)?.nome;
+    const para = [...ativasDaRedePropria, ...ativasDaRedeOpex].find((opcao) => opcao.id === unidade)?.nome;
     if (para) {
       return (
         <>
@@ -219,8 +242,9 @@ export function AbaEquipes() {
         </h2>
         <p className="text-sm text-muted-foreground">
           A categoria define se os colaboradores da equipe entram no indicador de absenteísmo.
-          Equipes da categoria Unidade levam a unidade do Atlas; as de TMO e Campanha não têm
-          unidade, e as demandas delas vão para o responsável definido na aba Absenteísmo.
+          Equipes da categoria Unidade levam uma unidade da rede própria. As de Operações
+          Especiais podem ser ligadas a uma unidade de Operações Especiais e não entram nos
+          painéis da rede própria: ficam para o ambiente de Operações Especiais.
         </p>
         <p className="mt-1.5 text-sm text-muted-foreground">
           <strong className="font-medium text-foreground">Turno variável:</strong> para equipes que
@@ -298,7 +322,7 @@ export function AbaEquipes() {
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
                 <th className="w-36 px-4 py-2.5 text-right">Colaboradores</th>
-                <th className="w-48 px-4 py-2.5">Categoria</th>
+                <th className="w-56 px-4 py-2.5">Categoria</th>
                 <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
                 <th className="w-36 px-4 py-2.5">Turno variável</th>
               </tr>
@@ -307,7 +331,8 @@ export function AbaEquipes() {
               {visiveis.map((equipe) => {
                 const esperando = esperandoUnidade.has(equipe.id);
                 const categoria = esperando ? "unidade" : equipe.categoria;
-                const comUnidade = categoria === "unidade";
+                const comUnidade = categoria === "unidade" || categoria === "operacoes_especiais";
+                const unidadeOpcional = categoria === "operacoes_especiais";
                 const ocupada = salvando === equipe.id;
                 const erro = erros[equipe.id]?.mensagem;
                 const erroNaClassificacao = erros[equipe.id]?.campo === "classificacao";
@@ -358,9 +383,22 @@ export function AbaEquipes() {
                     <td className="px-4 py-2.5">
                       {comUnidade ? (
                         <Select
-                          value={equipe.unidade && !esperando ? String(equipe.unidade.id) : ""}
+                          value={
+                            esperando
+                              ? ""
+                              : equipe.unidade
+                                ? String(equipe.unidade.id)
+                                : unidadeOpcional
+                                  ? SEM_UNIDADE_OPEX
+                                  : ""
+                          }
                           onValueChange={(valor) =>
-                            valor && mudar({ equipe, categoria: "unidade", unidade: Number(valor) })
+                            valor &&
+                            mudar({
+                              equipe,
+                              categoria,
+                              unidade: valor === SEM_UNIDADE_OPEX ? null : Number(valor),
+                            })
                           }
                           disabled={ocupada || carregandoUnidades || !!erroUnidades}
                         >
@@ -373,7 +411,10 @@ export function AbaEquipes() {
                             <SelectValue placeholder="Escolha a unidade" />
                           </SelectTrigger>
                           <SelectContent>
-                            {opcoesDeUnidade(equipe).map((unidade) => (
+                            {unidadeOpcional && (
+                              <SelectItem value={SEM_UNIDADE_OPEX}>Sem unidade OPEX</SelectItem>
+                            )}
+                            {opcoesDeUnidade(equipe, categoria).map((unidade) => (
                               <SelectItem key={unidade.id} value={String(unidade.id)}>
                                 {unidade.nome}
                               </SelectItem>

@@ -52,8 +52,6 @@ const VERSAO_INICIAL: VersaoParametrosAbsenteismo = {
   meta_percentual: null,
   faixas: null,
   janela_avaliacao: null,
-  responsavel_tmo: null,
-  responsavel_campanha: null,
   vigente_a_partir_de: "2000-01-01",
   salvo_por: null,
   versao_inicial: true,
@@ -105,6 +103,10 @@ const UNIDADES: Unidade[] = [
   { id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" },
   { id: 2, nome: "Macaé", codigo: "MAC", cidade: "Macaé", ativa: true, rede: "padrao" },
   { id: 3, nome: "Fechada", codigo: "FEC", cidade: "Rio", ativa: false, rede: "padrao" },
+];
+
+const UNIDADES_OPEX: Unidade[] = [
+  { id: 5, nome: "Aeroclínica Macaé", codigo: "AMC", cidade: "Macaé", ativa: true, rede: "opex" },
 ];
 
 function pessoa(id: number, first_name: string, comPerfil = true): Usuario {
@@ -161,7 +163,7 @@ beforeEach(() => {
   vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(parametros(VERSAO_INICIAL));
   vi.mocked(buscarReguaFerias).mockResolvedValue(REGUA);
   vi.mocked(listarEquipesVR).mockResolvedValue([]);
-  vi.mocked(listarUnidades).mockResolvedValue(UNIDADES);
+  vi.mocked(listarUnidades).mockImplementation(async (rede) => (rede === "opex" ? UNIDADES_OPEX : UNIDADES));
   vi.mocked(listarUsuarios).mockResolvedValue(USUARIOS);
 });
 
@@ -676,91 +678,23 @@ describe("Janela de avaliação", () => {
   });
 });
 
-describe("Responsáveis pelas equipes sem unidade", () => {
-  it("mostra só usuários com perfil e envia só o que mudou", async () => {
-    vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue({
-      dados: parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 7, nome: "Carla Silva" } }),
-      criouVersao: true,
-    });
-    const user = userEvent.setup();
-    renderTela();
-
-    await user.click(await screen.findByLabelText("TMO"));
-    expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Sem Silva" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "Carla Silva" }));
-    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
-
-    await waitFor(() =>
-      expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(expect.objectContaining({ responsavel_tmo: 7 })),
-    );
-    // Campanha não mudou: vai ausente, e o backend mantém o atual.
-    expect(vi.mocked(salvarParametrosAbsenteismo).mock.calls[0][0]).not.toHaveProperty("responsavel_campanha");
-  });
-
-  it("responsável atual desativado não trava o salvar de outro campo", async () => {
-    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
-      parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 99, nome: "Ex Responsável" } }),
-    );
+describe("Sem responsáveis por categoria", () => {
+  it("a aba não tem os campos, e o envio não leva responsáveis", async () => {
     vi.mocked(salvarParametrosAbsenteismo).mockResolvedValue({ dados: parametros(VERSAO_INICIAL), criouVersao: true });
     const user = userEvent.setup();
     renderTela();
 
     const limite = await screen.findByLabelText("Limite de atraso e saída antecipada (minutos)");
+    expect(screen.queryByText("Responsáveis pelas equipes sem unidade")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("TMO")).not.toBeInTheDocument();
     await user.clear(limite);
     await user.type(limite, "20");
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() => expect(salvarParametrosAbsenteismo).toHaveBeenCalled());
-    expect(vi.mocked(salvarParametrosAbsenteismo).mock.calls[0][0]).not.toHaveProperty("responsavel_tmo");
-  });
-
-  it("lista só Admins ativos, e o atual que deixou de ser Admin continua no campo", async () => {
-    const coordenador = { ...pessoa(20, "Coord"), perfil: { id: 3, nome: "Unidade", nivel: 3 } } as Usuario;
-    const inativo = { ...pessoa(21, "Inativo"), ativo: false } as Usuario;
-    vi.mocked(listarUsuarios).mockResolvedValue([...USUARIOS, coordenador, inativo]);
-    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
-      parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 20, nome: "Coord Silva" } }),
-    );
-    const user = userEvent.setup();
-    renderTela();
-
-    const campo = await screen.findByLabelText("TMO");
-    await waitFor(() => expect(campo).toHaveTextContent("Coord Silva"));
-    await user.click(campo);
-    expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Inativo Silva" })).not.toBeInTheDocument();
-    // O atual aparece uma vez (por ser o atual), não como opção da lista de Admins.
-    expect(screen.getAllByRole("option", { name: "Coord Silva" })).toHaveLength(1);
-
-    await user.keyboard("{Escape}");
-    await user.click(screen.getByLabelText("Campanha"));
-    expect(await screen.findByRole("option", { name: "Carla Silva" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Coord Silva" })).not.toBeInTheDocument();
-  });
-
-  it("responsável atual que saiu da lista continua aparecendo", async () => {
-    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
-      parametros({ ...VERSAO_INICIAL, responsavel_campanha: { id: 99, nome: "Ex Responsável" } }),
-    );
-    renderTela();
-    const campo = await screen.findByLabelText("Campanha");
-    await waitFor(() => expect(campo).toHaveTextContent("Ex Responsável"));
-  });
-});
-
-describe("Responsáveis: falha ao carregar os usuários", () => {
-  it("avisa e bloqueia a troca, sem esconder o responsável atual", async () => {
-    vi.mocked(listarUsuarios).mockRejectedValue(new Error("rede"));
-    vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
-      parametros({ ...VERSAO_INICIAL, responsavel_tmo: { id: 7, nome: "Carla Silva" } }),
-    );
-    renderTela();
-
-    expect(await screen.findByText(/Não foi possível carregar os usuários/)).toBeInTheDocument();
-    const campo = screen.getByLabelText("TMO");
-    expect(campo).toBeDisabled();
-    await waitFor(() => expect(campo).toHaveTextContent("Carla Silva"));
+    const enviado = vi.mocked(salvarParametrosAbsenteismo).mock.calls[0][0];
+    expect(enviado).not.toHaveProperty("responsavel_tmo");
+    expect(enviado).not.toHaveProperty("responsavel_campanha");
   });
 });
 
@@ -787,10 +721,10 @@ describe("Aba Equipes", () => {
     await abrirAba(user);
 
     await user.click(await screen.findByLabelText("Categoria de Operações Niterói"));
-    await user.click(await screen.findByRole("option", { name: "TMO" }));
+    await user.click(await screen.findByRole("option", { name: "Fora do indicador" }));
     const dialogo = await screen.findByRole("alertdialog");
     expect(dialogo).toHaveTextContent(
-      "Os 12 colaboradores de Operações Niterói deixam a unidade Niterói e passam para TMO",
+      "Os 12 colaboradores de Operações Niterói deixam a unidade Niterói e passam para Fora do indicador",
     );
 
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
@@ -814,21 +748,84 @@ describe("Aba Equipes", () => {
     expect(toast.success).toHaveBeenCalledWith("Operações Niterói: Unidade · Macaé.");
   });
 
-  it("equipe sem colaboradores muda de categoria na hora, sem unidade", async () => {
+  it("equipe sem colaboradores passa para Operações Especiais na hora, sem unidade OPEX", async () => {
     vi.mocked(listarEquipesVR).mockResolvedValue([equipe({ colaboradores_ativos: 0 })]);
     vi.mocked(reclassificarEquipeVR).mockResolvedValue(
-      equipe({ categoria: "tmo", categoria_rotulo: "TMO", unidade: null, colaboradores_ativos: 0 }),
+      equipe({
+        categoria: "operacoes_especiais",
+        categoria_rotulo: "Operações Especiais",
+        unidade: null,
+        colaboradores_ativos: 0,
+      }),
     );
     const user = userEvent.setup();
     await abrirAba(user);
 
     await user.click(await screen.findByLabelText("Categoria de Operações Niterói"));
-    await user.click(await screen.findByRole("option", { name: "TMO" }));
+    await user.click(await screen.findByRole("option", { name: "Operações Especiais" }));
 
-    await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(10, { categoria: "tmo", unidade: null }));
+    await waitFor(() =>
+      expect(reclassificarEquipeVR).toHaveBeenCalledWith(10, { categoria: "operacoes_especiais", unidade: null }),
+    );
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(toast.success).toHaveBeenCalledWith("Operações Niterói: TMO.");
-    expect(await screen.findByText("Sem unidade")).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("Operações Niterói: Operações Especiais.");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Unidade de Operações Niterói")).toHaveTextContent("Sem unidade OPEX"),
+    );
+  });
+
+  it("Operações Especiais lista só unidades OPEX e salva a escolhida", async () => {
+    const especial = equipe({
+      id: 12,
+      nome: "TMO Aero",
+      categoria: "operacoes_especiais",
+      categoria_rotulo: "Operações Especiais",
+      unidade: null,
+      colaboradores_ativos: 4,
+    });
+    vi.mocked(listarEquipesVR).mockResolvedValue([especial]);
+    vi.mocked(reclassificarEquipeVR).mockResolvedValue({
+      ...especial,
+      unidade: { id: 5, nome: "Aeroclínica Macaé" },
+    });
+    const user = userEvent.setup();
+    await abrirAba(user);
+    expect(screen.getByText(/não entram nos painéis da rede própria/)).toBeInTheDocument();
+
+    await user.click(await screen.findByLabelText("Unidade de TMO Aero"));
+    expect(await screen.findByRole("option", { name: "Sem unidade OPEX" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "Aeroclínica Macaé" }));
+
+    // Sem unidade antes: ninguém muda de unidade, então não pede confirmação.
+    await waitFor(() =>
+      expect(reclassificarEquipeVR).toHaveBeenCalledWith(12, { categoria: "operacoes_especiais", unidade: 5 }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("TMO Aero: Operações Especiais · Aeroclínica Macaé.");
+  });
+
+  it("de Operações Especiais para Unidade, a unidade OPEX não serve: espera uma da rede própria", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([
+      equipe({
+        categoria: "operacoes_especiais",
+        categoria_rotulo: "Operações Especiais",
+        unidade: { id: 5, nome: "Aeroclínica Macaé" },
+      }),
+    ]);
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    await user.click(await screen.findByLabelText("Categoria de Operações Niterói"));
+    await user.click(await screen.findByRole("option", { name: "Unidade" }));
+    expect(reclassificarEquipeVR).not.toHaveBeenCalled();
+
+    const campo = screen.getByLabelText("Unidade de Operações Niterói");
+    expect(campo).toHaveTextContent("Escolha a unidade");
+    await user.click(campo);
+    expect(await screen.findByRole("option", { name: "Macaé" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Aeroclínica Macaé" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Sem unidade OPEX" })).not.toBeInTheDocument();
   });
 
   it("classificar uma equipe sem categoria como Unidade espera a unidade e salva sem confirmar", async () => {
@@ -844,8 +841,9 @@ describe("Aba Equipes", () => {
     expect(reclassificarEquipeVR).not.toHaveBeenCalled();
 
     await user.click(screen.getByLabelText("Unidade de Equipe nova"));
-    // Unidade desativada não é oferecida.
+    // Unidade desativada não é oferecida, nem as de Operações Especiais.
     expect(screen.queryByRole("option", { name: "Fechada" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Aeroclínica Macaé" })).not.toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: "Macaé" }));
 
     await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(11, { categoria: "unidade", unidade: 2 }));
@@ -931,7 +929,7 @@ describe("Aba Equipes", () => {
     await abrirAba(user);
 
     await user.click(await screen.findByLabelText("Categoria de Equipe nova"));
-    await user.click(await screen.findByRole("option", { name: "TMO" }));
+    await user.click(await screen.findByRole("option", { name: "Fora do indicador" }));
     await waitFor(() => expect(screen.getAllByText("Falha ao salvar.")).toHaveLength(1));
     expect(screen.getByLabelText("Categoria de Equipe nova")).toHaveTextContent("Escolha a categoria");
 
@@ -955,7 +953,13 @@ describe("Aba Equipes", () => {
     vi.mocked(listarEquipesVR).mockResolvedValue([
       equipe(EQUIPE_NOVA),
       equipe(),
-      equipe({ id: 12, nome: "TMO Rio", categoria: "tmo", categoria_rotulo: "TMO", unidade: null }),
+      equipe({
+        id: 12,
+        nome: "TMO Rio",
+        categoria: "operacoes_especiais",
+        categoria_rotulo: "Operações Especiais",
+        unidade: null,
+      }),
     ]);
     const user = userEvent.setup();
     await abrirAba(user);
@@ -969,14 +973,22 @@ describe("Aba Equipes", () => {
     expect(within(tabela).queryByText("Operações Niterói")).not.toBeInTheDocument();
     expect(within(tabela).queryByText("TMO Rio")).not.toBeInTheDocument();
 
-    await user.click(within(filtros).getByRole("button", { name: "Campanha, 0" }));
+    await user.click(within(filtros).getByRole("button", { name: "Operações Especiais, 1" }));
+    expect(within(tabela).getByText("TMO Rio")).toBeInTheDocument();
+    await user.click(within(filtros).getByRole("button", { name: "Fora do indicador, 0" }));
     expect(screen.getByText("Nenhuma equipe encontrada com esse filtro.")).toBeInTheDocument();
   });
 
   it("busca pelo nome sem acento", async () => {
     vi.mocked(listarEquipesVR).mockResolvedValue([
       equipe(),
-      equipe({ id: 12, nome: "TMO Rio", categoria: "tmo", categoria_rotulo: "TMO", unidade: null }),
+      equipe({
+        id: 12,
+        nome: "TMO Rio",
+        categoria: "operacoes_especiais",
+        categoria_rotulo: "Operações Especiais",
+        unidade: null,
+      }),
     ]);
     const user = userEvent.setup();
     await abrirAba(user);

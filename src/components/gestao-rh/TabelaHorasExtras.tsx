@@ -62,7 +62,7 @@ export function TabelaHorasExtras({
 }: TabelaHorasExtrasProps) {
   const colunas: Coluna[] = [
     { rotulo: "Colaborador", largura: "w-[28%]", campo: "colaborador" },
-    { rotulo: "Unidade / equipe", largura: "w-[20%]", campo: "unidade" },
+    { rotulo: "Unidade", largura: "w-[20%]", campo: "unidade" },
     { rotulo: rotuloDoFator("1", painel), largura: "w-[13%]", campo: "fator_1" },
     { rotulo: rotuloDoFator("2", painel), largura: "w-[13%]", campo: "fator_2" },
     { rotulo: "Total", largura: "w-[13%]", campo: "total" },

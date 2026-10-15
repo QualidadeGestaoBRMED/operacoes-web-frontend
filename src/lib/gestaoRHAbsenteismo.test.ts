@@ -274,7 +274,7 @@ describe("histórico de absenteísmo", () => {
   });
 });
 
-describe("ordenação por Unidade / equipe", () => {
+describe("ordenação por Unidade", () => {
   it("mistura unidades e equipes do VR pelo texto mostrado na coluna", () => {
     const [base] = painelAbsenteismoDeExemplo({ inicio: "2026-09-01", fim: "2026-09-30" }).linhas;
     const linha = (id: number, unidade: string | null, equipe: string): LinhaPainelAbsenteismo => ({

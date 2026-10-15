@@ -120,8 +120,8 @@ export function CardsAbsenteismo({
       <CardIndicador
         rotulo="Colaboradores"
         valor={cards.colaboradores}
-        // Sem "em": parte dos colaboradores (TMO, Campanha) não tem unidade, e
-        // os cards não dizem quantos; as linhas, filtradas por faixa, também não.
+        // Sem "em": é a contagem dos cards, e as linhas, filtradas por faixa,
+        // não mostram todas essas unidades.
         legenda={plural(cards.unidades, "unidade", "unidades")}
         cor="neutro"
         Icone={Users}

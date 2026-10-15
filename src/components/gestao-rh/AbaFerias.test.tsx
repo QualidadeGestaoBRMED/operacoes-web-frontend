@@ -211,12 +211,12 @@ describe("Modal do colaborador · aba Férias", () => {
     ).toHaveClass("sm:hidden");
   });
 
-  it("sem unidade (TMO, Campanha), o cabeçalho mostra a equipe do VR", async () => {
+  it("sem unidade (Operações Especiais ainda não ligada), o cabeçalho mostra a equipe do VR", async () => {
     vi.mocked(buscarColaboradorRH).mockResolvedValue({
       ...COLABORADOR,
       unidade: null,
       equipe: "TMO - PETROBRAS",
-      categoria: "tmo",
+      categoria: "operacoes_especiais",
     });
     renderModal();
 

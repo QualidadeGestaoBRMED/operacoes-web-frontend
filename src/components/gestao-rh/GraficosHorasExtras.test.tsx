@@ -18,9 +18,8 @@ vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
 
 function linha(id: number, nome: string, minutos: number, minutos100 = 0, cargo = ""): LinhaHorasExtras {
   return {
-    colaborador: { id, nome, matricula_vr: "", cargo, unidade: null },
-    equipe: "TMO Rio",
-    categoria: "tmo",
+    colaborador: { id, nome, matricula_vr: "", cargo, unidade: { id: 2, nome: "Macaé" } },
+    equipe: "Operações Macaé",
     minutos_por_fator: [
       { fator: "1", minutos },
       { fator: "2", minutos: minutos100 },
@@ -39,8 +38,8 @@ const PAINEL = {
   linhas: [linha(8, "Juliana Ramos", 30, 240), linha(9, "Bruno Lima", 60), linha(10, "Ana Souza", 0, 45)],
   por_unidade: [
     {
-      unidade_id: null,
-      nome: "TMO Rio",
+      unidade_id: 2,
+      nome: "Macaé",
       minutos_por_fator: [
         { fator: "1", minutos: 180 },
         { fator: "2", minutos: 0 },
@@ -93,21 +92,21 @@ describe("GraficosHorasExtras", () => {
     const selecionar = vi.fn();
     render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={selecionar} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "fator_1:TMO Rio", hidden: true }));
+    await userEvent.click(screen.getByRole("button", { name: "fator_1:Macaé", hidden: true }));
     expect(selecionar).not.toHaveBeenCalled();
   });
 
   it("com um colaborador selecionado: a barra dele em destaque e, ao lado, só a unidade dele", () => {
-    // Bruno é do TMO Rio (sem unidade): o grupo é a equipe.
+    // Bruno é de Macaé: ao lado, só a unidade dele.
     render(<GraficosHorasExtras painel={PAINEL} selecionado={PAINEL.linhas[1]} onSelecionar={vi.fn()} />);
 
     const opacidade = (nome: string) =>
       screen.getByRole("button", { name: `fator_1:${nome}`, hidden: true }).dataset.opacidade;
     expect(opacidade("Bruno Lima")).toBe("1");
     expect(opacidade("Juliana Ramos")).toBe("0.3");
-    const unidades = grafico(/Unidade \/ equipe do colaborador/);
-    expect(unidades.getByRole("heading")).toHaveTextContent("Unidade / equipe do colaborador em horas extras");
-    expect(barras("fator_1", unidades)).toEqual(["TMO Rio"]);
+    const unidades = grafico(/Unidade do colaborador/);
+    expect(unidades.getByRole("heading")).toHaveTextContent("Unidade do colaborador em horas extras");
+    expect(barras("fator_1", unidades)).toEqual(["Macaé"]);
   });
 
   it("com uma unidade só, o gráfico ao lado mostra só o cargo do selecionado", () => {

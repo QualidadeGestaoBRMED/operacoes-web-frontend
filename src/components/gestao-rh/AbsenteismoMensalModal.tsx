@@ -32,7 +32,7 @@ import {
   periodoEmAndamento,
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn } from "@/lib/utils";
-import type { CategoriaPainelAbsenteismo, MesAbsenteismoMensal } from "@/types/gestaoRH";
+import type { MesAbsenteismoMensal } from "@/types/gestaoRH";
 
 // Primeiro ano com dados de ponto no Atlas (importação do VR desde set/2026).
 const PRIMEIRO_ANO = 2026;
@@ -48,8 +48,7 @@ interface AbsenteismoMensalModalProps {
   anoInicial: number;
   hoje: string;
   unidade: number | undefined;
-  categoria: CategoriaPainelAbsenteismo | undefined;
-  /** "Todas as unidades", o nome da unidade filtrada, com a categoria se houver. */
+  /** "Todas as unidades", o nome da unidade filtrada ou "Sua unidade". */
   visao: string;
 }
 
@@ -139,18 +138,12 @@ export function AbsenteismoMensalModal({
   anoInicial,
   hoje,
   unidade,
-  categoria,
   visao,
 }: AbsenteismoMensalModalProps) {
   const anoAtual = Number(hoje.slice(0, 4));
   const anos = Array.from({ length: anoAtual - PRIMEIRO_ANO + 1 }, (_, indice) => anoAtual - indice);
   const [ano, setAno] = useState(Math.min(Math.max(anoInicial, PRIMEIRO_ANO), anoAtual));
-  const { mensal, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(
-    aberto,
-    ano,
-    unidade,
-    categoria,
-  );
+  const { mensal, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(aberto, ano, unidade);
   const meses = mensal?.meses;
 
   const pontos = meses ? pontosDoGrafico(meses, hoje) : [];
