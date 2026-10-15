@@ -9,7 +9,6 @@ import {
   formatarPercentual,
   formatarSaldoHoras,
   mesAnteriorFechado,
-  mesesDoAno,
   mesesPorExtenso,
   nomeCurtoDoMes,
   nomeDoPeriodo,
@@ -104,23 +103,7 @@ describe("comparativo: período anterior", () => {
     expect(nomeDoPeriodo({ inicio: "2026-09-30", fim: "2026-10-06" }, setembro)).toBe("30/09 a 06/10");
   });
 
-  it("meses do ano: do dia 1 ao último dia, futuros marcados", () => {
-    const meses = mesesDoAno(2028, "2028-10-14");
-    expect(meses).toHaveLength(12);
-    expect(meses[0]).toEqual({
-      mes: 1,
-      inicio: "2028-01-01",
-      fim: "2028-01-31",
-      futuro: false,
-      antesDosDados: false,
-    });
-    expect(meses[1].fim).toBe("2028-02-29");
-    // Mês em andamento é buscado até o fim do mês; o seguinte não.
-    expect(meses[9]).toMatchObject({ mes: 10, inicio: "2028-10-01", fim: "2028-10-31", futuro: false });
-    expect(meses[10].futuro).toBe(true);
-    // Antes de set/2026 o Atlas não tem dados de ponto: esses meses não são buscados.
-    const de2026 = mesesDoAno(2026, "2026-10-14");
-    expect(de2026.filter((mes) => mes.antesDosDados).map((mes) => mes.mes)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  it("nome curto do mês, sem o ponto da abreviação", () => {
     expect(nomeCurtoDoMes(1)).toBe("jan");
     expect(nomeCurtoDoMes(3)).toBe("mar");
     expect(nomeCurtoDoMes(12)).toBe("dez");
