@@ -182,7 +182,7 @@ describe("Painel de Horas Extras", () => {
     expect(await screen.findByText("Top 10 colaboradores em horas extras")).toBeInTheDocument();
   });
 
-  it("unidade filtrada: o gráfico por unidade some", async () => {
+  it("unidade filtrada: o gráfico por cargo no lugar do por unidade", async () => {
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPainel();
     await screen.findByText("Top 2 unidades / equipes em horas extras");
@@ -194,6 +194,8 @@ describe("Painel de Horas Extras", () => {
       expect(buscarPainelHorasExtras).toHaveBeenLastCalledWith(expect.objectContaining({ unidade: 1 })),
     );
     expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
+    // Os três colaboradores do exemplo têm o mesmo cargo.
+    expect(screen.getByText("Top 1 cargos em horas extras")).toBeInTheDocument();
     expect(screen.getByText(/colaboradores em horas extras/)).toBeInTheDocument();
   });
 

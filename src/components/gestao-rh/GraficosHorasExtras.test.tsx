@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { LinhaHorasExtras, PainelHorasExtras } from "@/types/gestaoRH";
@@ -38,9 +38,9 @@ vi.mock("@/components/ui/chart", () => ({
   ChartContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-function linha(id: number, nome: string, minutos: number, minutos100 = 0): LinhaHorasExtras {
+function linha(id: number, nome: string, minutos: number, minutos100 = 0, cargo = ""): LinhaHorasExtras {
   return {
-    colaborador: { id, nome, matricula_vr: "", cargo: "", unidade: null },
+    colaborador: { id, nome, matricula_vr: "", cargo, unidade: null },
     equipe: "TMO Rio",
     categoria: "tmo",
     minutos_por_fator: [
@@ -72,8 +72,13 @@ const PAINEL = {
   ],
 } as PainelHorasExtras;
 
-function barras(fator: "fator_1" | "fator_2") {
-  return screen
+/** O gráfico pelo começo do título ("Top 3 colaboradores…"). */
+function grafico(doQue: RegExp) {
+  return within(screen.getByRole("heading", { name: doQue }).closest("section")!);
+}
+
+function barras(fator: "fator_1" | "fator_2", alvo: Pick<typeof screen, "queryAllByRole"> = screen) {
+  return alvo
     .queryAllByRole("button", { hidden: true })
     .map((botao) => botao.textContent ?? "")
     .filter((texto) => texto.startsWith(`${fator}:`))
@@ -100,30 +105,32 @@ describe("GraficosHorasExtras", () => {
   });
 
   it("sem fator escolhido: os dois fatores empilhados, ordem pelo total", () => {
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
-    expect(barras("fator_1")).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
-    expect(barras("fator_2")).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
-    expect(screen.getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "false");
+    const colaboradores = grafico(/colaboradores/);
+    expect(colaboradores.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
+    expect(barras("fator_1", colaboradores)).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
+    expect(barras("fator_2", colaboradores)).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
+    expect(colaboradores.getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("escolher um fator mostra só ele, com o ranking por ele; clicar de novo volta aos dois", async () => {
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
+    const colaboradores = () => grafico(/colaboradores/);
 
-    await userEvent.click(screen.getByRole("button", { name: "50%" }));
-    expect(screen.getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(colaboradores().getByRole("button", { name: "50%" }));
+    expect(colaboradores().getByRole("button", { name: "50%" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("heading", { name: "Top 2 colaboradores em horas extras 50%" })).toBeInTheDocument();
     // Ranking pelos minutos a 50%, sem quem não tem 50%.
-    expect(barras("fator_1")).toEqual(["Bruno Lima", "Juliana Ramos"]);
-    expect(barras("fator_2")).toEqual([]);
+    expect(barras("fator_1", colaboradores())).toEqual(["Bruno Lima", "Juliana Ramos"]);
+    expect(barras("fator_2", colaboradores())).toEqual([]);
 
-    await userEvent.click(screen.getByRole("button", { name: "100%" }));
+    await userEvent.click(colaboradores().getByRole("button", { name: "100%" }));
     expect(screen.getByRole("heading", { name: "Top 2 colaboradores em horas extras 100%" })).toBeInTheDocument();
-    expect(barras("fator_2")).toEqual(["Juliana Ramos", "Ana Souza"]);
-    expect(barras("fator_1")).toEqual([]);
+    expect(barras("fator_2", colaboradores())).toEqual(["Juliana Ramos", "Ana Souza"]);
+    expect(barras("fator_1", colaboradores())).toEqual([]);
 
-    await userEvent.click(screen.getByRole("button", { name: "100%" }));
+    await userEvent.click(colaboradores().getByRole("button", { name: "100%" }));
     expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
   });
 
@@ -134,5 +141,27 @@ describe("GraficosHorasExtras", () => {
     expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
     // A unidade não tem 100%: o gráfico avisa em vez de ficar vazio.
     expect(screen.getByText("Nenhuma hora extra 100% no período.")).toBeInTheDocument();
+  });
+
+  it("unidade filtrada: por cargo, com a soma dos colaboradores de cada cargo", async () => {
+    const painel = {
+      ...PAINEL,
+      linhas: [
+        linha(1, "A", 120, 0, "MOTORISTA"),
+        linha(2, "B", 60, 60, "MOTORISTA"),
+        linha(3, "C", 200, 0, "TECNICO DE ENFERMAGEM I"),
+        linha(4, "D", 0, 30, " "),
+      ],
+    } as PainelHorasExtras;
+    render(<GraficosHorasExtras painel={painel} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Top 3 cargos em horas extras" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /unidades/ })).not.toBeInTheDocument();
+    // MOTORISTA soma 240 min (dois colaboradores), à frente dos 200 do técnico.
+    expect(barras("fator_1", grafico(/cargos/))).toEqual(["MOTORISTA", "TECNICO DE ENFERMAGEM I", "Sem cargo"]);
+
+    await userEvent.click(grafico(/cargos/).getByRole("button", { name: "100%" }));
+    expect(screen.getByRole("heading", { name: "Top 2 cargos em horas extras 100%" })).toBeInTheDocument();
+    expect(barras("fator_2", grafico(/cargos/))).toEqual(["MOTORISTA", "Sem cargo"]);
   });
 });
