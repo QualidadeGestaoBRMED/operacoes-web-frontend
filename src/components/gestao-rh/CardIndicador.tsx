@@ -53,6 +53,8 @@ interface CardIndicadorProps {
    * números alinhados entre os cards.
    */
   rotuloEmDuasLinhas?: boolean;
+  /** Dica do navegador ao passar o mouse no card. */
+  dica?: string;
 }
 
 export function CardIndicador({
@@ -64,12 +66,14 @@ export function CardIndicador({
   onClick,
   selecionado,
   rotuloEmDuasLinhas = false,
+  dica,
 }: CardIndicadorProps) {
   const Elemento = onClick ? "button" : "div";
   return (
     <Elemento
       {...(onClick && { type: "button" as const, onClick })}
       {...(onClick && selecionado !== undefined && { "aria-pressed": selecionado })}
+      title={dica}
       className={cn(
         "flex min-w-0 items-start justify-between gap-2 rounded-xl border border-border p-4 text-left shadow-sm",
         COR_FUNDO_CARD[cor],
