@@ -83,7 +83,8 @@ export function PainelAbsenteismo() {
   const router = useRouter();
   const pathname = usePathname();
   const { isAdminOps } = useAuth();
-  const { unidades } = useUnidades();
+  // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
+  const { unidades } = useUnidades("padrao");
 
   const {
     periodo,

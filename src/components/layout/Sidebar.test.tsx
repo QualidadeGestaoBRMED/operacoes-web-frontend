@@ -464,7 +464,7 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
     expect(screen.getByRole("button", { name: "Expandir Gestão RH" })).toBeInTheDocument();
   });
 
-  it("coordenação, com um subitem só, vê Gestão RH como link direto", async () => {
+  it("coordenação vê os dois painéis, sem os Parâmetros", async () => {
     vi.mocked(useAuth).mockReturnValue({
       isAdminQG: false,
       isAdminOps: false,
@@ -472,12 +472,31 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
     } as ReturnType<typeof useAuth>);
     renderSidebar();
 
-    expect(await screen.findByRole("link", { name: "Gestão RH" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Painel de Absenteísmo" })).toHaveAttribute(
       "href",
       "/modulos/gestao-rh",
     );
-    expect(screen.queryByRole("button", { name: /Gestão RH/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Horas Extras" })).toHaveAttribute(
+      "href",
+      "/modulos/gestao-rh/horas-extras",
+    );
     expect(screen.queryByRole("link", { name: "Parâmetros de Gestão RH" })).not.toBeInTheDocument();
+  });
+
+  it("nas Horas Extras, só o subitem delas fica ativo", async () => {
+    vi.mocked(usePathname).mockReturnValue("/modulos/gestao-rh/horas-extras");
+    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+      typeof useAuth
+    >);
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Horas Extras" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Painel de Absenteísmo" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("nos Parâmetros, abre expandido com só o subitem dos Parâmetros ativo", async () => {

@@ -277,6 +277,13 @@ describe("Painel de Férias", () => {
     expect(within(linhas[2]).getByText("Marcos Lima")).toBeInTheDocument();
   });
 
+  it("filtro de unidade só com as unidades da rede própria (sem as de Operações Especiais)", async () => {
+    renderPainel();
+    await screen.findByText("Marcos Lima");
+    expect(useUnidades).toHaveBeenCalledWith("padrao");
+    expect(useUnidades).not.toHaveBeenCalledWith();
+  });
+
   it("filtro de unidade só para Admin (a coordenação já recebe só a própria unidade)", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
     renderPainel();

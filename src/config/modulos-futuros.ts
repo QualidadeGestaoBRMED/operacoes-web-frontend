@@ -40,16 +40,16 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     nome: "Gestão RH",
     icon: Users,
     descricao: FERIAS_ATIVA
-      ? "Férias e absenteísmo por colaborador."
-      : "Absenteísmo por colaborador.",
+      ? "Férias, absenteísmo e horas extras por colaborador."
+      : "Absenteísmo e horas extras por colaborador.",
     larguras: ["60%"],
     codigo: "gestao-rh",
     rota: "/modulos/gestao-rh",
-    // Sem férias, só o Painel de Absenteísmo; a Sidebar acrescenta os
-    // Parâmetros para Admin (STC-728).
+    // A Sidebar acrescenta os Parâmetros para Admin (STC-728).
     subitens: [
       { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
       ...(FERIAS_ATIVA ? [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" }] : []),
+      { label: "Horas Extras", rota: "/modulos/gestao-rh/horas-extras" },
     ],
   },
   {

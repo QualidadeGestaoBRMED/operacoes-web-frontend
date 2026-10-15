@@ -461,3 +461,56 @@ export interface RegistrarTratamentoPayload {
   acao: AcaoTratamento;
   justificativa: string;
 }
+
+// Painel de Horas Extras: contrato de GET /api/modulos/gestao-rh/horas-extras/,
+// fixado na STC-739. Valores em minutos.
+
+export type FatorHoraExtra = "1" | "2";
+
+export interface FiltrosPainelHorasExtras {
+  inicio: string;
+  fim: string;
+  unidade?: number;
+  categoria?: CategoriaPainelAbsenteismo;
+}
+
+export interface MinutosDoFator {
+  fator: FatorHoraExtra;
+  minutos: number;
+}
+
+export interface LinhaHorasExtras {
+  colaborador: ColaboradorResumoRH;
+  /** Equipe do VR, mostrada no lugar da unidade quando não houver. */
+  equipe: string;
+  categoria: CategoriaPainelAbsenteismo;
+  minutos_por_fator: MinutosDoFator[];
+  total_minutos: number;
+  dias_com_hora_extra: number;
+}
+
+export interface UnidadeHorasExtras {
+  /** Nulo em TMO e Campanha: o grupo é a equipe do VR. */
+  unidade_id: number | null;
+  nome: string;
+  minutos_por_fator: MinutosDoFator[];
+  total_minutos: number;
+}
+
+export interface PainelHorasExtras {
+  periodo: { inicio: string; fim: string };
+  /** Falso quando os lotes do período não trazem as colunas de hora extra. */
+  com_dado: boolean;
+  /** Só parte dos dias do período traz as colunas: os totais não contam os outros. */
+  parcial: boolean;
+  /** Percentual de cada fator, do título da coluna do VR ("50"); nulo sem dado. */
+  fatores: { fator: FatorHoraExtra; percentual: string | null }[];
+  cards: {
+    total_minutos: number;
+    minutos_por_fator: MinutosDoFator[];
+    colaboradores_com_hora_extra: number;
+  };
+  /** Só quem teve hora extra, com mais horas primeiro. */
+  linhas: LinhaHorasExtras[];
+  por_unidade: UnidadeHorasExtras[];
+}

@@ -42,13 +42,14 @@ const COLABORADOR: CabecalhoColaborador = {
 };
 
 describe("Gestão RH com férias desligada", () => {
-  it("menu: Gestão RH só com o Painel de Absenteísmo, sem o Painel de Férias", () => {
+  it("menu: Gestão RH sem o Painel de Férias", () => {
     const gestaoRH = MODULOS_FUTUROS.find((modulo) => modulo.codigo === "gestao-rh");
     expect(gestaoRH?.subitens).toEqual([
       { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
+      { label: "Horas Extras", rota: "/modulos/gestao-rh/horas-extras" },
     ]);
     expect(gestaoRH?.rota).toBe("/modulos/gestao-rh");
-    expect(gestaoRH?.descricao).toBe("Absenteísmo por colaborador.");
+    expect(gestaoRH?.descricao).toBe("Absenteísmo e horas extras por colaborador.");
   });
 
   it("rota de férias leva ao Painel de Absenteísmo, mantendo o colaborador do link", async () => {
