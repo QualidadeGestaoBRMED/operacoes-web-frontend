@@ -308,6 +308,19 @@ describe("Painel de Horas Extras", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("selecionar limpa a busca digitada antes, para a tabela não ficar vazia", async () => {
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByRole("table");
+    await usuario.type(screen.getByLabelText("Buscar colaborador"), "juliana");
+    expect(nomesNaTabela()).toEqual(["Juliana Ramos"]);
+
+    await usuario.click(screen.getByRole("button", { name: "fator_1:Bruno Lima", hidden: true }));
+
+    expect(screen.getByLabelText("Buscar colaborador")).toHaveValue("");
+    expect(nomesNaTabela()).toEqual(["Bruno Lima"]);
+  });
+
   it("trocar o filtro descarta a seleção, sem ela voltar com o filtro anterior", async () => {
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPainel();
