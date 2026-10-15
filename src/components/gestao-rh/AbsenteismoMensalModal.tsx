@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAbsenteismoMensal, type MesAbsenteismo } from "@/hooks/useAbsenteismoGestaoRH";
+import { useAbsenteismoMensal } from "@/hooks/useAbsenteismoGestaoRH";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
   DICA_PONTOS_PERCENTUAIS,
@@ -30,12 +30,12 @@ import {
   mesesPorExtenso,
   nomeCurtoDoMes,
   periodoEmAndamento,
-  PRIMEIRO_MES_COM_DADOS,
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn } from "@/lib/utils";
-import type { CategoriaPainelAbsenteismo } from "@/types/gestaoRH";
+import type { CategoriaPainelAbsenteismo, MesAbsenteismoMensal } from "@/types/gestaoRH";
 
-const PRIMEIRO_ANO = Number(PRIMEIRO_MES_COM_DADOS.slice(0, 4));
+// Primeiro ano com dados de ponto no Atlas (importação do VR desde set/2026).
+const PRIMEIRO_ANO = 2026;
 
 const CONFIG_GRAFICO = {
   percentual: { label: "Absenteísmo", color: "var(--secondary)" },
@@ -67,13 +67,13 @@ interface PontoDoMes {
 }
 
 /** Mês com percentual: entra na tabela e no gráfico. */
-function comDado(mes: MesAbsenteismo): boolean {
-  return mes.painel?.cards.percentual_periodo != null;
+function comDado(mes: MesAbsenteismoMensal): boolean {
+  return !mes.futuro && mes.percentual_periodo !== null;
 }
 
-function pontosDoGrafico(meses: MesAbsenteismo[], hoje: string): PontoDoMes[] {
+function pontosDoGrafico(meses: MesAbsenteismoMensal[], hoje: string): PontoDoMes[] {
   const pontos = meses.map((mes) => {
-    const percentual = comDado(mes) ? Number(mes.painel!.cards.percentual_periodo) : null;
+    const percentual = comDado(mes) ? Number(mes.percentual_periodo) : null;
     const parcial = periodoEmAndamento(mes, hoje);
     return {
       nome: nomeCurtoDoMes(mes.mes),
@@ -145,18 +145,18 @@ export function AbsenteismoMensalModal({
   const anoAtual = Number(hoje.slice(0, 4));
   const anos = Array.from({ length: anoAtual - PRIMEIRO_ANO + 1 }, (_, indice) => anoAtual - indice);
   const [ano, setAno] = useState(Math.min(Math.max(anoInicial, PRIMEIRO_ANO), anoAtual));
-  const { meses, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(
+  const { mensal, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(
     aberto,
     ano,
-    hoje,
     unidade,
     categoria,
   );
+  const meses = mensal?.meses;
 
   const pontos = meses ? pontosDoGrafico(meses, hoje) : [];
   // Limite da versão vigente no último mês com dado (pode mudar entre versões).
   const ultimoComDado = meses?.findLast(comDado);
-  const limite = ultimoComDado?.painel?.parametros.meta_percentual ?? null;
+  const limite = ultimoComDado?.meta_percentual ?? null;
   const maior = Math.max(0, ...pontos.map((ponto) => ponto.percentual ?? 0), limite ? Number(limite) : 0);
   // Marcas com passo fixo (0, 2, 4, 6...): com o teto livre, a última marca
   // ficava colada na anterior.
@@ -274,18 +274,14 @@ export function AbsenteismoMensalModal({
                 </thead>
                 <tbody>
                   {linhas.map((mes) => {
-                    const painel = mes.painel!;
                     // Variação para o mês de calendário anterior; janeiro não tem
                     // o anterior neste ano.
                     const anterior = meses.find((outro) => outro.mes === mes.mes - 1);
-                    const pontosDoMes = anterior?.painel
-                      ? diferencaEmPontos(
-                          painel.cards.percentual_periodo,
-                          anterior.painel.cards.percentual_periodo,
-                        )
+                    const pontosDoMes = anterior
+                      ? diferencaEmPontos(mes.percentual_periodo, anterior.percentual_periodo)
                       : null;
                     const emAndamento = periodoEmAndamento(mes, hoje);
-                    const dadosAte = painel.cards.dados_ate;
+                    const dadosAte = mensal?.dados_ate;
                     return (
                       <tr key={mes.mes} className="border-b border-border last:border-0">
                         <th scope="row" className="py-2 text-left font-medium">
@@ -299,7 +295,7 @@ export function AbsenteismoMensalModal({
                           )}
                         </th>
                         <td className="py-2 pl-3 text-right font-semibold">
-                          {formatarPercentual(painel.cards.percentual_periodo)}
+                          {formatarPercentual(mes.percentual_periodo)}
                         </td>
                         <td
                           className={cn(
@@ -310,10 +306,10 @@ export function AbsenteismoMensalModal({
                           {pontosDoMes !== null && formatarDiferenca(pontosDoMes)}
                         </td>
                         {/* Sem faixas na versão dos parâmetros do mês, ninguém é classificado. */}
-                        {painel.parametros.faixas_cadastradas ? (
+                        {mes.faixas_cadastradas ? (
                           <>
-                            <td className="py-2 pl-3 text-right text-red-600">{painel.cards.faixa_critica}</td>
-                            <td className="py-2 pl-3 text-right text-amber-700">{painel.cards.faixa_atencao}</td>
+                            <td className="py-2 pl-3 text-right text-red-600">{mes.faixa_critica}</td>
+                            <td className="py-2 pl-3 text-right text-amber-700">{mes.faixa_atencao}</td>
                           </>
                         ) : (
                           <td colSpan={2} className="py-2 pl-3 text-right text-[12px] text-muted-foreground sm:text-[13.5px]">

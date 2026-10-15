@@ -357,6 +357,37 @@ export interface CardsAbsenteismo {
   dados_ate: string | null;
 }
 
+/** Um mês do absenteísmo mês a mês (rota da STC-748): os cards do Painel no mês inteiro. */
+export interface MesAbsenteismoMensal {
+  /** 1 a 12. */
+  mes: number;
+  inicio: string;
+  fim: string;
+  /** Começa depois de hoje: números nulos. */
+  futuro: boolean;
+  /** Da versão dos parâmetros vigente no fim do mês. */
+  meta_percentual: string | null;
+  faixas_cadastradas: boolean;
+  /** Nulo sem dado no mês ou no mês futuro. */
+  percentual_periodo: string | null;
+  faixa_critica: number | null;
+  faixa_atencao: number | null;
+  colaboradores_provisorios: number | null;
+}
+
+export interface AbsenteismoMensal {
+  ano: number;
+  /** Último dia com jornada importada de quem a pessoa vê. */
+  dados_ate: string | null;
+  meses: MesAbsenteismoMensal[];
+}
+
+export interface FiltrosAbsenteismoMensal {
+  ano: number;
+  unidade?: number;
+  categoria?: CategoriaPainelAbsenteismo;
+}
+
 export interface PainelAbsenteismo {
   periodo: { inicio: string; fim: string };
   parametros: {
