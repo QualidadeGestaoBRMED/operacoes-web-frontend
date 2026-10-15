@@ -171,6 +171,14 @@ describe("formatação", () => {
       textoOcorrencias({ faltas: 0, atestados: 0, atrasos_acima_do_limite: 0, saidas_acima_do_limite: 0 } as LinhaPainelAbsenteismo),
     ).toEqual({ ausencias: null, jornada: null });
   });
+
+  it("jornada incompleta (turno variável) junto de atraso e saída", () => {
+    const linha = { faltas: 0, atestados: 0, atrasos_acima_do_limite: 1, saidas_acima_do_limite: 0, jornadas_incompletas: 2 };
+    expect(textoOcorrencias(linha as LinhaPainelAbsenteismo).jornada).toBe("1 atraso · 2 jornadas incompletas");
+    expect(textoOcorrencias({ ...linha, atrasos_acima_do_limite: 0, jornadas_incompletas: 1 } as LinhaPainelAbsenteismo).jornada).toBe(
+      "1 jornada incompleta",
+    );
+  });
 });
 
 vi.mock("./api", () => ({ default: { get: vi.fn() } }));
@@ -242,6 +250,7 @@ describe("texto das ocorrências da aba", () => {
     [{ tipo: "afastamento", fim: "2026-09-05", dias: 2, conta_no_absenteismo: false, justificada: null }, "Afastamento · 2 dias", ["não conta no absenteísmo"]],
     [{ tipo: "atestado", justificada: null }, "Atestado", ["conta no absenteísmo"]],
     [{ tipo: "atraso", dias: null, minutos: 35, conta_no_absenteismo: null, justificada: null }, "Atraso de 35 minutos", ["acima de 15 min"]],
+    [{ tipo: "jornada_incompleta", dias: null, minutos: 105, conta_no_absenteismo: null, justificada: null }, "Jornada incompleta de 1h45", ["acima de 15 min"]],
     [{ tipo: "banco_horas", dias: null, minutos: 150, conta_no_absenteismo: false, justificada: null }, "Banco de horas · 2h30", ["não conta no absenteísmo"]],
   ])("%o", (extra, descricao, marcas) => {
     const texto = textoOcorrencia(ocorrencia(extra), 15);

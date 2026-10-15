@@ -244,6 +244,16 @@ describe("Painel de Absenteísmo", () => {
     expect(screen.getByText(/colaboradores? com valor provisório$/)).toBeInTheDocument();
   });
 
+  it("filtro de jornada incompleta (turno variável) vai para a API", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByLabelText("Ocorrência"));
+    await user.click(await screen.findByRole("option", { name: "Jornada incompleta" }));
+    await waitFor(() => expect(ultimaBusca()?.ocorrencia).toEqual(["jornada_incompleta"]));
+  });
+
   it("troca de filtro esmaece cards e tabela até a resposta chegar", async () => {
     const user = usuario();
     renderPainel();

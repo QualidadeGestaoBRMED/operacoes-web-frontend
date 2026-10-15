@@ -72,6 +72,7 @@ const ROTULO_TIPO_OCORRENCIA: Record<TipoOcorrenciaAbsenteismo, string> = {
   ausencia: "Ausência justificada",
   atraso: "Atraso",
   saida_antecipada: "Saída antecipada",
+  jornada_incompleta: "Jornada incompleta",
   banco_horas: "Banco de horas",
 };
 
@@ -112,7 +113,11 @@ export function textoOcorrencia(
   }
 
   const marcas: string[] = [];
-  if (ocorrencia.tipo === "atraso" || ocorrencia.tipo === "saida_antecipada") {
+  if (
+    ocorrencia.tipo === "atraso" ||
+    ocorrencia.tipo === "saida_antecipada" ||
+    ocorrencia.tipo === "jornada_incompleta"
+  ) {
     marcas.push(`acima de ${limiteMinutos} min`);
   } else if (ocorrencia.conta_no_absenteismo !== null) {
     marcas.push(ocorrencia.conta_no_absenteismo ? "conta no absenteísmo" : "não conta no absenteísmo");
@@ -158,6 +163,7 @@ export const ROTULO_OCORRENCIA: Record<OcorrenciaFiltro, string> = {
   ausencia: "Ausência justificada",
   atraso: "Atraso",
   saida_antecipada: "Saída antecipada",
+  jornada_incompleta: "Jornada incompleta",
 };
 
 export const OCORRENCIAS_FILTRO = Object.keys(ROTULO_OCORRENCIA) as OcorrenciaFiltro[];
@@ -337,13 +343,15 @@ export function formatarPercentual(valor: string | null): string {
   return `${FORMATADOR_PERCENTUAL.format(Number(valor))}%`;
 }
 
-function contagem(quantidade: number, singular: string, plural: string): string | null {
-  return quantidade === 0 ? null : `${quantidade} ${quantidade === 1 ? singular : plural}`;
+// Sem a contagem (campo ausente, ex.: backend anterior a jornadas_incompletas), não mostra.
+function contagem(quantidade: number | undefined, singular: string, plural: string): string | null {
+  return !quantidade ? null : `${quantidade} ${quantidade === 1 ? singular : plural}`;
 }
 
 /**
  * Coluna "Ocorrências": ausências que contam (faltas e atestados) e, abaixo,
- * atrasos e saídas antecipadas acima do limite. Só o que aconteceu.
+ * atrasos, saídas antecipadas e jornadas incompletas (turno variável) acima
+ * do limite. Só o que aconteceu.
  */
 export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
   ausencias: string | null;
@@ -356,6 +364,7 @@ export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
   const jornada = [
     contagem(linha.atrasos_acima_do_limite, "atraso", "atrasos"),
     contagem(linha.saidas_acima_do_limite, "saída antecipada", "saídas antecipadas"),
+    contagem(linha.jornadas_incompletas, "jornada incompleta", "jornadas incompletas"),
   ].filter(Boolean);
   return {
     ausencias: ausencias.length ? ausencias.join(" · ") : null,
@@ -403,7 +412,11 @@ const CHAVES_ABSENTEISMO = {
   conformidade: (linha: LinhaPainelAbsenteismo) =>
     linha.conformidade_percentual === null ? null : Number(linha.conformidade_percentual),
   ocorrencias: (linha: LinhaPainelAbsenteismo) =>
-    linha.faltas + linha.atestados + linha.atrasos_acima_do_limite + linha.saidas_acima_do_limite,
+    linha.faltas +
+    linha.atestados +
+    linha.atrasos_acima_do_limite +
+    linha.saidas_acima_do_limite +
+    (linha.jornadas_incompletas ?? 0),
   banco_horas: (linha: LinhaPainelAbsenteismo) => linha.banco_horas_saldo_minutos,
 };
 

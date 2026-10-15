@@ -134,6 +134,7 @@ function equipe(extra: Partial<EquipeVR> = {}): EquipeVR {
     unidade: { id: 1, nome: "Niterói" },
     colaboradores_ativos: 12,
     criada_na_importacao: null,
+    turno_variavel: false,
     ...extra,
   };
 }
@@ -849,6 +850,62 @@ describe("Aba Equipes", () => {
 
     await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(11, { categoria: "unidade", unidade: 2 }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("ligar o turno variável pede confirmação; desligar salva direto", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    vi.mocked(reclassificarEquipeVR).mockResolvedValueOnce(equipe({ turno_variavel: true }));
+    const user = userEvent.setup();
+    await abrirAba(user);
+    expect(screen.getByText(/O absenteísmo do dia passa a ser pela carga horária cumprida/)).toBeInTheDocument();
+
+    const interruptor = await screen.findByRole("switch", { name: "Turno variável de Operações Niterói" });
+    expect(interruptor).not.toBeChecked();
+    await user.click(interruptor);
+    const dialogo = await screen.findByRole("alertdialog", { name: "Ligar o turno variável?" });
+    expect(dialogo).toHaveTextContent("também nos períodos já importados");
+    expect(reclassificarEquipeVR).not.toHaveBeenCalled();
+    await user.click(within(dialogo).getByRole("button", { name: "Ligar" }));
+
+    await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenCalledWith(10, { turno_variavel: true }));
+    expect(toast.success).toHaveBeenCalledWith("Operações Niterói: turno variável ligado.");
+    await waitFor(() => expect(interruptor).toBeChecked());
+
+    vi.mocked(reclassificarEquipeVR).mockResolvedValueOnce(equipe({ turno_variavel: false }));
+    await user.click(interruptor);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(reclassificarEquipeVR).toHaveBeenLastCalledWith(10, { turno_variavel: false }));
+    expect(toast.success).toHaveBeenLastCalledWith("Operações Niterói: turno variável desligado.");
+    await waitFor(() => expect(interruptor).not.toBeChecked());
+  });
+
+  it("cancelar a confirmação do turno variável não salva", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    await user.click(await screen.findByRole("switch", { name: "Turno variável de Operações Niterói" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancelar" }));
+
+    expect(reclassificarEquipeVR).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: "Turno variável de Operações Niterói" })).not.toBeChecked();
+  });
+
+  it("turno variável recusado fica como estava, com o erro só no interruptor", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([equipe()]);
+    vi.mocked(reclassificarEquipeVR).mockRejectedValue(erro400({ detail: "Falha ao salvar." }));
+    const user = userEvent.setup();
+    await abrirAba(user);
+
+    const interruptor = await screen.findByRole("switch", { name: "Turno variável de Operações Niterói" });
+    await user.click(interruptor);
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Ligar" }));
+
+    expect(await screen.findByText("Falha ao salvar.")).toBeInTheDocument();
+    expect(interruptor).not.toBeChecked();
+    expect(interruptor).toHaveAttribute("aria-invalid", "true");
+    expect(interruptor).toHaveAccessibleDescription("Falha ao salvar.");
+    expect(screen.getByLabelText("Categoria de Operações Niterói")).toHaveAttribute("aria-invalid", "false");
   });
 
   it("erro da API aparece na linha da equipe", async () => {
