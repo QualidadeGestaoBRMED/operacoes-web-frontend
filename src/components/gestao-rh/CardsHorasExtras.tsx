@@ -4,6 +4,18 @@ import { formatarHoras, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHora
 import type { PainelHorasExtras } from "@/types/gestaoRH";
 import { CardIndicador } from "./CardIndicador";
 
+/**
+ * Parte do total que o fator representa: "88% do total". Nas pontas não
+ * arredonda para 0% nem para 100% quando o outro fator também tem horas.
+ */
+function parteDoTotal(minutos: number, total: number): string {
+  if (!total) return "—";
+  const percentual = Math.round((minutos / total) * 100);
+  if (minutos > 0 && percentual === 0) return "menos de 1% do total";
+  if (minutos < total && percentual === 100) return "mais de 99% do total";
+  return `${percentual}% do total`;
+}
+
 const GRADE = "grid grid-cols-2 gap-3 px-4 pt-4 sm:px-7 xl:grid-cols-4";
 
 export function CardsHorasExtras({ painel }: { painel: PainelHorasExtras | undefined }) {
@@ -35,7 +47,7 @@ export function CardsHorasExtras({ painel }: { painel: PainelHorasExtras | undef
           key={fator}
           rotulo={`Horas extras ${rotuloDoFator(fator, painel)}`}
           valor={valor(minutosDoFator(cards.minutos_por_fator, fator))}
-          legenda={`fator ${fator} do VR`}
+          legenda={comDado ? parteDoTotal(minutosDoFator(cards.minutos_por_fator, fator), cards.total_minutos) : "—"}
           cor={fator === "1" ? "neutro" : "atencao"}
           Icone={Clock}
         />
