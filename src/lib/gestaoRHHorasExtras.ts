@@ -22,14 +22,14 @@ export async function buscarPainelHorasExtras(
 const FORMATADOR_HORAS = new Intl.NumberFormat("pt-BR");
 
 /**
- * Horas e minutos, como o VR conta: 1490 → "24h50"; 120 → "2h"; 81352 →
- * "1.355h52" (ponto de milhar, para os totais do período). Horas decimais
- * ("105,7 h") parecem minutos ("105h70") e não batem com o VR.
+ * Duração em horas:minutos:segundos, com ponto de milhar nas horas: 5875 →
+ * "97:55:00"; 81352 → "1.355:52:00". O VR conta em minutos, então os
+ * segundos são sempre "00". Horas decimais ("105,7 h") parecem minutos
+ * ("105h70") e não batem com o VR.
  */
 export function formatarHoras(minutos: number): string {
   const horas = FORMATADOR_HORAS.format(Math.floor(minutos / 60));
-  const resto = minutos % 60;
-  return resto ? `${horas}h${String(resto).padStart(2, "0")}` : `${horas}h`;
+  return `${horas}:${String(minutos % 60).padStart(2, "0")}:00`;
 }
 
 /** Marca do eixo dos gráficos, em horas inteiras: 1500 → "1.500h". */
