@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatarHoras, formatarHorasDoEixo, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHorasExtras";
 import { cn } from "@/lib/utils";
-import type { FatorHoraExtra, LinhaHorasExtras, MinutosDoFator, PainelHorasExtras } from "@/types/gestaoRH";
+import type {
+  FatorHoraExtra,
+  LinhaHorasExtras,
+  MinutosDoFator,
+  PainelHorasExtras,
+  UnidadeHorasExtras,
+} from "@/types/gestaoRH";
 
 const MAXIMO_DE_BARRAS = 10;
 const FATORES: FatorHoraExtra[] = ["1", "2"];
@@ -180,13 +186,17 @@ function maiores(itens: Item[], fator: FatorHoraExtra | null): Barra[] {
 
 function GraficoDeBarras({
   doQue,
+  titulo: tituloFixo,
   itens,
   painel,
   alturaEmBarras,
+  destacado,
   onClicar,
 }: {
   /** "colaboradores", "unidades / equipes": entra no título. */
   doQue: string;
+  /** No lugar do "Top N ...", com o colaborador selecionado. */
+  titulo?: string;
   itens: Item[];
   painel: PainelHorasExtras;
   /**
@@ -194,11 +204,14 @@ function GraficoDeBarras({
    * para os eixos ficarem na mesma linha; as barras a menos se espaçam.
    */
   alturaEmBarras: number | null;
+  /** Barra em destaque (as outras esmaecem); sem ela, todas iguais. */
+  destacado?: (barra: Barra) => boolean;
   onClicar?: (barra: Barra) => void;
 }) {
   const [fator, setFator] = useState<FatorHoraExtra | null>(null);
   const barras = maiores(itens, fator);
-  const titulo = `Top ${barras.length || MAXIMO_DE_BARRAS} ${doQue} em horas extras${fator ? ` ${rotuloDoFator(fator, painel)}` : ""}`;
+  const sufixo = fator ? ` ${rotuloDoFator(fator, painel)}` : "";
+  const titulo = `${tituloFixo ?? `Top ${barras.length || MAXIMO_DE_BARRAS} ${doQue}`} em horas extras${sufixo}`;
   const visiveis = fator ? [fator] : FATORES;
   const config = {
     fator_1: { label: rotuloDoFator("1", painel), color: CORES.fator_1 },
@@ -222,7 +235,9 @@ function GraficoDeBarras({
         <div aria-hidden>
           <ChartContainer
             config={config}
-            className="aspect-auto w-full text-[12px]"
+            // O clique na barra põe o foco numa camada interna do Recharts
+            // (tabindex=-1), que desenhava um contorno em volta do gráfico.
+            className="aspect-auto w-full text-[12px] [&_[tabindex]:focus]:outline-none"
             style={{ height: Math.max(barras.length, alturaEmBarras ?? 0) * ALTURA_DA_BARRA + 32 }}
           >
             <BarChart data={barras} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
@@ -256,7 +271,12 @@ function GraficoDeBarras({
                   isAnimationActive={false}
                   onClick={clicar}
                   className={onClicar && "cursor-pointer"}
-                />
+                >
+                  {destacado &&
+                    barras.map((item) => (
+                      <Cell key={item.nome} fillOpacity={destacado(item) ? 1 : 0.3} />
+                    ))}
+                </Bar>
               ))}
             </BarChart>
           </ChartContainer>
@@ -266,12 +286,28 @@ function GraficoDeBarras({
   );
 }
 
-interface GraficosHorasExtrasProps {
-  painel: PainelHorasExtras;
-  onAbrirColaborador: (linha: LinhaHorasExtras) => void;
+/** Grupo do segundo gráfico a que o colaborador pertence: o cargo ou a unidade (a equipe, sem unidade). */
+function doColaborador(linha: LinhaHorasExtras, umaUnidade: boolean) {
+  if (umaUnidade) {
+    const cargo = linha.colaborador.cargo.trim() || "Sem cargo";
+    return (item: Item) => item.nome === cargo;
+  }
+  const unidade = linha.colaborador.unidade;
+  return (item: Item) => {
+    const grupo = item as unknown as UnidadeHorasExtras;
+    return unidade ? grupo.unidade_id === unidade.id : grupo.unidade_id === null && grupo.nome === linha.equipe;
+  };
 }
 
-export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHorasExtrasProps) {
+interface GraficosHorasExtrasProps {
+  painel: PainelHorasExtras;
+  /** Colaborador selecionado no gráfico (filtra a tabela e o gráfico ao lado). */
+  selecionado: LinhaHorasExtras | null;
+  /** Clique na barra do colaborador: seleciona; no já selecionado, limpa. */
+  onSelecionar: (linha: LinhaHorasExtras | null) => void;
+}
+
+export function GraficosHorasExtras({ painel, selecionado, onSelecionar }: GraficosHorasExtrasProps) {
   // Uma unidade só (Admin com a unidade filtrada, coordenação e OPEX, que só
   // recebem a própria): o gráfico por unidade teria uma barra, e o por cargo
   // mostra em que função a hora extra se concentra.
@@ -283,6 +319,9 @@ export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHora
     linha,
   }));
   const segundo = umaUnidade ? porCargo(painel.linhas) : painel.por_unidade;
+  // Com um colaborador selecionado, o gráfico ao lado mostra só o grupo dele.
+  const segundoNaTela = selecionado ? segundo.filter(doColaborador(selecionado, umaUnidade)) : segundo;
+  const doSegundo = umaUnidade ? "cargos" : "unidades / equipes";
   // Lado a lado (telas largas), os dois com a altura do que tem mais barras;
   // empilhados, cada um com a sua.
   const ladoALado = useMediaQuery("(min-width: 1280px)");
@@ -290,6 +329,7 @@ export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHora
   const alturaEmBarras = ladoALado
     ? Math.min(MAXIMO_DE_BARRAS, Math.max(comHoras(colaboradores), comHoras(segundo)))
     : null;
+  const idSelecionado = selecionado?.colaborador.id;
 
   return (
     <div className="grid gap-3 px-4 sm:px-7 xl:grid-cols-2">
@@ -298,13 +338,17 @@ export function GraficosHorasExtras({ painel, onAbrirColaborador }: GraficosHora
         itens={colaboradores}
         painel={painel}
         alturaEmBarras={alturaEmBarras}
-        onClicar={(item) => item.linha && onAbrirColaborador(item.linha)}
+        destacado={selecionado ? (item) => item.linha?.colaborador.id === idSelecionado : undefined}
+        onClicar={(item) =>
+          item.linha && onSelecionar(item.linha.colaborador.id === idSelecionado ? null : item.linha)
+        }
       />
       {/* `key`: o fator escolhido em um não passa para o outro. */}
       <GraficoDeBarras
-        key={umaUnidade ? "cargos" : "unidades"}
-        doQue={umaUnidade ? "cargos" : "unidades / equipes"}
-        itens={segundo}
+        key={doSegundo}
+        doQue={doSegundo}
+        titulo={selecionado ? (umaUnidade ? "Cargo do colaborador" : "Unidade / equipe do colaborador") : undefined}
+        itens={segundoNaTela}
         painel={painel}
         alturaEmBarras={alturaEmBarras}
       />

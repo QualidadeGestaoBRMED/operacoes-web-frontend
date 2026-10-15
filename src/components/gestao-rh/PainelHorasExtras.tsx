@@ -87,6 +87,9 @@ export function PainelHorasExtras() {
   const [categoria, setCategoria] = useState<CategoriaPainelAbsenteismo>();
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoHorasExtras | null>(null);
+  // Colaborador escolhido no gráfico: a tabela mostra só ele e o gráfico ao
+  // lado, só o cargo (ou a unidade) dele.
+  const [idSelecionado, setIdSelecionado] = useState<number | null>(null);
 
   const filtros = useMemo<FiltrosPainelHorasExtras>(
     () => ({ inicio: periodo.inicio, fim: periodo.fim, unidade, categoria }),
@@ -119,16 +122,20 @@ export function PainelHorasExtras() {
     });
   }
 
+  // Período ou filtro trocado e ele não fez hora extra no novo: some a seleção.
+  const selecionado = painel?.linhas.find((linha) => linha.colaborador.id === idSelecionado) ?? null;
+
   const linhas = useMemo(() => {
     const termo = normalizar(busca.trim());
     const filtradas = (painel?.linhas ?? []).filter(
       (linha) =>
-        !termo ||
-        normalizar(linha.colaborador.nome).includes(termo) ||
-        linha.colaborador.matricula_vr.includes(termo),
+        (selecionado ? linha === selecionado : true) &&
+        (!termo ||
+          normalizar(linha.colaborador.nome).includes(termo) ||
+          linha.colaborador.matricula_vr.includes(termo)),
     );
     return ordenarLinhasHorasExtras(filtradas, ordenacao);
-  }, [painel, busca, ordenacao]);
+  }, [painel, busca, ordenacao, selecionado]);
 
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(unidade || categoria);
@@ -253,7 +260,8 @@ export function PainelHorasExtras() {
                 {painel && (
                   <GraficosHorasExtras
                     painel={painel}
-                    onAbrirColaborador={abrir}
+                    selecionado={selecionado}
+                    onSelecionar={(linha) => setIdSelecionado(linha?.colaborador.id ?? null)}
                   />
                 )}
               </div>
@@ -275,10 +283,27 @@ export function PainelHorasExtras() {
                     className="h-9 pl-9"
                   />
                 </div>
-                <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                  <Info aria-hidden className="size-3.5" />
-                  Só quem fez hora extra no período.
-                </span>
+                {selecionado ? (
+                  <span
+                    role="status"
+                    className="flex items-center gap-2 rounded-md border border-secondary/30 bg-secondary/5 px-2.5 py-1 text-[12.5px]"
+                  >
+                    Mostrando só <strong className="font-semibold">{selecionado.colaborador.nome}</strong>
+                    <button
+                      type="button"
+                      onClick={() => setIdSelecionado(null)}
+                      className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+                    >
+                      <X aria-hidden className="size-3.5" />
+                      Mostrar todos
+                    </button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <Info aria-hidden className="size-3.5" />
+                    Só quem fez hora extra no período. Clique numa barra de colaborador para ver só ele.
+                  </span>
+                )}
               </div>
 
               <TabelaHorasExtras
