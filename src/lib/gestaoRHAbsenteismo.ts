@@ -343,8 +343,9 @@ export function formatarPercentual(valor: string | null): string {
   return `${FORMATADOR_PERCENTUAL.format(Number(valor))}%`;
 }
 
-function contagem(quantidade: number, singular: string, plural: string): string | null {
-  return quantidade === 0 ? null : `${quantidade} ${quantidade === 1 ? singular : plural}`;
+// Sem a contagem (campo ausente, ex.: backend anterior a jornadas_incompletas), não mostra.
+function contagem(quantidade: number | undefined, singular: string, plural: string): string | null {
+  return !quantidade ? null : `${quantidade} ${quantidade === 1 ? singular : plural}`;
 }
 
 /**
@@ -415,7 +416,7 @@ const CHAVES_ABSENTEISMO = {
     linha.atestados +
     linha.atrasos_acima_do_limite +
     linha.saidas_acima_do_limite +
-    linha.jornadas_incompletas,
+    (linha.jornadas_incompletas ?? 0),
   banco_horas: (linha: LinhaPainelAbsenteismo) => linha.banco_horas_saldo_minutos,
 };
 
