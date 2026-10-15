@@ -217,6 +217,10 @@ describe("Painel de Horas Extras", () => {
 
   it("unidade filtrada: o gráfico por cargo no lugar do por unidade", async () => {
     const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // Como a rota: com a unidade filtrada, só ela em `por_unidade`.
+    vi.mocked(buscarPainelHorasExtras).mockImplementation(async (filtros) =>
+      filtros.unidade ? painel({ por_unidade: painel().por_unidade.slice(0, 1) }) : painel(),
+    );
     renderPainel();
     await screen.findByText("Top 2 unidades / equipes em horas extras");
 
@@ -226,9 +230,9 @@ describe("Painel de Horas Extras", () => {
     await waitFor(() =>
       expect(buscarPainelHorasExtras).toHaveBeenLastCalledWith(expect.objectContaining({ unidade: 1 })),
     );
-    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
     // Os três colaboradores do exemplo têm o mesmo cargo.
-    expect(screen.getByText("Top 1 cargos em horas extras")).toBeInTheDocument();
+    expect(await screen.findByText("Top 1 cargos em horas extras")).toBeInTheDocument();
+    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
     expect(screen.getByText(/colaboradores em horas extras/)).toBeInTheDocument();
   });
 
@@ -355,13 +359,19 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByRole("table")).toBeInTheDocument();
   });
 
-  it("coordenação não vê os filtros de unidade e categoria", async () => {
+  it("coordenação: sem os filtros de unidade e categoria, e com o gráfico por cargo", async () => {
     vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
+    // A rota devolve só a unidade da coordenação.
+    vi.mocked(buscarPainelHorasExtras).mockResolvedValue(
+      painel({ por_unidade: painel().por_unidade.slice(0, 1) }),
+    );
     renderPainel();
     await screen.findByRole("table");
 
     expect(screen.queryByRole("combobox", { name: "Unidade" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Categoria" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Top 1 cargos em horas extras")).toBeInTheDocument();
+    expect(screen.queryByText(/unidades \/ equipes em horas extras/)).not.toBeInTheDocument();
   });
 
   it("erro na primeira busca: mensagem e tentar de novo", async () => {

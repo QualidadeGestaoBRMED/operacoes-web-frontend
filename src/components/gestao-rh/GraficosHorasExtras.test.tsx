@@ -69,6 +69,15 @@ const PAINEL = {
       ],
       total_minutos: 180,
     },
+    {
+      unidade_id: 1,
+      nome: "Niterói",
+      minutos_por_fator: [
+        { fator: "1", minutos: 60 },
+        { fator: "2", minutos: 0 },
+      ],
+      total_minutos: 60,
+    },
   ],
 } as PainelHorasExtras;
 
@@ -88,7 +97,7 @@ function barras(fator: "fator_1" | "fator_2", alvo: Pick<typeof screen, "queryAl
 describe("GraficosHorasExtras", () => {
   it("barra do colaborador, nos dois fatores, abre o modal dele", async () => {
     const abrir = vi.fn();
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={abrir} />);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={abrir} />);
 
     await userEvent.click(screen.getByRole("button", { name: "fator_1:Bruno Lima", hidden: true }));
     expect(abrir).toHaveBeenLastCalledWith(PAINEL.linhas[1]);
@@ -98,14 +107,14 @@ describe("GraficosHorasExtras", () => {
 
   it("barra da unidade não abre nada", async () => {
     const abrir = vi.fn();
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={abrir} />);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={abrir} />);
 
     await userEvent.click(screen.getByRole("button", { name: "fator_1:TMO Rio", hidden: true }));
     expect(abrir).not.toHaveBeenCalled();
   });
 
   it("sem fator escolhido: os dois fatores empilhados, ordem pelo total", () => {
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
 
     const colaboradores = grafico(/colaboradores/);
     expect(colaboradores.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
@@ -115,7 +124,7 @@ describe("GraficosHorasExtras", () => {
   });
 
   it("escolher um fator mostra só ele, com o ranking por ele; clicar de novo volta aos dois", async () => {
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
     const colaboradores = () => grafico(/colaboradores/);
 
     await userEvent.click(colaboradores().getByRole("button", { name: "50%" }));
@@ -135,7 +144,7 @@ describe("GraficosHorasExtras", () => {
   });
 
   it("cada gráfico escolhe o fator sozinho", async () => {
-    render(<GraficosHorasExtras painel={PAINEL} comUnidadeFiltrada={false} onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={PAINEL} onAbrirColaborador={vi.fn()} />);
 
     await userEvent.click(screen.getAllByRole("button", { name: "100%" })[1]);
     expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
@@ -143,9 +152,10 @@ describe("GraficosHorasExtras", () => {
     expect(screen.getByText("Nenhuma hora extra 100% no período.")).toBeInTheDocument();
   });
 
-  it("unidade filtrada: por cargo, com a soma dos colaboradores de cada cargo", async () => {
+  it("uma unidade só (filtrada, ou a da coordenação): por cargo, com a soma de cada cargo", async () => {
     const painel = {
       ...PAINEL,
+      por_unidade: PAINEL.por_unidade.slice(0, 1),
       linhas: [
         linha(1, "A", 120, 0, "MOTORISTA"),
         linha(2, "B", 60, 60, "MOTORISTA"),
@@ -153,7 +163,7 @@ describe("GraficosHorasExtras", () => {
         linha(4, "D", 0, 30, " "),
       ],
     } as PainelHorasExtras;
-    render(<GraficosHorasExtras painel={painel} comUnidadeFiltrada onAbrirColaborador={vi.fn()} />);
+    render(<GraficosHorasExtras painel={painel} onAbrirColaborador={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Top 3 cargos em horas extras" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /unidades/ })).not.toBeInTheDocument();
