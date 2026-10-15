@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnidades } from "@/hooks/useUnidades";
 import { painelAbsenteismoDeExemplo } from "@/test-utils/painelAbsenteismoExemplo";
-import type { PainelAbsenteismo as Painel } from "@/types/gestaoRH";
+import type { AbsenteismoMensal, PainelAbsenteismo as Painel } from "@/types/gestaoRH";
 import { PainelAbsenteismo } from "./PainelAbsenteismo";
 
 vi.mock("next/navigation", () => ({
@@ -27,6 +27,7 @@ vi.mock("@/hooks/useAlturaSemLinhaCortada", () => ({
 vi.mock("@/lib/gestaoRHAbsenteismo", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHAbsenteismo")>()),
   buscarPainelAbsenteismo: vi.fn(),
+  buscarAbsenteismoMensal: vi.fn(),
 }));
 vi.mock("./DetalheColaboradorModal", () => ({
   DetalheColaboradorModal: ({
@@ -47,7 +48,7 @@ vi.mock("./DetalheColaboradorModal", () => ({
   ),
 }));
 
-import { buscarPainelAbsenteismo } from "@/lib/gestaoRHAbsenteismo";
+import { buscarAbsenteismoMensal, buscarPainelAbsenteismo } from "@/lib/gestaoRHAbsenteismo";
 
 const replace = vi.fn();
 // Os mesmos dados de exemplo do ambiente local, que seguem o contrato da STC-588.
@@ -90,6 +91,7 @@ beforeEach(() => {
     error: undefined,
   });
   vi.mocked(buscarPainelAbsenteismo).mockReset();
+  vi.mocked(buscarAbsenteismoMensal).mockReset();
   vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(PAINEL);
 });
 
@@ -503,25 +505,33 @@ describe("comparativo com o período anterior", () => {
 });
 
 describe("absenteísmo mês a mês", () => {
-  function painelDoMes(inicio: string, fim: string, percentual: string | null): Painel {
-    const base = painelAbsenteismoDeExemplo({ inicio, fim });
-    return {
-      ...base,
-      cards: {
-        ...base.cards,
+  /** Resposta da rota agregada (STC-748): `percentuais` por mês; mês depois de hoje é futuro. */
+  function mensalDe(
+    ano: number,
+    percentuais: Record<number, string | null>,
+    { faixas = true, dadosAte = "2026-10-05" }: { faixas?: boolean; dadosAte?: string | null } = {},
+  ): AbsenteismoMensal {
+    const hoje = new Date();
+    const meses = Array.from({ length: 12 }, (_, indice) => {
+      const mes = indice + 1;
+      const ultimo = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+      const prefixo = `${ano}-${String(mes).padStart(2, "0")}`;
+      const futuro = new Date(ano, indice, 1) > hoje;
+      const percentual = futuro ? null : (percentuais[mes] ?? null);
+      return {
+        mes,
+        inicio: `${prefixo}-01`,
+        fim: `${prefixo}-${String(ultimo).padStart(2, "0")}`,
+        futuro,
+        meta_percentual: "5.00",
+        faixas_cadastradas: faixas,
         percentual_periodo: percentual,
-        faixa_critica: 3,
-        faixa_atencao: 2,
-        // Hoje é 06/10/2026: a última importação trouxe até o dia 5.
-        dados_ate: fim < "2026-10-05" ? fim : "2026-10-05",
-      },
-    };
-  }
-
-  function responder(percentuais: Record<string, string | null>) {
-    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) =>
-      painelDoMes(filtros.inicio, filtros.fim, percentuais[filtros.inicio] ?? null),
-    );
+        faixa_critica: futuro ? null : percentual === null ? 0 : 3,
+        faixa_atencao: futuro ? null : percentual === null ? 0 : 2,
+        colaboradores_provisorios: futuro ? null : 0,
+      };
+    });
+    return { ano, dados_ate: dadosAte, meses };
   }
 
   async function abrirModal(user: ReturnType<typeof usuario>) {
@@ -534,56 +544,49 @@ describe("absenteísmo mês a mês", () => {
     return within(modal.getByRole("rowheader", { name: new RegExp(`^${mes}`) }).closest("tr") as HTMLElement);
   }
 
-  it("busca do primeiro mês com dados até o atual, com a unidade e a categoria do Painel", async () => {
+  it("uma busca à rota agregada, com o ano, a unidade e a categoria do Painel", async () => {
     const user = usuario();
-    responder({ "2026-09-01": "4.00", "2026-10-01": "4.50" });
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(mensalDe(2026, { 9: "4.00", 10: "4.50" }));
     renderPainel();
     await user.click(await screen.findByLabelText("Unidade"));
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    const buscasAoPainel = vi.mocked(buscarPainelAbsenteismo).mock.calls.length;
     const modal = await abrirModal(user);
     await modal.findByRole("table");
 
     expect(modal.getByText("Niterói")).toBeInTheDocument();
-    expect(buscasDoPeriodo("2026-10-01").at(-1)).toEqual({
-      inicio: "2026-10-01",
-      fim: "2026-10-31",
-      unidade: 1,
-      categoria: undefined,
-      faixa: ["critica", "atencao"],
-    });
-    // Antes de set/2026 não há dados no Atlas, e meses futuros não existem ainda.
-    for (const inicio of ["2026-01-01", "2026-07-01", "2026-11-01", "2026-12-01"]) {
-      expect(buscasDoPeriodo(inicio)).toHaveLength(0);
-    }
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(1);
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledWith({ ano: 2026, unidade: 1, categoria: undefined });
+    // O mês a mês não busca mais o Painel mês a mês.
+    expect(vi.mocked(buscarPainelAbsenteismo).mock.calls.length).toBe(buscasAoPainel);
   });
 
-  it("busca os meses em lotes de 3, não todos de uma vez", async () => {
-    vi.setSystemTime(new Date(2027, 11, 10, 9, 0));
+  it("reabrir mostra o que já tinha e atualiza em segundo plano", async () => {
     const user = usuario();
-    let emAndamento = 0;
-    let maximo = 0;
-    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
-      emAndamento += 1;
-      maximo = Math.max(maximo, emAndamento);
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      emAndamento -= 1;
-      return painelDoMes(filtros.inicio, filtros.fim, "4.00");
-    });
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValueOnce(mensalDe(2026, { 9: "4.00" }));
     renderPainel();
-    await screen.findByText("Juliana Ramos");
-    maximo = 0;
-    await user.click(screen.getByRole("button", { name: /^Absenteísmo.*limite/ }));
-    const modal = within(await screen.findByRole("dialog", { name: "Absenteísmo mês a mês" }));
+    const modal = await abrirModal(user);
     await modal.findByRole("table");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    // Dezembro de 2027: os 12 meses do ano têm dado.
-    expect(modal.getAllByRole("rowheader")).toHaveLength(12);
-    expect(maximo).toBe(3);
+    // Mudança feita em outra tela (ex.: turno variável ligado): setembro caiu.
+    let responder: (mensal: AbsenteismoMensal) => void = () => {};
+    vi.mocked(buscarAbsenteismoMensal).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+    const reaberto = await abrirModal(user);
+    // Na hora, o que já tinha; uma busca nova por abertura.
+    expect(reaberto.getByText("4%")).toBeInTheDocument();
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(2);
+
+    responder(mensalDe(2026, { 9: "2.60" }));
+    expect(await reaberto.findByText("2,6%")).toBeInTheDocument();
   });
 
   it("tabela com os meses com dado, a variação para o mês anterior e os meses sem dado", async () => {
     const user = usuario();
-    responder({ "2026-09-01": "4.00", "2026-10-01": "3.50" });
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(mensalDe(2026, { 9: "4.00", 10: "3.50" }));
     renderPainel();
     const modal = await abrirModal(user);
     await modal.findByRole("table");
@@ -598,7 +601,6 @@ describe("absenteísmo mês a mês", () => {
     // Mês em andamento: até onde vão os dados, no lugar de um selo.
     expect(outubro.getByText(/até 05\/10/)).toBeInTheDocument();
     expect(setembro.queryByText(/até/)).not.toBeInTheDocument();
-    expect(modal.queryByText(/Provisório|Parcial/)).not.toBeInTheDocument();
     expect(outubro.getByText("3")).toBeInTheDocument();
     expect(outubro.getByText("2")).toBeInTheDocument();
     expect(modal.getByText("Sem dados: jan a ago.")).toBeInTheDocument();
@@ -606,10 +608,9 @@ describe("absenteísmo mês a mês", () => {
 
   it("sem faixas cadastradas na versão do mês, crítica e atenção dizem isso", async () => {
     const user = usuario();
-    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
-      const painel = painelDoMes(filtros.inicio, filtros.fim, filtros.inicio === "2026-09-01" ? "4.00" : null);
-      return { ...painel, parametros: { ...painel.parametros, faixas_cadastradas: false } };
-    });
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(
+      mensalDe(2026, { 9: "4.00" }, { faixas: false }),
+    );
     renderPainel();
     const modal = await abrirModal(user);
     await modal.findByRole("table");
@@ -617,37 +618,32 @@ describe("absenteísmo mês a mês", () => {
     expect(linhaDoMes(modal, "set").getByText("sem faixas")).toBeInTheDocument();
   });
 
-  it("ano sem dados avisa; o seletor troca o ano", async () => {
+  it("ano sem dados avisa; o seletor troca o ano com uma busca", async () => {
     vi.setSystemTime(new Date(2027, 1, 10, 9, 0));
     const user = usuario();
-    responder({ "2026-09-01": "4.00" });
+    vi.mocked(buscarAbsenteismoMensal).mockImplementation(async ({ ano }) =>
+      ano === 2026 ? mensalDe(2026, { 9: "4.00" }) : mensalDe(2027, {}),
+    );
     renderPainel();
     const modal = await abrirModal(user);
 
     // Painel em janeiro de 2027: abre no ano do período.
     expect(await modal.findByText("Sem dados de absenteísmo em 2027.")).toBeInTheDocument();
-    expect(buscasDoPeriodo("2027-03-01")).toHaveLength(0);
-
     await user.click(modal.getByLabelText("Ano"));
     await user.click(await screen.findByRole("option", { name: "2026" }));
     await modal.findByRole("table");
     expect(linhaDoMes(modal, "set").getByText("4%")).toBeInTheDocument();
-    // Dezembro de 2026: uma busca da legenda do card (mês anterior a janeiro
-    // de 2027) e uma do ano de 2026 no modal.
-    expect(buscasDoPeriodo("2026-12-01")).toHaveLength(2);
+    expect(vi.mocked(buscarAbsenteismoMensal).mock.calls.map(([filtros]) => filtros.ano)).toEqual([2027, 2026]);
   });
 
   it("falha na busca: avisa e tenta de novo", async () => {
     const user = usuario();
-    vi.mocked(buscarPainelAbsenteismo).mockImplementation(async (filtros) => {
-      if (filtros.inicio === "2026-10-01" && filtros.fim === "2026-10-31") throw new Error("Falha de rede");
-      return painelDoMes(filtros.inicio, filtros.fim, "4.00");
-    });
+    vi.mocked(buscarAbsenteismoMensal).mockRejectedValueOnce(new Error("Falha de rede"));
     renderPainel();
     const modal = await abrirModal(user);
 
     expect(await modal.findByText("Não foi possível carregar o absenteísmo de 2026.")).toBeInTheDocument();
-    responder({ "2026-09-01": "4.00" });
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(mensalDe(2026, { 9: "4.00" }));
     await user.click(modal.getByRole("button", { name: "Tentar novamente" }));
     expect(await modal.findByRole("table")).toBeInTheDocument();
   });

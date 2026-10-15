@@ -3,10 +3,12 @@ import { ordenarPor, type Ordenacao } from "./ordenacao";
 import { formatarDataISO } from "./gestaoRH";
 import type {
   AbsenteismoColaborador,
+  AbsenteismoMensal,
   AcaoTratamento,
   AlertaAbsenteismo,
   CategoriaPainelAbsenteismo,
   FaixaAbsenteismo,
+  FiltrosAbsenteismoMensal,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
   OcorrenciaAbsenteismo,
@@ -17,6 +19,15 @@ import type {
 } from "@/types/gestaoRH";
 
 const PAINEL_URL = "/modulos/gestao-rh/absenteismo/";
+const MENSAL_URL = "/modulos/gestao-rh/absenteismo/mensal/";
+
+/** Absenteísmo mês a mês de um ano (rota da STC-748). */
+export async function buscarAbsenteismoMensal(
+  filtros: FiltrosAbsenteismoMensal,
+): Promise<AbsenteismoMensal> {
+  const { data } = await api.get<AbsenteismoMensal>(MENSAL_URL, { params: filtros });
+  return data;
+}
 
 /** Painel de Absenteísmo (rota da STC-588). */
 export async function buscarPainelAbsenteismo(
@@ -239,35 +250,6 @@ export function nomeDoPeriodo(periodo: PeriodoAbsenteismo, referencia: PeriodoAb
   }
   const curta = (iso: string) => formatarDataISO(iso).slice(0, 5);
   return `${curta(periodo.inicio)} a ${curta(periodo.fim)}`;
-}
-
-/** Primeiro mês com dados de ponto no Atlas (importação do VR desde set/2026). */
-export const PRIMEIRO_MES_COM_DADOS = "2026-09-01";
-
-export interface MesDoAno extends PeriodoAbsenteismo {
-  /** 1 a 12. */
-  mes: number;
-  /** Começa depois de hoje: não é buscado. */
-  futuro: boolean;
-  /** Antes do primeiro mês com dados no Atlas: não é buscado. */
-  antesDosDados: boolean;
-}
-
-/** Os 12 meses do ano, do dia 1 ao último dia; o mês em andamento vai até o fim do mês. */
-export function mesesDoAno(ano: number, hoje: string): MesDoAno[] {
-  return Array.from({ length: 12 }, (_, indice) => {
-    const mes = indice + 1;
-    const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-    const prefixo = `${ano}-${String(mes).padStart(2, "0")}`;
-    const inicio = `${prefixo}-01`;
-    return {
-      mes,
-      inicio,
-      fim: `${prefixo}-${String(ultimoDia).padStart(2, "0")}`,
-      futuro: inicio > hoje,
-      antesDosDados: inicio < PRIMEIRO_MES_COM_DADOS,
-    };
-  });
 }
 
 const FORMATADOR_MES_CURTO = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" });
