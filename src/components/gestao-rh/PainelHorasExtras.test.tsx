@@ -168,7 +168,29 @@ describe("Painel de Horas Extras", () => {
     expect(screen.getByText("Horas extras 50%")).toBeInTheDocument();
     expect(screen.getByText("4h45")).toBeInTheDocument();
     expect(screen.getByText("Horas extras 100%")).toBeInTheDocument();
+    // 285 e 120 dos 405 minutos.
+    expect(screen.getByText("70% do total")).toBeInTheDocument();
+    expect(screen.getByText("30% do total")).toBeInTheDocument();
     expect(screen.getByText("com hora extra no período")).toBeInTheDocument();
+  });
+
+  it("nas pontas, a parte do total não arredonda para 0% nem para 100%", async () => {
+    vi.mocked(buscarPainelHorasExtras).mockResolvedValue(
+      painel({
+        cards: {
+          total_minutos: 405,
+          minutos_por_fator: [
+            { fator: "1", minutos: 403 },
+            { fator: "2", minutos: 2 },
+          ],
+          colaboradores_com_hora_extra: 3,
+        },
+      }),
+    );
+    renderPainel();
+
+    expect(await screen.findByText("menos de 1% do total")).toBeInTheDocument();
+    expect(screen.getByText("mais de 99% do total")).toBeInTheDocument();
   });
 
   it("gráficos por colaborador e por unidade / equipe", async () => {
@@ -312,7 +334,8 @@ describe("Painel de Horas Extras", () => {
     expect(await screen.findByText("Sem dado de hora extra neste período")).toBeInTheDocument();
     expect(screen.getByText(/reimportar este período/)).toBeInTheDocument();
     expect(screen.queryByText("Sem hora extra no período")).not.toBeInTheDocument();
-    expect(screen.getAllByText("—")).toHaveLength(4);
+    // Os quatro números e as legendas dos dois fatores.
+    expect(screen.getAllByText("—")).toHaveLength(6);
     expect(screen.queryByText("0h")).not.toBeInTheDocument();
     // Sem o percentual do VR, o fator aparece pelo número.
     expect(screen.getByText("Horas extras Fator 1")).toBeInTheDocument();
