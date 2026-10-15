@@ -125,7 +125,8 @@ function nomesNaTabela() {
   return tabela()
     .getAllByRole("row")
     .slice(1)
-    .map((linhaDaTabela) => within(linhaDaTabela).getByRole("button").textContent);
+    // O primeiro botão da linha é o do nome (o segundo, o filtro).
+    .map((linhaDaTabela) => within(linhaDaTabela).getAllByRole("button")[0].textContent);
 }
 
 // Os gráficos carregam à parte (next/dynamic): com o módulo já carregado, o
@@ -285,8 +286,45 @@ describe("Painel de Horas Extras", () => {
     expect(nomesNaTabela()).toEqual(["Juliana Ramos", "Bruno Lima", "Ana Souza"]);
 
     await usuario.click(barra("Ana Souza"));
-    await usuario.click(screen.getByRole("button", { name: "Mostrar todos" }));
+    await usuario.click(within(screen.getByRole("status")).getByRole("button", { name: "Mostrar todos" }));
     expect(nomesNaTabela()).toHaveLength(3);
+  });
+
+  it("filtro da linha, pelo teclado, faz o mesmo que clicar na barra", async () => {
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByRole("table");
+
+    const filtro = tabela().getByRole("button", { name: "Mostrar só Bruno Lima" });
+    filtro.focus();
+    await usuario.keyboard("{Enter}");
+    expect(nomesNaTabela()).toEqual(["Bruno Lima"]);
+    expect(screen.getByRole("status")).toHaveTextContent("Mostrando só Bruno Lima");
+    // O mesmo botão, agora ativo, desfaz.
+    const ativo = tabela().getByRole("button", { name: "Mostrar todos" });
+    expect(ativo).toHaveAttribute("aria-pressed", "true");
+    await usuario.click(ativo);
+    expect(nomesNaTabela()).toHaveLength(3);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("trocar o filtro descarta a seleção, sem ela voltar com o filtro anterior", async () => {
+    const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPainel();
+    await screen.findByRole("table");
+    await usuario.click(screen.getByRole("button", { name: "fator_1:Bruno Lima", hidden: true }));
+    expect(nomesNaTabela()).toEqual(["Bruno Lima"]);
+
+    await usuario.click(screen.getByRole("combobox", { name: "Unidade" }));
+    await usuario.click(await screen.findByRole("option", { name: "Niterói" }));
+    await waitFor(() =>
+      expect(buscarPainelHorasExtras).toHaveBeenLastCalledWith(expect.objectContaining({ unidade: 1 })),
+    );
+    await usuario.click(screen.getByRole("combobox", { name: "Unidade" }));
+    await usuario.click(await screen.findByRole("option", { name: "Todas as unidades" }));
+
+    await waitFor(() => expect(nomesNaTabela()).toHaveLength(3));
+    expect(screen.queryByText(/Mostrando só/)).not.toBeInTheDocument();
   });
 
   it("período trocado sem hora extra do selecionado: a seleção some", async () => {
