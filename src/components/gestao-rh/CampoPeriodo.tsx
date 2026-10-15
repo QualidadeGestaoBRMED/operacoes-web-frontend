@@ -12,7 +12,7 @@ interface CampoPeriodoProps {
 }
 
 const CLASSE_DATA =
-  "h-full w-[7.5rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0";
+  "h-full w-[6.6rem] min-w-0 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0";
 
 /**
  * Período de consulta no mesmo formato do filtro de data da Matriz de
