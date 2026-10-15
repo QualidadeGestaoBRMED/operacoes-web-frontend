@@ -322,7 +322,7 @@ export function AbaEquipes() {
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
                 <th className="w-36 px-4 py-2.5 text-right">Colaboradores</th>
-                <th className="w-48 px-4 py-2.5">Categoria</th>
+                <th className="w-56 px-4 py-2.5">Categoria</th>
                 <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
                 <th className="w-36 px-4 py-2.5">Turno variável</th>
               </tr>
