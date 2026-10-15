@@ -2,12 +2,16 @@
 
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatarHoras, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHorasExtras";
 import type { LinhaHorasExtras, MinutosDoFator, PainelHorasExtras } from "@/types/gestaoRH";
 
 export const MAXIMO_DE_BARRAS = 10;
 const ALTURA_DA_BARRA = 34;
-const LARGURA_DO_ROTULO = 150;
+// Os nomes vêm do VR em maiúsculas, mais largos: o corte em caracteres
+// precisa caber na largura do eixo, menor no celular para sobrar barra.
+const ROTULO = { largura: 170, caracteres: 19 };
+const ROTULO_CELULAR = { largura: 112, caracteres: 11 };
 const CORES = { fator_1: "var(--secondary)", fator_2: "var(--chart-4)" };
 
 interface Barra {
@@ -27,18 +31,18 @@ function barra(nome: string, minutos: MinutosDoFator[], total: number, linha?: L
   return { nome, fator_1: minutos_1 / 60, fator_2: minutos_2 / 60, minutos_1, minutos_2, total, linha };
 }
 
-function cortar(nome: string, limite = 20): string {
+function cortar(nome: string, limite: number): string {
   return nome.length > limite ? `${nome.slice(0, limite - 1).trimEnd()}…` : nome;
 }
 
 /** Rótulo do eixo cortado com reticências; o nome inteiro fica na dica do navegador. */
-function RotuloDoEixo(props: { x?: number; y?: number; payload?: { value: string } }) {
-  const { x, y, payload } = props;
+function RotuloDoEixo(props: { x?: number; y?: number; payload?: { value: string }; caracteres: number }) {
+  const { x, y, payload, caracteres } = props;
   if (x == null || y == null || !payload) return null;
   return (
     <text x={x} y={y} dy={4} textAnchor="end" className="fill-muted-foreground">
       <title>{payload.value}</title>
-      {cortar(payload.value)}
+      {cortar(payload.value, caracteres)}
     </text>
   );
 }
@@ -99,6 +103,7 @@ function GraficoDeBarras({
     fator_2: { label: rotuloDoFator("2", painel), color: CORES.fator_2 },
   } satisfies ChartConfig;
   const clicar = onClicar && ((dado: { payload?: Barra }) => dado.payload && onClicar(dado.payload));
+  const rotulo = useMediaQuery("(max-width: 639px)") ? ROTULO_CELULAR : ROTULO;
 
   return (
     <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4">
@@ -128,11 +133,11 @@ function GraficoDeBarras({
             <YAxis
               type="category"
               dataKey="nome"
-              width={LARGURA_DO_ROTULO}
+              width={rotulo.largura}
               tickLine={false}
               axisLine={false}
               interval={0}
-              tick={<RotuloDoEixo />}
+              tick={<RotuloDoEixo caracteres={rotulo.caracteres} />}
             />
             <Tooltip content={<Dica painel={painel} />} cursor={{ fillOpacity: 0.4 }} />
             <Bar
