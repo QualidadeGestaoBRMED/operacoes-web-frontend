@@ -47,6 +47,7 @@ describe("useAuth com os dados atuais do usuário (STC-763)", () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => expect(result.current.perfil?.nivel).toBe(6));
+    expect(result.current.confirmandoCargo).toBe(false);
     expect(result.current.administraAsDuasRedes).toBe(true);
     // Identificadores continuam os da sessão.
     expect(result.current.user?.usuarioId).toBe(10);
@@ -62,6 +63,7 @@ describe("useAuth com os dados atuais do usuário (STC-763)", () => {
     expect(result.current.perfil?.nivel).toBe(2);
     expect(result.current.isAdminOps).toBe(true);
     expect(result.current.administraRedePadrao).toBe(true);
+    expect(result.current.confirmandoCargo).toBe(true);
   });
 
   it("vale a sessão se a API falhar", async () => {
@@ -70,7 +72,7 @@ describe("useAuth com os dados atuais do usuário (STC-763)", () => {
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
-    await waitFor(() => expect(obterUsuarioLogado).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.confirmandoCargo).toBe(false));
     expect(result.current.perfil?.nivel).toBe(2);
     expect(result.current.isAdminOps).toBe(true);
   });
@@ -110,6 +112,7 @@ describe("useAuth com os dados atuais do usuário (STC-763)", () => {
 
     expect(obterUsuarioLogado).not.toHaveBeenCalled();
     expect(result.current.user).toBeUndefined();
+    expect(result.current.confirmandoCargo).toBe(false);
     expect(result.current.isAdminOps).toBe(false);
   });
 });

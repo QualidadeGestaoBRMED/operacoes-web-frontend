@@ -228,6 +228,19 @@ describe("PermissoesAdmin (STC-266)", () => {
     });
   });
 
+  it("STC-763: não redireciona enquanto o cargo atual não chega", () => {
+    // Quem acabou de virar Admin ainda tem o cargo antigo na sessão.
+    simularAuth({
+      isAdminOps: false,
+      isLoading: false,
+      confirmandoCargo: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("não redireciona enquanto a sessão ainda está carregando", () => {
     simularAuth({
       isAdminOps: false,
