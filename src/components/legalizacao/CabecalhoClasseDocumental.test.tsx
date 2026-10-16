@@ -110,6 +110,17 @@ describe("CabecalhoClasseDocumental", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("mouse que só passa pelo cabeçalho não abre", async () => {
+    const user = userEvent.setup();
+    render(<CabecalhoClasseDocumental categoria="regularizacao" />);
+    const botao = screen.getByRole("button", { name: /ver os tipos de documento/ });
+
+    await user.hover(botao);
+    await user.unhover(botao);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("falha ao carregar o catálogo aparece no Popover", async () => {
     catalogo([], { mensagemErro: "Erro" });
     const user = userEvent.setup();
