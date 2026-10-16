@@ -336,11 +336,18 @@ export function PermissoesAdmin() {
     }
   }, [carregandoAuth, podeAcessar, router]);
 
-  if (carregandoAuth || !podeAcessar) return null;
-
   // Aba fora do acesso (Coordenador fora do Catálogo, Admin Operações
-  // Especiais fora de Usuários): vale a primeira que ele tem.
+  // Especiais fora de Usuários): vale a primeira que ele tem, e a URL
+  // acompanha, para o Select e a sidebar não divergirem do conteúdo.
   const abaEfetiva: Aba = abasPermitidas.includes(aba) ? aba : abasPermitidas[0];
+  const rotaDaAbaEfetiva = abaEfetiva !== aba ? ROTA_ABA[abaEfetiva] : null;
+  useEffect(() => {
+    if (!carregandoAuth && podeAcessar && rotaDaAbaEfetiva) {
+      router.replace(rotaDaAbaEfetiva);
+    }
+  }, [carregandoAuth, podeAcessar, rotaDaAbaEfetiva, router]);
+
+  if (carregandoAuth || !podeAcessar) return null;
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
 
   function nomeUsuario(usuarioId: number) {
