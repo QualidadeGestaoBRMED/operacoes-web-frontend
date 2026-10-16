@@ -9,9 +9,10 @@ const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
-function comRedes(redes: Rede[]) {
+function comRedes(redes: Rede[], confirmandoCargo = false) {
   vi.mocked(useAuth).mockReturnValue({
     isLoading: false,
+    confirmandoCargo,
     isAdminOps: redes.length > 0,
     administraRedePadrao: redes.includes("padrao"),
   } as ReturnType<typeof useAuth>);
@@ -34,6 +35,21 @@ describe("ModuloDaRedePadrao (STC-747)", () => {
 
     expect(screen.queryByText("Conteúdo do módulo")).not.toBeInTheDocument();
     expect(replace).toHaveBeenCalledWith("/modulos/gestao-demandas");
+  });
+
+  it("STC-763: Admin Operações Especiais pela sessão espera o cargo atual antes de sair", () => {
+    comRedes(["opex"], true);
+    renderModulo();
+
+    expect(screen.queryByText("Conteúdo do módulo")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("STC-763: Admin da rede padrão não espera o cargo atual", () => {
+    comRedes(["padrao"], true);
+    renderModulo();
+
+    expect(screen.getByText("Conteúdo do módulo")).toBeInTheDocument();
   });
 
   it("enquanto a sessão carrega, o módulo não monta", () => {
