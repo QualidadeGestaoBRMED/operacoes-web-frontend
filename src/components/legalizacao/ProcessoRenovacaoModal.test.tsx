@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
 import type {
   DocumentoUnidade,
@@ -131,12 +131,10 @@ function renderComponente(
   );
 }
 
-beforeAll(() => {
-  // Fixa o fuso do processo de teste -- "Data da solicitação" precisa
-  // converter o datetime UTC pro fuso local antes de extrair o dia, não
-  // fatiar a string crua (achado em análise de falhas críticas).
-  process.env.TZ = "America/Sao_Paulo";
-});
+// O fuso dos testes é fixado em America/Sao_Paulo no vitest.config.ts:
+// "Data da solicitação" precisa converter o datetime UTC pro fuso local antes
+// de extrair o dia, não fatiar a string crua (achado em análise de falhas
+// críticas).
 
 beforeEach(() => {
   vi.resetAllMocks();

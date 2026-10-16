@@ -928,3 +928,22 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **`KanbanFiltros.tsx`/`FormNovaDemanda.tsx` são exceção ao "sempre padrao"**: os dois já sabem qual Tipo de Gestão está ativo/selecionado, então a rede pedida acompanha esse tipo (`visibilidade_padrao` `"opex"` → unidades `"opex"`, senão `"padrao"`) -- achado testando ao vivo a aba "OPEX" do Kanban, que mostrava as filiais normais no filtro em vez das unidades de Operações Especiais.
 - `VisibilidadePadrao` (frontend) ganha o valor `"opex"`, que faltava desde a STC-509 (só existia no backend).
 - **Achado no code review**: `KanbanFiltros.tsx` e `FormNovaDemanda.tsx` implementam a mesma lógica, mas só o Kanban tinha teste de regressão -- o formulário é o caminho com mais risco (fica aberto enquanto o usuário troca de tipo de gestão, diferente da aba do Kanban, já fixada). Teste novo mocka `listarUnidades` devolvendo listas DIFERENTES por rede, provando que o Select de Unidade reflete de verdade a rede pedida ao trocar de tipo de gestão dentro do form.
+
+### 7.15 STC-727 — Suíte do Vitest mais rápida e sem falhas por tempo
+
+🔄 **Em andamento.** Com todos os arquivos em paralelo, os formulários pesados de Legalização (vários Select do Radix por teste) chegavam a dobrar de duração e algum teste passava do limite padrão de 5 s, falhando sem relação com o código alterado. Rodados isolados, passavam sempre.
+
+- `vitest.config.ts`: `pool: "threads"` (o padrão era `forks`) e `testTimeout: 15_000`.
+- Medição de 16/10/2026 (71 arquivos, 1038 testes, 12 núcleos, com o `next dev` no ar): antes, 87,6 s e 4 testes por tempo; depois, 78,8 s, 87,3 s (1 falha, não identificada) e 76,0 s nas três primeiras execuções, e 7 execuções seguidas sem falha depois disso.
+- **Fuso dos testes (achado na análise de falhas):** o `ProcessoRenovacaoModal.test.tsx` trocava `process.env.TZ` no próprio arquivo, o que não tem efeito dentro do worker (nem em processo, nem em thread): o teste só passava porque a máquina já estava em São Paulo, e falhava em UTC. O fuso agora é fixado em `America/Sao_Paulo` no `vitest.config.ts`, antes de os workers nascerem. Conferido: suíte inteira com `TZ=UTC` passa (1038 testes, 68 s).
+- **Configuração final (threads, 15 s e fuso fixo), depois do code review:** 3 execuções seguidas limpas (70,5 s, 103,7 s e 90,5 s, 1038 passaram), `tsc --noEmit` limpo e `eslint src vitest.config.ts vitest.setup.ts` limpo. O `npm run lint` na raiz acusa 853 erros, todos da pasta gerada `.next-e2e` (build do E2E, fora do repositório).
+- **Comparação nas mesmas condições** (máquina em uso, carga entre 12 e 16 em 12 núcleos), rodadas alternadas: modo antigo (`forks`, 5 s) com 98,1 s e 1 falha por tempo, e 85,7 s e 3 falhas por tempo; modo novo com 85,9 s e 78,8 s, sem falha. Somando todas as execuções do modo novo depois do fuso fixo: 10 rodadas, 9 limpas e 1 falha não identificada (a de carga mais alta, 107 s, sem a saída completa guardada).
+- **Resumo das medições (2ª rodada de code review):** o tempo absoluto nesta máquina varia com o uso (Chrome, Discord, VS Code; carga de 8 a 16 em 12 núcleos), então a referência fixa de 87,6 s não serve sozinha. O critério de aceite passou a ser comparar os dois modos nas mesmas condições.
+
+  | Modo | Rodadas | Mediana | Rodadas com falha |
+  | -- | -- | -- | -- |
+  | Antigo (`forks`, 5 s) | 3 | 87,6 s | 3 de 3 (1, 4 e 3 falhas por tempo) |
+  | Novo (`threads`, 15 s, fuso fixo) | 10 | 81,9 s | 1 de 10 (não identificada) |
+
+  A falha não identificada fica como risco conhecido: se voltar, guardar a saída completa (`npx vitest run > saida.log 2>&1`) e abrir issue com o teste que falhou.
+- Fora de escopo: reescrever os testes de Legalização para menos interações; trocar o `jsdom`. O backend tem issue própria.
