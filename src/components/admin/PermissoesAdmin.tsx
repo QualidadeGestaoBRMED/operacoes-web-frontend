@@ -348,7 +348,11 @@ export function PermissoesAdmin() {
     }
   }, [carregandoAuth, confirmandoCargo, podeAcessar, rotaDaAbaEfetiva, router]);
 
-  if (carregandoAuth || !podeAcessar) return null;
+  // Aba pedida fora do acesso pela sessão: o cargo atual pode liberá-la, então
+  // a tela espera em vez de mostrar outra aba com a URL desta.
+  const aguardandoAba = confirmandoCargo && abaEfetiva !== aba;
+
+  if (carregandoAuth || !podeAcessar || aguardandoAba) return null;
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
 
   function nomeUsuario(usuarioId: number) {
