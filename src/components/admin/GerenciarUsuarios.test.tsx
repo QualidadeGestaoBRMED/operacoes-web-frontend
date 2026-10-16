@@ -421,8 +421,14 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
     const listbox = await screen.findByRole("listbox");
     expect(within(listbox).getByText("Coordenação de uma clínica da rede própria.")).toBeVisible();
     expect(within(listbox).getByText("Descrição cadastrada no Django Admin.")).toBeVisible();
-    // O nome da opção continua só o cargo.
-    expect(within(listbox).getByRole("option", { name: "Setor" })).toBeInTheDocument();
+    // O nome da opção continua só o cargo; a descrição chega ao leitor de
+    // tela como descrição da opção.
+    expect(within(listbox).getByRole("option", { name: "Setor" })).toHaveAccessibleDescription(
+      "Descrição cadastrada no Django Admin.",
+    );
+    expect(within(listbox).getByRole("option", { name: "Unidade" })).toHaveAccessibleDescription(
+      "Coordenação de uma clínica da rede própria.",
+    );
   });
 });
 
