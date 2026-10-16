@@ -138,14 +138,25 @@ export function FormNovaPermissao({
 }) {
   const { user: ator, redesAdministradas, administraRedePadrao, administraAsDuasRedes } =
     useAuth();
-  const { usuarios: todosOsUsuarios } = useUsuarios();
-  const { unidades: todasAsUnidades, isLoading: carregandoUnidades } = useUnidades();
+  const {
+    usuarios: todosOsUsuarios,
+    isLoading: carregandoUsuarios,
+    error: erroUsuarios,
+  } = useUsuarios();
+  const {
+    unidades: todasAsUnidades,
+    isLoading: carregandoUnidades,
+    error: erroUnidades,
+  } = useUnidades();
   // Cada Admin concede só a quem gerencia, e só nas unidades das redes dele
   // (STC-745). Quem ele gerencia depende da rede da unidade de cada pessoa:
-  // a lista só sai com as unidades carregadas.
-  const usuarios = carregandoUnidades
-    ? []
-    : usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
+  // a lista só sai com pessoas e unidades carregadas.
+  const carregandoPessoas = carregandoUsuarios || carregandoUnidades;
+  const pessoasComErro = Boolean(erroUsuarios || erroUnidades);
+  const usuarios =
+    carregandoPessoas || pessoasComErro
+      ? []
+      : usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
   const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
@@ -353,8 +364,14 @@ export function FormNovaPermissao({
                     value={field.value ? String(field.value) : undefined}
                     onValueChange={(valor) => field.onChange(Number(valor))}
                   >
-                    <SelectTrigger id="p-usuario" className="w-full">
-                      <SelectValue placeholder="Selecionar..." />
+                    <SelectTrigger
+                      id="p-usuario"
+                      className="w-full"
+                      disabled={carregandoPessoas || pessoasComErro}
+                    >
+                      <SelectValue
+                        placeholder={carregandoPessoas ? "Carregando..." : "Selecionar..."}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {usuarios.map((usuario) => (
@@ -366,6 +383,11 @@ export function FormNovaPermissao({
                   </Select>
                 )}
               />
+              {pessoasComErro && (
+                <p className="text-xs text-destructive">
+                  Não foi possível carregar as pessoas -- tente novamente.
+                </p>
+              )}
               {errors.usuario && (
                 <p className="text-xs text-destructive">{errors.usuario.message}</p>
               )}
@@ -485,8 +507,14 @@ export function FormNovaPermissao({
                       value={field.value ? String(field.value) : undefined}
                       onValueChange={(valor) => field.onChange(Number(valor))}
                     >
-                      <SelectTrigger id="p-unidade" className="w-full">
-                        <SelectValue placeholder="Selecionar..." />
+                      <SelectTrigger
+                        id="p-unidade"
+                        className="w-full"
+                        disabled={carregandoUnidades || Boolean(erroUnidades)}
+                      >
+                        <SelectValue
+                          placeholder={carregandoUnidades ? "Carregando..." : "Selecionar..."}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {unidades.map((unidade) => (
@@ -498,6 +526,11 @@ export function FormNovaPermissao({
                     </Select>
                   )}
                 />
+                {erroUnidades && (
+                  <p className="text-xs text-destructive">
+                    Não foi possível carregar as unidades -- tente novamente.
+                  </p>
+                )}
                 {errors.unidade && (
                   <p className="text-xs text-destructive">{errors.unidade.message}</p>
                 )}
