@@ -390,6 +390,27 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("sem a lista de cargos, a tabela não aparece como pronta", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarPerfis).mockReturnValue(new Promise(() => {}));
+
+    renderTela();
+
+    expect(await screen.findByText("Carregando...")).toBeInTheDocument();
+    expect(screen.queryByText("Fernanda Lima")).not.toBeInTheDocument();
+  });
+
+  it("falha ao carregar os cargos avisa o erro", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarPerfis).mockRejectedValue(new Error("rede"));
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Não foi possível carregar os usuários -- tente novamente."),
+    ).toBeInTheDocument();
+  });
+
   it("trocar o cargo de quem está numa unidade fora da lista (desativada) tira a unidade", async () => {
     comoAtor(PERFIL_GO, ["opex", "padrao"]);
     vi.mocked(listarUsuarios).mockResolvedValue([

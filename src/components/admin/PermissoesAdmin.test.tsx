@@ -420,6 +420,25 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(buscarReguaFerias).toHaveBeenCalled();
   });
 
+  it("STC-747: Admin Operações Especiais fica só com Usuários, mesmo pela rota dos Parâmetros", async () => {
+    mockSetPathname("/admin/permissoes/parametros-gestao-rh");
+    simularAuth({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    const secao = await screen.findByLabelText("Seção");
+    expect(secao).toHaveTextContent("Usuários");
+    await user.click(secao);
+
+    expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual(["Usuários"]);
+    expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
+  });
+
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {
     simularAuth({
       isAdminOps: true,
