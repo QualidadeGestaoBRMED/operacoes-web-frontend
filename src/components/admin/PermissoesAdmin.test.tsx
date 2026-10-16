@@ -1716,6 +1716,23 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
     expect(vi.mocked(criarPermissao).mock.calls[0][0]).not.toHaveProperty("rede");
   });
 
+  it("quem administra as duas concede global das duas redes com rede null", async () => {
+    simularAuth({ isAdminOps: true, isAdminQG: true, isLoading: false } as ReturnType<
+      typeof useAuth
+    >);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const { user, dialog } = await abrirFormularioGlobal();
+
+    expect(within(dialog).getByLabelText("Rede")).toHaveTextContent("As duas redes");
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() =>
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({ escopo_tipo: "global", rede: null }),
+      ),
+    );
+  });
+
   it("quem administra as duas escolhe a rede do global", async () => {
     simularAuth({ isAdminOps: true, isAdminQG: true, isLoading: false } as ReturnType<
       typeof useAuth

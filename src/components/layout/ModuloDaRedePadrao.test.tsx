@@ -28,12 +28,24 @@ function renderModulo() {
 beforeEach(() => replace.mockClear());
 
 describe("ModuloDaRedePadrao (STC-747)", () => {
-  it("Admin Operações Especiais volta para o Hub sem ver o módulo", () => {
+  it("Admin Operações Especiais volta para o Kanban sem ver o módulo", () => {
     comRedes(["opex"]);
     renderModulo();
 
     expect(screen.queryByText("Conteúdo do módulo")).not.toBeInTheDocument();
-    expect(replace).toHaveBeenCalledWith("/hub");
+    expect(replace).toHaveBeenCalledWith("/modulos/gestao-demandas");
+  });
+
+  it("enquanto a sessão carrega, o módulo não monta", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isLoading: true,
+      isAdminOps: false,
+      administraRedePadrao: false,
+    } as ReturnType<typeof useAuth>);
+    renderModulo();
+
+    expect(screen.queryByText("Conteúdo do módulo")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it.each<[string, Rede[]]>([
