@@ -42,6 +42,7 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { hojeNoFusoDoServidor } from "@/lib/kanban";
+import { ROTULO_REDE } from "@/lib/redes";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
 import {
@@ -418,6 +419,8 @@ export function PermissoesAdmin() {
       escopo_tipo: permissao.escopo_tipo,
       unidade: permissao.unidade ?? undefined,
       setor: permissao.setor ?? undefined,
+      // Global de uma rede só continua dessa rede; sem rede, as duas.
+      rede: permissao.escopo_tipo === "global" ? (permissao.rede ?? "ambas") : undefined,
     };
   }
 
@@ -803,6 +806,12 @@ export function PermissoesAdmin() {
                           </td>
                           <td className="px-4 py-2.5">
                             {ROTULO_ESCOPO[permissao.escopo_tipo]}
+                            {permissao.escopo_tipo === "global" && permissao.rede && (
+                              <span className="text-muted-foreground">
+                                {" -- "}
+                                {ROTULO_REDE[permissao.rede]}
+                              </span>
+                            )}
                             {permissao.escopo_tipo !== "global" &&
                               permissao.escopo_tipo !== "proprio" && (
                                 <span className="text-muted-foreground">

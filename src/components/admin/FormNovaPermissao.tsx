@@ -33,6 +33,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
+import { ROTULO_REDE } from "@/lib/redes";
 import { nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, Rede } from "@/types";
 import { usuariosGerenciaveis } from "./GerenciarUsuarios";
@@ -56,11 +57,6 @@ const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   excluir: "Excluir",
   restaurar: "Restaurar",
   configurar: "Configurar",
-};
-
-const ROTULO_REDE: Record<Rede, string> = {
-  padrao: "rede própria",
-  opex: "Operações Especiais",
 };
 
 const COBERTURA_DO_GLOBAL: Record<Rede, string> = {

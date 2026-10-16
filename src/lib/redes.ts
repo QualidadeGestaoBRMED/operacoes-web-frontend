@@ -13,6 +13,11 @@ export const NIVEL_ADMIN_OPERACOES_ESPECIAIS = 7;
 
 export const TODAS_AS_REDES: Rede[] = ["opex", "padrao"];
 
+export const ROTULO_REDE: Record<Rede, string> = {
+  padrao: "rede própria",
+  opex: "Operações Especiais",
+};
+
 // Espelha REDES_ADMINISTRADAS do backend. Só é usado quando o usuário não
 // traz `redes_administradas` (sessão aberta antes do campo existir: os dados
 // do usuário na sessão só são gravados no login).
