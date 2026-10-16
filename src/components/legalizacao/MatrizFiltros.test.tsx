@@ -113,6 +113,23 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
   });
 });
 
+describe("MatrizFiltros -- unidades da rede padrão (STC-747)", () => {
+  it.each([
+    ["Gestão de Operações", ["opex", "padrao"]],
+    ["Admin Operações", ["padrao"]],
+  ])("%s vê só as unidades da rede padrão: a Legalização é dela", (_cargo, redes) => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 1, redes_administradas: redes },
+      isLoading: false,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as never);
+    renderFiltros();
+
+    expect(useUnidades).toHaveBeenCalledWith("padrao");
+  });
+});
+
 describe("MatrizFiltros -- 'Limpar filtros' não conta a unidade forçada do Coordenador (STC-512, review)", () => {
   beforeEach(() => {
     vi.mocked(useAuth).mockReturnValue({

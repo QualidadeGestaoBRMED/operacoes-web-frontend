@@ -564,6 +564,35 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(await screen.findByText("Revogada")).toBeInTheDocument();
   });
 
+  it("STC-747: enquanto pessoas e unidades carregam, o campo Pessoa espera", async () => {
+    simularAuth({ isAdminOps: true, isLoading: false } as ReturnType<typeof useAuth>);
+    vi.mocked(listarUnidades).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    const dialog = await screen.findByRole("dialog");
+
+    const pessoa = within(dialog).getByLabelText(/pessoa/i);
+    expect(pessoa).toBeDisabled();
+    expect(pessoa).toHaveTextContent("Carregando...");
+  });
+
+  it("STC-747: falha ao carregar as pessoas avisa no formulário", async () => {
+    simularAuth({ isAdminOps: true, isLoading: false } as ReturnType<typeof useAuth>);
+    vi.mocked(listarUsuarios).mockRejectedValue(new Error("rede"));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    const dialog = await screen.findByRole("dialog");
+
+    expect(
+      await within(dialog).findByText("Não foi possível carregar as pessoas -- tente novamente."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/pessoa/i)).toBeDisabled();
+  });
+
   it("cria uma nova permissão com o payload certo", async () => {
     simularAuth({
       isAdminOps: true,

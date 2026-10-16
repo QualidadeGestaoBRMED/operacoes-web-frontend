@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -406,4 +406,23 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
       expect(atualizarUsuario).toHaveBeenCalledWith(5, { perfil_id: 5, unidade_id: null }),
     );
   });
+
+  it("cada cargo da lista mostra o que ele faz, e a descrição cadastrada vale no lugar", async () => {
+    vi.mocked(listarPerfis).mockResolvedValue([
+      PERFIL_UNIDADE,
+      { ...PERFIL_SETOR, descricao: "Descrição cadastrada no Django Admin." },
+    ]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ perfil: PERFIL_UNIDADE })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText("Coordenação de uma clínica da rede própria.")).toBeVisible();
+    expect(within(listbox).getByText("Descrição cadastrada no Django Admin.")).toBeVisible();
+    // O nome da opção continua só o cargo.
+    expect(within(listbox).getByRole("option", { name: "Setor" })).toBeInTheDocument();
+  });
 });
+
