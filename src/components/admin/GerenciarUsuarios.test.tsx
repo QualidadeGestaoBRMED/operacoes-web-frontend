@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
 import { GerenciarUsuarios } from "./GerenciarUsuarios";
@@ -9,6 +10,9 @@ import { GerenciarUsuarios } from "./GerenciarUsuarios";
 vi.mock("@/lib/plataforma");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+// Ator padrão: Admin Operações (rede padrão), que não gerencia nem oferece
+// cargos administrativos (STC-745).
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarUsuario,
@@ -66,6 +70,13 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarSetores).mockResolvedValue([SETOR]);
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(useAuth).mockReturnValue({
+    user: { usuarioId: 999, perfil: PERFIL_OPS, redes_administradas: ["padrao"] },
+    redesAdministradas: ["padrao"],
+    administraRedePadrao: true,
+    administraAsDuasRedes: false,
+    isAdminOps: true,
+  } as unknown as ReturnType<typeof useAuth>);
 });
 
 describe("GerenciarUsuarios (STC-266 -- extensão)", () => {

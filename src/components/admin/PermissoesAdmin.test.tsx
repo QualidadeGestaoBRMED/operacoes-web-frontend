@@ -191,9 +191,32 @@ beforeEach(() => {
   vi.mocked(buscarReguaFerias).mockResolvedValue({ marcos: [], versoes: [] });
 });
 
+
+// useAuth simulado: completa o que a STC-747 acrescentou (redes
+// administradas e o usuário logado) a partir de isAdminOps/isAdminQG.
+function simularAuth(valores: Partial<ReturnType<typeof useAuth>>) {
+  const admin = valores.isAdminOps ?? false;
+  const redes =
+    valores.redesAdministradas ??
+    (admin ? (valores.isAdminQG ? (["opex", "padrao"] as const) : (["padrao"] as const)) : []);
+  vi.mocked(useAuth).mockReturnValue({
+    user: admin
+      ? {
+          usuarioId: 999,
+          perfil: { id: 999, nome: "Admin", descricao: "", nivel: valores.isAdminQG ? 1 : 2 },
+          redes_administradas: [...redes],
+        }
+      : undefined,
+    redesAdministradas: [...redes],
+    administraRedePadrao: redes.includes("padrao"),
+    administraAsDuasRedes: redes.length === 2,
+    ...valores,
+  } as ReturnType<typeof useAuth>);
+}
+
 describe("PermissoesAdmin (STC-266)", () => {
   it("redireciona quem não é admin", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -206,7 +229,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("não redireciona enquanto a sessão ainda está carregando", () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isLoading: true,
     } as ReturnType<typeof useAuth>);
@@ -218,7 +241,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
   // STC-514: Coordenador ganha acesso, mas só ao Catálogo de Legalização.
   it("Coordenador não é redirecionado, mas só vê o Catálogo de Legalização (sem Select de seção, sem Usuários/Permissões)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isCoordenacaoUnidade: true,
       isLoading: false,
@@ -239,7 +262,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
   it("Coordenador não vê os Parâmetros de Gestão RH, nem pela rota própria", async () => {
     mockSetPathname("/admin/permissoes/parametros-gestao-rh");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isCoordenacaoUnidade: true,
       isLoading: false,
@@ -263,7 +286,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // mesmo acesso restrito que o Coordenador já tinha -- mesmo motivo (já
   // pode escrever no catálogo pela API, faltava o caminho na tela).
   it("Setor de Legalização não é redirecionado, mas só vê o Catálogo de Legalização (sem Select de seção, sem Usuários/Permissões)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isCoordenacaoUnidade: false,
       isSetorLeg: true,
@@ -289,7 +312,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     ["Coordenador", { isCoordenacaoUnidade: true }],
     ["Setor de Legalização", { isSetorLeg: true }],
   ])("%s no Catálogo não busca as permissões de usuário", async (_perfil, papel) => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isLoading: false,
       ...papel,
@@ -304,7 +327,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("Admin Operações busca as permissões de usuário", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -318,7 +341,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // nível (RH etc.). Só isSetorLeg (nível + setor.codigo === "LEG") libera
   // acesso; qualquer outro setor de nível 4 continua sem nenhum.
   it("usuário de nível Setor mas de outro setor (não Legalização) continua sem acesso", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: false,
       isCoordenacaoUnidade: false,
       isSetorLeg: false,
@@ -339,7 +362,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // via apenasCatalogo).
   it("na rota /admin/permissoes/catalogo-legalizacao, abre direto no Catálogo de Legalização", async () => {
     mockSetPathname("/admin/permissoes/catalogo-legalizacao");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -361,7 +384,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
   it("na rota /admin/permissoes/parametros-gestao-rh, Admin abre direto nos Parâmetros de Gestão RH", async () => {
     mockSetPathname("/admin/permissoes/parametros-gestao-rh");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -377,7 +400,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("Admin chega aos Parâmetros de Gestão RH pelo Select de seção", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -398,7 +421,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -417,7 +440,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // que está de fato exibido.
   it("trocar a Seção pelo Select navega de verdade (mantém a URL sincronizada com o conteúdo)", async () => {
     mockSetPathname("/admin/permissoes/catalogo-legalizacao");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -451,7 +474,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // corrigido: um estado local (seção "Permissões individuais" expandida)
   // sobrevive a ida e volta entre as duas abas.
   it("trocar de aba pelo Select preserva outro state local (ex. seção expandida) -- não remonta o componente", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
@@ -482,7 +505,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("lista permissões existentes com nome resolvido e status", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -505,7 +528,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // Achado no dogfooding: só o período de validade não bastava pra
   // auditoria -- faltava quem concedeu e quando.
   it("mostra quem concedeu e quando, na coluna 'Concedido'", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -528,7 +551,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("mostra 'Revogada' pra permissão com ativo=false", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -542,7 +565,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("cria uma nova permissão com o payload certo", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -596,7 +619,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("Editar cria apenas uma permissão, pois já implica Visualizar no backend", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -641,7 +664,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("oferece somente uma escolha entre Visualizar e Editar", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -675,7 +698,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // com visualizar/editar (ex.: só suporta "configurar"). Sem bloqueio, o
     // Select de Ação ficava vazio mas o valor padrão ("visualizar")
     // sobrevivia por baixo e ia pro submit como se fosse suportado.
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -721,7 +744,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // agora um nível mais fundo: acoes_suportadas é obrigatório só pro
     // TypeScript, listarModulos() não valida a resposta em runtime. Cast
     // forçado de propósito, simulando o contrato quebrado.
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -769,7 +792,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // por exemplo. Cast forçado de propósito: simula exatamente esse
     // contrato quebrado, que TypeScript sozinho não pega (só existe em
     // runtime, não em compile-time).
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -789,7 +812,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // aparece em Conceder permissão sem PR de frontend -- aqui simulado
     // com um módulo/recurso que não existia nas versões anteriores deste
     // teste (nenhum código de FormNovaPermissao.tsx precisou mudar).
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -826,7 +849,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("STC-422: Ação só oferece o que o recurso escolhido suporta, e desmarca uma escolha que deixou de valer", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -908,7 +931,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("STC-422: coluna 'Recurso' mostra o módulo e o rótulo do catálogo", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -927,7 +950,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   it("STC-422: coluna 'Recurso' cai pra chave crua se o recurso não estiver mais no catálogo", async () => {
     // Defensivo: uma permissão histórica pode apontar pra um recurso que
     // saiu do catálogo depois -- a linha não deve sumir nem quebrar.
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -949,7 +972,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // Achado no code review: sem isso, o Select ficava vazio (nem
     // "Selecionar...", nem o valor real) escondendo que o campo ainda
     // guardava essa chave por baixo.
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -989,7 +1012,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // que não está mais listado nele) -- reativar sem tocar no campo
     // Recurso (o próprio caso de uso do botão) perdia a associação de
     // módulo da permissão em silêncio.
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1050,7 +1073,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // não tinha respondido, e submeter nessa janela perdia o módulo
     // (mesmo defeito do achado anterior, só que causado por timing, não
     // por remoção real).
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1106,7 +1129,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     // vazio". Sem tratar o erro, Renovar numa permissão com um recurso
     // perfeitamente válido mostrava o aviso falso "não está mais no
     // catálogo" e liberava o submit, perdendo o módulo (modulo: null).
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1137,7 +1160,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("não agrupa concessões distintas feitas no mesmo minuto", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1158,7 +1181,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("ordena por 'Concedido' do mais recente pro mais antigo", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1194,7 +1217,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("revoga somente o ID da linha escolhida", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1228,7 +1251,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("revoga uma permissão ativa", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1254,7 +1277,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // cada seção passou a repartir a altura 50/50 por padrão, com a opção de
   // expandir uma e esconder (não desmontar) a outra.
   it("expandir 'Permissões individuais' esconde 'Perfil, unidade e setor', e desfazer volta ao meio a meio", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1283,7 +1306,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("expandir 'Perfil, unidade e setor' esconde 'Permissões individuais'", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1302,7 +1325,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("filtra 'Permissões individuais' por status", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1324,7 +1347,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("filtra 'Permissões individuais' por pessoa", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1351,7 +1374,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("permite selecionar mais de uma pessoa no filtro", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1377,7 +1400,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("só lista no filtro de pessoa quem tem alguma permissão", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1399,7 +1422,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("filtra 'Permissões individuais' por ação", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1426,7 +1449,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   });
 
   it("mostra mensagem e permite limpar quando os filtros não encontram nada", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1452,7 +1475,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
   // STC-415: seção nova, selecionável ao lado do conteúdo que já existia.
   it("mostra o catálogo de Legalização ao trocar de seção, sem desmontar 'Usuários'", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1485,7 +1508,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // qualquer seleção/filtro em andamento ali era descartado sem aviso ao
   // voltar.
   it("não perde a seleção de unidade em 'Corrigir regra' ao trocar de seção e voltar", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1515,7 +1538,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // (ehMobile) continuasse sem altura travada -- ver PermissoesAdmin.tsx pro
   // racional completo (ehMobile ? undefined : {maxHeight}).
   it("no mobile, o container de 'Permissões individuais' não trava a própria altura", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);
@@ -1540,7 +1563,7 @@ describe("PermissoesAdmin (STC-266)", () => {
   // Escopado à tabela: "Pessoa"/"Fernanda Lima" também existem na tabela de
   // Perfil/Unidade/Setor, mesma página.
   it("mantém a coluna 'Pessoa' fixa (sticky left-0) em 'Permissões individuais' ao rolar horizontalmente", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminOps: true,
       isLoading: false,
     } as ReturnType<typeof useAuth>);

@@ -19,6 +19,22 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { listarModulos } from "@/lib/plataforma";
 
+
+// useAuth simulado: completa o que a STC-747 acrescentou (redes
+// administradas) a partir de isAdminOps/isAdminQG.
+function simularAuth(valores: Partial<ReturnType<typeof useAuth>>) {
+  const admin = valores.isAdminOps ?? false;
+  const redes =
+    valores.redesAdministradas ??
+    (admin ? (valores.isAdminQG ? (["opex", "padrao"] as const) : (["padrao"] as const)) : []);
+  vi.mocked(useAuth).mockReturnValue({
+    redesAdministradas: [...redes],
+    administraRedePadrao: redes.includes("padrao"),
+    administraAsDuasRedes: redes.length === 2,
+    ...valores,
+  } as ReturnType<typeof useAuth>);
+}
+
 function renderSidebar() {
   return render(
     <SWRConfig value={{ provider: () => new Map() }}>
@@ -56,7 +72,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
   });
 
   it("não aparece nada pra quem não é admin", () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
     } as ReturnType<typeof useAuth>);
@@ -76,7 +92,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
   // (STC-266) não depende dessa env, então continua aparecendo.
   it("não mostra o link do Django Admin se NEXT_PUBLIC_API_URL estiver ausente, mesmo pra Admin Q&G", () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: true,
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
@@ -93,7 +109,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
     // vi.stubEnv, os dois lados da comparação comparariam "undefined/admin"
     // contra "undefined/admin", um teste que passa sem provar nada.
     vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.exemplo.test");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: true,
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
@@ -112,8 +128,8 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
   // STC-266: Admin Operações (nível 2, não Q&G) não tem login no Django
   // Admin configurado -- só vê a tela interna, rotulada com o próprio
   // perfil em vez de "Administração" genérico.
-  it("Admin Operações (não Q&G) vê só o link interno, rotulado como 'Admin Operações'", () => {
-    vi.mocked(useAuth).mockReturnValue({
+  it("Admin Operações (não Q&G) vê só o link interno, rotulado como 'Administração'", () => {
+    simularAuth({
       isAdminQG: false,
       isAdminOps: true,
     } as ReturnType<typeof useAuth>);
@@ -121,7 +137,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
     renderSidebar();
 
     expect(screen.queryByText("Admin Q&G")).not.toBeInTheDocument();
-    const link = screen.getByRole("link", { name: /admin operações/i });
+    const link = screen.getByRole("link", { name: "Administração" });
     expect(link).toHaveAttribute("href", "/admin/permissoes");
   });
 
@@ -129,7 +145,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
   // Catálogo de Legalização vive dentro do submenu de Legalização (ver
   // describe "submenu expansível de Legalização" mais abaixo), não aqui.
   it("Coordenador não vê nenhum link deste bloco (Admin Q&G/Administração/Admin Operações)", () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: true,
@@ -145,7 +161,7 @@ describe("Sidebar -- bloco Admin Q&G/Admin Operações (STC-262/STC-266)", () =>
 
 describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
   beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
     } as ReturnType<typeof useAuth>);
@@ -224,7 +240,7 @@ describe("Sidebar -- status do módulo lido pela API (STC-423)", () => {
 
 describe("Sidebar -- submenu expansível de Legalização (STC-496)", () => {
   beforeEach(() => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
     } as ReturnType<typeof useAuth>);
@@ -306,7 +322,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   });
 
   it("Coordenador vê Catálogo de Legalização como 3º subitem, apontando pra /admin/permissoes", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: true,
@@ -326,7 +342,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   // bloco "Administração" de baixo, só sem esse atalho direto -- passa a
   // ganhar o mesmo subitem que o Coordenador já tinha.
   it("Admin Operações também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: true,
       isCoordenacaoUnidade: false,
@@ -340,7 +356,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   });
 
   it("Admin Q&G também vê Catálogo de Legalização como subitem em Legalização (STC-519)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: true,
       isAdminOps: true,
       isCoordenacaoUnidade: false,
@@ -357,7 +373,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   // STC-521: Setor de Legalização ganha o mesmo atalho que Coordenador/Admin
   // já tinham, mesmo motivo -- já pode escrever no catálogo pela API.
   it("Setor de Legalização também vê Catálogo de Legalização como subitem em Legalização (STC-521)", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: false,
@@ -372,7 +388,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   });
 
   it("outro setor de nível Setor (não Legalização) não vê esse subitem extra em Legalização", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: false,
@@ -396,7 +412,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
     vi.mocked(usePathname).mockReturnValue(
       "/admin/permissoes/catalogo-legalizacao",
     );
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: true,
@@ -422,7 +438,7 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
   // se fosse a página ativa, rótulo errado pro que estava na tela.
   it("NÃO destaca 'Catálogo de Legalização' quando o pathname é só /admin/permissoes (link 'Administração', não o atalho)", async () => {
     vi.mocked(usePathname).mockReturnValue("/admin/permissoes");
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: true,
       isCoordenacaoUnidade: false,
@@ -448,7 +464,7 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
   });
 
   it("Admin vê Painel de Absenteísmo e Parâmetros de Gestão RH", async () => {
-    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<
       typeof useAuth
     >);
     renderSidebar();
@@ -465,7 +481,7 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
   });
 
   it("coordenação vê os dois painéis, sem os Parâmetros", async () => {
-    vi.mocked(useAuth).mockReturnValue({
+    simularAuth({
       isAdminQG: false,
       isAdminOps: false,
       isCoordenacaoUnidade: true,
@@ -485,7 +501,7 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
 
   it("nas Horas Extras, só o subitem delas fica ativo", async () => {
     vi.mocked(usePathname).mockReturnValue("/modulos/gestao-rh/horas-extras");
-    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<
       typeof useAuth
     >);
     renderSidebar();
@@ -501,7 +517,7 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
 
   it("nos Parâmetros, abre expandido com só o subitem dos Parâmetros ativo", async () => {
     vi.mocked(usePathname).mockReturnValue("/admin/permissoes/parametros-gestao-rh");
-    vi.mocked(useAuth).mockReturnValue({ isAdminQG: false, isAdminOps: true } as ReturnType<
+    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<
       typeof useAuth
     >);
     renderSidebar();
