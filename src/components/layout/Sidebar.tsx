@@ -24,12 +24,21 @@ const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
 export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
   const pathname = usePathname();
   const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
-  const { isAdminQG, isAdminOps, isCoordenacaoUnidade, isSetorLeg } = useAuth();
+  const { isAdminQG, isAdminOps, administraRedePadrao, isCoordenacaoUnidade, isSetorLeg } =
+    useAuth();
   // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
   const modulosNavegacao = useModulosNavegacao();
-  const modulosAtivos = modulosNavegacao.filter((modulo) => modulo.ativo);
+  // STC-747: Legalização e Gestão RH só trabalham com a rede padrão; o Admin
+  // Operações Especiais (Admin só da rede OPEX) não os vê até as versões de
+  // Operações Especiais.
+  const soAdminOpex = isAdminOps && !administraRedePadrao;
+  const modulosAtivos = modulosNavegacao.filter(
+    (modulo) =>
+      modulo.ativo &&
+      !(soAdminOpex && (modulo.codigo === "legalizacao" || modulo.codigo === "gestao-rh")),
+  );
   const modulosBloqueados = [
     HUB_BLOQUEADO,
     ...modulosNavegacao.filter((modulo) => !modulo.ativo),
@@ -60,7 +69,10 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
     // como ativo mesmo com Usuários na tela, e trocar de link sem
     // reload deixava a aba presa no valor anterior (mesma
     // instância de PermissoesAdmin reaproveitada pelo Next.js).
-    if (modulo.codigo === "legalizacao" && (isCoordenacaoUnidade || isAdminOps || isSetorLeg)) {
+    if (
+      modulo.codigo === "legalizacao" &&
+      (isCoordenacaoUnidade || administraRedePadrao || isSetorLeg)
+    ) {
       return [
         ...base,
         { label: "Catálogo de Legalização", rota: "/admin/permissoes/catalogo-legalizacao" },
@@ -68,7 +80,7 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
     }
     // STC-728: Parâmetros de Gestão RH (Importação, Equipes, Absenteísmo),
     // só do Admin, como a própria tela; mesma rota própria do Catálogo.
-    if (modulo.codigo === "gestao-rh" && isAdminOps) {
+    if (modulo.codigo === "gestao-rh" && administraRedePadrao) {
       return [
         ...base,
         { label: "Parâmetros de Gestão RH", rota: "/admin/permissoes/parametros-gestao-rh" },
@@ -151,8 +163,8 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
         ))}
       </nav>
 
-      {/* isAdminOps (nível <= Admin Operações) cobre os dois perfis que têm
-          algum link aqui -- Admin Q&G é um caso particular dele (nível 1),
+      {/* isAdminOps (Admin de alguma rede) cobre os perfis que têm algum
+          link aqui -- Admin Q&G é um caso particular dele,
           então o wrapper (borda/espaçamento) usa só essa condição, e cada
           link decide por conta própria se aparece. Coordenador (STC-514) e,
           desde a STC-519, Admin também -- não entram aqui: o acesso deles
@@ -194,16 +206,15 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               individuais temporárias (ex.: cobertura de férias entre
               unidades) sem depender do Django Admin -- hoje só o time de
               Q&G tem login configurado lá (ver conversa que motivou o
-              STC-262). Rótulo muda conforme o perfil: quem já vê "Admin
-              Q&G" acima ganha um segundo item ("Administração"); quem é só
-              Admin Operações vê só este, já nomeado pro perfil dele. */}
+              STC-262). Mesmo rótulo para todo Admin (STC-747): os cargos
+              de Admin por rede não cabiam no antigo "Admin Operações". */}
           <Link
             href="/admin/permissoes"
             onClick={onNavegar}
             className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
           >
             <ShieldCheck className="size-4 shrink-0" />
-            {isAdminQG ? "Administração" : "Admin Operações"}
+            Administração
           </Link>
         </div>
       )}

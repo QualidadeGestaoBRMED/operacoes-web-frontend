@@ -22,9 +22,9 @@ import {
   statusPermitidosParaUsuario,
 } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
+import { administra, NIVEL_ADMIN_QG, redeDaUnidade } from "@/lib/redes";
 import type { Demanda, StatusDemanda } from "@/types";
 
-const NIVEL_ADMIN_OPERACOES = 2;
 
 export function TransicaoStatusSection({
   demanda,
@@ -97,11 +97,12 @@ export function TransicaoStatusSection({
 
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
-  // Só Admin Operações -- pedido do usuário: Admin Q&G (nível 1) não deve
-  // aparecer como candidato a aprovador, mesmo antes incluído aqui pelo
-  // "<= NIVEL_ADMIN_OPERACOES" (que também pegava nível 1).
+  // Admin da rede da demanda (o backend exige, STC-762), fora o Admin Q&G
+  // -- pedido do usuário: Admin Q&G não aparece como candidato a aprovador.
+  const redeDaDemanda = redeDaUnidade(demanda.unidade);
   const candidatosAprovador = usuarios.filter(
-    (usuario) => usuario.perfil && usuario.perfil.nivel === NIVEL_ADMIN_OPERACOES,
+    (usuario) =>
+      usuario.perfil?.nivel !== NIVEL_ADMIN_QG && administra(usuario, redeDaDemanda),
   );
 
   const podeConfirmar =

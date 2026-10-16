@@ -15,21 +15,28 @@ import {
 } from "@/components/ui/select";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useAuth } from "@/hooks/useAuth";
 import { usePerfis } from "@/hooks/usePerfis";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
+import {
+  administra,
+  eCargoAdministrativo,
+  podeAtribuirCargo,
+  podeGerenciar,
+  redeDoCargoDeUnidade,
+  redeDoUsuario,
+} from "@/lib/redes";
 import { cn, nomeExibicao } from "@/lib/utils";
-import type { Usuario } from "@/types";
+import type { Perfil, Unidade, Usuario } from "@/types";
 
-// Espelha accounts/permissions.py (NIVEL_ADMIN_OPERACOES = 2). Regra do
-// produto (não do backend): esta tela nunca lista nem edita quem já é Admin
-// Q&G/Admin Operações, e nunca oferece esses dois níveis como opção pra
-// ninguém -- promover ou rebaixar alguém de/pra um nível admin continua
-// exclusivo do Django Admin. O backend (UsuarioSerializer) ainda aceita mais
-// que isso via API, mas essa tela deliberadamente não expõe.
-const NIVEL_ADMIN_OPERACOES = 2;
+// Quem cada Admin gerencia e que cargos oferece seguem as regras do backend
+// (STC-745, espelhadas em lib/redes.ts): cada Admin cuida dos usuários da
+// rede dele; cargos administrativos só por quem pode atribuí-los (Admin Q&G
+// atribui todos; Gestão de Operações, os dois Admins de rede). A própria
+// conta não aparece: tirar o próprio cargo administrativo é recusado.
 
 // Sentinel: Radix Select não aceita value="" num SelectItem (colide com o
 // estado interno "sem valor selecionado"). "nenhum" representa null nos três
@@ -39,9 +46,32 @@ const SEM_VALOR = "nenhum";
 // Exportada pra PermissoesAdmin conseguir contar quantas linhas essa seção
 // vai renderizar (ver "peso" de altura das duas seções) sem duplicar a regra
 // de quem entra na lista.
-export function usuariosGerenciaveis(usuarios: Usuario[]): Usuario[] {
+export function usuariosGerenciaveis(
+  usuarios: Usuario[],
+  ator: AtorDaAdministracao | null | undefined,
+  unidades: Unidade[],
+): Usuario[] {
+  const porId = new Map(unidades.map((unidade) => [unidade.id, unidade]));
   return usuarios.filter(
-    (usuario) => !usuario.perfil || usuario.perfil.nivel > NIVEL_ADMIN_OPERACOES,
+    (usuario) =>
+      usuario.id !== ator?.usuarioId &&
+      podeGerenciar(ator, usuario.perfil, porId.get(usuario.unidade_id ?? -1)),
+  );
+}
+
+type AtorDaAdministracao = {
+  perfil?: Perfil | null;
+  redes_administradas?: Usuario["redes_administradas"];
+  usuarioId?: number;
+};
+
+/** Cargos que o ator pode dar: os administrativos por quem pode atribuir;
+ * os demais, se ele administra a rede do cargo. */
+export function cargosAtribuiveis(perfis: Perfil[], ator: AtorDaAdministracao | null | undefined) {
+  return perfis.filter((perfil) =>
+    eCargoAdministrativo(perfil)
+      ? podeAtribuirCargo(ator, perfil)
+      : administra(ator, redeDoUsuario(perfil, null) ?? "padrao"),
   );
 }
 
@@ -52,9 +82,11 @@ export function GerenciarUsuarios({
   expandido: boolean;
   onAlternarExpandir: () => void;
 }) {
+  const { user: ator, redesAdministradas, administraRedePadrao } = useAuth();
   const { usuarios } = useUsuarios();
   const { perfis } = usePerfis();
-  const { unidades } = useUnidades("padrao");
+  // Todas as redes: cada linha oferece as unidades da rede do cargo dela.
+  const { unidades } = useUnidades();
   const { setores } = useSetores();
   const { atualizar } = useAtualizarUsuario();
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
@@ -63,8 +95,20 @@ export function GerenciarUsuarios({
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
-  const perfisDisponiveis = perfis.filter((perfil) => perfil.nivel > NIVEL_ADMIN_OPERACOES);
-  const usuariosListados = usuariosGerenciaveis(usuarios);
+  const perfisDisponiveis = cargosAtribuiveis(perfis, ator);
+  const usuariosListados = usuariosGerenciaveis(usuarios, ator, unidades);
+  const unidadesDasMinhasRedes = unidades.filter((unidade) =>
+    redesAdministradas.includes(unidade.rede),
+  );
+
+  // Unidades oferecidas na linha: as da rede do cargo (Unidade, clínica;
+  // Ponto focal, aeroclínica), entre as redes que o ator administra.
+  function unidadesDaLinha(usuario: Usuario) {
+    const rede = redeDoCargoDeUnidade(usuario.perfil);
+    return rede
+      ? unidadesDasMinhasRedes.filter((unidade) => unidade.rede === rede)
+      : unidadesDasMinhasRedes;
+  }
 
   // Filtros -- só do lado do cliente: useUsuarios() já carrega tudo de uma
   // vez (sem paginação), então filtrar em memória é suficiente.
@@ -120,7 +164,7 @@ export function GerenciarUsuarios({
           <SelectContent>
             <SelectItem value="todas">Todas as unidades</SelectItem>
             <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
-            {unidades.map((unidade) => (
+            {unidadesDasMinhasRedes.map((unidade) => (
               <SelectItem key={unidade.id} value={String(unidade.id)}>
                 {unidade.nome}
               </SelectItem>
@@ -143,10 +187,21 @@ export function GerenciarUsuarios({
   }
 
   async function aoMudarPerfil(usuario: Usuario, valor: string) {
+    const novo = perfis.find((perfil) => String(perfil.id) === valor) ?? null;
+    // Cargo de outra rede que a da unidade atual (ex.: Unidade para Ponto
+    // focal): a unidade sai junto, senão o backend recusa a combinação e
+    // nenhuma das duas mudanças, feita sozinha, passaria. A unidade nova é
+    // escolhida em seguida, já entre as da rede certa.
+    const redeExigida = redeDoCargoDeUnidade(novo);
+    const unidadeAtual = unidades.find((unidade) => unidade.id === usuario.unidade_id);
+    const tiraUnidade = redeExigida !== null && unidadeAtual && unidadeAtual.rede !== redeExigida;
     try {
       await atualizar({
         id: usuario.id,
-        payload: { perfil_id: valor === SEM_VALOR ? null : Number(valor) },
+        payload: {
+          perfil_id: novo?.id ?? null,
+          ...(tiraUnidade && { unidade_id: null }),
+        },
       });
       toast.success("Perfil atualizado.");
     } catch (erro) {
@@ -308,6 +363,12 @@ export function GerenciarUsuarios({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={SEM_VALOR}>Sem perfil</SelectItem>
+                        {usuario.perfil &&
+                          !perfisDisponiveis.some((p) => p.id === usuario.perfil!.id) && (
+                            <SelectItem value={String(usuario.perfil.id)}>
+                              {usuario.perfil.nome}
+                            </SelectItem>
+                          )}
                         {perfisDisponiveis.map((perfil) => (
                           <SelectItem key={perfil.id} value={String(perfil.id)}>
                             {perfil.nome}
@@ -329,7 +390,16 @@ export function GerenciarUsuarios({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
-                        {unidades.map((unidade) => (
+                        {/* A unidade atual entra mesmo fora da lista (desativada,
+                            ou de cargo antigo), para o campo não aparecer vazio. */}
+                        {usuario.unidade_id &&
+                          !unidadesDaLinha(usuario).some((u) => u.id === usuario.unidade_id) && (
+                            <SelectItem value={String(usuario.unidade_id)}>
+                              {unidades.find((u) => u.id === usuario.unidade_id)?.nome ??
+                                "Unidade atual"}
+                            </SelectItem>
+                          )}
+                        {unidadesDaLinha(usuario).map((unidade) => (
                           <SelectItem key={unidade.id} value={String(unidade.id)}>
                             {unidade.nome}
                           </SelectItem>
@@ -338,9 +408,11 @@ export function GerenciarUsuarios({
                     </Select>
                   </td>
                   <td className="px-4 py-2.5">
+                    {/* Setor não tem rede: é da rede padrão (STC-745). */}
                     <Select
                       value={usuario.setor_id ? String(usuario.setor_id) : SEM_VALOR}
                       onValueChange={(valor) => void aoMudarSetor(usuario, valor)}
+                      disabled={!administraRedePadrao}
                     >
                       <SelectTrigger
                         aria-label={`Alterar setor de ${nomeExibicao(usuario)}`}

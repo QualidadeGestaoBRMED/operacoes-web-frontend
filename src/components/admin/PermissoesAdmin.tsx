@@ -149,7 +149,9 @@ export function PermissoesAdmin() {
   const router = useRouter();
   const pathname = usePathname();
   const {
+    user,
     isAdminOps,
+    administraRedePadrao,
     isCoordenacaoUnidade,
     isSetorLeg,
     isLoading: carregandoAuth,
@@ -164,6 +166,14 @@ export function PermissoesAdmin() {
   // dois papéis, Admin Ops deve prevalecer (acesso completo).
   const apenasCatalogo = (isCoordenacaoUnidade || isSetorLeg) && !isAdminOps;
   const podeAcessar = isAdminOps || isCoordenacaoUnidade || isSetorLeg;
+  // STC-747: Catálogo de Legalização e Parâmetros de Gestão RH são
+  // configuração da rede padrão; o Admin Operações Especiais fica só com
+  // Usuários (da rede dele).
+  const abasPermitidas: Aba[] = apenasCatalogo
+    ? ["catalogo-legalizacao"]
+    : administraRedePadrao
+      ? ["usuarios", "catalogo-legalizacao", "parametros-gestao-rh"]
+      : ["usuarios"];
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo
@@ -264,7 +274,7 @@ export function PermissoesAdmin() {
   // Peso das seções (ver pesoSecao) segue o total real, não o filtrado --
   // senão a proporção "pula" a cada troca de filtro, mesmo com a mesma
   // quantidade de dados por trás.
-  const pesoUsuarios = pesoSecao(usuariosGerenciaveis(usuarios).length);
+  const pesoUsuarios = pesoSecao(usuariosGerenciaveis(usuarios, user, unidades).length);
   const pesoPermissoes = pesoSecao(permissoesOrdenadas.length);
   // Achado no dogfooding: listar TODOS os usuários no filtro de pessoa
   // mostrava gente que nunca recebeu nenhuma permissão -- opções demais,
@@ -327,9 +337,9 @@ export function PermissoesAdmin() {
 
   if (carregandoAuth || !podeAcessar) return null;
 
-  // Coordenador só tem 1 aba de verdade (Catálogo) -- nem faz sentido
-  // deixar `aba` (useState acima, nasce "usuarios") valer pra ele.
-  const abaEfetiva: Aba = apenasCatalogo ? "catalogo-legalizacao" : aba;
+  // Aba fora do acesso (Coordenador fora do Catálogo, Admin Operações
+  // Especiais fora de Usuários): vale a primeira que ele tem.
+  const abaEfetiva: Aba = abasPermitidas.includes(aba) ? aba : abasPermitidas[0];
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
 
   function nomeUsuario(usuarioId: number) {
@@ -537,7 +547,7 @@ export function PermissoesAdmin() {
             escolher. */}
         {!apenasCatalogo && (
           <Select
-            value={aba}
+            value={abaEfetiva}
             onValueChange={(valor) => {
               // STC-519: aba é derivada do pathname (ver comentário acima),
               // então só navegar já basta -- sem remount (PermissoesAdmin
@@ -554,7 +564,7 @@ export function PermissoesAdmin() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(ROTULO_ABA) as Aba[]).map((valor) => (
+              {abasPermitidas.map((valor) => (
                 <SelectItem key={valor} value={valor}>
                   {ROTULO_ABA[valor]}
                 </SelectItem>
@@ -564,12 +574,14 @@ export function PermissoesAdmin() {
         )}
       </div>
 
-      <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
+      {abasPermitidas.includes("catalogo-legalizacao") && (
+        <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
+      )}
 
       {/* Parâmetros de Gestão RH: só Admin (a API também recusa com 403).
           Monta na primeira visita à seção, não em toda entrada na
           Administração; depois fica só escondida, para não perder edição. */}
-      {isAdminOps && visitouGestaoRH && (
+      {administraRedePadrao && visitouGestaoRH && (
         <ParametrosGestaoRHAdmin hidden={abaEfetiva !== "parametros-gestao-rh"} />
       )}
 
@@ -610,7 +622,7 @@ export function PermissoesAdmin() {
           nunca renderiza pro Coordenador, não só escondido via `hidden`. */}
       {!apenasCatalogo && (
         <div
-          hidden={aba !== "usuarios"}
+          hidden={abaEfetiva !== "usuarios"}
           className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-7 overflow-y-auto sm:overflow-visible"
         >
           <div

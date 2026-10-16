@@ -22,14 +22,13 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
+import { administra, NIVEL_ADMIN_QG } from "@/lib/redes";
 import type { DemandaFiltros, Prioridade } from "@/types";
 
 // Espelha accounts/permissions.py -- mesmos níveis usados em
 // ResponsavelSection.tsx (elegibilidade pra virar responsável de uma
 // demanda específica). Aqui a regra é por tipo de gestão, não por unidade:
 // o filtro é do board inteiro, não de uma demanda com unidade já definida.
-const NIVEL_ADMIN_QG = 1;
-const NIVEL_ADMIN_OPERACOES = 2;
 
 const PRIORIDADES: { valor: Prioridade; rotulo: string }[] = [
   { valor: "urgente", rotulo: "Urgente" },
@@ -66,13 +65,13 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
   const { setores } = useSetores(moduloAtivo);
   // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de
-  // ResponsavelSection.tsx) -- fora isso, Operacional só aceita Admin
-  // Operações como responsável (sem unidade pra restringir por local, ver
-  // DemandaResponsavelSerializer.validate_usuario_id no backend), Unidades
-  // aceita qualquer outro nível.
+  // ResponsavelSection.tsx) -- fora isso, Operacional só aceita quem
+  // administra a rede padrão (Admin Operações ou Gestão de Operações; sem
+  // unidade pra restringir por local, ver validate_usuario_id no backend),
+  // Unidades aceita qualquer outro nível.
   const candidatosResponsavel = usuarios.filter((usuario) => {
     if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
-    if (ehOperacional) return usuario.perfil?.nivel === NIVEL_ADMIN_OPERACOES;
+    if (ehOperacional) return administra(usuario, "padrao");
     return true;
   });
   // Busca com debounce local -- não dispara um filtro (e um fetch) a cada

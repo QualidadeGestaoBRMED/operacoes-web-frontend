@@ -27,13 +27,15 @@ import {
   useModulos,
   useRecursosPermissao,
 } from "@/hooks/useModulos";
+import { useAuth } from "@/hooks/useAuth";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { nomeExibicao } from "@/lib/utils";
-import type { AcaoPermissao, EscopoPermissao } from "@/types";
+import type { AcaoPermissao, EscopoPermissao, Rede } from "@/types";
+import { usuariosGerenciaveis } from "./GerenciarUsuarios";
 
 type AcaoKanban = Extract<AcaoPermissao, "visualizar" | "editar">;
 
@@ -54,6 +56,16 @@ const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   excluir: "Excluir",
   restaurar: "Restaurar",
   configurar: "Configurar",
+};
+
+const ROTULO_REDE: Record<Rede, string> = {
+  padrao: "rede própria",
+  opex: "Operações Especiais",
+};
+
+const COBERTURA_DO_GLOBAL: Record<Rede, string> = {
+  padrao: "Cobre as unidades da rede própria.",
+  opex: "Cobre as unidades de Operações Especiais.",
 };
 
 const ROTULO_ESCOPO: Record<EscopoPermissao, string> = {
@@ -81,6 +93,9 @@ const schema = z
     }),
     unidade: z.coerce.number().int().positive().optional(),
     setor: z.coerce.number().int().positive().optional(),
+    // Escopo global (STC-745): a rede que ele cobre ("ambas" = as duas, só
+    // para quem administra as duas).
+    rede: z.enum(["padrao", "opex", "ambas"]).optional(),
     data_inicio: z.string().min(1, "Data de início é obrigatória."),
     data_fim: z.string().optional(),
   })
@@ -125,8 +140,14 @@ export function FormNovaPermissao({
   // branco, já que as antigas não servem mais pra um período novo.
   valoresIniciais?: Partial<FormValuesEntrada>;
 }) {
-  const { usuarios } = useUsuarios();
-  const { unidades } = useUnidades("padrao");
+  const { user: ator, redesAdministradas, administraRedePadrao, administraAsDuasRedes } =
+    useAuth();
+  const { usuarios: todosOsUsuarios } = useUsuarios();
+  const { unidades: todasAsUnidades } = useUnidades();
+  // Cada Admin concede só a quem gerencia, e só nas unidades das redes dele
+  // (STC-745).
+  const usuarios = usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
+  const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();
   // catalogoCarregando/catalogoComErro: mesma chave SWR de
@@ -295,6 +316,10 @@ export function FormNovaPermissao({
         escopo_tipo: valores.escopo_tipo,
         unidade: valores.escopo_tipo === "unidade" ? valores.unidade : null,
         setor: valores.escopo_tipo === "setor" ? valores.setor : null,
+        ...(valores.escopo_tipo === "global" &&
+          administraAsDuasRedes && {
+            rede: valores.rede === "padrao" || valores.rede === "opex" ? valores.rede : null,
+          }),
         data_inicio: valores.data_inicio,
         data_fim: valores.data_fim || null,
       });
@@ -431,11 +456,14 @@ export function FormNovaPermissao({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(ROTULO_ESCOPO) as EscopoPermissao[]).map((escopo) => (
-                        <SelectItem key={escopo} value={escopo}>
-                          {ROTULO_ESCOPO[escopo]}
-                        </SelectItem>
-                      ))}
+                      {(Object.keys(ROTULO_ESCOPO) as EscopoPermissao[])
+                        // Setor não tem rede: é da rede padrão (STC-745).
+                        .filter((escopo) => escopo !== "setor" || administraRedePadrao)
+                        .map((escopo) => (
+                          <SelectItem key={escopo} value={escopo}>
+                            {ROTULO_ESCOPO[escopo]}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -508,6 +536,35 @@ export function FormNovaPermissao({
                 )}
               </div>
             )}
+
+            {/* Global cobre a rede de quem concede (STC-745): quem
+                administra as duas escolhe; os demais só têm a sua. */}
+            {escopoSelecionado === "global" &&
+              (administraAsDuasRedes ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-rede">Rede</Label>
+                  <Controller
+                    control={control}
+                    name="rede"
+                    render={({ field }) => (
+                      <Select value={field.value ?? "ambas"} onValueChange={field.onChange}>
+                        <SelectTrigger id="p-rede" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ambas">As duas redes</SelectItem>
+                          <SelectItem value="padrao">{ROTULO_REDE.padrao}</SelectItem>
+                          <SelectItem value="opex">{ROTULO_REDE.opex}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {COBERTURA_DO_GLOBAL[redesAdministradas[0]] ?? "Cobre as unidades da sua rede."}
+                </p>
+              ))}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

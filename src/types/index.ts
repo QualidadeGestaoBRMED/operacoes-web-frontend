@@ -18,6 +18,9 @@ export interface Usuario {
   // pelo código constroem Usuario sem ele -- ausência equivale a null pra
   // quem consome (ex. useAuth.isSetorLeg checa session?.user?.setor?.codigo).
   setor?: Setor | null;
+  // STC-745: redes que o usuário administra pelo cargo. Opcional: sessão
+  // aberta antes do campo existir não o traz (ver lib/redes.ts).
+  redes_administradas?: Rede[];
   ativo: boolean;
   ultimo_acesso: string | null;
   foto_url: string;
@@ -329,6 +332,8 @@ export interface PermissaoUsuario {
   escopo_tipo: EscopoPermissao;
   unidade: number | null;
   setor: number | null;
+  // Só no escopo global (STC-745): a rede que ele cobre; null, as duas.
+  rede?: Rede | null;
   concedido_por: number;
   data_inicio: string;
   data_fim: string | null;
@@ -346,6 +351,8 @@ export interface PermissaoUsuarioPayload {
   escopo_tipo: EscopoPermissao;
   unidade?: number | null;
   setor?: number | null;
+  // Só no escopo global; ausente, o backend usa a rede de quem concede.
+  rede?: Rede | null;
   data_inicio: string;
   data_fim?: string | null;
 }

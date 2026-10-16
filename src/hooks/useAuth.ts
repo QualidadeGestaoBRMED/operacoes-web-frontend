@@ -2,21 +2,28 @@
 
 import { useSession } from "next-auth/react";
 
-const NIVEL_ADMIN_QG = 1;
-export const NIVEL_ADMIN_OPERACOES = 2;
-const NIVEL_UNIDADE = 3;
-const NIVEL_SETOR = 4;
+import { NIVEL_ADMIN_QG, NIVEL_SETOR, NIVEL_UNIDADE, redesAdministradas } from "@/lib/redes";
 
 export function useAuth() {
   const { data: session, status } = useSession();
   const nivel = session?.user?.perfil?.nivel;
+  const redes = redesAdministradas(session?.user);
 
   return {
     user: session?.user,
     perfil: session?.user?.perfil,
     isLoading: status === "loading",
     isAdminQG: nivel === NIVEL_ADMIN_QG,
-    isAdminOps: nivel !== undefined && nivel <= NIVEL_ADMIN_OPERACOES,
+    // Admin de alguma rede (STC-747): Admin Q&G, Gestão de Operações, Admin
+    // Operações ou Admin Operações Especiais. O backend só devolve a cada
+    // Admin os itens da rede dele, então os botões de Admin valem para tudo
+    // que ele vê.
+    isAdminOps: redes.length > 0,
+    redesAdministradas: redes,
+    // Configurações sem rede própria (Legalização, Gestão RH, etiquetas e
+    // categorias do Kanban) são da rede padrão.
+    administraRedePadrao: redes.includes("padrao"),
+    administraAsDuasRedes: redes.length === 2,
     // Coordenação da Unidade (perfil nível 3) -- mesmo nível usado no RBAC
     // de backend (accounts.permissions.NIVEL_UNIDADE, legalizacao/views.py
     // ::_documentos_visiveis_para). Usado em Legalização pra restringir

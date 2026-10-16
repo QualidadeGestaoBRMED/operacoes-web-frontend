@@ -25,7 +25,7 @@ function ehChaveDeListaEtiquetas(chave: unknown) {
 }
 
 // Restrito a Admin Operações/Admin Q&G no backend (EtiquetaViewSet) -- o
-// SeletorEtiquetas só mostra a opção de criar pra quem tem isAdminOps.
+// SeletorEtiquetas só mostra a opção de criar pra quem administra a rede padrão.
 export function useCriarEtiqueta() {
   const { mutate } = useSWRConfig();
   const { trigger, isMutating, error } = useSWRMutation(
