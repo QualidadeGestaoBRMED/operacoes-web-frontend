@@ -110,7 +110,7 @@ export function GerenciarUsuarios({
 }) {
   const { user: ator, redesAdministradas, administraRedePadrao } = useAuth();
   const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
-  const { perfis } = usePerfis();
+  const { perfis, isLoading: carregandoPerfis, error: erroPerfis } = usePerfis();
   // Todas as redes: cada linha oferece as unidades da rede do cargo dela.
   const { unidades, isLoading: carregandoUnidades, error: erroUnidades } = useUnidades();
   const { setores } = useSetores();
@@ -121,10 +121,11 @@ export function GerenciarUsuarios({
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
-  // Quem entra na lista depende da rede da unidade de cada pessoa: sem as
-  // unidades, a lista ainda não está decidida.
-  const carregando = carregandoUsuarios || carregandoUnidades;
-  const comErro = Boolean(erroUsuarios || erroUnidades);
+  // Quem entra na lista depende da rede da unidade de cada pessoa, e os
+  // cargos de cada linha, de quem edita: sem unidades e cargos, a tabela
+  // ainda não está decidida.
+  const carregando = carregandoUsuarios || carregandoUnidades || carregandoPerfis;
+  const comErro = Boolean(erroUsuarios || erroUnidades || erroPerfis);
   const perfisDisponiveis = cargosAtribuiveis(perfis, ator);
   const usuariosListados = usuariosGerenciaveis(usuarios, ator, unidades);
   const unidadesDasMinhasRedes = unidades.filter((unidade) =>
