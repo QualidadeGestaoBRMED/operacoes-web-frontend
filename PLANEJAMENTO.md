@@ -935,4 +935,5 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 - `vitest.config.ts`: `pool: "threads"` (o padrão era `forks`) e `testTimeout: 15_000`.
 - Medição de 16/10/2026 (71 arquivos, 1038 testes, 12 núcleos, com o `next dev` no ar): antes, 87,6 s e 4 testes por tempo; depois, 78,8 s, 87,3 s (1 falha, não identificada) e 76,0 s nas três primeiras execuções, e 7 execuções seguidas sem falha depois disso.
+- **Fuso dos testes (achado na análise de falhas):** o `ProcessoRenovacaoModal.test.tsx` trocava `process.env.TZ` no próprio arquivo, o que não tem efeito dentro do worker (nem em processo, nem em thread): o teste só passava porque a máquina já estava em São Paulo, e falhava em UTC. O fuso agora é fixado em `America/Sao_Paulo` no `vitest.config.ts`, antes de os workers nascerem. Conferido: suíte inteira com `TZ=UTC` passa (1038 testes, 68 s).
 - Fora de escopo: reescrever os testes de Legalização para menos interações; trocar o `jsdom`. O backend tem issue própria.
