@@ -23,6 +23,7 @@ import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   administra,
+  descricaoDoCargo,
   eCargoAdministrativo,
   podeAtribuirCargo,
   podeGerenciar,
@@ -56,6 +57,24 @@ export function usuariosGerenciaveis(
     (usuario) =>
       usuario.id !== ator?.usuarioId &&
       podeGerenciar(ator, usuario.perfil, porId.get(usuario.unidade_id ?? -1)),
+  );
+}
+
+// Opção de cargo com a descrição embaixo. A descrição fica fora do nome
+// acessível da opção (aria-hidden), que continua só o nome do cargo.
+function opcaoDeCargo(perfil: Perfil) {
+  const descricao = descricaoDoCargo(perfil);
+  return (
+    <SelectItem key={perfil.id} value={String(perfil.id)}>
+      <span className="flex flex-col items-start">
+        <span>{perfil.nome}</span>
+        {descricao && (
+          <span aria-hidden className="text-xs whitespace-normal opacity-70">
+            {descricao}
+          </span>
+        )}
+      </span>
+    </SelectItem>
   );
 }
 
@@ -378,21 +397,17 @@ export function GerenciarUsuarios({
                         aria-label={`Alterar perfil de ${nomeExibicao(usuario)}`}
                         className="w-full min-w-[10rem]"
                       >
-                        <SelectValue placeholder="Sem perfil" />
+                        {/* Só o nome no campo; a descrição fica na lista. */}
+                        <SelectValue placeholder="Sem perfil">
+                          {usuario.perfil?.nome ?? "Sem perfil"}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-w-80">
                         <SelectItem value={SEM_VALOR}>Sem perfil</SelectItem>
                         {usuario.perfil &&
-                          !perfisDisponiveis.some((p) => p.id === usuario.perfil!.id) && (
-                            <SelectItem value={String(usuario.perfil.id)}>
-                              {usuario.perfil.nome}
-                            </SelectItem>
-                          )}
-                        {perfisDisponiveis.map((perfil) => (
-                          <SelectItem key={perfil.id} value={String(perfil.id)}>
-                            {perfil.nome}
-                          </SelectItem>
-                        ))}
+                          !perfisDisponiveis.some((p) => p.id === usuario.perfil!.id) &&
+                          opcaoDeCargo(usuario.perfil)}
+                        {perfisDisponiveis.map(opcaoDeCargo)}
                       </SelectContent>
                     </Select>
                   </td>

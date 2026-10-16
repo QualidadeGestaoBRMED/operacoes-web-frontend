@@ -45,6 +45,22 @@ const REDE_DO_CARGO_DE_UNIDADE: Record<number, Rede> = {
 
 const CARGOS_DA_REDE_OPEX = [NIVEL_ADMIN_OPERACOES_ESPECIAIS, NIVEL_PONTO_FOCAL];
 
+// O que cada cargo faz, para quem escolhe o cargo na Administração. A
+// descrição cadastrada no Perfil (Django Admin), se houver, vale no lugar.
+const DESCRICAO_DO_CARGO: Record<number, string> = {
+  [NIVEL_ADMIN_QG]: "Administra as duas redes e atribui todos os cargos.",
+  [NIVEL_GESTAO_OPERACOES]: "Administra as duas redes e define os Admins de cada rede.",
+  [NIVEL_ADMIN_OPERACOES]: "Administra a rede própria: clínicas, setores e configurações.",
+  [NIVEL_ADMIN_OPERACOES_ESPECIAIS]: "Administra a rede de Operações Especiais.",
+  [NIVEL_UNIDADE]: "Coordenação de uma clínica da rede própria.",
+  [NIVEL_SETOR]: "Equipe de um setor de apoio.",
+  [NIVEL_PONTO_FOCAL]: "Responsável por uma unidade de Operações Especiais.",
+};
+
+export function descricaoDoCargo(perfil: Perfil): string {
+  return perfil.descricao.trim() || DESCRICAO_DO_CARGO[perfil.nivel] || "";
+}
+
 interface ComCargo {
   perfil?: Perfil | null;
   redes_administradas?: Rede[];
