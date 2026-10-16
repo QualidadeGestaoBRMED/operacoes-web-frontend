@@ -60,16 +60,23 @@ export function usuariosGerenciaveis(
   );
 }
 
-// Opção de cargo com a descrição embaixo. A descrição fica fora do nome
-// acessível da opção (aria-hidden), que continua só o nome do cargo.
+// Opção de cargo com a descrição embaixo. O nome acessível da opção
+// continua só o nome do cargo; a descrição chega ao leitor de tela como
+// descrição da opção (aria-describedby). Só uma lista de cargos fica aberta
+// por vez, então o id não se repete na página.
 function opcaoDeCargo(perfil: Perfil) {
   const descricao = descricaoDoCargo(perfil);
+  const idDescricao = `descricao-cargo-${perfil.id}`;
   return (
-    <SelectItem key={perfil.id} value={String(perfil.id)}>
+    <SelectItem
+      key={perfil.id}
+      value={String(perfil.id)}
+      aria-describedby={descricao ? idDescricao : undefined}
+    >
       <span className="flex flex-col items-start">
         <span>{perfil.nome}</span>
         {descricao && (
-          <span aria-hidden className="text-xs whitespace-normal opacity-70">
+          <span id={idDescricao} aria-hidden className="text-xs whitespace-normal opacity-70">
             {descricao}
           </span>
         )}
