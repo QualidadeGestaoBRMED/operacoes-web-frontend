@@ -48,6 +48,13 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
   return data;
 }
 
+// Dados atuais de quem está logado (cargo, redes, unidade, setor). A sessão
+// só os grava no login; ver useAuth.
+export async function obterUsuarioLogado(): Promise<Usuario> {
+  const { data } = await api.get<Usuario>("/auth/me/");
+  return data;
+}
+
 // UsuarioViewSet.list era admin-only até o STC-193 -- passou a aceitar
 // qualquer usuário com Perfil, já que atribuir responsável também é (mesma
 // regra do backend: quem tem acesso de escrita à demanda, não só admin). Sem
