@@ -140,7 +140,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 16, 9, 0));
   vi.mocked(useRouter).mockReturnValue({ replace, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
-  vi.mocked(useAuth).mockReturnValue({ isAdminOps: true } as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true } as ReturnType<typeof useAuth>);
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [{ id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" }],
     isLoading: false,
@@ -459,7 +459,7 @@ describe("Painel de Horas Extras", () => {
   });
 
   it("coordenação: sem o filtro de unidade, e com o gráfico por cargo", async () => {
-    vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
+    vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: false } as ReturnType<typeof useAuth>);
     // A rota devolve só a unidade da coordenação.
     vi.mocked(buscarPainelHorasExtras).mockResolvedValue(
       painel({ por_unidade: painel().por_unidade.slice(0, 1) }),

@@ -46,6 +46,7 @@ import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
+import { administra } from "@/lib/redes";
 import {
   CODIGOS_MOVIMENTACAO_PROFISSIONAL,
   COR_STATUS_BADGE,
@@ -349,7 +350,7 @@ export function DetalheDocumentoModal({
   const { reverter, isLoading: revertendo } =
     useReverterDocumentoLegalizacao();
   const { excluir, isLoading: excluindo } = useExcluirDocumentoLegalizacao();
-  const { user, isAdminOps, isSetorLeg, isCoordenacaoUnidade } = useAuth();
+  const { user, isSetorLeg, isCoordenacaoUnidade } = useAuth();
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
   );
@@ -572,7 +573,8 @@ export function DetalheDocumentoModal({
   // Legalização e Coordenação nos documentos da própria unidade.
   const podeExcluir =
     !!documento &&
-    (isAdminOps ||
+    // Admin, só na rede que administra (STC-762).
+    (administra(user, documento.unidade.rede) ||
       isSetorLeg ||
       (isCoordenacaoUnidade && user?.unidade_id === documento.unidade.id));
   const nomeDocumento = documento

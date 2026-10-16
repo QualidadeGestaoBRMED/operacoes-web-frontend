@@ -34,7 +34,8 @@ export function SeletorEtiquetas({
   modulo?: number;
 }) {
   const { etiquetas } = useEtiquetas(modulo);
-  const { isAdminOps } = useAuth();
+  // Etiquetas não têm rede: são da rede padrão (STC-762).
+  const { administraRedePadrao } = useAuth();
   const { criar, isLoading } = useCriarEtiqueta();
   const [busca, setBusca] = useState("");
   const [criandoNova, setCriandoNova] = useState(false);
@@ -147,7 +148,7 @@ export function SeletorEtiquetas({
           {/* Não-admin não vê a opção de criar -- mesmo padrão de esconder
               ação sem permissão já usado em AnexoList.tsx/ResponsavelSection.tsx,
               e mesma restrição real do backend (EtiquetaViewSet). */}
-          {isAdminOps &&
+          {administraRedePadrao &&
             (criandoNova ? (
               <div className="mt-1.5 flex items-center gap-1 border-t border-border pt-1.5">
                 <Input

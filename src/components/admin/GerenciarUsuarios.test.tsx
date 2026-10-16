@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
 import { GerenciarUsuarios } from "./GerenciarUsuarios";
@@ -9,6 +10,9 @@ import { GerenciarUsuarios } from "./GerenciarUsuarios";
 vi.mock("@/lib/plataforma");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+// Ator padrão: Admin Operações (rede padrão), que não gerencia nem oferece
+// cargos administrativos (STC-745).
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarUsuario,
@@ -66,6 +70,13 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
   vi.mocked(listarSetores).mockResolvedValue([SETOR]);
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(useAuth).mockReturnValue({
+    user: { usuarioId: 999, perfil: PERFIL_OPS, redes_administradas: ["padrao"] },
+    redesAdministradas: ["padrao"],
+    administraRedePadrao: true,
+    administraAsDuasRedes: false,
+    isAdminOps: true,
+  } as unknown as ReturnType<typeof useAuth>);
 });
 
 describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
@@ -238,3 +249,207 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     expect(celula).toHaveClass("sticky", "left-0");
   });
 });
+
+describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
+  const PERFIL_PONTO_FOCAL: Perfil = { id: 5, nome: "Ponto focal (OPEX)", descricao: "", nivel: 5 };
+  const PERFIL_GO: Perfil = { id: 6, nome: "Gestão de Operações", descricao: "", nivel: 6 };
+  const PERFIL_ADMIN_OPEX: Perfil = {
+    id: 7,
+    nome: "Admin Operações Especiais",
+    descricao: "",
+    nivel: 7,
+  };
+  const AERO: Unidade = {
+    id: 2,
+    nome: "Aeroclínica Macaé",
+    codigo: "AMC",
+    cidade: "Macaé",
+    ativa: true,
+    rede: "opex",
+  };
+
+  function comoAtor(perfil: Perfil, redes: ("padrao" | "opex")[]) {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 999, perfil, redes_administradas: redes },
+      redesAdministradas: redes,
+      administraRedePadrao: redes.includes("padrao"),
+      administraAsDuasRedes: redes.length === 2,
+      isAdminOps: true,
+    } as unknown as ReturnType<typeof useAuth>);
+  }
+
+  beforeEach(() => {
+    vi.mocked(listarPerfis).mockResolvedValue([
+      PERFIL_QG,
+      PERFIL_OPS,
+      PERFIL_UNIDADE,
+      PERFIL_SETOR,
+      PERFIL_PONTO_FOCAL,
+      PERFIL_GO,
+      PERFIL_ADMIN_OPEX,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, AERO]);
+  });
+
+  it("Gestão de Operações lista Admins de rede e oferece esses cargos, não Q&G nem o próprio", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ perfil: PERFIL_OPS })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+
+    expect(await screen.findByRole("option", { name: "Admin Operações Especiais" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Admin Q&G" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Gestão de Operações" })).not.toBeInTheDocument();
+  });
+
+  it("Admin Operações Especiais só vê quem é da rede OPEX, com as unidades dela", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 5, perfil: PERFIL_PONTO_FOCAL, unidade_id: AERO.id }),
+      usuario({ id: 6, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar unidade de fernanda lima/i));
+
+    expect(screen.queryByText("Carla Lima")).not.toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Aeroclínica Macaé" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+    // Setor não tem rede: é da rede padrão.
+    expect(screen.getByLabelText(/alterar setor de fernanda lima/i)).toBeDisabled();
+  });
+
+  it("trocar para um cargo de outra rede tira a unidade junto", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    vi.mocked(atualizarUsuario).mockResolvedValue(usuario({ perfil: PERFIL_PONTO_FOCAL }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+    await user.click(await screen.findByRole("option", { name: "Ponto focal (OPEX)" }));
+
+    await waitFor(() =>
+      expect(atualizarUsuario).toHaveBeenCalledWith(5, { perfil_id: 5, unidade_id: null }),
+    );
+  });
+
+  it("sem ninguém da rede, avisa em vez de mostrar a tabela vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("não lista a própria conta", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ id: 999, perfil: PERFIL_GO })]);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUsuarios).toHaveBeenCalled());
+    expect(screen.queryByText("Fernanda Lima")).not.toBeInTheDocument();
+  });
+
+  it("enquanto usuários ou unidades carregam, não afirma que a rede está vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([]);
+    vi.mocked(listarUnidades).mockReturnValue(new Promise(() => {}));
+
+    renderTela();
+
+    expect(await screen.findByText("Carregando...")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("falha ao carregar avisa o erro, não que a rede está vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockRejectedValue(new Error("rede"));
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Não foi possível carregar os usuários -- tente novamente."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sem a lista de cargos, a tabela não aparece como pronta", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarPerfis).mockReturnValue(new Promise(() => {}));
+
+    renderTela();
+
+    expect(await screen.findByText("Carregando...")).toBeInTheDocument();
+    expect(screen.queryByText("Fernanda Lima")).not.toBeInTheDocument();
+  });
+
+  it("falha ao carregar os cargos avisa o erro", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarPerfis).mockRejectedValue(new Error("rede"));
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Não foi possível carregar os usuários -- tente novamente."),
+    ).toBeInTheDocument();
+  });
+
+  it("trocar o cargo de quem está numa unidade fora da lista (desativada) tira a unidade", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_SETOR, unidade_id: 999 }),
+    ]);
+    vi.mocked(atualizarUsuario).mockResolvedValue(usuario({ perfil: PERFIL_PONTO_FOCAL }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+    await user.click(await screen.findByRole("option", { name: "Ponto focal (OPEX)" }));
+
+    await waitFor(() =>
+      expect(atualizarUsuario).toHaveBeenCalledWith(5, { perfil_id: 5, unidade_id: null }),
+    );
+  });
+
+  it("cada cargo da lista mostra o que ele faz, e a descrição cadastrada vale no lugar", async () => {
+    vi.mocked(listarPerfis).mockResolvedValue([
+      PERFIL_UNIDADE,
+      { ...PERFIL_SETOR, descricao: "Descrição cadastrada no Django Admin." },
+    ]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ perfil: PERFIL_UNIDADE })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText("Coordenação de uma clínica da rede própria.")).toBeVisible();
+    expect(within(listbox).getByText("Descrição cadastrada no Django Admin.")).toBeVisible();
+    // O nome da opção continua só o cargo; a descrição chega ao leitor de
+    // tela como descrição da opção.
+    expect(within(listbox).getByRole("option", { name: "Setor" })).toHaveAccessibleDescription(
+      "Descrição cadastrada no Django Admin.",
+    );
+    expect(within(listbox).getByRole("option", { name: "Unidade" })).toHaveAccessibleDescription(
+      "Coordenação de uma clínica da rede própria.",
+    );
+  });
+});
+

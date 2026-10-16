@@ -22,9 +22,9 @@ import {
   statusPermitidosParaUsuario,
 } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
+import { administra, NIVEL_ADMIN_QG, redeDaUnidade } from "@/lib/redes";
 import type { Demanda, StatusDemanda } from "@/types";
 
-const NIVEL_ADMIN_OPERACOES = 2;
 
 export function TransicaoStatusSection({
   demanda,
@@ -49,7 +49,9 @@ export function TransicaoStatusSection({
   // undefined no clique manual em "Mudar status" (comportamento de sempre).
   statusAlvoInicial?: StatusDemanda;
 }) {
-  const { user, isAdminOps, isLoading: carregandoAuth } = useAuth();
+  const { user, isLoading: carregandoAuth } = useAuth();
+  // Ações de Admin só na demanda da rede que ele administra (STC-762).
+  const adminDaDemanda = administra(user, redeDaUnidade(demanda.unidade));
   const [statusAlvo, setStatusAlvo] = useState<StatusDemanda | "">("");
   const [aprovadorId, setAprovadorId] = useState("");
   const [justificativa, setJustificativa] = useState("");
@@ -57,7 +59,7 @@ export function TransicaoStatusSection({
   const { usuarios } = useUsuarios();
   const { atualizarStatus, isLoading } = useAtualizarStatusDemanda(demanda.id);
 
-  const opcoesStatus = statusPermitidosParaUsuario(demanda, isAdminOps, user?.usuarioId);
+  const opcoesStatus = statusPermitidosParaUsuario(demanda, adminDaDemanda, user?.usuarioId);
 
   // Reseta os campos quando outra seção assume (ativo vira false de fora),
   // não só quando este componente fecha por conta própria. Ao abrir, parte
@@ -75,7 +77,7 @@ export function TransicaoStatusSection({
   // efeito e apagaria a escolha manual do usuário no meio da interação).
   //
   // Achado no review: carregandoAuth entra nas deps de propósito -- se a
-  // seção abre (ativo=true) antes de useAuth() estabilizar, isAdminOps/user
+  // seção abre (ativo=true) antes de useAuth() estabilizar, adminDaDemanda/user
   // ainda estão no valor "deslogado" e opcoesStatus sai incompleta/vazia
   // nesse primeiro cálculo, gravando "" mesmo com um statusAlvoInicial
   // válido. Sem carregandoAuth nas deps, o efeito não reavaliava quando a
@@ -97,11 +99,12 @@ export function TransicaoStatusSection({
 
   const exigeAprovador = statusAlvo ? precisaAprovador(demanda.status, statusAlvo) : false;
   const exigeJustificativa = statusAlvo ? precisaJustificativa(demanda.status, statusAlvo) : false;
-  // Só Admin Operações -- pedido do usuário: Admin Q&G (nível 1) não deve
-  // aparecer como candidato a aprovador, mesmo antes incluído aqui pelo
-  // "<= NIVEL_ADMIN_OPERACOES" (que também pegava nível 1).
+  // Admin da rede da demanda (o backend exige, STC-762), fora o Admin Q&G
+  // -- pedido do usuário: Admin Q&G não aparece como candidato a aprovador.
+  const redeDaDemanda = redeDaUnidade(demanda.unidade);
   const candidatosAprovador = usuarios.filter(
-    (usuario) => usuario.perfil && usuario.perfil.nivel === NIVEL_ADMIN_OPERACOES,
+    (usuario) =>
+      usuario.perfil?.nivel !== NIVEL_ADMIN_QG && administra(usuario, redeDaDemanda),
   );
 
   const podeConfirmar =

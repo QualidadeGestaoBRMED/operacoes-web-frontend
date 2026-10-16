@@ -113,6 +113,25 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
   });
 });
 
+describe("MatrizFiltros -- unidades da rede padrão (STC-747)", () => {
+  // A Legalização é só da rede padrão: o filtro pede as unidades dela para
+  // qualquer cargo, sem olhar as redes administradas. O Admin Operações
+  // Especiais nem tem o módulo no menu (Sidebar.test.tsx).
+  it("pede sempre as unidades da rede padrão, mesmo para quem administra as duas redes", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 1, redes_administradas: ["opex", "padrao"] },
+      isLoading: false,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+    } as never);
+    renderFiltros();
+
+    expect(useUnidades).toHaveBeenCalledWith("padrao");
+    expect(useUnidades).not.toHaveBeenCalledWith("opex");
+    expect(useUnidades).not.toHaveBeenCalledWith();
+  });
+});
+
 describe("MatrizFiltros -- 'Limpar filtros' não conta a unidade forçada do Coordenador (STC-512, review)", () => {
   beforeEach(() => {
     vi.mocked(useAuth).mockReturnValue({

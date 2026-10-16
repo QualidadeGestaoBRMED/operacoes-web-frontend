@@ -80,7 +80,8 @@ export function PainelAbsenteismo() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { isAdminOps } = useAuth();
+  // O Gestão RH é da rede padrão (STC-762).
+  const { administraRedePadrao } = useAuth();
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
 
@@ -148,7 +149,7 @@ export function PainelAbsenteismo() {
       ? diferencaEmPontos(painel.cards.percentual_periodo, anteriorAtual.cards.percentual_periodo)
       : null;
   const nomeUnidade = unidades.find((item) => item.id === unidade)?.nome;
-  const visao = isAdminOps ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade";
+  const visao = administraRedePadrao ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade";
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
   // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
@@ -305,7 +306,7 @@ export function PainelAbsenteismo() {
             </div>
 
             {/* Coordenação e OPEX já recebem só a própria unidade da API. */}
-            {isAdminOps && (
+            {administraRedePadrao && (
               <Select
                 value={unidade ? String(unidade) : "todas"}
                 onValueChange={(valor) => setUnidade(valor === "todas" ? undefined : Number(valor))}

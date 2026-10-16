@@ -229,3 +229,43 @@ describe("ResponsavelSection -- elegibilidade em demanda Operacional", () => {
     expect(screen.queryByRole("option", { name: "Colaborador Existente" })).not.toBeInTheDocument();
   });
 });
+
+describe("ResponsavelSection -- elegibilidade pela rede da demanda (STC-747)", () => {
+  it("demanda de aeroclínica sugere o Admin Operações Especiais, não o Admin Operações", async () => {
+    const semUnidade = { ...NOVO_PRINCIPAL, unidade_id: null };
+    const adminOps: Usuario = {
+      ...semUnidade,
+      id: 7,
+      username: "fernanda",
+      first_name: "Fernanda",
+      last_name: "Ops",
+      perfil: { id: 2, nome: "Admin Operações", descricao: "", nivel: 2 },
+    };
+    const adminOpex: Usuario = {
+      ...semUnidade,
+      id: 8,
+      username: "juliana",
+      first_name: "Juliana",
+      last_name: "Opex",
+      perfil: { id: 7, nome: "Admin Operações Especiais", descricao: "", nivel: 7 },
+    };
+    vi.mocked(listarUsuarios).mockResolvedValue([adminOps, adminOpex]);
+    const user = userEvent.setup();
+    renderSecao([], {
+      unidade: {
+        id: 9,
+        nome: "Aeroclínica Macaé",
+        codigo: "AMC",
+        cidade: "Macaé",
+        ativa: true,
+        rede: "opex",
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
+    await user.click(screen.getByLabelText(/usuário responsável/i));
+
+    expect(await screen.findByRole("option", { name: "Juliana Opex" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Fernanda Ops" })).not.toBeInTheDocument();
+  });
+});

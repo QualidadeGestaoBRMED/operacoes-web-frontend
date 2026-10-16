@@ -70,7 +70,8 @@ export function PainelHorasExtras() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { isAdminOps } = useAuth();
+  // O Gestão RH é da rede padrão (STC-762).
+  const { administraRedePadrao } = useAuth();
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
 
@@ -201,7 +202,7 @@ export function PainelHorasExtras() {
 
           {/* Coordenação e OPEX já recebem só a própria unidade da API: o
               filtro é só do Admin. */}
-          {isAdminOps && (
+          {administraRedePadrao && (
             <div className="flex flex-wrap items-center gap-3 px-4 pt-4 sm:px-7">
               <Select
                 value={unidade ? String(unidade) : "todas"}

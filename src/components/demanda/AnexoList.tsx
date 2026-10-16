@@ -8,7 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAnexos, useEnviarAnexo, useExcluirAnexo } from "@/hooks/useAnexos";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDoAnexo } from "@/lib/demandas";
+import { administra } from "@/lib/redes";
 import { cn, formatarDataHora, formatarTamanhoArquivo, nomeOuRemovido } from "@/lib/utils";
+import type { Rede } from "@/types";
 
 // Mesma whitelist de EXTENSOES_ANEXO_PERMITIDAS (backend/demandas/
 // serializers.py) -- só pro rótulo/cor do ícone e pro atributo "accept" do
@@ -31,14 +33,18 @@ function extensaoDe(nomeArquivo: string) {
 export function AnexoList({
   demandaId,
   podeAnexar,
+  rede,
 }: {
   demandaId: number;
   podeAnexar: boolean;
+  // Rede da demanda: o Admin exclui anexo de outra pessoa só na rede que
+  // administra (STC-762).
+  rede: Rede;
 }) {
   const { anexos, isLoading, mensagemErro } = useAnexos(demandaId);
   const { enviar, isLoading: enviando, progresso } = useEnviarAnexo(demandaId);
   const { excluir, isLoading: excluindo } = useExcluirAnexo(demandaId);
-  const { user, isAdminOps } = useAuth();
+  const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   // ConfirmDialog substitui o window.confirm() de antes -- exclusão de
   // anexo é irreversível (o arquivo some do storage, diferente do soft
@@ -84,7 +90,7 @@ export function AnexoList({
           // Mesma regra do backend (dono ou admin) -- checada de novo lá,
           // isso aqui é só pra não oferecer um botão que vai dar 403.
           const podeExcluir =
-            podeAnexar && (anexo.usuario?.id === user?.usuarioId || isAdminOps);
+            podeAnexar && (anexo.usuario?.id === user?.usuarioId || administra(user, rede));
           return (
             <div
               key={anexo.id}
