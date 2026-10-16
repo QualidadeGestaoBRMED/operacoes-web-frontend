@@ -339,6 +339,20 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
     );
   });
 
+  it("sem ninguém da rede, avisa em vez de mostrar a tabela vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("não lista a própria conta", async () => {
     comoAtor(PERFIL_GO, ["opex", "padrao"]);
     vi.mocked(listarUsuarios).mockResolvedValue([usuario({ id: 999, perfil: PERFIL_GO })]);
