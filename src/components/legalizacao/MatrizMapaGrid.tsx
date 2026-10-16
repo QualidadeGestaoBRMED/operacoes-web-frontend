@@ -15,6 +15,7 @@ import {
   type GradeMapa,
 } from "@/lib/legalizacaoMapa";
 import { cn } from "@/lib/utils";
+import { CabecalhoClasseDocumental } from "./CabecalhoClasseDocumental";
 import type { CategoriaDocumento } from "@/types/legalizacao";
 
 // Mesma largura em ambos os grids (cabeçalho e corpo) -- são dois elementos
@@ -107,11 +108,8 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
             Unidade
           </div>
           {ORDEM_CATEGORIA.map((categoria) => (
-            <div
-              key={categoria}
-              className="flex items-center justify-center text-center text-[11px] font-bold tracking-wide text-muted-foreground uppercase"
-            >
-              {LABEL_CATEGORIA[categoria]}
+            <div key={categoria} className="flex items-center justify-center">
+              <CabecalhoClasseDocumental categoria={categoria} />
             </div>
           ))}
         </div>
