@@ -37,6 +37,8 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
   const [aberto, setAberto] = useState(false);
   // Aberto pelo mouse: o clique seguinte fixa o Popover em vez de fechá-lo.
   const abertoPeloMouse = useRef(false);
+  // Mouse sobre o botão ou o Popover: só aí o clique fixa em vez de fechar.
+  const mouseDentro = useRef(false);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -47,6 +49,7 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
 
   function aoEntrar(evento: PointerEvent) {
     if (evento.pointerType !== "mouse") return;
+    mouseDentro.current = true;
     window.clearTimeout(timer.current);
     if (aberto) return;
     timer.current = window.setTimeout(() => {
@@ -57,6 +60,7 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
 
   function aoSair(evento: PointerEvent) {
     if (evento.pointerType !== "mouse") return;
+    mouseDentro.current = false;
     // Saiu antes de abrir: cancela a abertura.
     window.clearTimeout(timer.current);
     if (!abertoPeloMouse.current) return;
@@ -68,7 +72,8 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
 
   function aoMudar(proximo: boolean) {
     window.clearTimeout(timer.current);
-    if (!proximo && abertoPeloMouse.current) {
+    // Clique fora (até no cabeçalho vizinho) fecha mesmo se abriu pelo mouse.
+    if (!proximo && abertoPeloMouse.current && mouseDentro.current) {
       abertoPeloMouse.current = false;
       return;
     }
