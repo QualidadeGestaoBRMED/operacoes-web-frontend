@@ -174,7 +174,9 @@ export function PermissoesAdmin() {
     refTabela: refTabelaPermissoes,
     maxHeight: alturaTabelaPermissoes,
   } = useAlturaSemLinhaCortada();
-  const { permissoes, isLoading: carregandoPermissoes } = usePermissoes();
+  // Só Admin Operações lê as permissões; Coordenação e Setor de Legalização
+  // chegam aqui só pelo Catálogo.
+  const { permissoes, isLoading: carregandoPermissoes } = usePermissoes(isAdminOps);
   const { usuarios } = useUsuarios();
   // Sem filtro de rede (STC-510) de propósito: só resolve o nome de
   // qualquer unidade que uma permissão aponte (linha 302), nunca é um

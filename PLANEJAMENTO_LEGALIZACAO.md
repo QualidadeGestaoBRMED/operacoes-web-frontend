@@ -511,6 +511,7 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
 - `types/index.ts`: `Usuario.setor` (opcional -- muitos fixtures de teste no repo constroem `Usuario` sem esse campo novo, tornar obrigatório quebraria ~18 arquivos de teste sem relação nenhuma com esta issue).
 - Testado manualmente em ambiente local (login como Setor LEG via dev-login, `PLANEJAMENTO.md` §7.12): atalho aparece na sidebar, catálogo abre restrito, e o modal de alerta persistente (P4.11/STC-443) mostra corretamente só os documentos onde Legalização é a área responsável -- comportamento já existente (`_alertas_visiveis_para`, backend), confirmado contra dados reais nesta verificação.
 - Testes novos cobrindo: Setor LEG vê o Catálogo (só ele, sem Usuários/Permissões) e o atalho na sidebar; um usuário nível 4 de outro setor (não LEG) continua sem acesso nenhum.
+- **Sem buscar as permissões de usuário (STC-760, 16/10/2026):** a tela seguia chamando `usePermissoes()` para Coordenação e Setor LEG, que só usam o Catálogo; a rota é só de Admin Operações, então cada abertura gerava 403, e o SWR repetia a busca a cada poucos segundos (visto no log de produção). `usePermissoes(ativo)` agora só busca com `isAdminOps`. Conferido no local: o Catálogo aberto por 40 s com a Coordenação foi de 3 chamadas com 403 para nenhuma.
 
 ### P4.27 Antecedência fixa em 60 dias e "Data de início dos alertas" pré-preenchida (STC-523) — sem mockup próprio
 
