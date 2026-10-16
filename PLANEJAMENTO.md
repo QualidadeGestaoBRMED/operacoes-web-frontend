@@ -928,3 +928,11 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **`KanbanFiltros.tsx`/`FormNovaDemanda.tsx` são exceção ao "sempre padrao"**: os dois já sabem qual Tipo de Gestão está ativo/selecionado, então a rede pedida acompanha esse tipo (`visibilidade_padrao` `"opex"` → unidades `"opex"`, senão `"padrao"`) -- achado testando ao vivo a aba "OPEX" do Kanban, que mostrava as filiais normais no filtro em vez das unidades de Operações Especiais.
 - `VisibilidadePadrao` (frontend) ganha o valor `"opex"`, que faltava desde a STC-509 (só existia no backend).
 - **Achado no code review**: `KanbanFiltros.tsx` e `FormNovaDemanda.tsx` implementam a mesma lógica, mas só o Kanban tinha teste de regressão -- o formulário é o caminho com mais risco (fica aberto enquanto o usuário troca de tipo de gestão, diferente da aba do Kanban, já fixada). Teste novo mocka `listarUnidades` devolvendo listas DIFERENTES por rede, provando que o Select de Unidade reflete de verdade a rede pedida ao trocar de tipo de gestão dentro do form.
+
+### 7.15 STC-727 — Suíte do Vitest mais rápida e sem falhas por tempo
+
+🔄 **Em andamento.** Com todos os arquivos em paralelo, os formulários pesados de Legalização (vários Select do Radix por teste) chegavam a dobrar de duração e algum teste passava do limite padrão de 5 s, falhando sem relação com o código alterado. Rodados isolados, passavam sempre.
+
+- `vitest.config.ts`: `pool: "threads"` (o padrão era `forks`) e `testTimeout: 15_000`.
+- Medição de 16/10/2026 (71 arquivos, 1038 testes, 12 núcleos, com o `next dev` no ar): antes, 87,6 s e 4 testes por tempo; depois, 78,8 s, 87,3 s (1 falha, não identificada) e 76,0 s nas três primeiras execuções, e 7 execuções seguidas sem falha depois disso.
+- Fora de escopo: reescrever os testes de Legalização para menos interações; trocar o `jsdom`. O backend tem issue própria.
