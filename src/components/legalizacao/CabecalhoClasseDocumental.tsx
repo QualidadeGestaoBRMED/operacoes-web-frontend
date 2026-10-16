@@ -12,6 +12,8 @@ const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
   coordenacao: "Coordenação da Unidade",
 };
 
+// Só abre pelo mouse parado em cima: atravessar os cabeçalhos não pisca.
+const ATRASO_PARA_ABRIR_MS = 300;
 // Tempo para o mouse ir do botão ao Popover sem ele fechar no caminho.
 const ATRASO_PARA_FECHAR_MS = 150;
 
@@ -46,14 +48,18 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
   function aoEntrar(evento: PointerEvent) {
     if (evento.pointerType !== "mouse") return;
     window.clearTimeout(timer.current);
-    if (!aberto) {
+    if (aberto) return;
+    timer.current = window.setTimeout(() => {
       abertoPeloMouse.current = true;
       setAberto(true);
-    }
+    }, ATRASO_PARA_ABRIR_MS);
   }
 
   function aoSair(evento: PointerEvent) {
-    if (evento.pointerType !== "mouse" || !abertoPeloMouse.current) return;
+    if (evento.pointerType !== "mouse") return;
+    // Saiu antes de abrir: cancela a abertura.
+    window.clearTimeout(timer.current);
+    if (!abertoPeloMouse.current) return;
     timer.current = window.setTimeout(() => {
       abertoPeloMouse.current = false;
       setAberto(false);
