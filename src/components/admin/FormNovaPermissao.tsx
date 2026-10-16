@@ -139,10 +139,13 @@ export function FormNovaPermissao({
   const { user: ator, redesAdministradas, administraRedePadrao, administraAsDuasRedes } =
     useAuth();
   const { usuarios: todosOsUsuarios } = useUsuarios();
-  const { unidades: todasAsUnidades } = useUnidades();
+  const { unidades: todasAsUnidades, isLoading: carregandoUnidades } = useUnidades();
   // Cada Admin concede só a quem gerencia, e só nas unidades das redes dele
-  // (STC-745).
-  const usuarios = usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
+  // (STC-745). Quem ele gerencia depende da rede da unidade de cada pessoa:
+  // a lista só sai com as unidades carregadas.
+  const usuarios = carregandoUnidades
+    ? []
+    : usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
   const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
   const { recursos } = useRecursosPermissao();

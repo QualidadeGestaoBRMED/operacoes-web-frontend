@@ -83,10 +83,10 @@ export function GerenciarUsuarios({
   onAlternarExpandir: () => void;
 }) {
   const { user: ator, redesAdministradas, administraRedePadrao } = useAuth();
-  const { usuarios } = useUsuarios();
+  const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
   const { perfis } = usePerfis();
   // Todas as redes: cada linha oferece as unidades da rede do cargo dela.
-  const { unidades } = useUnidades();
+  const { unidades, isLoading: carregandoUnidades, error: erroUnidades } = useUnidades();
   const { setores } = useSetores();
   const { atualizar } = useAtualizarUsuario();
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
@@ -95,6 +95,10 @@ export function GerenciarUsuarios({
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();
 
+  // Quem entra na lista depende da rede da unidade de cada pessoa: sem as
+  // unidades, a lista ainda não está decidida.
+  const carregando = carregandoUsuarios || carregandoUnidades;
+  const comErro = Boolean(erroUsuarios || erroUnidades);
   const perfisDisponiveis = cargosAtribuiveis(perfis, ator);
   const usuariosListados = usuariosGerenciaveis(usuarios, ator, unidades);
   const unidadesDasMinhasRedes = unidades.filter((unidade) =>
@@ -193,8 +197,12 @@ export function GerenciarUsuarios({
     // nenhuma das duas mudanças, feita sozinha, passaria. A unidade nova é
     // escolhida em seguida, já entre as da rede certa.
     const redeExigida = redeDoCargoDeUnidade(novo);
+    // Unidade fora da lista (desativada) tem rede desconhecida: sai também.
     const unidadeAtual = unidades.find((unidade) => unidade.id === usuario.unidade_id);
-    const tiraUnidade = redeExigida !== null && unidadeAtual && unidadeAtual.rede !== redeExigida;
+    const tiraUnidade =
+      redeExigida !== null &&
+      usuario.unidade_id != null &&
+      unidadeAtual?.rede !== redeExigida;
     try {
       await atualizar({
         id: usuario.id,
@@ -286,7 +294,13 @@ export function GerenciarUsuarios({
         </Button>
       </div>
 
-      {usuariosListados.length === 0 ? (
+      {carregando ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : comErro ? (
+        <p className="text-sm text-destructive">
+          Não foi possível carregar os usuários -- tente novamente.
+        </p>
+      ) : usuariosListados.length === 0 ? (
         // Ex.: Admin Operações Especiais antes de cadastrar os pontos focais.
         <p className="text-sm text-muted-foreground">
           Nenhuma pessoa da sua rede para gerenciar ainda.
