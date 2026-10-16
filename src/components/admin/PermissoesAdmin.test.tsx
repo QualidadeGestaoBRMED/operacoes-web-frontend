@@ -249,7 +249,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    expect(replace).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalledWith("/modulos/gestao-demandas");
     expect(
       await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
     ).toBeInTheDocument();
@@ -295,7 +295,7 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     renderTela();
 
-    expect(replace).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalledWith("/modulos/gestao-demandas");
     expect(
       await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
     ).toBeInTheDocument();
@@ -437,6 +437,8 @@ describe("PermissoesAdmin (STC-266)", () => {
 
     expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual(["Usuários"]);
     expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
+    // A URL sai da aba proibida.
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes");
   });
 
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {
