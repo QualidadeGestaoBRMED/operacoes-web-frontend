@@ -15,11 +15,20 @@ const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
 // Tempo para o mouse ir do botão ao Popover sem ele fechar no caminho.
 const ATRASO_PARA_FECHAR_MS = 150;
 
+// Até 5 tipos à vista; com mais, a lista rola. Cada item tem altura fixa:
+// nome em até duas linhas e a área responsável numa, cortados com
+// reticências (o texto inteiro fica no title).
+const ITENS_VISIVEIS = 5;
+const ALTURA_DO_ITEM = 48;
+const ESPACO_ENTRE_ITENS = 8;
+const ALTURA_MAXIMA_DA_LISTA = ITENS_VISIVEIS * ALTURA_DO_ITEM + (ITENS_VISIVEIS - 1) * ESPACO_ENTRE_ITENS;
+
 /**
  * Cabeçalho de uma classe documental no Mapa: abre os tipos de documento
- * ativos da classe, com a área responsável e o setor de apoio. Popover, não
+ * ativos da classe, com a área responsável. Popover, não
  * tooltip, para abrir também com toque e teclado; no computador, abre ainda
- * ao passar o mouse.
+ * ao passar o mouse. O botão ocupa a coluna inteira, e o Popover tem a
+ * largura dela, para não cobrir as classes vizinhas.
  */
 export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaDocumento }) {
   const { tiposDocumento, isLoading, mensagemErro } = useTiposDocumento();
@@ -66,7 +75,7 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
       <PopoverTrigger
         onPointerEnter={aoEntrar}
         onPointerLeave={aoSair}
-        className="flex items-center justify-center gap-1 rounded text-center text-[11px] font-bold tracking-wide text-muted-foreground uppercase hover:text-foreground focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none"
+        className="flex w-full items-center justify-center gap-1 rounded text-center text-[11px] font-bold tracking-wide text-muted-foreground uppercase hover:text-foreground focus-visible:ring-2 focus-visible:ring-secondary focus-visible:outline-none"
       >
         {LABEL_CATEGORIA[categoria]}
         <Info aria-hidden className="size-3 shrink-0 opacity-70" />
@@ -81,12 +90,12 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
           abertoPeloMouse.current = false;
         }}
         collisionPadding={16}
-        className="w-[280px] p-0"
+        className="w-(--radix-popover-trigger-width) min-w-0 p-0"
       >
-        <p className="border-b border-border px-4 py-2.5 text-sm font-semibold">
+        <p className="border-b border-border px-3 py-2 text-[12px] leading-4 font-semibold">
           {LABEL_CATEGORIA[categoria]}
         </p>
-        <div className="scrollbar-discreta max-h-80 overflow-y-auto px-4 py-3">
+        <div className="px-3 py-2.5">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando os tipos de documento...</p>
           ) : mensagemErro ? (
@@ -94,16 +103,26 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
           ) : tipos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum tipo de documento cadastrado nesta classe</p>
           ) : (
-            <ul className="space-y-2.5">
-              {tipos.map((tipo) => (
-                <li key={tipo.id} className="text-sm">
-                  <p className="font-medium text-foreground">{tipo.nome}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Responsável: {LABEL_AREA_RESPONSAVEL[tipo.area_responsavel]}
-                    {tipo.setor_apoio && ` · Setor de apoio: ${tipo.setor_apoio}`}
-                  </p>
-                </li>
-              ))}
+            <ul
+              className="scrollbar-discreta -mr-2 space-y-2 overflow-y-auto pr-2"
+              style={{ maxHeight: ALTURA_MAXIMA_DA_LISTA }}
+            >
+              {tipos.map((tipo) => {
+                const area = LABEL_AREA_RESPONSAVEL[tipo.area_responsavel];
+                return (
+                  <li key={tipo.id} className="min-w-0" style={{ height: ALTURA_DO_ITEM }}>
+                    <p
+                      className="line-clamp-2 text-[12px] leading-4 font-medium break-words text-foreground"
+                      title={tipo.nome}
+                    >
+                      {tipo.nome}
+                    </p>
+                    <p className="truncate text-[11px] leading-4 text-muted-foreground" title={`Responsável: ${area}`}>
+                      {area}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
