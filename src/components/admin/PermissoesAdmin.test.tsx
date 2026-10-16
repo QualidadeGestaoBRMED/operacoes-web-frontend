@@ -1003,6 +1003,42 @@ describe("PermissoesAdmin (STC-266)", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("STC-747: global de uma rede mostra a rede e continua dela ao renovar", async () => {
+    simularAuth({ isAdminOps: true, isAdminQG: true, isLoading: false } as ReturnType<
+      typeof useAuth
+    >);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({
+        ativo: false,
+        data_fim: "2026-01-15",
+        escopo_tipo: "global",
+        unidade: null,
+        rede: "padrao",
+      }),
+    ]);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = within(
+      await screen.findByRole("table", { name: /permissões individuais/i }),
+    );
+    expect(await tabela.findByText(/rede própria/)).toBeInTheDocument();
+
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", { name: /renovar permissão/i });
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    await user.click(within(dialog).getByRole("button", { name: /renovar permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({ escopo_tipo: "global", rede: "padrao" }),
+      );
+    });
+  });
+
   it("STC-422: Renovar sem tocar em Recurso continua resolvendo o módulo mesmo quando o recurso saiu do catálogo (2º achado no code review)", async () => {
     // Achado no code review: a checagem visual acima (achado 1) resolvia só
     // a aparência -- o campo "recurso" continuava com a chave órfã, e
