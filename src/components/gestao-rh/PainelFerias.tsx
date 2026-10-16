@@ -46,7 +46,8 @@ export function PainelFerias() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { isAdminOps } = useAuth();
+  // O Gestão RH é da rede padrão (STC-762).
+  const { administraRedePadrao } = useAuth();
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
 
@@ -194,7 +195,7 @@ export function PainelFerias() {
             </div>
 
             {/* Coordenação e OPEX já recebem só a própria unidade da API. */}
-            {isAdminOps && (
+            {administraRedePadrao && (
               <Select
                 value={unidade ? String(unidade) : "todas"}
                 onValueChange={(valor) =>

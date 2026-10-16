@@ -22,6 +22,7 @@ import {
   diasAteOPrazo,
   rotuloUnidadeOuResponsavel,
 } from "@/lib/kanban";
+import { redeDaUnidade } from "@/lib/redes";
 import { cn, nomeExibicao } from "@/lib/utils";
 import type { StatusDemanda } from "@/types";
 import { AnexoList } from "./AnexoList";
@@ -348,7 +349,11 @@ export function DetalheCard({
                   <ComentarioFeed demandaId={demanda.id} podeComentar={podeEscrever} />
                 </TabsContent>
                 <TabsContent value="anexos" className="flex min-h-0 flex-col overflow-hidden">
-                  <AnexoList demandaId={demanda.id} podeAnexar={podeEscrever} />
+                  <AnexoList
+                    demandaId={demanda.id}
+                    podeAnexar={podeEscrever}
+                    rede={redeDaUnidade(demanda.unidade)}
+                  />
                 </TabsContent>
                 <TabsContent value="historico" className="flex min-h-0 flex-col overflow-hidden">
                   <HistoricoTimeline demandaId={demanda.id} />
