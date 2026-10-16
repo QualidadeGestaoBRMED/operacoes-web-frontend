@@ -1,9 +1,13 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { calcularGradeMapa } from "@/lib/legalizacaoMapa";
 import type { Unidade } from "@/types";
 import type { DocumentoUnidade } from "@/types/legalizacao";
 import { MatrizMapaGrid } from "./MatrizMapaGrid";
+
+vi.mock("@/hooks/useTiposDocumento", () => ({
+  useTiposDocumento: () => ({ tiposDocumento: [], isLoading: false, error: undefined, mensagemErro: null }),
+}));
 
 const NITEROI: Unidade = {
   id: 1,
