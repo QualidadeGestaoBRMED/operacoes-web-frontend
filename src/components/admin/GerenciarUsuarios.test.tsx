@@ -249,3 +249,103 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     expect(celula).toHaveClass("sticky", "left-0");
   });
 });
+
+describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
+  const PERFIL_PONTO_FOCAL: Perfil = { id: 5, nome: "Ponto focal (OPEX)", descricao: "", nivel: 5 };
+  const PERFIL_GO: Perfil = { id: 6, nome: "Gestão de Operações", descricao: "", nivel: 6 };
+  const PERFIL_ADMIN_OPEX: Perfil = {
+    id: 7,
+    nome: "Admin Operações Especiais",
+    descricao: "",
+    nivel: 7,
+  };
+  const AERO: Unidade = {
+    id: 2,
+    nome: "Aeroclínica Macaé",
+    codigo: "AMC",
+    cidade: "Macaé",
+    ativa: true,
+    rede: "opex",
+  };
+
+  function comoAtor(perfil: Perfil, redes: ("padrao" | "opex")[]) {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 999, perfil, redes_administradas: redes },
+      redesAdministradas: redes,
+      administraRedePadrao: redes.includes("padrao"),
+      administraAsDuasRedes: redes.length === 2,
+      isAdminOps: true,
+    } as unknown as ReturnType<typeof useAuth>);
+  }
+
+  beforeEach(() => {
+    vi.mocked(listarPerfis).mockResolvedValue([
+      PERFIL_QG,
+      PERFIL_OPS,
+      PERFIL_UNIDADE,
+      PERFIL_SETOR,
+      PERFIL_PONTO_FOCAL,
+      PERFIL_GO,
+      PERFIL_ADMIN_OPEX,
+    ]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, AERO]);
+  });
+
+  it("Gestão de Operações lista Admins de rede e oferece esses cargos, não Q&G nem o próprio", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ perfil: PERFIL_OPS })]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+
+    expect(await screen.findByRole("option", { name: "Admin Operações Especiais" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Admin Q&G" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Gestão de Operações" })).not.toBeInTheDocument();
+  });
+
+  it("Admin Operações Especiais só vê quem é da rede OPEX, com as unidades dela", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 5, perfil: PERFIL_PONTO_FOCAL, unidade_id: AERO.id }),
+      usuario({ id: 6, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar unidade de fernanda lima/i));
+
+    expect(screen.queryByText("Carla Lima")).not.toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Aeroclínica Macaé" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+    // Setor não tem rede: é da rede padrão.
+    expect(screen.getByLabelText(/alterar setor de fernanda lima/i)).toBeDisabled();
+  });
+
+  it("trocar para um cargo de outra rede tira a unidade junto", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    vi.mocked(atualizarUsuario).mockResolvedValue(usuario({ perfil: PERFIL_PONTO_FOCAL }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+    await user.click(await screen.findByRole("option", { name: "Ponto focal (OPEX)" }));
+
+    await waitFor(() =>
+      expect(atualizarUsuario).toHaveBeenCalledWith(5, { perfil_id: 5, unidade_id: null }),
+    );
+  });
+
+  it("não lista a própria conta", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([usuario({ id: 999, perfil: PERFIL_GO })]);
+
+    renderTela();
+
+    await waitFor(() => expect(listarUsuarios).toHaveBeenCalled());
+    expect(screen.queryByText("Fernanda Lima")).not.toBeInTheDocument();
+  });
+});

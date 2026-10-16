@@ -533,3 +533,37 @@ describe("Sidebar -- Gestão RH expansível, com os Parâmetros para Admin (STC-
     );
   });
 });
+
+describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
+  beforeEach(() => {
+    vi.mocked(usePathname).mockReturnValue("/modulos/gestao-demandas");
+    vi.mocked(listarModulos).mockResolvedValue([
+      modulo({ id: 1, nome: "Legalização", codigo: "legalizacao", status: "ativo" }),
+      modulo({ id: 2, nome: "Gestão RH", codigo: "gestao-rh", status: "ativo" }),
+    ]);
+  });
+
+  it("não vê Legalização nem Gestão RH (só a rede padrão), mas vê a Administração", async () => {
+    simularAuth({
+      isAdminQG: false,
+      isAdminOps: true,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Administração" })).toBeInTheDocument();
+    await waitFor(() => expect(listarModulos).toHaveBeenCalled());
+    // Mesmo depois de carregar os módulos, nenhum dos dois aparece.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole("button", { name: "Expandir Legalização" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Expandir Gestão RH" })).not.toBeInTheDocument();
+  });
+
+  it("quem administra a rede padrão continua vendo os dois", async () => {
+    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<typeof useAuth>);
+    renderSidebar();
+
+    expect(await screen.findByRole("button", { name: "Expandir Legalização" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expandir Gestão RH" })).toBeInTheDocument();
+  });
+});

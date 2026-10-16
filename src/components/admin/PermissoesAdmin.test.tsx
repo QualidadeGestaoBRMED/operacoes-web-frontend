@@ -1581,3 +1581,72 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(celula).toHaveClass("sticky", "left-0");
   });
 });
+
+describe("PermissoesAdmin -- redes (STC-747)", () => {
+  async function abrirFormularioGlobal() {
+    const user = userEvent.setup();
+    renderTela();
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText(/pessoa/i));
+    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    await user.click(await screen.findByRole("option", { name: /kanban/i }));
+    await user.click(within(dialog).getByLabelText(/escopo/i));
+    await user.click(await screen.findByRole("option", { name: /global/i }));
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    return { user, dialog };
+  }
+
+  it("Admin Operações Especiais só tem a aba Usuários", async () => {
+    simularAuth({
+      isAdminOps: true,
+      isLoading: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    const user = userEvent.setup();
+
+    renderTela();
+
+    expect(await screen.findByTestId("secao-usuarios")).toBeVisible();
+    await user.click(screen.getByLabelText("Seção"));
+    expect(await screen.findByRole("option", { name: "Usuários" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Catálogo de Legalização" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Parâmetros de Gestão RH" })).not.toBeInTheDocument();
+  });
+
+  it("Admin de uma rede concede global da rede dele, sem escolher", async () => {
+    simularAuth({ isAdminOps: true, isLoading: false } as ReturnType<typeof useAuth>);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const { user, dialog } = await abrirFormularioGlobal();
+
+    expect(within(dialog).getByText("Cobre as unidades da rede própria.")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Rede")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => expect(criarPermissao).toHaveBeenCalled());
+    // Sem rede no envio: o backend usa a rede de quem concede.
+    expect(vi.mocked(criarPermissao).mock.calls[0][0]).not.toHaveProperty("rede");
+  });
+
+  it("quem administra as duas escolhe a rede do global", async () => {
+    simularAuth({ isAdminOps: true, isAdminQG: true, isLoading: false } as ReturnType<
+      typeof useAuth
+    >);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const { user, dialog } = await abrirFormularioGlobal();
+
+    await user.click(within(dialog).getByLabelText("Rede"));
+    await user.click(await screen.findByRole("option", { name: "Operações Especiais" }));
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() =>
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({ escopo_tipo: "global", rede: "opex" }),
+      ),
+    );
+  });
+});
