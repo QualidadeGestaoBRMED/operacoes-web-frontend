@@ -139,7 +139,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 6, 9, 0));
   vi.mocked(useRouter).mockReturnValue({ replace, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
-  vi.mocked(useAuth).mockReturnValue({ isAdminOps: true } as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true } as ReturnType<typeof useAuth>);
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [{ id: 1, nome: "Macaé", codigo: "MAC", cidade: "Macaé", ativa: true, rede: "padrao" }],
     isLoading: false,
@@ -285,7 +285,7 @@ describe("Painel de Férias", () => {
   });
 
   it("filtro de unidade só para Admin (a coordenação já recebe só a própria unidade)", async () => {
-    vi.mocked(useAuth).mockReturnValue({ isAdminOps: false } as ReturnType<typeof useAuth>);
+    vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: false } as ReturnType<typeof useAuth>);
     renderPainel();
     await screen.findByText("Marcos Lima");
 

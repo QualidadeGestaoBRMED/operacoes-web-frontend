@@ -18,7 +18,11 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 // trocam o perfil em `sessao.atual`.
 const sessao = vi.hoisted(() => {
   const padrao = {
-    user: { usuarioId: 7, unidade_id: null as number | null },
+    user: {
+      usuarioId: 7,
+      unidade_id: null as number | null,
+      redes_administradas: [] as ("padrao" | "opex")[],
+    },
     perfil: null,
     isLoading: false,
     isAdminQG: false,
@@ -29,6 +33,12 @@ const sessao = vi.hoisted(() => {
   return { padrao, atual: { ...padrao } };
 });
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => sessao.atual }));
+
+// Admin Operações: administra a rede padrão, a do documento dos testes.
+const ADMIN_OPERACOES = {
+  isAdminOps: true,
+  user: { usuarioId: 7, unidade_id: null, redes_administradas: ["padrao" as const] },
+};
 
 import {
   adicionarResponsavelLegalizacao,
@@ -1524,7 +1534,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   }
 
   it.each([
-    ["Admin", { isAdminOps: true }],
+    ["Admin", ADMIN_OPERACOES],
     ["Setor de Legalização", { isSetorLeg: true }],
   ])("%s vê o botão", async (_perfil, flags) => {
     sessao.atual = { ...sessao.atual, ...flags };
@@ -1532,11 +1542,21 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
     expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
   });
 
+  it("Admin de outra rede não vê o botão (STC-747)", async () => {
+    sessao.atual = {
+      ...sessao.atual,
+      isAdminOps: true,
+      user: { ...sessao.atual.user, redes_administradas: ["opex"] },
+    };
+    await abrir();
+    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
+  });
+
   it("Coordenação vê o botão só nos documentos da própria unidade", async () => {
     sessao.atual = {
       ...sessao.atual,
       isCoordenacaoUnidade: true,
-      user: { usuarioId: 7, unidade_id: UNIDADE.id },
+      user: { ...sessao.atual.user, unidade_id: UNIDADE.id },
     };
     await abrir();
     expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
@@ -1546,7 +1566,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
     sessao.atual = {
       ...sessao.atual,
       isCoordenacaoUnidade: true,
-      user: { usuarioId: 7, unidade_id: UNIDADE.id + 100 },
+      user: { ...sessao.atual.user, unidade_id: UNIDADE.id + 100 },
     };
     await abrir();
     expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
@@ -1558,7 +1578,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   });
 
   it("a confirmação diz o que vai sair, e cancelar não exclui", async () => {
-    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([evidencia()]);
     const user = userEvent.setup();
     await abrir(documento({ profissional: "BALANÇA 01" }));
@@ -1592,7 +1612,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   });
 
   it("depois de excluir, a lista da Matriz por trás é atualizada", async () => {
-    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
     vi.mocked(excluirDocumentoLegalizacao).mockResolvedValue();
@@ -1608,7 +1628,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   });
 
   it("documento já excluído por outra pessoa: avisa, fecha e atualiza as listas", async () => {
-    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
     vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
@@ -1633,7 +1653,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   });
 
   it("enquanto as evidências carregam, a confirmação não mostra número", async () => {
-    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(listarEvidenciasLegalizacao).mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();
     await abrir();
@@ -1646,7 +1666,7 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
   });
 
   it("erro do backend aparece legível e o detalhe continua aberto", async () => {
-    sessao.atual = { ...sessao.atual, isAdminOps: true };
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
       Object.assign(new Error("Forbidden"), {
         isAxiosError: true,

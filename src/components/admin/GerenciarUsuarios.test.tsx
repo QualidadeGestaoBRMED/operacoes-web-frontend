@@ -362,4 +362,48 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
     await waitFor(() => expect(listarUsuarios).toHaveBeenCalled());
     expect(screen.queryByText("Fernanda Lima")).not.toBeInTheDocument();
   });
+
+  it("enquanto usuários ou unidades carregam, não afirma que a rede está vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([]);
+    vi.mocked(listarUnidades).mockReturnValue(new Promise(() => {}));
+
+    renderTela();
+
+    expect(await screen.findByText("Carregando...")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("falha ao carregar avisa o erro, não que a rede está vazia", async () => {
+    comoAtor(PERFIL_ADMIN_OPEX, ["opex"]);
+    vi.mocked(listarUsuarios).mockRejectedValue(new Error("rede"));
+
+    renderTela();
+
+    expect(
+      await screen.findByText("Não foi possível carregar os usuários -- tente novamente."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma pessoa da sua rede para gerenciar ainda."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("trocar o cargo de quem está numa unidade fora da lista (desativada) tira a unidade", async () => {
+    comoAtor(PERFIL_GO, ["opex", "padrao"]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_SETOR, unidade_id: 999 }),
+    ]);
+    vi.mocked(atualizarUsuario).mockResolvedValue(usuario({ perfil: PERFIL_PONTO_FOCAL }));
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+    await user.click(await screen.findByRole("option", { name: "Ponto focal (OPEX)" }));
+
+    await waitFor(() =>
+      expect(atualizarUsuario).toHaveBeenCalledWith(5, { perfil_id: 5, unidade_id: null }),
+    );
+  });
 });
