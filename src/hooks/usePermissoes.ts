@@ -13,8 +13,13 @@ import type { PermissaoUsuarioPayload } from "@/types";
 
 const CHAVE_LISTA = "permissoes-usuario";
 
-export function usePermissoes() {
-  const { data, error, isLoading } = useSWR(CHAVE_LISTA, listarPermissoes);
+/**
+ * Permissões individuais (rota só de Admin Operações). `ativo` falso não
+ * busca: sem isso, quem entra na Administração só pelo Catálogo de
+ * Legalização tomava 403, e o SWR repetia a busca a cada poucos segundos.
+ */
+export function usePermissoes(ativo = true) {
+  const { data, error, isLoading } = useSWR(ativo ? CHAVE_LISTA : null, listarPermissoes);
 
   return {
     permissoes: data ?? [],
