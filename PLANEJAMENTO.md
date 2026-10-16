@@ -959,4 +959,4 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Kanban:** aprovador e responsável sugeridos pela rede da demanda (Operacional: quem administra a rede padrão), sem o Admin Q&G; criar etiqueta só para quem administra a rede padrão. Os filtros de unidade já seguiam a rede do tipo de gestão.
 - **Conferência visual** (banco local, um usuário por cargo): Admin Operações Especiais sem Legalização e Gestão RH no menu, Administração só com Usuários e Kanban só com o OPEX; Gestão de Operações oferece os Admins de rede e não Q&G nem o próprio cargo; Admin Operações sem a aba OPEX no Kanban. Sem erro no console.
 - **Depois de atribuir um cargo novo, a pessoa precisa sair e entrar de novo:** o cargo na sessão só é lido no login.
-- Testes: 1064 → 1088 (regras centrais, menu, Administração, usuários por cargo, permissão global por rede, responsáveis pela rede); `tsc` e ESLint limpos.
+- Testes: 1041 → 1065 (regras centrais, menu, Administração, usuários por cargo, permissão global por rede, responsáveis pela rede); `tsc` e ESLint limpos.
