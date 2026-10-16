@@ -228,6 +228,19 @@ describe("PermissoesAdmin (STC-266)", () => {
     });
   });
 
+  it("STC-763: não redireciona enquanto o cargo atual não chega", () => {
+    // Quem acabou de virar Admin ainda tem o cargo antigo na sessão.
+    simularAuth({
+      isAdminOps: false,
+      isLoading: false,
+      confirmandoCargo: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("não redireciona enquanto a sessão ainda está carregando", () => {
     simularAuth({
       isAdminOps: false,
@@ -439,6 +452,23 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
     // A URL sai da aba proibida.
     expect(replace).toHaveBeenCalledWith("/admin/permissoes");
+  });
+
+  it("STC-763: aba fora do acesso pela sessão espera o cargo atual, sem mostrar outra aba", async () => {
+    mockSetPathname("/admin/permissoes/parametros-gestao-rh");
+    simularAuth({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+      redesAdministradas: ["opex"],
+      confirmandoCargo: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    await waitFor(() => expect(screen.queryByLabelText("Seção")).not.toBeInTheDocument());
+    expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("na rota /admin/permissoes (padrão), continua abrindo na aba 'Usuários'", async () => {

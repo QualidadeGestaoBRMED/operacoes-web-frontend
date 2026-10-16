@@ -24,7 +24,7 @@ import { ID_LIMITES_TAXA, SecaoLimitesTaxa } from "./SecaoLimitesTaxa";
 
 export function ApiDocs() {
   const router = useRouter();
-  const { isAdminOps, isLoading: carregandoAuth } = useAuth();
+  const { isAdminOps, isLoading: carregandoAuth, confirmandoCargo } = useAuth();
   const { doc, isLoading, error, mensagemErro } = useApiSchema();
 
   // Mesmo padrão de PermissoesAdmin.tsx: página admin-only no front (o
@@ -32,10 +32,10 @@ export function ApiDocs() {
   // core/settings/base.py -- isto é só pra não deixar quem não é admin
   // ver a página inteira renderizada antes de um erro genérico).
   useEffect(() => {
-    if (!carregandoAuth && !isAdminOps) {
+    if (!carregandoAuth && !confirmandoCargo && !isAdminOps) {
       router.replace("/hub");
     }
-  }, [carregandoAuth, isAdminOps, router]);
+  }, [carregandoAuth, confirmandoCargo, isAdminOps, router]);
 
   const grupos = useMemo(
     () => (doc ? apenasOperacoesDeLeitura(agruparOperacoesPorTag(doc)) : null),

@@ -1,18 +1,34 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
 
+import { obterUsuarioLogado } from "@/lib/plataforma";
 import { NIVEL_ADMIN_QG, NIVEL_SETOR, NIVEL_UNIDADE, redesAdministradas } from "@/lib/redes";
 
 export function useAuth() {
   const { data: session, status } = useSession();
-  const nivel = session?.user?.perfil?.nivel;
-  const redes = redesAdministradas(session?.user);
+  // A sessão guarda os dados do usuário do login; cargo, redes, unidade e
+  // setor podem mudar depois (um Admin troca o cargo da pessoa). Os dados
+  // atuais vêm da API, buscados de novo ao montar uma tela e ao voltar para
+  // a aba; até chegarem (ou se a busca falhar), vale a sessão.
+  const usuarioId = session?.user?.usuarioId;
+  const { data: atual, error: erroAtual } = useSWR(
+    usuarioId ? ["usuario-logado", usuarioId] : null,
+    () => obterUsuarioLogado(),
+  );
+  const user = session?.user && atualizado(session.user, atual);
+  const nivel = user?.perfil?.nivel;
+  const redes = redesAdministradas(user);
 
   return {
-    user: session?.user,
-    perfil: session?.user?.perfil,
+    user,
+    perfil: user?.perfil,
     isLoading: status === "loading",
+    // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
+    // pessoa de uma página pelo cargo espera, senão quem acabou de virar
+    // Admin seria mandado embora com o cargo do login.
+    confirmandoCargo: Boolean(usuarioId) && atual === undefined && !erroAtual,
     isAdminQG: nivel === NIVEL_ADMIN_QG,
     // Admin de alguma rede (STC-747): Admin Q&G, Gestão de Operações, Admin
     // Operações ou Admin Operações Especiais. O backend só devolve a cada
@@ -35,6 +51,18 @@ export function useAuth() {
     // === "LEG" (mesmo critério que legalizacao.permissions.e_setor_leg()
     // já usa no backend). setor.codigo só existe na sessão a partir da
     // STC-520 (backend expõe setor aninhado no UsuarioSerializer).
-    isSetorLeg: nivel === NIVEL_SETOR && session?.user?.setor?.codigo === "LEG",
+    isSetorLeg: nivel === NIVEL_SETOR && user?.setor?.codigo === "LEG",
   };
+}
+
+type UsuarioDaSessao = NonNullable<ReturnType<typeof useSession>["data"]>["user"];
+
+// O `id` da API é o usuarioId da sessão (o `id` da sessão é o do Google):
+// resposta de outra conta (troca de conta em outra aba) não vale.
+function atualizado(
+  daSessao: UsuarioDaSessao,
+  atual: Awaited<ReturnType<typeof obterUsuarioLogado>> | undefined,
+): UsuarioDaSessao {
+  if (!atual || atual.id !== daSessao.usuarioId) return daSessao;
+  return { ...daSessao, ...atual, id: daSessao.id };
 }

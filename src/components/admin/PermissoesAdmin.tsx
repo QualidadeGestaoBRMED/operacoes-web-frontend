@@ -156,6 +156,7 @@ export function PermissoesAdmin() {
     isCoordenacaoUnidade,
     isSetorLeg,
     isLoading: carregandoAuth,
+    confirmandoCargo,
   } = useAuth();
   // STC-514: Coordenador (nível 3) ganha acesso, mas só ao Catálogo de
   // Legalização -- Usuários/Permissões individuais continuam Admin-only.
@@ -331,10 +332,10 @@ export function PermissoesAdmin() {
   // resolver, e sem essa checagem um Admin Operações de verdade seria
   // redirecionado por engano no primeiro render.
   useEffect(() => {
-    if (!carregandoAuth && !podeAcessar) {
+    if (!carregandoAuth && !confirmandoCargo && !podeAcessar) {
       router.replace("/modulos/gestao-demandas");
     }
-  }, [carregandoAuth, podeAcessar, router]);
+  }, [carregandoAuth, confirmandoCargo, podeAcessar, router]);
 
   // Aba fora do acesso (Coordenador fora do Catálogo, Admin Operações
   // Especiais fora de Usuários): vale a primeira que ele tem, e a URL
@@ -342,12 +343,16 @@ export function PermissoesAdmin() {
   const abaEfetiva: Aba = abasPermitidas.includes(aba) ? aba : abasPermitidas[0];
   const rotaDaAbaEfetiva = abaEfetiva !== aba ? ROTA_ABA[abaEfetiva] : null;
   useEffect(() => {
-    if (!carregandoAuth && podeAcessar && rotaDaAbaEfetiva) {
+    if (!carregandoAuth && !confirmandoCargo && podeAcessar && rotaDaAbaEfetiva) {
       router.replace(rotaDaAbaEfetiva);
     }
-  }, [carregandoAuth, podeAcessar, rotaDaAbaEfetiva, router]);
+  }, [carregandoAuth, confirmandoCargo, podeAcessar, rotaDaAbaEfetiva, router]);
 
-  if (carregandoAuth || !podeAcessar) return null;
+  // Aba pedida fora do acesso pela sessão: o cargo atual pode liberá-la, então
+  // a tela espera em vez de mostrar outra aba com a URL desta.
+  const aguardandoAba = confirmandoCargo && abaEfetiva !== aba;
+
+  if (carregandoAuth || !podeAcessar || aguardandoAba) return null;
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
 
   function nomeUsuario(usuarioId: number) {
