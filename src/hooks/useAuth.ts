@@ -13,8 +13,9 @@ export function useAuth() {
   // atuais vêm da API, buscados de novo ao montar uma tela e ao voltar para
   // a aba; até chegarem (ou se a busca falhar), vale a sessão.
   const usuarioId = session?.user?.usuarioId;
-  const { data: atual } = useSWR(usuarioId ? ["usuario-logado", usuarioId] : null, () =>
-    obterUsuarioLogado(),
+  const { data: atual, error: erroAtual } = useSWR(
+    usuarioId ? ["usuario-logado", usuarioId] : null,
+    () => obterUsuarioLogado(),
   );
   const user = session?.user && atualizado(session.user, atual);
   const nivel = user?.perfil?.nivel;
@@ -24,6 +25,10 @@ export function useAuth() {
     user,
     perfil: user?.perfil,
     isLoading: status === "loading",
+    // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
+    // pessoa de uma página pelo cargo espera, senão quem acabou de virar
+    // Admin seria mandado embora com o cargo do login.
+    confirmandoCargo: Boolean(usuarioId) && atual === undefined && !erroAtual,
     isAdminQG: nivel === NIVEL_ADMIN_QG,
     // Admin de alguma rede (STC-747): Admin Q&G, Gestão de Operações, Admin
     // Operações ou Admin Operações Especiais. O backend só devolve a cada
