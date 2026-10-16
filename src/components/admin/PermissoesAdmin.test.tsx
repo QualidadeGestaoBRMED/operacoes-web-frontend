@@ -283,6 +283,37 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
   });
 
+  // STC-760: a rota de permissões é só de Admin Operações; buscá-la para
+  // quem entra só pelo Catálogo gerava 403 repetido (o SWR tenta de novo).
+  it.each([
+    ["Coordenador", { isCoordenacaoUnidade: true }],
+    ["Setor de Legalização", { isSetorLeg: true }],
+  ])("%s no Catálogo não busca as permissões de usuário", async (_perfil, papel) => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: false,
+      isLoading: false,
+      ...papel,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    expect(
+      await screen.findByRole("heading", { name: "Catálogo de Legalização" }),
+    ).toBeInTheDocument();
+    expect(listarPermissoes).not.toHaveBeenCalled();
+  });
+
+  it("Admin Operações busca as permissões de usuário", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      isAdminOps: true,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+
+    renderTela();
+
+    await waitFor(() => expect(listarPermissoes).toHaveBeenCalled());
+  });
+
   // STC-521: nível 4 sozinho não basta -- existem outros setores no mesmo
   // nível (RH etc.). Só isSetorLeg (nível + setor.codigo === "LEG") libera
   // acesso; qualquer outro setor de nível 4 continua sem nenhum.
