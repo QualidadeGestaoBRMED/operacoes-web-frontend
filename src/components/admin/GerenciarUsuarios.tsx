@@ -286,7 +286,12 @@ export function GerenciarUsuarios({
         </Button>
       </div>
 
-      {usuariosListados.length > 0 && usuariosFiltrados.length === 0 ? (
+      {usuariosListados.length === 0 ? (
+        // Ex.: Admin Operações Especiais antes de cadastrar os pontos focais.
+        <p className="text-sm text-muted-foreground">
+          Nenhuma pessoa da sua rede para gerenciar ainda.
+        </p>
+      ) : usuariosFiltrados.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma pessoa encontrada com esses filtros.</p>
       ) : (
         /* min-w-0: mesmo achado de PermissoesAdmin -- sem isso, o
