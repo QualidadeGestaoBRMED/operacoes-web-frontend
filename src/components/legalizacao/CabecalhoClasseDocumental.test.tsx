@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 
 describe("CabecalhoClasseDocumental", () => {
-  it("lista só os tipos ativos da classe, com a área responsável e o setor de apoio", async () => {
+  it("lista só os tipos ativos da classe, com a área responsável", async () => {
     const user = userEvent.setup();
     render(<CabecalhoClasseDocumental categoria="regularizacao" />);
 
@@ -65,9 +65,13 @@ describe("CabecalhoClasseDocumental", () => {
       "Alvará de Funcionamento",
       "AVCB",
     ]);
-    expect(itens[0]).toHaveTextContent("Responsável: Legalização");
-    expect(itens[0]).not.toHaveTextContent("Setor de apoio");
-    expect(itens[1]).toHaveTextContent("Responsável: Coordenação da Unidade · Setor de apoio: Manutenção");
+    expect(itens[0]).toHaveTextContent("Legalização");
+    expect(itens[1]).toHaveTextContent("Coordenação da Unidade");
+    expect(itens[1]).not.toHaveTextContent("Manutenção");
+    // O texto inteiro, com os rótulos, fica no title (o item corta com reticências).
+    expect(within(itens[0]).getByTitle("Responsável: Legalização")).toBeInTheDocument();
+    expect(within(itens[1]).getByTitle("Responsável: Coordenação da Unidade")).toBeInTheDocument();
+    expect(within(itens[0]).getByTitle("Alvará de Funcionamento")).toBeInTheDocument();
     expect(within(popover).queryByText("Licença antiga")).not.toBeInTheDocument();
     expect(within(popover).queryByText("PGRSS")).not.toBeInTheDocument();
   });
