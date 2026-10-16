@@ -343,10 +343,10 @@ export function PermissoesAdmin() {
   const abaEfetiva: Aba = abasPermitidas.includes(aba) ? aba : abasPermitidas[0];
   const rotaDaAbaEfetiva = abaEfetiva !== aba ? ROTA_ABA[abaEfetiva] : null;
   useEffect(() => {
-    if (!carregandoAuth && podeAcessar && rotaDaAbaEfetiva) {
+    if (!carregandoAuth && !confirmandoCargo && podeAcessar && rotaDaAbaEfetiva) {
       router.replace(rotaDaAbaEfetiva);
     }
-  }, [carregandoAuth, podeAcessar, rotaDaAbaEfetiva, router]);
+  }, [carregandoAuth, confirmandoCargo, podeAcessar, rotaDaAbaEfetiva, router]);
 
   if (carregandoAuth || !podeAcessar) return null;
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
