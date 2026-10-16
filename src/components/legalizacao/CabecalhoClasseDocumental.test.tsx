@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
@@ -108,6 +108,24 @@ describe("CabecalhoClasseDocumental", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await user.click(botao);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("aberto pelo mouse, clicar no cabeçalho vizinho fecha", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <CabecalhoClasseDocumental categoria="regularizacao" />
+        <CabecalhoClasseDocumental categoria="programas" />
+      </>,
+    );
+    const [primeiro, segundo] = screen.getAllByRole("button", { name: /ver os tipos de documento/ });
+
+    await user.hover(primeiro);
+    expect(await screen.findByRole("dialog")).toHaveTextContent("AVCB");
+    await user.click(segundo);
+
+    await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(1));
+    expect(screen.getByRole("dialog")).toHaveTextContent("PGRSS");
   });
 
   it("mouse que só passa pelo cabeçalho não abre", async () => {
