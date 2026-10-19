@@ -1,15 +1,15 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Acessos, UsuarioAcesso } from "@/types";
+import type { Acessos, Usuario, UsuarioAcesso } from "@/types";
 import { AcessosAdmin } from "./AcessosAdmin";
 
-vi.mock("@/lib/plataforma", () => ({ listarAcessos: vi.fn() }));
+vi.mock("@/lib/plataforma", () => ({ listarAcessos: vi.fn(), listarUsuarios: vi.fn() }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
 vi.mock("@/lib/kanban", () => ({ hojeNoFusoDoServidor: () => "2026-10-19" }));
 
-import { listarAcessos } from "@/lib/plataforma";
+import { listarAcessos, listarUsuarios } from "@/lib/plataforma";
 
 const UNIDADE = { id: 5, nome: "Niterói" };
 const COORDENACAO = { id: 3, nome: "Unidade" };
@@ -87,6 +87,11 @@ function nomesNaTabela() {
 beforeEach(() => {
   vi.mocked(listarAcessos).mockReset();
   vi.mocked(listarAcessos).mockResolvedValue(RESPOSTA);
+  vi.mocked(listarUsuarios).mockReset();
+  vi.mocked(listarUsuarios).mockResolvedValue([
+    { id: 2, foto_url: "https://foto.exemplo/carlos.jpg" } as Usuario,
+    { id: 3, foto_url: "" } as Usuario,
+  ]);
 });
 
 describe("AcessosAdmin (STC-746)", () => {
@@ -106,6 +111,22 @@ describe("AcessosAdmin (STC-746)", () => {
     expect(dora).toHaveTextContent("Qualidade");
     expect(eva).toHaveTextContent("Entrou hoje");
     expect(eva).toHaveTextContent("Hoje");
+  });
+
+  it("foto do Google ao lado do nome, pela lista de usuários; sem ela, as iniciais", async () => {
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    const [bruna, carlos, dora] = linhas();
+
+    await waitFor(() =>
+      expect(carlos.querySelector("img")).toHaveAttribute("src", "https://foto.exemplo/carlos.jpg"),
+    );
+    expect(carlos.querySelector("img")).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(dora.querySelector("img")).toBeNull();
+    expect(dora).toHaveTextContent("DR");
+    // Fora da lista de usuários: iniciais também.
+    expect(bruna.querySelector("img")).toBeNull();
+    expect(bruna).toHaveTextContent("BN");
   });
 
   it("destaque a partir de 3 dias sem entrar e para quem nunca entrou", async () => {
