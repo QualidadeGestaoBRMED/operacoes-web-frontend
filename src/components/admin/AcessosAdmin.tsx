@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ListFilter, X } from "lucide-react";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +33,35 @@ import {
   rotuloDoUltimoUso,
   rotuloDosDiasSemEntrar,
 } from "@/lib/acessos";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import { cn } from "@/lib/utils";
 import type { ReferenciaPorNome, UsuarioAcesso } from "@/types";
 
 // Sentinel: Radix Select não aceita value="" num SelectItem.
 const SEM_VALOR = "nenhum";
 const DIAS_DA_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+type CampoAcessos = "pessoa" | "semEntrar" | "ultimoUso" | "diasComUso" | "perfil" | "lotacao";
+
+// Quem nunca entrou conta como o maior "sem entrar" e o uso mais antigo,
+// não como vazio: senão iria para o fim nas duas direções.
+const CHAVES_DE_ORDENACAO = {
+  pessoa: (usuario: UsuarioAcesso) => usuario.nome,
+  semEntrar: (usuario: UsuarioAcesso) => usuario.dias_desde_o_ultimo_uso ?? Number.MAX_SAFE_INTEGER,
+  ultimoUso: (usuario: UsuarioAcesso) => usuario.ultimo_uso ?? "",
+  diasComUso: (usuario: UsuarioAcesso) => usuario.dias_com_uso,
+  perfil: (usuario: UsuarioAcesso) => usuario.perfil?.nome ?? null,
+  lotacao: (usuario: UsuarioAcesso) => lotacao(usuario),
+};
+
+const COLUNAS: { campo: CampoAcessos; rotulo: string; className?: string }[] = [
+  { campo: "pessoa", rotulo: "Pessoa", className: "sticky left-0 z-20 bg-muted" },
+  { campo: "semEntrar", rotulo: "Sem entrar" },
+  { campo: "ultimoUso", rotulo: "Último uso" },
+  { campo: "diasComUso", rotulo: "Dias com uso", className: "text-right" },
+  { campo: "perfil", rotulo: "Perfil" },
+  { campo: "lotacao", rotulo: "Unidade ou setor" },
+];
 
 /** Opções de um filtro a partir das próprias linhas, sem repetir, por nome. */
 function opcoes(referencias: (ReferenciaPorNome | null)[]) {
@@ -57,6 +81,9 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
   const [filtroPerfil, setFiltroPerfil] = useState("todos");
   const [filtroUnidade, setFiltroUnidade] = useState("todas");
   const [detalhe, setDetalhe] = useState<UsuarioAcesso | null>(null);
+  // Sem coluna escolhida, vale a ordem da API: quem nunca entrou, depois
+  // quem está há mais tempo sem entrar.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoAcessos> | null>(null);
   // Mesmo critério do GerenciarUsuarios: abaixo de 640px, os filtros vão
   // para um Popover atrás de um botão só.
   const ehMobile = useMediaQuery("(max-width: 639px)");
@@ -64,7 +91,7 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
   const usuarios = acessos?.usuarios ?? [];
   const perfis = opcoes(usuarios.map((usuario) => usuario.perfil));
   const unidades = opcoes(usuarios.map((usuario) => usuario.unidade));
-  const filtrados = usuarios.filter((usuario) => {
+  const filtrados = ordenarPor(usuarios, ordenacao, CHAVES_DE_ORDENACAO).filter((usuario) => {
     if (filtroPerfil !== "todos" && String(usuario.perfil?.id ?? SEM_VALOR) !== filtroPerfil)
       return false;
     if (filtroUnidade !== "todas" && String(usuario.unidade?.id ?? SEM_VALOR) !== filtroUnidade)
@@ -201,12 +228,16 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
               {/* O que importa para cobrar quem não entra vem logo depois da
                   pessoa, para caber na tela do celular sem rolar de lado. */}
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase">
-                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
-                <th className="px-4 py-2.5">Sem entrar</th>
-                <th className="px-4 py-2.5">Último uso</th>
-                <th className="px-4 py-2.5 text-right">Dias com uso</th>
-                <th className="px-4 py-2.5">Perfil</th>
-                <th className="px-4 py-2.5">Unidade ou setor</th>
+                {COLUNAS.map((coluna) => (
+                  <CabecalhoOrdenavel
+                    key={coluna.campo}
+                    campo={coluna.campo}
+                    rotulo={coluna.rotulo}
+                    ordenacao={ordenacao}
+                    onOrdenar={(campo) => setOrdenacao((atual) => proximaOrdenacao(atual, campo))}
+                    className={cn("px-4 py-2.5", coluna.className)}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>

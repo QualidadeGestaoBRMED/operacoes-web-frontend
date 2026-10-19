@@ -45,3 +45,13 @@ export function ordenarPor<T, Campo extends string>(
     return ((chaveA as number) - (chaveB as number)) * sinal;
   });
 }
+
+/** Ciclo do clique no cabeçalho: crescente, decrescente e de volta à ordem padrão. */
+export function proximaOrdenacao<Campo extends string>(
+  atual: Ordenacao<Campo> | null,
+  campo: Campo,
+): Ordenacao<Campo> | null {
+  if (atual?.campo !== campo) return { campo, direcao: "asc" };
+  if (atual.direcao === "asc") return { campo, direcao: "desc" };
+  return null;
+}
