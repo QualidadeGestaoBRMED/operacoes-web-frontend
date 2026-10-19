@@ -400,4 +400,34 @@ describe("Aba Importação: ordenação por coluna (STC-794)", () => {
     await user.click(coluna);
     expect(colaboradores()).toEqual(["ZECA", "ANA", "Sem identificação"]);
   });
+
+  it("linhas rejeitadas: outro lote abre com a ordem da API, não com a do lote anterior", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listarImportacoes).mockResolvedValue([
+      lote({ id: 7, linhas_rejeitadas: 2, periodo_inicio: "2026-09-01" }),
+      lote({ id: 8, linhas_rejeitadas: 2, periodo_inicio: "2026-08-01" }),
+    ]);
+    vi.mocked(listarLinhasRejeitadas).mockResolvedValue([
+      { relatorio: "jornada", linha: 5, colaborador: "ZECA", motivo: "Nome repetido." },
+      { relatorio: "abonos", linha: 2, colaborador: "ANA", motivo: "Data inválida." },
+    ]);
+    renderAba();
+
+    const [primeiro, segundo] = await screen.findAllByRole("button", { name: /Ver 2 linhas rejeitadas/ });
+    await user.click(primeiro);
+    let modal = await screen.findByRole("dialog", { name: "Linhas rejeitadas" });
+    await within(modal).findByText("ZECA");
+    await user.click(within(modal).getByRole("button", { name: "Colaborador" }));
+    expect(within(modal).getByRole("columnheader", { name: "Colaborador" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(segundo);
+    modal = await screen.findByRole("dialog", { name: "Linhas rejeitadas" });
+    await within(modal).findByText("ZECA");
+    expect(within(modal).getByRole("columnheader", { name: "Colaborador" })).not.toHaveAttribute("aria-sort");
+  });
 });
