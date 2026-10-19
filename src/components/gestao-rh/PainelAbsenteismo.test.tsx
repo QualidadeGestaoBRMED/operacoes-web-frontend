@@ -636,6 +636,18 @@ describe("absenteísmo mês a mês", () => {
     expect(modal.getByText("Sem dados: jan a ago.")).toBeInTheDocument();
   });
 
+  it("STC-767: resposta sem `parametros` (backend anterior) abre o modal sem a data", async () => {
+    const user = usuario();
+    const semParametros: Partial<AbsenteismoMensal> = mensalDe(2026, { 9: "4.00" });
+    delete semParametros.parametros;
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(semParametros as AbsenteismoMensal);
+    renderPainel();
+    const modal = await abrirModal(user);
+
+    expect(await modal.findByRole("table")).toBeInTheDocument();
+    expect(modal.queryByText(/parâmetros vigentes desde/)).not.toBeInTheDocument();
+  });
+
   it("STC-767: diz desde quando valem os parâmetros de todos os meses", async () => {
     const user = usuario();
     vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(
