@@ -25,6 +25,11 @@ export const metadata: Metadata = {
 // Cor da barra do sistema no app instalado e na barra do navegador.
 export const viewport: Viewport = {
   themeColor: COR_DA_MARCA,
+  // Teclado do celular por cima da página, sem encolher o layout: a barra
+  // inferior (STC-787) fica sob o teclado em vez de subir junto e ocupar a
+  // área dos formulários. É o padrão do Chrome e do Safari; explícito para
+  // valer também nos navegadores que encolhem o layout.
+  interactiveWidget: "resizes-visual",
 };
 
 export default async function RootLayout({
