@@ -251,7 +251,11 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
         <div
           aria-busy={trocandoPeriodo || undefined}
           className={cn(
-            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border transition-opacity",
+            // relative: prende os textos só para leitor de tela (sr-only,
+            // posição absoluta) das linhas lá de baixo; sem isso, eles ficam
+            // na altura da linha fora da rolagem e a página inteira cresce
+            // até eles, rolando para uma área vazia.
+            "scrollbar-discreta scroll-fade-x relative min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border transition-opacity",
             trocandoPeriodo && "opacity-60",
           )}
         >
