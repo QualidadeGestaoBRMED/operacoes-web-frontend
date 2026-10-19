@@ -68,7 +68,14 @@ api.interceptors.response.use(
     // O "ver como" não vale mais no backend (vencido, encerrado em outra aba,
     // cargo mudado): volta a ser o Admin, com o aviso na próxima tela.
     const codigo = error.response?.data?.codigo;
-    if (error.response?.status === 403 && CODIGOS_DE_FIM.includes(codigo) && sessaoVerComo()) {
+    // Começar e sair (_semVerComo) vão como o Admin e cuidam do próprio
+    // resultado: aqui não podem disparar outra navegação.
+    if (
+      error.response?.status === 403 &&
+      CODIGOS_DE_FIM.includes(codigo) &&
+      !error.config?._semVerComo &&
+      sessaoVerComo()
+    ) {
       sairDoVerComo("/admin/permissoes", error.response.data.detail);
       return Promise.reject(error);
     }
