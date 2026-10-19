@@ -571,5 +571,29 @@ describe("GerenciarUsuarios, ver como (STC-790)", () => {
     expect(JSON.parse(sessionStorage.getItem("atlas.verComo")!)).toEqual(sessao);
     expect(navegar).toHaveBeenCalledWith("/modulos/gestao-demandas");
   });
-});
 
+  it("enquanto abre, todos os Ver como ficam travados; se falhar, destravam", async () => {
+    comoAdminQG();
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+      usuario({ id: 4, first_name: "Diego", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    let falhar: (erro: Error) => void = () => {};
+    vi.mocked(iniciarVerComo).mockReturnValue(new Promise((_, rejeitar) => (falhar = rejeitar)));
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
+
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toHaveTextContent("Abrindo...");
+    expect(screen.getByRole("button", { name: "Ver como Diego Lima" })).toBeDisabled();
+    expect(iniciarVerComo).toHaveBeenCalledTimes(1);
+
+    falhar(new Error("rede"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Ver como Diego Lima" })).toBeEnabled(),
+    );
+    expect(navegar).not.toHaveBeenCalled();
+  });
+});
