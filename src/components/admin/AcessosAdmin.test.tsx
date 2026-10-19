@@ -224,11 +224,15 @@ describe("AcessosAdmin (STC-746)", () => {
     expect(usados).toEqual(["30", "2", "14"]);
   });
 
-  it("erro ao carregar: mensagem, sem tabela", async () => {
-    vi.mocked(listarAcessos).mockRejectedValue(new Error("falhou"));
+  it("erro ao carregar: mensagem sem tabela, e Tentar de novo busca outra vez", async () => {
+    vi.mocked(listarAcessos).mockRejectedValueOnce(new Error("falhou"));
+    const user = userEvent.setup();
     renderTela();
 
     expect(await screen.findByText(/Não foi possível carregar os acessos/)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByRole("table", { name: "Acessos" })).toBeInTheDocument();
   });
 });
