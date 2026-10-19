@@ -540,17 +540,17 @@ describe("GerenciarUsuarios, ver como (STC-790)", () => {
     renderTela();
     await screen.findByText("Carla Lima");
 
-    expect(screen.getByRole("button", { name: "Ver o Atlas como Carla Lima" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Ver o Atlas como Quésia/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver como Quésia/ })).not.toBeInTheDocument();
     // Sem cargo: não há o que ver como.
-    expect(screen.queryByRole("button", { name: /Ver o Atlas como Bruno/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver como Bruno/ })).not.toBeInTheDocument();
   });
 
   it("outro Admin não vê o botão", async () => {
     renderTela();
     await screen.findByText("Carla Lima");
 
-    expect(screen.queryByRole("button", { name: /Ver o Atlas como/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver como/ })).not.toBeInTheDocument();
   });
 
   it("clicar começa no backend, guarda a sessão nesta aba e abre o Atlas como a pessoa", async () => {
@@ -565,7 +565,7 @@ describe("GerenciarUsuarios, ver como (STC-790)", () => {
     vi.mocked(iniciarVerComo).mockResolvedValue(sessao);
     renderTela();
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver o Atlas como Carla Lima" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
 
     expect(iniciarVerComo).toHaveBeenCalledWith(1);
     expect(JSON.parse(sessionStorage.getItem("atlas.verComo")!)).toEqual(sessao);

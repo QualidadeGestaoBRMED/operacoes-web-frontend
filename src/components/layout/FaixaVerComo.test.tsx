@@ -90,4 +90,23 @@ describe("FaixaVerComo (STC-790)", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Vendo como Coordenação Niterói");
     expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
   });
+
+  it("se não deu para abrir como a pessoa, avisa e oferece tentar de novo", async () => {
+    const recarregarUsuario = vi.fn();
+    vi.mocked(useAuth).mockReturnValue({
+      verComo: null,
+      falhaAoAbrirVerComo: true,
+      recarregarUsuario,
+    } as unknown as ReturnType<typeof useAuth>);
+    sessionStorage.setItem("atlas.verComo", JSON.stringify(SESSAO));
+    render(<FaixaVerComo />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Não foi possível abrir o Atlas como esta pessoa.",
+    );
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tentar de novo" }));
+
+    expect(recarregarUsuario).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+  });
 });

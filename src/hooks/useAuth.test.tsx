@@ -183,7 +183,7 @@ describe("useAuth em ver como (STC-790)", () => {
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
-    await waitFor(() => expect(vi.mocked(obterUsuarioLogado)).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.falhaAoAbrirVerComo).toBe(true));
     expect(result.current.isLoading).toBe(true);
   });
 });
