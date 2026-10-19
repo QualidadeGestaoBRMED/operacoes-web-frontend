@@ -1,5 +1,6 @@
 import api from "./api";
 import type {
+  Acessos,
   Modulo,
   Notificacao,
   Perfil,
@@ -133,5 +134,11 @@ export async function reativarPermissao(id: number): Promise<PermissaoUsuario> {
     `/plataforma/permissoes-usuario/${id}/`,
     { ativo: true },
   );
+  return data;
+}
+
+// STC-746: uso diário de quem o Admin administra, de `inicio` até hoje.
+export async function listarAcessos(inicio: string): Promise<Acessos> {
+  const { data } = await api.get<Acessos>("/plataforma/acessos/", { params: { inicio } });
   return data;
 }

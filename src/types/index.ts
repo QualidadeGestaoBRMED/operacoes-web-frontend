@@ -356,3 +356,31 @@ export interface PermissaoUsuarioPayload {
   data_inicio: string;
   data_fim?: string | null;
 }
+
+// STC-746: GET /plataforma/acessos/ (STC-744). Um uso por pessoa por dia.
+export interface ReferenciaPorNome {
+  id: number;
+  nome: string;
+}
+
+export interface UsuarioAcesso {
+  id: number;
+  nome: string;
+  email: string;
+  perfil: ReferenciaPorNome | null;
+  unidade: ReferenciaPorNome | null;
+  setor: ReferenciaPorNome | null;
+  /** Último dia com uso, de qualquer data guardada; null para quem nunca usou. */
+  ultimo_uso: string | null;
+  dias_desde_o_ultimo_uso: number | null;
+  /** Dias com uso dentro do período consultado. */
+  dias_com_uso: number;
+  dias: string[];
+}
+
+export interface Acessos {
+  periodo: { inicio: string; fim: string };
+  hoje: string;
+  /** Quem nunca usou primeiro, depois quem está há mais tempo sem usar. */
+  usuarios: UsuarioAcesso[];
+}

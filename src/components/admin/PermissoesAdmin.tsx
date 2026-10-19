@@ -49,6 +49,7 @@ import {
   FormNovaPermissao,
   type ValoresIniciaisPermissao,
 } from "./FormNovaPermissao";
+import { AcessosAdmin } from "./AcessosAdmin";
 import { GerenciarUsuarios, usuariosGerenciaveis } from "./GerenciarUsuarios";
 import { ParametrosGestaoRHAdmin } from "./gestao-rh/ParametrosGestaoRHAdmin";
 import { CatalogoLegalizacaoAdmin } from "./legalizacao/CatalogoLegalizacaoAdmin";
@@ -56,16 +57,18 @@ import { CatalogoLegalizacaoAdmin } from "./legalizacao/CatalogoLegalizacaoAdmin
 const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
-type Aba = "usuarios" | "catalogo-legalizacao" | "parametros-gestao-rh";
+type Aba = "usuarios" | "acessos" | "catalogo-legalizacao" | "parametros-gestao-rh";
 
 const ROTULO_ABA: Record<Aba, string> = {
   usuarios: "Usuários",
+  acessos: "Acessos",
   "catalogo-legalizacao": "Catálogo de Legalização",
   "parametros-gestao-rh": "Parâmetros de Gestão RH",
 };
 
 const ROTA_ABA: Record<Aba, string> = {
   usuarios: "/admin/permissoes",
+  acessos: "/admin/permissoes/acessos",
   "catalogo-legalizacao": "/admin/permissoes/catalogo-legalizacao",
   "parametros-gestao-rh": "/admin/permissoes/parametros-gestao-rh",
 };
@@ -169,13 +172,13 @@ export function PermissoesAdmin() {
   const apenasCatalogo = (isCoordenacaoUnidade || isSetorLeg) && !isAdminOps;
   const podeAcessar = isAdminOps || isCoordenacaoUnidade || isSetorLeg;
   // STC-747: Catálogo de Legalização e Parâmetros de Gestão RH são
-  // configuração da rede padrão; o Admin Operações Especiais fica só com
-  // Usuários (da rede dele).
+  // configuração da rede padrão; o Admin Operações Especiais fica com
+  // Usuários e Acessos (os da rede dele, STC-746).
   const abasPermitidas: Aba[] = apenasCatalogo
     ? ["catalogo-legalizacao"]
     : administraRedePadrao
-      ? ["usuarios", "catalogo-legalizacao", "parametros-gestao-rh"]
-      : ["usuarios"];
+      ? ["usuarios", "acessos", "catalogo-legalizacao", "parametros-gestao-rh"]
+      : ["usuarios", "acessos"];
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo
@@ -245,6 +248,8 @@ export function PermissoesAdmin() {
     ) ?? "usuarios";
   // Parâmetros de Gestão RH só buscam na API depois da primeira visita à seção.
   const [visitouGestaoRH, setVisitouGestaoRH] = useState(false);
+  // Acessos, idem: só busca na primeira visita.
+  const [visitouAcessos, setVisitouAcessos] = useState(false);
 
   function alternarExpansao(secao: Secao) {
     setSecaoExpandida((atual) => (atual === secao ? null : secao));
@@ -354,6 +359,7 @@ export function PermissoesAdmin() {
 
   if (carregandoAuth || !podeAcessar || aguardandoAba) return null;
   if (abaEfetiva === "parametros-gestao-rh" && !visitouGestaoRH) setVisitouGestaoRH(true);
+  if (abaEfetiva === "acessos" && !visitouAcessos) setVisitouAcessos(true);
 
   function nomeUsuario(usuarioId: number) {
     const usuario = usuarios.find((candidato) => candidato.id === usuarioId);
@@ -588,6 +594,8 @@ export function PermissoesAdmin() {
           </Select>
         )}
       </div>
+
+      {visitouAcessos && <AcessosAdmin hidden={abaEfetiva !== "acessos"} />}
 
       {abasPermitidas.includes("catalogo-legalizacao") && (
         <CatalogoLegalizacaoAdmin hidden={abaEfetiva !== "catalogo-legalizacao"} />
