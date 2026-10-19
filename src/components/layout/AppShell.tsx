@@ -2,58 +2,24 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { QUERY_MOBILE, useMediaQuery } from "@/hooks/useMediaQuery";
 import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
 import { cn, iniciaisDe } from "@/lib/utils";
+import { AbasDoModulo } from "./AbasDoModulo";
+import { BarraInferior } from "./BarraInferior";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-
-const QUERY_MOBILE = "(max-width: 767px)";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
   const ehMobile = useMediaQuery(QUERY_MOBILE);
   const { user, isLoading } = useAuth();
 
-  // Achado no dogfooding (visto 1º na tela de Admin, mas era de qualquer
-  // página -- Kanban incluso): "push" (largura do wrapper animando entre 0
-  // e 16rem) em mobile deixava só ~130px pra página inteira quando o menu
-  // era aberto -- achatava TUDO, não só texto, não importa a página.
-  // Fecha sozinha ao entrar (ou redimensionar pra) uma tela estreita --
-  // nunca reabre sozinha (reabrir é sempre ação manual via
-  // onToggleSidebar), pra não brigar com uma escolha do usuário se
-  // ehMobile virar false de novo.
+  // No celular não há menu lateral (STC-787): a navegação é a barra
+  // inferior. Ao voltar para uma tela larga, o menu lateral abre de novo.
   useEffect(() => {
-    if (ehMobile) setSidebarAberta(false);
+    if (!ehMobile) setSidebarAberta(true);
   }, [ehMobile]);
-
-  // Trava o scroll do conteúdo atrás do menu aberto (mobile) -- sem isso,
-  // um gesto de rolagem sobre o backdrop ainda rola a página por baixo,
-  // mesmo com o menu por cima bloqueando clique.
-  useEffect(() => {
-    if (!ehMobile || !sidebarAberta) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = original;
-    };
-  }, [ehMobile, sidebarAberta]);
-
-  function fecharSidebar() {
-    setSidebarAberta(false);
-  }
-
-  // Esc fecha o menu -- mesma expectativa de qualquer overlay (Dialog,
-  // Popover etc. do Radix já fazem isso; isto é HTML puro, não herda de
-  // graça).
-  useEffect(() => {
-    if (!ehMobile || !sidebarAberta) return;
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape") fecharSidebar();
-    }
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [ehMobile, sidebarAberta]);
 
   const nome = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||
@@ -81,41 +47,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // gesto, e por ser a MENOR altura possível nunca fica maior que a área
     // de fato visível (resolve o corte sem reintroduzir o travamento).
     <div className="flex h-svh bg-sidebar">
-      {ehMobile ? (
-        <>
-          {/* Backdrop: só existe (e só bloqueia clique/toque) com o menu
-              aberto -- fecha ao tocar fora. fade-in via transition-opacity
-              (não um corte seco) + a sidebar com shadow-2xl (sensação de
-              elevação, flutuando de verdade, não só "por cima achatado"). */}
-          <div
-            data-testid="sidebar-backdrop"
-            onClick={fecharSidebar}
-            aria-hidden="true"
-            className={cn(
-              "fixed inset-0 z-40 bg-black/50 transition-opacity duration-300",
-              sidebarAberta
-                ? "pointer-events-auto opacity-100"
-                : "pointer-events-none opacity-0",
-            )}
-          />
-          {/* position: fixed (não "push"): a página por trás nunca perde
-              largura nem reflui -- só o menu desliza por cima (translate-x),
-              exatamente como pedido: a presença do menu não impacta a
-              página principal em nada. */}
-          <div
-            className={cn(
-              "fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transition-transform duration-300 ease-in-out",
-              sidebarAberta ? "translate-x-0" : "-translate-x-full",
-            )}
-          >
-            <Sidebar onNavegar={fecharSidebar} />
-          </div>
-        </>
-      ) : (
-        /* Desktop/tablet: "push" -- só a largura do wrapper anima (0 <->
-           16rem), com overflow-hidden escondendo o conteúdo durante a
-           transição. Aqui sobra espaço de sobra, então empurrar em vez de
-           flutuar é mais previsível (nada cobre o conteúdo). */
+      {/* Celular: sem menu lateral; a navegação é a barra inferior, no fim
+          da coluna abaixo (STC-787). Computador/tablet: "push" -- só a
+          largura do wrapper anima (0 <-> 16rem), com overflow-hidden
+          escondendo o conteúdo durante a transição. */}
+      {!ehMobile && (
         <div
           className={cn(
             "shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out",
@@ -130,8 +66,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           usuario={usuarioTopbar}
           carregando={isLoading}
           sidebarAberta={sidebarAberta}
-          onToggleSidebar={() => setSidebarAberta((aberta) => !aberta)}
+          onToggleSidebar={ehMobile ? undefined : () => setSidebarAberta((aberta) => !aberta)}
         />
+        {ehMobile && <AbasDoModulo />}
         {/* overflow-y-auto (não hidden): main é só um fallback de
             segurança, não quem normalmente rola. No caso comum, a área das
             colunas do Kanban (flex-1 min-h-0) absorve toda a sobra/déficit
@@ -162,6 +99,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {children}
         </main>
+        {/* Parte do layout, não flutuando: o conteúdo nunca fica atrás dela. */}
+        {ehMobile && <BarraInferior />}
       </div>
       {/* STC-443: montado uma vez aqui (não por tela) -- alerta regulatório
           persistente (RN22) tem que interromper em qualquer lugar da

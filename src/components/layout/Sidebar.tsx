@@ -4,90 +4,19 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ClipboardList, Home, Lock, Settings, ShieldCheck } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useModulosNavegacao } from "@/hooks/useModulosNavegacao";
+import { ChevronDown, Lock, Settings, ShieldCheck } from "lucide-react";
+import {
+  subitemAtivo as acharSubitemAtivo,
+  useNavegacao,
+  type SubitemDeNavegacao,
+} from "@/hooks/useNavegacao";
 import { cn } from "@/lib/utils";
 
-// Hub escondido por enquanto (bloqueado de vez, ver src/app/(app)/hub/page.tsx):
-// com um só módulo ativo, um painel agregador não tem o que agregar ainda.
-// Componentes ficam intactos em src/app/(app)/hub/HubContent.tsx -- reativar:
-// trocar o redirect de hub/page.tsx e mover "Hub" de volta pra cima como
-// SidebarLink (e apontar os redirects de login/raiz pra "/hub" de novo).
-// Fica sempre bloqueado, sempre primeiro -- não é um Modulo real do backend,
-// não passa pelo cruzamento de status que useModulosNavegacao faz.
-const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
-
-// onNavegar: opcional -- só o AppShell em modo overlay mobile passa algo
-// (fecha o drawer ao escolher um destino); no modo "push" (desktop/tablet)
-// não tem drawer pra fechar, então não é passado.
-export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
+export function Sidebar() {
   const pathname = usePathname();
-  const emGestaoDemandas = pathname.startsWith("/modulos/gestao-demandas");
-  const { isAdminQG, isAdminOps, administraRedePadrao, isCoordenacaoUnidade, isSetorLeg } =
-    useAuth();
-  // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
-  // Modulo.status === "ativo" no backend viram link de verdade; o resto
-  // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
-  const modulosNavegacao = useModulosNavegacao();
-  // STC-747: Legalização e Gestão RH só trabalham com a rede padrão; o Admin
-  // Operações Especiais (Admin só da rede OPEX) não os vê até as versões de
-  // Operações Especiais.
-  const soAdminOpex = isAdminOps && !administraRedePadrao;
-  const modulosAtivos = modulosNavegacao.filter(
-    (modulo) =>
-      modulo.ativo &&
-      !(soAdminOpex && (modulo.codigo === "legalizacao" || modulo.codigo === "gestao-rh")),
-  );
-  const modulosBloqueados = [
-    HUB_BLOQUEADO,
-    ...modulosNavegacao.filter((modulo) => !modulo.ativo),
-  ];
-
-  // Subitens do módulo na sidebar, com os atalhos de Administração por
-  // perfil. Um subitem só no fim: link direto, sem submenu.
-  function subitensDoModulo(modulo: (typeof modulosAtivos)[number]) {
-    const base = modulo.subitens ?? [];
-    // STC-514: Coordenador ganha acesso ao Catálogo de Legalização
-    // (Admin > Cadastro de documentos), mas só o bloco de
-    // Legalização faz sentido pra ele -- entra como 3º subitem
-    // aqui em vez de replicar o bloco "Administração" de baixo.
-    // STC-519: Admin (QG/Operações) já podia acessar o mesmo
-    // catálogo pelo bloco "Administração" de baixo (isAdminOps),
-    // só sem esse rótulo/atalho direto -- passa a ganhar o mesmo
-    // 3º subitem que o Coordenador já tinha, em vez de precisar
-    // entrar em "Administração" e escolher a seção no select.
-    // STC-521: Setor de Legalização (isSetorLeg) ganha o mesmo
-    // atalho, mesmo motivo do Coordenador -- já pode escrever no
-    // catálogo pela API, faltava só o caminho até a tela.
-    // Rota PRÓPRIA (/admin/permissoes/catalogo-legalizacao, não
-    // /admin/permissoes com query string -- achado em revisão de
-    // falhas críticas): sem isso, pathname.startsWith() (usado
-    // tanto aqui quanto no PermissoesAdmin.tsx pra saber qual aba
-    // abrir) não distinguia este atalho do link "Administração"
-    // (mesmo pathname bare) -- destacava "Catálogo de Legalização"
-    // como ativo mesmo com Usuários na tela, e trocar de link sem
-    // reload deixava a aba presa no valor anterior (mesma
-    // instância de PermissoesAdmin reaproveitada pelo Next.js).
-    if (
-      modulo.codigo === "legalizacao" &&
-      (isCoordenacaoUnidade || administraRedePadrao || isSetorLeg)
-    ) {
-      return [
-        ...base,
-        { label: "Catálogo de Legalização", rota: "/admin/permissoes/catalogo-legalizacao" },
-      ];
-    }
-    // STC-728: Parâmetros de Gestão RH (Importação, Equipes, Absenteísmo),
-    // só do Admin, como a própria tela; mesma rota própria do Catálogo.
-    if (modulo.codigo === "gestao-rh" && administraRedePadrao) {
-      return [
-        ...base,
-        { label: "Parâmetros de Gestão RH", rota: "/admin/permissoes/parametros-gestao-rh" },
-      ];
-    }
-    return base;
-  }
+  // Módulos, subitens e links de Administração pelo cargo: a mesma regra
+  // da barra inferior do celular (useNavegacao, STC-787).
+  const { modulos, bloqueados, temAdministracao, linkDjangoAdmin } = useNavegacao();
 
   return (
     // h-full: achado no dogfooding do overlay mobile -- sem altura própria,
@@ -117,44 +46,30 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
           Menu Principal
         </div>
 
-        <SidebarLink
-          href="/modulos/gestao-demandas"
-          icon={ClipboardList}
-          label="Gestão de Demandas"
-          active={emGestaoDemandas}
-          onClick={onNavegar}
-        />
-
-        {/* rota as string: useModulosNavegacao só marca ativo=true quando
-            rota também está preenchida (ver ModuloNavegacao.ativo) --
-            garantia do hook, não repetida aqui em runtime. */}
-        {modulosAtivos.map((modulo) => {
-          const subitens = subitensDoModulo(modulo);
-          return subitens.length > 1 ? (
+        {modulos.map((modulo) =>
+          modulo.subitens.length > 1 ? (
             <SidebarLinkExpansivel
               key={modulo.nome}
-              href={modulo.rota as string}
+              href={modulo.rota}
               icon={modulo.icon}
               label={modulo.nome}
-              subitens={subitens}
+              subitens={modulo.subitens}
               pathname={pathname}
-              onClick={onNavegar}
             />
           ) : (
             <SidebarLink
               key={modulo.nome}
-              href={modulo.rota as string}
+              href={modulo.rota}
               icon={modulo.icon}
               label={modulo.nome}
-              active={pathname.startsWith(modulo.rota as string)}
-              onClick={onNavegar}
+              active={pathname.startsWith(modulo.rota)}
             />
-          );
-        })}
+          ),
+        )}
 
         <div className="my-2.5 h-px bg-sidebar-border/40" />
 
-        {modulosBloqueados.map((modulo) => (
+        {bloqueados.map((modulo) => (
           <SidebarLinkBloqueado
             key={modulo.nome}
             icon={modulo.icon ?? Lock}
@@ -169,10 +84,10 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
           link decide por conta própria se aparece. Coordenador (STC-514) e,
           desde a STC-519, Admin também -- não entram aqui: o acesso deles
           ao Catálogo de Legalização vive dentro do submenu de Legalização,
-          não neste bloco (ver modulosAtivos.map acima). O link
+          não neste bloco (ver modulos.map acima). O link
           "Administração"/"Admin Operações" abaixo continua existindo (leva
           pra tela inteira, não só o Catálogo). */}
-      {isAdminOps && (
+      {temAdministracao && (
         <div className="mt-2 flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
           {/* STC-262: era texto fixo, sem função nenhuma e visível pra
               qualquer perfil -- achado no dogfooding. isAdminQG (não
@@ -189,12 +104,11 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               até o próximo deploy. process.env.NEXT_PUBLIC_API_URL entra na
               condição também: sem a env, não mostra o link (falha fechada),
               em vez de expor um link quebrado em produção. */}
-          {isAdminQG && process.env.NEXT_PUBLIC_API_URL && (
+          {linkDjangoAdmin && (
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/admin`}
+              href={linkDjangoAdmin}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={onNavegar}
               className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
             >
               <Settings className="size-4 shrink-0" />
@@ -210,7 +124,6 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               de Admin por rede não cabiam no antigo "Admin Operações". */}
           <Link
             href="/admin/permissoes"
-            onClick={onNavegar}
             className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
           >
             <ShieldCheck className="size-4 shrink-0" />
@@ -227,18 +140,15 @@ function SidebarLink({
   icon: Icon,
   label,
   active,
-  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
-  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
-      onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
@@ -264,14 +174,12 @@ function SidebarLinkExpansivel({
   label,
   subitens,
   pathname,
-  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  subitens: { label: string; rota: string }[];
+  subitens: SubitemDeNavegacao[];
   pathname: string;
-  onClick?: () => void;
 }) {
   const ativo = pathname.startsWith(href);
   // Sub-rota ativa = o match de prefixo mais específico (mais longo) entre
@@ -279,9 +187,7 @@ function SidebarLinkExpansivel({
   // "/modulos/legalizacao/biblioteca" também, então não dá pra usar só
   // startsWith isolado por item sem os dois "ganharem" ao mesmo tempo numa
   // rota da Biblioteca.
-  const subitemAtivo = [...subitens]
-    .sort((a, b) => b.rota.length - a.rota.length)
-    .find((sub) => pathname.startsWith(sub.rota));
+  const subitemAtivo = acharSubitemAtivo(subitens, pathname);
   const temSubitemAtivo = Boolean(subitemAtivo);
   const [expandido, setExpandido] = useState(ativo || temSubitemAtivo);
 
@@ -302,7 +208,6 @@ function SidebarLinkExpansivel({
       <div className="flex items-center gap-0.5">
         <Link
           href={href}
-          onClick={onClick}
           aria-current={ativo ? "page" : undefined}
           className={cn(
             "flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
@@ -345,7 +250,6 @@ function SidebarLinkExpansivel({
               <Link
                 key={subitem.rota}
                 href={subitem.rota}
-                onClick={onClick}
                 aria-current={subitemAtivo?.rota === subitem.rota ? "page" : undefined}
                 className={cn(
                   "flex h-8 items-center rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",

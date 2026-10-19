@@ -14,6 +14,9 @@ import { useEffect, useLayoutEffect, useState } from "react";
 // bastante pra ser reaproveitado em algo que um dia seja SSR de verdade.
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+// Celular: barra inferior no lugar do menu lateral (STC-787).
+export const QUERY_MOBILE = "(max-width: 767px)";
+
 // Nasce sempre false (mesmo numa media query que bateria true) -- window
 // não existe no servidor, então server e client precisam renderizar o
 // mesmo valor no 1º render pra não disparar hydration mismatch (mesmo

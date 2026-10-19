@@ -21,7 +21,9 @@ export interface ModuloFuturo {
   // link único (Legalização e Gestão RH). A Sidebar ainda acrescenta os
   // atalhos de Administração por perfil; com um subitem só no fim, vira link
   // direto.
-  subitens?: { label: string; rota: string }[];
+  // `curto`: rótulo das abas do módulo no celular (STC-787), onde o nome
+  // inteiro não cabe.
+  subitens?: { label: string; rota: string; curto: string }[];
 }
 
 export const MODULOS_FUTUROS: ModuloFuturo[] = [
@@ -32,8 +34,12 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     codigo: "legalizacao",
     rota: "/modulos/legalizacao",
     subitens: [
-      { label: "Matriz de Conformidade", rota: "/modulos/legalizacao" },
-      { label: "Biblioteca de Documentos", rota: "/modulos/legalizacao/biblioteca" },
+      { label: "Matriz de Conformidade", rota: "/modulos/legalizacao", curto: "Matriz" },
+      {
+        label: "Biblioteca de Documentos",
+        rota: "/modulos/legalizacao/biblioteca",
+        curto: "Biblioteca",
+      },
     ],
   },
   {
@@ -47,9 +53,11 @@ export const MODULOS_FUTUROS: ModuloFuturo[] = [
     rota: "/modulos/gestao-rh",
     // A Sidebar acrescenta os Parâmetros para Admin (STC-728).
     subitens: [
-      { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh" },
-      ...(FERIAS_ATIVA ? [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias" }] : []),
-      { label: "Horas Extras", rota: "/modulos/gestao-rh/horas-extras" },
+      { label: "Painel de Absenteísmo", rota: "/modulos/gestao-rh", curto: "Absenteísmo" },
+      ...(FERIAS_ATIVA
+        ? [{ label: "Painel de Férias", rota: "/modulos/gestao-rh/ferias", curto: "Férias" }]
+        : []),
+      { label: "Horas Extras", rota: "/modulos/gestao-rh/horas-extras", curto: "Horas Extras" },
     ],
   },
   {
