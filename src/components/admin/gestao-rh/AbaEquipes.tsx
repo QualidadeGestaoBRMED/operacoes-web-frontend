@@ -30,10 +30,10 @@ type CampoEquipes = "equipe" | "colaboradores" | "categoria" | "unidade" | "turn
 
 const COLUNAS_EQUIPES: { campo: CampoEquipes; rotulo: string; className: string }[] = [
   { campo: "equipe", rotulo: "Equipe", className: "sticky left-0 z-20 bg-muted" },
-  { campo: "colaboradores", rotulo: "Colaboradores", className: "w-36 text-right" },
+  { campo: "colaboradores", rotulo: "Colaboradores", className: "w-40 text-right" },
   { campo: "categoria", rotulo: "Categoria", className: "w-56" },
   { campo: "unidade", rotulo: "Unidade do Atlas", className: "w-64" },
-  { campo: "turno", rotulo: "Turno variável", className: "w-36" },
+  { campo: "turno", rotulo: "Turno variável", className: "w-40" },
 ];
 
 // Turno variável: as que têm primeiro.
@@ -342,7 +342,7 @@ export function AbaEquipes() {
         // tela, mas não cresce além das linhas (sem faixa vazia com poucas
         // equipes). No celular a altura fica livre e quem rola é a aba.
         <div className="scrollbar-discreta scroll-fade-x min-w-0 overflow-x-auto rounded-lg border border-border sm:min-h-40 sm:overflow-y-auto">
-          <table aria-label="Equipes do VR" className="w-full min-w-[860px] table-fixed text-left text-sm">
+          <table aria-label="Equipes do VR" className="w-full min-w-[900px] table-fixed text-left text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {COLUNAS_EQUIPES.map((coluna) => (

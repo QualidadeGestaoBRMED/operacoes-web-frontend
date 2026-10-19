@@ -23,6 +23,11 @@ export function CabecalhoOrdenavel<Campo extends string>({
   className?: string;
 }) {
   const ativa = ordenacao?.campo === campo;
+  // A última palavra vai presa ao ícone: se o rótulo quebrar linha, o ícone
+  // não cai sozinho na linha de baixo nem fica solto na lateral da coluna.
+  const ultimoEspaco = rotulo.lastIndexOf(" ");
+  const comecoDoRotulo = rotulo.slice(0, ultimoEspaco + 1);
+  const ultimaPalavra = rotulo.slice(ultimoEspaco + 1);
   const Icone = !ativa ? ArrowUpDown : ordenacao.direcao === "asc" ? ArrowUp : ArrowDown;
   return (
     <th
@@ -32,17 +37,20 @@ export function CabecalhoOrdenavel<Campo extends string>({
       <button
         type="button"
         onClick={() => onOrdenar(campo)}
-        className={cn(
-          "group inline-flex items-center gap-1 text-left uppercase hover:text-foreground",
-          ativa && "text-foreground",
-        )}
+        className={cn("group text-left uppercase hover:text-foreground", ativa && "text-foreground")}
       >
-        {rotulo}
-        {/* opacity-70 nas inativas: menos que isso, não parece clicável. */}
-        <Icone
-          aria-hidden
-          className={cn("size-3 shrink-0", !ativa && "opacity-70 group-hover:opacity-100")}
-        />
+        {comecoDoRotulo}
+        <span className="whitespace-nowrap">
+          {ultimaPalavra}
+          {/* opacity-70 nas inativas: menos que isso, não parece clicável. */}
+          <Icone
+            aria-hidden
+            className={cn(
+              "ml-1 inline size-3 align-[-0.125em]",
+              !ativa && "opacity-70 group-hover:opacity-100",
+            )}
+          />
+        </span>
       </button>
     </th>
   );
