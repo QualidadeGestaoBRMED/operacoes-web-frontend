@@ -1,4 +1,5 @@
 import { signOut } from "next-auth/react";
+import { limparVerComo } from "./verComo";
 
 // Renovação silenciosa da sessão, decidida pelo NAVEGADOR (STC-611, modelo do
 // lib/auth-fetch.ts do ProntuAI). Quando uma requisição ao backend volta 401
@@ -91,6 +92,9 @@ export function renovacaoJaCobre(enviadaEm: number) {
 export function encerrarSessao() {
   if (sessaoEncerrada) return;
   sessaoEncerrada = true;
+  // Sessão inválida: o "ver como" desta aba (STC-790) não vale mais, e quem
+  // entrar em seguida aqui não pode herdá-lo.
+  limparVerComo();
   signOut({ redirectTo: "/login" }).catch(() => {
     sessaoEncerrada = false;
   });

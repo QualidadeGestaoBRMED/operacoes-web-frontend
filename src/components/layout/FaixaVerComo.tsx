@@ -5,7 +5,7 @@ import { Eye, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { encerrarVerComo } from "@/lib/plataforma";
-import { lerAvisoDeFim, sairDoVerComo } from "@/lib/verComo";
+import { lerAvisoDeFim, sairDoVerComo, useVerComo } from "@/lib/verComo";
 
 // Ao sair, o Admin volta para a lista de usuários, de onde começou.
 export const DESTINO_AO_SAIR = "/admin/permissoes";
@@ -23,7 +23,11 @@ const FORMATADOR_HORA = new Intl.DateTimeFormat("pt-BR", {
  * sozinho (venceu, ou o backend o encerrou).
  */
 export function FaixaVerComo() {
-  const { verComo } = useAuth();
+  // A da API (com a pessoa confirmada) e, sem ela (carregando ou falhou), a
+  // desta aba: a faixa não some enquanto as requisições vão como a pessoa.
+  const { verComo: daApi } = useAuth();
+  const daAba = useVerComo();
+  const verComo = daApi ?? daAba;
   const [saindo, setSaindo] = useState(false);
 
   useEffect(() => {

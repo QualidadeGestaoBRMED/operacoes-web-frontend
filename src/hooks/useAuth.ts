@@ -28,7 +28,10 @@ export function useAuth() {
   return {
     user,
     perfil: user?.perfil,
-    isLoading: status === "loading" || (Boolean(verComo) && atual === undefined && !erroAtual),
+    // Em "ver como", sem a resposta (ainda, ou porque falhou) não há como
+    // saber a tela da pessoa: espera, sem cair nos dados do Admin; o SWR
+    // tenta de novo, e a faixa (com o Sair) segue visível.
+    isLoading: status === "loading" || (Boolean(verComo) && atual === undefined),
     /** Sessão de "ver como" em andamento nesta aba (só leitura), ou null. */
     verComo: atual?.ver_como ?? null,
     // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
