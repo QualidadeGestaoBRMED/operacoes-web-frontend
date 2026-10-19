@@ -156,6 +156,14 @@ describe("BarraInferior (STC-787)", () => {
     expect(screen.getByRole("button", { name: "Mais" })).toHaveAttribute("aria-current", "page");
   });
 
+  it("numa rota fora dos módulos e da Administração, nada fica ativo", () => {
+    comoCargo("adminQG");
+    naRota("/pagina-que-nao-existe");
+    render(<BarraInferior />);
+    expect(screen.queryByRole("link", { current: "page" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mais" })).not.toHaveAttribute("aria-current");
+  });
+
   it("num módulo da barra, o Mais não fica ativo", () => {
     comoCargo("adminQG");
     naRota("/modulos/legalizacao");
