@@ -84,6 +84,7 @@ export function BarraInferior() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
+                aria-current={maisAtivo ? "page" : undefined}
                 className={cn(ITEM, maisAtivo ? ITEM_ATIVO : ITEM_INATIVO)}
               >
                 <Icone icon={MoreHorizontal} ativo={maisAtivo} />
@@ -93,7 +94,10 @@ export function BarraInferior() {
             <DropdownMenuContent side="top" align="end" className="min-w-56">
               {noMais.map((modulo) => (
                 <DropdownMenuItem key={modulo.codigo} asChild>
-                  <Link href={modulo.rota}>
+                  <Link
+                    href={modulo.rota}
+                    aria-current={modulo === atual ? "page" : undefined}
+                  >
                     <modulo.icon className="size-4" />
                     {modulo.nome}
                   </Link>
