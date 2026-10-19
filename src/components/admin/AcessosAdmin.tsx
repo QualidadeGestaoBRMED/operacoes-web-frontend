@@ -79,7 +79,7 @@ function opcoes(referencias: (ReferenciaPorNome | null)[]) {
  */
 export function AcessosAdmin({ hidden }: { hidden: boolean }) {
   const [dias, setDias] = useState<number>(PERIODOS_DE_ACESSO[0].dias);
-  const { acessos, isLoading, error } = useAcessos(dias);
+  const { acessos, isLoading, error, recarregar } = useAcessos(dias);
   // A foto do Google vem da lista de usuários (a mesma da seção Usuários,
   // em cache), não da rota de acessos. Sem ela, as iniciais.
   const { usuarios: listaDeUsuarios } = useUsuarios();
@@ -220,7 +220,12 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : error ? (
-        <p className="text-sm text-destructive">Não foi possível carregar os acessos. Tente novamente.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-destructive">Não foi possível carregar os acessos.</p>
+          <Button variant="outline" size="sm" onClick={recarregar}>
+            Tentar de novo
+          </Button>
+        </div>
       ) : usuarios.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma pessoa da sua rede ainda.</p>
       ) : filtrados.length === 0 ? (
