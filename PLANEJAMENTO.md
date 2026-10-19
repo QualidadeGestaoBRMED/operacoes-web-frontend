@@ -1059,3 +1059,12 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Conferência** (banco local, Admin Q&G vendo como a coordenação de Niterói): faixa com o nome e a hora, topo com o nome e a foto dela, sem Administração no menu, só as demandas de Niterói, "Nova Demanda" desabilitada; 23 leituras com o cabeçalho e nenhuma escrita além de começar e sair; Sair volta a Usuários sem a faixa; sem erro no console.
 - Testes: sessão na aba (vencida, estragada, sair com aviso); cliente da API (cabeçalho na leitura, escrita recusada sem sair, começar e sair sem o cabeçalho, sessão encerrada no backend); proxy (repassa só UUID); `useAuth` (pessoa simulada, espera sem mostrar o Admin, resposta de outro Admin não vale); faixa (nome, Sair, Sair com falha, aviso); botão em Usuários (só Admin Q&G, nunca para outro Admin Q&G nem sem cargo, começa e abre); Nova Demanda e detalhe do card travados; sair da conta em ver como (com e sem rede) e fora dele; `/auth/me/` que falha mantém a espera; faixa com a sessão da aba; sessão expirada limpa o ver como.
 
+### 7.24 STC-796 — Renovação dos documentos de profissional sem depender da movimentação
+
+✅ **Implementado e mergeado em `main` (PR #121).** Pedido do time de Legalização: o CNES (e os outros tipos rastreados por movimentação de profissional: Dosimetria, Registro CREMERJ e Registro COREN, `CODIGOS_MOVIMENTACAO_PROFISSIONAL`) também é renovado sem que ninguém entre ou saia da unidade. Antes, o detalhe do documento escondia "Registrar renovação" para esses tipos, e um documento vencido só se resolvia reportando a entrada de um profissional.
+
+- `podeRegistrarRenovacao` (`DetalheDocumentoModal.tsx`) deixa de excluir esses tipos: o botão aparece nas mesmas condições dos outros documentos (não com processo em andamento ou protocolado, nem em Não aplicável ou Unidade em encerramento). "Reportar Movimentação" continua igual.
+- A trava era só na tela: o backend já aceitava abrir o processo de renovação para esses tipos. O tratamento especial dele fica só na movimentação (a entrada atualiza o profissional do documento; a Dosimetria exige antecedência), e uma entrada com processo já aberto reaproveita o mesmo processo.
+- **Conferência** (banco local, Admin Q&G): CNES vencido de Angra dos Reis com "Registrar renovação" e "Reportar Movimentação"; sem erro no console.
+- Testes: CNES (regular e vencido), Dosimetria, CREMERJ e COREN com os dois botões; CNES em andamento e protocolado sem "Registrar renovação". Os dois testes que garantiam o comportamento antigo saíram.
+

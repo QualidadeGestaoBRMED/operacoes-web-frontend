@@ -885,14 +885,31 @@ describe("DetalheDocumentoModal (STC-380)", () => {
     ).toBeInTheDocument();
   });
 
-  // Achado no dogfooding: tipos rastreados por movimentação profissional
-  // (CNES/Dosimetria/CRM/CREMERJ-COREN) não têm ciclo de renovação
-  // independente de quem é o profissional responsável -- "vencido" nesses
-  // casos só se resolve reportando a entrada de um novo responsável.
-  // "Registrar renovação" sozinho é um caminho paralelo sem sentido de
-  // negócio pra esses tipos, mesmo antes de virar vencido (regular também).
-  it.each(["regular", "vencido"] as const)(
-    "esconde 'Registrar renovação' pra CNES com status %s -- só 'Reportar Movimentação' faz sentido",
+  // STC-796: a Legalização renova esses documentos sem que ninguém entre ou
+  // saia; os dois caminhos convivem.
+  it.each([
+    ["cnes", "regular"],
+    ["cnes", "vencido"],
+    ["dosimetria", "vencido"],
+    ["registro-cremerj", "regular"],
+    ["registro-coren", "vencido"],
+  ] as const)(
+    "%s com status %s: 'Registrar renovação' e 'Reportar Movimentação' (STC-796)",
+    async (codigo, status) => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ tipo_documento: tipo({ codigo, nome: codigo }), status }),
+      );
+      renderComponente(55);
+
+      expect(
+        await screen.findByRole("button", { name: "Reportar Movimentação" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Registrar renovação" })).toBeInTheDocument();
+    },
+  );
+
+  it.each(["em_andamento", "protocolado"] as const)(
+    "CNES com processo em curso (%s): sem 'Registrar renovação', como os outros documentos (STC-796)",
     async (status) => {
       vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
         documento({ tipo_documento: tipo({ codigo: "cnes", nome: "CNES" }), status }),
