@@ -158,7 +158,14 @@ export async function iniciarVerComo(usuarioId: number): Promise<SessaoVerComo> 
   return data;
 }
 
+// Tempo curto: sair do "ver como" (e da conta) não pode ficar preso numa
+// rede pendurada; sem resposta, a sessão vence sozinha no backend.
+const TEMPO_PARA_ENCERRAR_MS = 5000;
+
 export async function encerrarVerComo(sessaoId: string): Promise<void> {
-  await api.post(`/plataforma/ver-como/${sessaoId}/encerrar/`, null, { _semVerComo: true });
+  await api.post(`/plataforma/ver-como/${sessaoId}/encerrar/`, null, {
+    _semVerComo: true,
+    timeout: TEMPO_PARA_ENCERRAR_MS,
+  });
 }
 

@@ -21,7 +21,7 @@ import { usePerfis } from "@/hooks/usePerfis";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
-import { iniciarVerComo } from "@/lib/plataforma";
+import { encerrarVerComo, iniciarVerComo } from "@/lib/plataforma";
 import { extrairMensagemErro } from "@/lib/erros";
 import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import {
@@ -254,7 +254,15 @@ export function GerenciarUsuarios({
     if (abrindoVerComo !== null) return;
     setAbrindoVerComo(usuario.id);
     try {
-      guardarVerComo(await iniciarVerComo(usuario.id));
+      const sessao = await iniciarVerComo(usuario.id);
+      if (!guardarVerComo(sessao)) {
+        // Sem onde guardar a sessão nesta aba, a página abriria como o
+        // Admin: encerra no backend e avisa.
+        void encerrarVerComo(sessao.id).catch(() => {});
+        toast.error("Este navegador não permitiu começar o ver como nesta aba.");
+        setAbrindoVerComo(null);
+        return;
+      }
       // Sem destravar: a página recarrega já como a pessoa.
       window.location.assign("/modulos/gestao-demandas");
     } catch (erro) {

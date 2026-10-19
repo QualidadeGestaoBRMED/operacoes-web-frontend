@@ -60,11 +60,14 @@ export function sessaoVerComo(): SessaoVerComo | null {
   return cache;
 }
 
-export function guardarVerComo(sessao: SessaoVerComo) {
+/** Guarda a sessão nesta aba. Falso sem sessionStorage (navegação privada
+ * restrita): aí o "ver como" não começa. */
+export function guardarVerComo(sessao: SessaoVerComo): boolean {
   try {
     window.sessionStorage.setItem(CHAVE, JSON.stringify(sessao));
+    return true;
   } catch {
-    // Sem sessionStorage (navegação privada restrita), o "ver como" não começa.
+    return false;
   }
 }
 
