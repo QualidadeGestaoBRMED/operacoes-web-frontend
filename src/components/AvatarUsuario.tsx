@@ -17,9 +17,11 @@ export function AvatarUsuario({
   iniciais: string;
   className?: string;
 }) {
-  const [erro, setErro] = useState(false);
+  // Guarda qual foto falhou, não só "falhou": se a mesma posição passar a
+  // mostrar outra pessoa (responsável trocado), a foto nova é tentada.
+  const [fotoQueFalhou, setFotoQueFalhou] = useState<string | null>(null);
 
-  if (imagem && !erro) {
+  if (imagem && imagem !== fotoQueFalhou) {
     return (
       // referrerPolicy="no-referrer": sem isso, a foto de perfil do Google
       // costuma falhar ao carregar (o Google recusa servir a imagem com o
@@ -32,7 +34,7 @@ export function AvatarUsuario({
         alt=""
         referrerPolicy="no-referrer"
         className={cn("size-8 shrink-0 rounded-full object-cover", className)}
-        onError={() => setErro(true)}
+        onError={() => setFotoQueFalhou(imagem)}
       />
     );
   }
