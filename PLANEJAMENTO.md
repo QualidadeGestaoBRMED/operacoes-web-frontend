@@ -970,3 +970,16 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Redirecionamento por cargo** (Administração, troca de aba fora do acesso, documentação da API e `ModuloDaRedePadrao` da Legalização e do Gestão RH) espera os dados atuais (`confirmandoCargo`): quem acabou de virar Admin, ou passou a administrar a rede padrão, e abre a página direto não é mandado embora pelo cargo do login. Na guarda dos módulos, só espera quem a sessão diz ser Admin Operações Especiais. Na Administração, aberta pela URL de uma aba que a sessão não libera, a tela espera o cargo atual em vez de mostrar outra aba. O `isLoading` geral não espera, para não atrasar a abertura do Atlas.
 - **Conferência** (banco local, `:3000`): com a sessão aberta, trocar o cargo de Admin Operações Especiais para Admin Operações faz Legalização e Gestão RH aparecerem no menu na troca de página seguinte, e voltar o cargo os esconde de novo. Sem erro no console.
 - Testes: 1089 → 1099 (dados da API, sessão enquanto carrega, sessão em erro, cargo retirado, resposta de outra conta, sem login, redirecionamento esperando o cargo, guarda dos módulos esperando o cargo, aba da Administração esperando o cargo); suíte, `tsc` e ESLint limpos.
+
+### 7.18 STC-786 — Atlas instalável como app no celular (PWA)
+
+🔄 **Em andamento.** Primeira parte do "Atlas como WebApp" (a navegação inferior é a STC-787).
+
+- **Manifesto** (`src/app/manifest.ts`, servido em `/manifest.webmanifest`): "Atlas - BR MED", nome curto "Atlas", `display: standalone` (tela cheia, sem a barra do navegador), `start_url` e `scope` em `/`, cor do tema e da tela de abertura no azul da marca (`COR_DA_MARCA` em `src/lib/marca.ts`, o mesmo `--sidebar`).
+- **Ícones** (`public/icons/`): o símbolo da BR MED (os quatro blocos do logo, recortados de `public/brand/logo-brmed.webp`) em branco sobre o azul, em 192 e 512 px, e um de 512 recortável (`maskable`), com o símbolo dentro do círculo central de 80% que o Android mostra. No iPhone, `src/app/apple-icon.png` (180 px, sem transparência; o sistema arredonda os cantos).
+- **Metadados** (`app/layout.tsx`): `viewport.themeColor` (barra do sistema e do navegador), `applicationName` e `appleWebApp` (tela cheia no iPhone, título "Atlas", barra de status preta: a translúcida passaria o relógio por cima do topo do Atlas).
+- **Sem service worker:** o Atlas não funciona sem internet, e o Chrome instala sem ele. Push fica para issue própria.
+- **Acesso sem login:** o manifesto e os ícones têm extensão, então o `middleware` não os redireciona para o login; a CSP (`default-src 'self'`) já cobre o manifesto.
+- **Conferência:** o Chromium não aponta nenhum erro de instalação nem de manifesto (`Page.getInstallabilityErrors` e `Page.getAppManifest`, em `/login` local).
+- **Login com Google no app instalado:** só dá para testar em aparelho real com o domínio de produção (o Google não aceita IP da rede local como endereço de retorno). A conferir depois do merge, no Android e no iPhone.
+- Testes: manifesto (tela cheia, nome, cores) e ícones citados existindo em `public/`.
