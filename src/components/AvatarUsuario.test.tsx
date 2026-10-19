@@ -28,4 +28,14 @@ describe("AvatarUsuario", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText("AN")).toBeInTheDocument();
   });
+
+  it("outra pessoa na mesma posição: a foto nova é tentada, mesmo depois de a anterior falhar", () => {
+    const { container, rerender } = render(<AvatarUsuario imagem="https://foto.exemplo/quebrada.jpg" iniciais="AN" />);
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+
+    rerender(<AvatarUsuario imagem="https://foto.exemplo/bruno.jpg" iniciais="BR" />);
+
+    expect(container.querySelector("img")).toHaveAttribute("src", "https://foto.exemplo/bruno.jpg");
+  });
 });
