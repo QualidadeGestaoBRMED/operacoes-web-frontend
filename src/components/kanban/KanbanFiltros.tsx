@@ -23,6 +23,8 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
 import { MENSAGEM_SOMENTE_LEITURA, useVerComo } from "@/lib/verComo";
+
+const ID_DICA_SOMENTE_LEITURA = "dica-nova-demanda-somente-leitura";
 import { administra, NIVEL_ADMIN_QG } from "@/lib/redes";
 import type { DemandaFiltros, Prioridade } from "@/types";
 
@@ -47,6 +49,13 @@ interface KanbanFiltrosProps {
 export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: KanbanFiltrosProps) {
   // "Ver como" (STC-790): só leitura, sem criar demanda.
   const verComo = useVerComo();
+  // A dica também para o leitor de tela (o title não é lido de forma
+  // confiável num botão desabilitado).
+  const dicaSomenteLeitura = verComo ? (
+    <span id={ID_DICA_SOMENTE_LEITURA} className="sr-only">
+      {MENSAGEM_SOMENTE_LEITURA}
+    </span>
+  ) : null;
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   const { usuarios } = useUsuarios();
@@ -345,12 +354,14 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           onClick={onNovaDemanda}
           disabled={Boolean(verComo)}
           title={verComo ? MENSAGEM_SOMENTE_LEITURA : undefined}
+          aria-describedby={verComo ? ID_DICA_SOMENTE_LEITURA : undefined}
         >
           <span className="sr-only">Nova Demanda</span>
           <span aria-hidden="true" className="text-lg leading-none">
             +
           </span>
         </Button>
+        {dicaSomenteLeitura}
       </div>
     );
   }
@@ -364,9 +375,11 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
         onClick={onNovaDemanda}
         disabled={Boolean(verComo)}
         title={verComo ? MENSAGEM_SOMENTE_LEITURA : undefined}
+        aria-describedby={verComo ? ID_DICA_SOMENTE_LEITURA : undefined}
       >
         Nova Demanda
       </Button>
+      {dicaSomenteLeitura}
     </div>
   );
 }

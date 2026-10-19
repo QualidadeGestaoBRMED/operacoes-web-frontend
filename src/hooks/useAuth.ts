@@ -26,6 +26,11 @@ export function useAuth() {
     () => obterUsuarioLogado(),
   );
   const user = session?.user && atualizado(session.user, atual);
+  // Em "ver como", só vale a resposta que confirma a simulação deste Admin:
+  // sem a marca (ou de outro Admin), a tela não é a da pessoa.
+  const verComoConfirmado = Boolean(
+    atual?.ver_como && atual.ver_como.admin.id === usuarioId,
+  );
   const nivel = user?.perfil?.nivel;
   const redes = redesAdministradas(user);
 
@@ -35,12 +40,13 @@ export function useAuth() {
     // Em "ver como", sem a resposta (ainda, ou porque falhou) não há como
     // saber a tela da pessoa: espera, sem cair nos dados do Admin; o SWR
     // tenta de novo, e a faixa (com o Sair) segue visível.
-    isLoading: status === "loading" || (Boolean(verComo) && atual === undefined),
+    isLoading: status === "loading" || (Boolean(verComo) && !verComoConfirmado),
     /** Sessão de "ver como" em andamento nesta aba (só leitura), ou null. */
     verComo: atual?.ver_como ?? null,
     /** Em "ver como", a busca da pessoa falhou: a faixa avisa e oferece
      * tentar de novo, em vez de a tela só seguir carregando. */
-    falhaAoAbrirVerComo: Boolean(verComo) && atual === undefined && Boolean(erroAtual),
+    falhaAoAbrirVerComo:
+      Boolean(verComo) && !verComoConfirmado && (Boolean(erroAtual) || atual !== undefined),
     recarregarUsuario: () => void recarregarAtual(),
     // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
     // pessoa de uma página pelo cargo espera, senão quem acabou de virar
