@@ -27,6 +27,7 @@ import {
   diferencaEmPontos,
   formatarDiferenca,
   formatarPercentual,
+  limiteDoMensal,
   mesesPorExtenso,
   nomeCurtoDoMes,
   periodoEmAndamento,
@@ -147,10 +148,7 @@ export function AbsenteismoMensalModal({
   const meses = mensal?.meses;
 
   const pontos = meses ? pontosDoGrafico(meses, hoje) : [];
-  // Todos os meses usam a versão dos parâmetros vigente hoje. `parametros`
-  // ausente (backend anterior à STC-766): o limite do último mês com dado.
-  const limite =
-    (mensal?.parametros ? mensal.parametros.meta_percentual : meses?.findLast(comDado)?.meta_percentual) ?? null;
+  const limite = limiteDoMensal(mensal);
   const vigenteDesde = mensal?.parametros?.vigente_a_partir_de ?? null;
   const maior = Math.max(0, ...pontos.map((ponto) => ponto.percentual ?? 0), limite ? Number(limite) : 0);
   // Marcas com passo fixo (0, 2, 4, 6...): com o teto livre, a última marca
