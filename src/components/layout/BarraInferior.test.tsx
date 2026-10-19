@@ -87,9 +87,14 @@ afterEach(() => {
 });
 
 describe("BarraInferior (STC-787)", () => {
-  it.each<Cargo>(["adminQG", "gestaoOperacoes", "adminOperacoes", "coordenacao"])(
+  it.each<[string, Cargo]>([
+    ["Admin Q&G", "adminQG"],
+    ["Gestão de Operações", "gestaoOperacoes"],
+    ["Admin Operações (rede padrão)", "adminOperacoes"],
+    ["coordenação", "coordenacao"],
+  ])(
     "%s vê Demandas, Legalização e Gestão RH",
-    (cargo) => {
+    (_, cargo) => {
       comoCargo(cargo);
       render(<BarraInferior />);
       expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH"]);
