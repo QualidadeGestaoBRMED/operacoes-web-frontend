@@ -246,12 +246,20 @@ export function GerenciarUsuarios({
     return usuario.ativo && usuario.perfil != null && usuario.perfil.nivel !== NIVEL_ADMIN_QG;
   }
 
+  // Enquanto abre, todos os "Ver como" ficam travados: um segundo clique
+  // começaria outra sessão (o backend encerra a anterior, mas não há por quê).
+  const [abrindoVerComo, setAbrindoVerComo] = useState<number | null>(null);
+
   async function verComo(usuario: Usuario) {
+    if (abrindoVerComo !== null) return;
+    setAbrindoVerComo(usuario.id);
     try {
       guardarVerComo(await iniciarVerComo(usuario.id));
+      // Sem destravar: a página recarrega já como a pessoa.
       window.location.assign("/modulos/gestao-demandas");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+      setAbrindoVerComo(null);
     }
   }
 
@@ -534,11 +542,12 @@ export function GerenciarUsuarios({
                           variant="outline"
                           size="sm"
                           onClick={() => void verComo(usuario)}
+                          disabled={abrindoVerComo !== null}
                           aria-label={`Ver como ${nomeExibicao(usuario)}`}
                           title="Ver o Atlas como esta pessoa, só para leitura"
                         >
                           <Eye className="size-4" />
-                          Ver como
+                          {abrindoVerComo === usuario.id ? "Abrindo..." : "Ver como"}
                         </Button>
                       )}
                     </td>
