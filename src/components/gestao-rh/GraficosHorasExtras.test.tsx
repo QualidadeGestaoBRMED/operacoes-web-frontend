@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { LinhaHorasExtras, PainelHorasExtras } from "@/types/gestaoRH";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { montagensDeBar } from "@/test-utils/rechartsDeTeste";
 import { GraficosHorasExtras } from "./GraficosHorasExtras";
 
 vi.mock("recharts", () => import("@/test-utils/rechartsDeTeste"));
@@ -149,6 +150,30 @@ describe("GraficosHorasExtras", () => {
 
     await userEvent.click(colaboradores().getByRole("button", { name: "100%" }));
     expect(screen.getByRole("heading", { name: "Top 3 colaboradores em horas extras" })).toBeInTheDocument();
+  });
+
+  it("STC-764: escolher um fator e tirar mantém a pilha (50% e depois 100%) e a ponta na barra certa", async () => {
+    for (const chave of Object.keys(montagensDeBar)) delete montagensDeBar[chave];
+    render(<GraficosHorasExtras painel={PAINEL} selecionado={null} onSelecionar={vi.fn()} />);
+    const colaboradores = () => grafico(/colaboradores/);
+    const ponta = (fator: string) =>
+      colaboradores()
+        .getAllByRole("button", { name: new RegExp(`^${fator}:`), hidden: true })
+        .map((botao) => botao.dataset.ponta);
+    // Um <Bar> por fator em cada um dos dois gráficos.
+    expect(montagensDeBar).toEqual({ fator_1: 2, fator_2: 2 });
+    expect(ponta("fator_2")).toEqual(["sim", "sim", "sim"]);
+
+    await userEvent.click(colaboradores().getByRole("button", { name: "100%" }));
+    expect(ponta("fator_2")).toEqual(["sim", "sim"]);
+    await userEvent.click(colaboradores().getByRole("button", { name: "50%" }));
+    expect(ponta("fator_1")).toEqual(["sim", "sim"]);
+    await userEvent.click(colaboradores().getByRole("button", { name: "50%" }));
+
+    // Nenhum <Bar> montou de novo: a ordem do empilhamento é a do primeiro render.
+    expect(montagensDeBar).toEqual({ fator_1: 2, fator_2: 2 });
+    expect(ponta("fator_1")).toEqual(["nao", "nao", "nao"]);
+    expect(ponta("fator_2")).toEqual(["sim", "sim", "sim"]);
   });
 
   it("cada gráfico escolhe o fator sozinho", async () => {
