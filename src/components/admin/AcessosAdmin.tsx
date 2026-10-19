@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ListFilter, X } from "lucide-react";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useAcessos } from "@/hooks/useAcessos";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import {
   DIAS_SEM_ENTRAR_EM_DESTAQUE,
   PERIODOS_DE_ACESSO,
@@ -34,7 +36,7 @@ import {
   rotuloDosDiasSemEntrar,
 } from "@/lib/acessos";
 import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
-import { cn } from "@/lib/utils";
+import { cn, iniciaisDe } from "@/lib/utils";
 import type { ReferenciaPorNome, UsuarioAcesso } from "@/types";
 
 // Sentinel: Radix Select não aceita value="" num SelectItem.
@@ -78,6 +80,10 @@ function opcoes(referencias: (ReferenciaPorNome | null)[]) {
 export function AcessosAdmin({ hidden }: { hidden: boolean }) {
   const [dias, setDias] = useState<number>(PERIODOS_DE_ACESSO[0].dias);
   const { acessos, isLoading, error } = useAcessos(dias);
+  // A foto do Google vem da lista de usuários (a mesma da seção Usuários,
+  // em cache), não da rota de acessos. Sem ela, as iniciais.
+  const { usuarios: listaDeUsuarios } = useUsuarios();
+  const fotoPorId = new Map(listaDeUsuarios.map((usuario) => [usuario.id, usuario.foto_url]));
   const [filtroPerfil, setFiltroPerfil] = useState("todos");
   const [filtroUnidade, setFiltroUnidade] = useState("todas");
   const [detalhe, setDetalhe] = useState<UsuarioAcesso | null>(null);
@@ -251,17 +257,26 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
                   >
                     {/* Largura limitada no celular: com o e-mail inteiro, a
                         coluna fixa tomava a tela toda. */}
-                    <td className="sticky left-0 z-[1] max-w-44 bg-background px-4 py-2.5 sm:max-w-none">
-                      <button
-                        type="button"
-                        onClick={() => setDetalhe(usuario)}
-                        aria-label={`Ver os dias de uso de ${usuario.nome}`}
-                        className="text-left font-medium text-foreground hover:text-secondary hover:underline"
-                      >
-                        {usuario.nome}
-                      </button>
-                      <div className="truncate text-xs text-muted-foreground" title={usuario.email}>
-                        {usuario.email}
+                    <td className="sticky left-0 z-[1] max-w-52 bg-background px-4 py-2.5 sm:max-w-none">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <AvatarUsuario
+                          imagem={fotoPorId.get(usuario.id)}
+                          iniciais={iniciaisDe(usuario.nome)}
+                          className="bg-secondary text-secondary-foreground"
+                        />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setDetalhe(usuario)}
+                            aria-label={`Ver os dias de uso de ${usuario.nome}`}
+                            className="text-left font-medium text-foreground hover:text-secondary hover:underline"
+                          >
+                            {usuario.nome}
+                          </button>
+                          <div className="truncate text-xs text-muted-foreground" title={usuario.email}>
+                            {usuario.email}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap">
