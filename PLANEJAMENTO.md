@@ -1033,7 +1033,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.22 STC-795 — Foto do Google nos responsáveis e comentários
 
-🔄 **Em andamento.** A foto de perfil do Google (`Usuario.foto_url`, gravada no login e já enviada pelo backend nos usuários aninhados) passa a aparecer onde só havia as iniciais:
+✅ **Implementado e mergeado em `main` (PR #120).** A foto de perfil do Google (`Usuario.foto_url`, gravada no login e já enviada pelo backend nos usuários aninhados) passa a aparecer onde só havia as iniciais:
 
 - Gestão de Demandas, detalhe do card: Responsáveis (`ResponsavelSection.tsx`) e Comentários (`ComentarioFeed.tsx`);
 - Legalização: coluna Responsável da Matriz (`MatrizTable.tsx`) e Responsável operacional no detalhe do documento (`DetalheDocumentoModal.tsx`, a visualização com "Editar"; o modo de edição mostra etiquetas só com o nome).
@@ -1042,3 +1042,18 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 - **Conferência** (banco local, 1440 × 900; o navegador de teste preenchia a foto dos usuários sem foto, sem mexer no banco): comentários, responsáveis do card, Matriz e detalhe do documento com a foto; sem erro no console.
 - Testes: `AvatarUsuario` (foto sem Referer, iniciais sem foto, volta às iniciais se a imagem falha, foto de outra pessoa tentada depois de uma falha); foto e iniciais em Comentários (com conta excluída), Responsáveis e na Matriz.
+
+### 7.23 STC-790 — "Ver como" na Administração e faixa de simulação (STC-788)
+
+🔄 **Em andamento.** O Admin Q&G vê o Atlas como outra pessoa, só para leitura, para conferir permissões e entender reclamações. O backend (STC-789) responde cada requisição como a pessoa quando ela leva o id da sessão no cabeçalho `X-Ver-Como`; o frontend só manda o cabeçalho, mostra a faixa e trava a escrita.
+
+- **Sessão nesta aba** (`src/lib/verComo.ts`): fica no `sessionStorage` (outra aba aberta do zero abre como o Admin, sem a faixa), e sessão vencida some ao ser lida. `useVerComo()` lê na tela; começar e sair recarregam a página, sem nada em cache de quem estava antes.
+- **Começar:** Administração › Usuários, botão "Ver como" na linha (só para o Admin Q&G, e só para quem tem cargo, está ativo e não é Admin Q&G; o backend recusa os mesmos casos). Abre a Gestão de Demandas já como a pessoa.
+- **Cliente da API** (`src/lib/api.ts`): leitura vai com `X-Ver-Como`; escrita nem sai, com a mesma recusa que o backend daria (403, `ver_como_somente_leitura`), e `extrairMensagemErro` mostra só a mensagem (o `codigo` do "ver como" não vai para a tela). Começar e sair vão sem o cabeçalho (`_semVerComo` na config do axios). Se o backend disser que a sessão não vale mais (`ver_como_encerrado`/`ver_como_invalido`), sai do "ver como" e avisa na próxima tela. O proxy (`/api/backend`) repassa o `X-Ver-Como` só se for um UUID.
+- **`useAuth`:** em "ver como", os dados atuais (`/auth/me/`) são os da pessoa e valem quando o Admin real dela é quem está logado: cargo, menu, botões, nome e foto do topo passam a ser dela. Até a resposta chegar, `isLoading` (a tela não mostra o menu do Admin). `verComo` expõe a sessão.
+- **Faixa** (`FaixaVerComo.tsx`, no topo do `AppShell`, acima de tudo e em todas as telas): "Vendo como {nome} (somente leitura) · até HH:MM · Sair". Sair encerra no backend e volta para Administração › Usuários (mesmo se encerrar falhar: a aba deixa de mandar o cabeçalho e a sessão vence sozinha). Ao vencer com a tela aberta, sai sozinha; o aviso de quando o "ver como" terminou sozinho aparece uma vez na tela seguinte.
+- **Ações travadas na tela:** "Nova Demanda" desabilitada com a dica, card do Kanban sem arrastar, detalhe do card sem edição, comentário e anexo. O resto das ações cai na recusa do cliente da API, com a mensagem de somente leitura. O alerta persistente da Legalização fecha sem gravar ("Ver depois" é local) e não prende o Admin.
+- **Fora:** o download de evidência (`/api/media/evidencia-vigente`) é um link do navegador, sem o cabeçalho: baixa como o Admin, que vê todas.
+- **Conferência** (banco local, Admin Q&G vendo como a coordenação de Niterói): faixa com o nome e a hora, topo com o nome e a foto dela, sem Administração no menu, só as demandas de Niterói, "Nova Demanda" desabilitada; 23 leituras com o cabeçalho e nenhuma escrita além de começar e sair; Sair volta a Usuários sem a faixa; sem erro no console.
+- Testes: sessão na aba (vencida, estragada, sair com aviso); cliente da API (cabeçalho na leitura, escrita recusada sem sair, começar e sair sem o cabeçalho, sessão encerrada no backend); proxy (repassa só UUID); `useAuth` (pessoa simulada, espera sem mostrar o Admin, resposta de outro Admin não vale); faixa (nome, Sair, Sair com falha, aviso); botão em Usuários (só Admin Q&G, nunca para outro Admin Q&G nem sem cargo, começa e abre); Nova Demanda e detalhe do card travados.
+
