@@ -22,6 +22,7 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
+import { MENSAGEM_SOMENTE_LEITURA, useVerComo } from "@/lib/verComo";
 import { administra, NIVEL_ADMIN_QG } from "@/lib/redes";
 import type { DemandaFiltros, Prioridade } from "@/types";
 
@@ -44,6 +45,8 @@ interface KanbanFiltrosProps {
 }
 
 export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: KanbanFiltrosProps) {
+  // "Ver como" (STC-790): só leitura, sem criar demanda.
+  const verComo = useVerComo();
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   const { usuarios } = useUsuarios();
@@ -336,7 +339,13 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
           </PopoverContent>
         </Popover>
 
-        <Button size="icon" className="shrink-0" onClick={onNovaDemanda}>
+        <Button
+          size="icon"
+          className="shrink-0"
+          onClick={onNovaDemanda}
+          disabled={Boolean(verComo)}
+          title={verComo ? MENSAGEM_SOMENTE_LEITURA : undefined}
+        >
           <span className="sr-only">Nova Demanda</span>
           <span aria-hidden="true" className="text-lg leading-none">
             +
@@ -350,7 +359,12 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     <div className="flex flex-wrap items-center gap-3 border-b border-border px-7 py-4">
       {busca}
       {camposDeFiltro()}
-      <Button className="ml-auto" onClick={onNovaDemanda}>
+      <Button
+        className="ml-auto"
+        onClick={onNovaDemanda}
+        disabled={Boolean(verComo)}
+        title={verComo ? MENSAGEM_SOMENTE_LEITURA : undefined}
+      >
         Nova Demanda
       </Button>
     </div>

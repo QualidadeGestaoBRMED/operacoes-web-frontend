@@ -12,6 +12,7 @@ import {
   rotuloUnidadeOuResponsavel,
 } from "@/lib/kanban";
 import { cn, iniciaisDe, nomeExibicao } from "@/lib/utils";
+import { useVerComo } from "@/lib/verComo";
 import type { Demanda, DemandaResponsavel } from "@/types";
 
 // Achado no dogfooding: uma demanda com muitas etiquetas empurrava o resto
@@ -218,9 +219,11 @@ export function DemandaCard({ demanda, onClick, onRestaurar }: DemandaCardProps)
   const naLixeira = demanda.status === "lixeira";
   // Card na lixeira não é arrastável -- sair de lá é só pelo botão
   // "Restaurar" (backend trata isso via /restaurar/, não PATCH .../status/).
+  // "Ver como" (STC-790): só leitura, o card não muda de coluna.
+  const verComo = useVerComo();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: demanda.id,
-    disabled: naLixeira,
+    disabled: naLixeira || Boolean(verComo),
     // Consumido pelo coordinateGetter customizado do KeyboardSensor (pular
     // direto pra fase seguinte/anterior) -- ele não sabe a fase atual do
     // card sem isso.

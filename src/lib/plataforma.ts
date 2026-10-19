@@ -1,4 +1,5 @@
 import api from "./api";
+import type { SessaoVerComo } from "./verComo";
 import type {
   Acessos,
   Modulo,
@@ -51,8 +52,11 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
 
 // Dados atuais de quem está logado (cargo, redes, unidade, setor). A sessão
 // só os grava no login; ver useAuth.
-export async function obterUsuarioLogado(): Promise<Usuario> {
-  const { data } = await api.get<Usuario>("/auth/me/");
+/** /auth/me/: em "ver como" (STC-789), a pessoa simulada e a sessão. */
+export type UsuarioLogado = Usuario & { ver_como?: SessaoVerComo | null };
+
+export async function obterUsuarioLogado(): Promise<UsuarioLogado> {
+  const { data } = await api.get<UsuarioLogado>("/auth/me/");
   return data;
 }
 
@@ -142,3 +146,19 @@ export async function listarAcessos(inicio: string): Promise<Acessos> {
   const { data } = await api.get<Acessos>("/plataforma/acessos/", { params: { inicio } });
   return data;
 }
+
+// STC-790: começar e sair do "ver como" vão como o próprio Admin, sem o
+// cabeçalho da sessão (com ele, seriam escrita em "ver como", recusada).
+export async function iniciarVerComo(usuarioId: number): Promise<SessaoVerComo> {
+  const { data } = await api.post<SessaoVerComo>(
+    "/plataforma/ver-como/",
+    { usuario_id: usuarioId },
+    { _semVerComo: true },
+  );
+  return data;
+}
+
+export async function encerrarVerComo(sessaoId: string): Promise<void> {
+  await api.post(`/plataforma/ver-como/${sessaoId}/encerrar/`, null, { _semVerComo: true });
+}
+

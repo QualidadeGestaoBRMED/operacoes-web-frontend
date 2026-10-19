@@ -4,6 +4,8 @@ import { cabecalhosDoCliente } from "@/lib/cabecalhosDoCliente";
 
 type ParamsPromise = Promise<{ path: string[] }>;
 
+const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Só encaminha: não renova o token. Um 401 do backend volta como 401 pro
 // navegador, que renova pela rota /api/sessao/renovar a partir do cookie
 // ATUAL e repete a requisição (ver src/lib/renovarSessao.ts). Renovar aqui,
@@ -40,6 +42,9 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   // upload inteiro em memória (aceitável dado o limite de 35 MB do backend).
   const contentType = request.headers.get("content-type");
   const corpo = temCorpo ? await request.arrayBuffer() : undefined;
+  // "Ver como" (STC-790): o id da sessão passa adiante; o backend valida a
+  // sessão a cada requisição (é do Admin deste token, não venceu).
+  const verComo = request.headers.get("x-ver-como");
 
   const resposta = await fetch(destino, {
     method: request.method,
@@ -48,6 +53,7 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
       // auditoria do backend (src/lib/cabecalhosDoCliente.ts).
       ...cabecalhosDoCliente(request.headers),
       Authorization: `Bearer ${token.backendAccessToken}`,
+      ...(verComo && FORMATO_UUID.test(verComo) ? { "X-Ver-Como": verComo } : {}),
       ...(temCorpo && contentType ? { "Content-Type": contentType } : {}),
     },
     body: corpo,

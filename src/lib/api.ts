@@ -1,5 +1,13 @@
-import axios, { type InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import { encerrarSessao, renovacaoJaCobre, renovarSessao } from "./renovarSessao";
+import {
+  CABECALHO_VER_COMO,
+  CODIGO_SOMENTE_LEITURA,
+  CODIGOS_DE_FIM,
+  MENSAGEM_SOMENTE_LEITURA,
+  sairDoVerComo,
+  sessaoVerComo,
+} from "./verComo";
 
 // Chama o proxy same-origin em /api/backend, nao o Django direto: o bearer
 // token fica só no server-side do Next.js (rota + getToken), nunca acessível
@@ -14,8 +22,36 @@ type ConfigComRenovacao = InternalAxiosRequestConfig & {
   _renovacaoTentada?: boolean;
 };
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    /** Vai como o próprio Admin, sem o "ver como" (começar e sair dele). */
+    _semVerComo?: boolean;
+  }
+}
+
+const METODOS_DE_LEITURA = ["get", "head", "options"];
+
 api.interceptors.request.use((config: ConfigComRenovacao) => {
   config._enviadaEm = Date.now();
+  // "Ver como" (STC-790): leitura vai com o id da sessão no cabeçalho e é
+  // respondida como a pessoa; escrita nem sai daqui, com a mesma recusa que
+  // o backend daria (ele recusa de qualquer jeito, STC-789).
+  const verComo = config._semVerComo ? null : sessaoVerComo();
+  if (verComo) {
+    if (!METODOS_DE_LEITURA.includes((config.method ?? "get").toLowerCase())) {
+      const resposta = {
+        status: 403,
+        statusText: "Forbidden",
+        headers: {},
+        config,
+        data: { detail: MENSAGEM_SOMENTE_LEITURA, codigo: CODIGO_SOMENTE_LEITURA },
+      } as AxiosResponse;
+      return Promise.reject(
+        new AxiosError(MENSAGEM_SOMENTE_LEITURA, AxiosError.ERR_BAD_REQUEST, config, null, resposta),
+      );
+    }
+    config.headers.set(CABECALHO_VER_COMO, verComo.id);
+  }
   return config;
 });
 
@@ -29,6 +65,13 @@ api.interceptors.request.use((config: ConfigComRenovacao) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // O "ver como" não vale mais no backend (vencido, encerrado em outra aba,
+    // cargo mudado): volta a ser o Admin, com o aviso na próxima tela.
+    const codigo = error.response?.data?.codigo;
+    if (error.response?.status === 403 && CODIGOS_DE_FIM.includes(codigo) && sessaoVerComo()) {
+      sairDoVerComo("/admin/permissoes", error.response.data.detail);
+      return Promise.reject(error);
+    }
     if (error.response?.status === 401) {
       const config = error.config as ConfigComRenovacao | undefined;
       // A repetida depois de renovar sai no mesmo milissegundo em que a
