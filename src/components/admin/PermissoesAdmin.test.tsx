@@ -62,6 +62,7 @@ import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import { buscarParametrosAbsenteismo, buscarReguaFerias, listarEquipesVR } from "@/lib/gestaoRH";
 import {
+  listarAcessos,
   criarPermissao,
   listarModulos,
   listarPerfis,
@@ -412,6 +413,30 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.getByTestId("secao-usuarios").closest("[hidden]")).not.toBeNull();
   });
 
+  it("STC-746: Admin chega aos Acessos pelo Select de seção, que só busca na primeira visita", async () => {
+    vi.mocked(listarAcessos).mockResolvedValue({
+      periodo: { inicio: "2026-09-20", fim: "2026-10-19" },
+      hoje: "2026-10-19",
+      usuarios: [],
+    });
+    simularAuth({
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      isLoading: false,
+    } as ReturnType<typeof useAuth>);
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText("Seção"));
+    expect(listarAcessos).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole("option", { name: "Acessos" }));
+
+    expect(replace).toHaveBeenCalledWith("/admin/permissoes/acessos");
+    expect(await screen.findByRole("heading", { name: "Acessos" })).toBeVisible();
+    await waitFor(() => expect(listarAcessos).toHaveBeenCalled());
+    expect(screen.getByTestId("secao-usuarios").closest("[hidden]")).not.toBeNull();
+  });
+
   it("Admin chega aos Parâmetros de Gestão RH pelo Select de seção", async () => {
     simularAuth({
       isAdminOps: true,
@@ -433,7 +458,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(buscarReguaFerias).toHaveBeenCalled();
   });
 
-  it("STC-747: Admin Operações Especiais fica só com Usuários, mesmo pela rota dos Parâmetros", async () => {
+  it("STC-747/STC-746: Admin Operações Especiais fica com Usuários e Acessos, mesmo pela rota dos Parâmetros", async () => {
     mockSetPathname("/admin/permissoes/parametros-gestao-rh");
     simularAuth({
       isAdminOps: true,
@@ -448,7 +473,10 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(secao).toHaveTextContent("Usuários");
     await user.click(secao);
 
-    expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual(["Usuários"]);
+    expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual([
+      "Usuários",
+      "Acessos",
+    ]);
     expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
     // A URL sai da aba proibida.
     expect(replace).toHaveBeenCalledWith("/admin/permissoes");

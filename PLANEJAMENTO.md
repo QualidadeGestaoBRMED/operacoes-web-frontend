@@ -987,7 +987,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.19 STC-787 — Navegação inferior no celular, no lugar do menu lateral
 
-🔄 **Em andamento.** Segunda parte do "Atlas como WebApp" (o app instalável é a STC-786).
+✅ **Implementado e mergeado em `main` (PR #117).** Segunda parte do "Atlas como WebApp" (o app instalável é a STC-786).
 
 - **Uma regra de navegação só** (`src/hooks/useNavegacao.ts`): módulos pelo cargo (Legalização e Gestão RH só para quem administra a rede padrão, STC-747), subitens com os atalhos do Catálogo e dos Parâmetros, Administração e Django Admin. O menu lateral (`Sidebar.tsx`) e a barra inferior leem daqui; `subitemAtivo` (prefixo mais longo) e `moduloAtivo` (pela rota do módulo ou por um subitem, já que o Catálogo e os Parâmetros ficam em `/admin/permissoes/...`) também. Gestão de Demandas entrou como primeiro módulo do hook, no lugar do link fixo do `Sidebar`.
 - **Só no celular** (`QUERY_MOBILE` de `useMediaQuery.ts`, até 767 px): sem menu lateral, sem o botão dele no topo; no computador, nada muda.
@@ -996,3 +996,20 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Abas do módulo** (`AbasDoModulo.tsx`): no celular, as seções do módulo viram abas abaixo do topo, com rótulo curto (`curto` nos subitens: Matriz, Biblioteca, Catálogo; Absenteísmo, Horas Extras, Parâmetros), rolando de lado se não couberem. Só para módulo com mais de uma seção.
 - **Conferência** (banco local, 390 × 844, Admin Q&G): Kanban, Gestão RH, Legalização e Administração com a barra; o fim do conteúdo coincide com o começo da barra nas três telas medidas, sem rolagem lateral e sem erro no console. Computador sem mudança.
 - Testes: barra por cargo (Admin Q&G, Gestão de Operações, Admin Operações, Admin Operações Especiais, coordenação), "Mais" com Administração, Admin Q&G, Recarregar e Sair, item ativo pela rota, módulos além de 4 no "Mais" e o "Mais" ativo na rota de um deles, abas por cargo e rota, e o `AppShell` com barra no celular e menu lateral no computador.
+
+### 7.20 STC-746 — Tela de Acessos em Administração
+
+🔄 **Em andamento.** Frontend da STC-741 (histórico de acesso dos usuários); o backend é a STC-744 (`GET /api/plataforma/acessos/`, um uso por pessoa por dia, só de quem o Admin administra).
+
+- **Seção "Acessos"** no Select de Administração (`AcessosAdmin.tsx`, rota `/admin/permissoes/acessos`, com a `page.tsx` vazia como as outras seções): para todo Admin, inclusive o Admin Operações Especiais (a API já devolve só as pessoas da rede dele). Busca só na primeira visita à seção, como os Parâmetros de Gestão RH.
+- **Lista** na ordem da API (quem nunca entrou, depois quem está há mais tempo sem entrar): foto do Google, pessoa e e-mail, dias sem entrar, último uso ("Hoje", "Ontem" ou a data), dias com uso no período ("16 de 30"), perfil e unidade (ou setor, sem unidade). Os dias sem entrar vêm logo depois da pessoa, para caber no celular sem rolar de lado.
+- **Ordenação por coluna** em todas as colunas, com o cabeçalho compartilhado `CabecalhoOrdenavel` (`src/components/CabecalhoOrdenavel.tsx`: ↑↓, ↑ e ↓, com `aria-sort`) e o ciclo do clique `proximaOrdenacao` (`lib/ordenacao.ts`: crescente, decrescente, ordem padrão). Sem coluna escolhida, vale a ordem da API. Quem nunca entrou conta como o maior tempo sem entrar e o uso mais antigo. As tabelas que já ordenam (Matriz, Absenteísmo, Horas Extras e Férias) e as demais da Administração passam a usar o mesmo cabeçalho na STC-794.
+- **Foto do Google** ao lado do nome (`AvatarUsuario`, `src/components/AvatarUsuario.tsx`, o mesmo do topo): vem da lista de usuários (`useUsuarios`, a mesma da seção Usuários, em cache), cruzada pelo id, porque a rota de acessos não a traz. Sem foto, ou se ela não carregar, as iniciais.
+- **Destaque** (selo âmbar, `emDestaque` em `lib/acessos.ts`): quem nunca entrou ou está há 3 dias ou mais sem entrar (`DIAS_SEM_ENTRAR_EM_DESTAQUE`). Contagem "N pessoas · M em destaque" ao lado dos filtros.
+- **Filtros:** período (últimos 30 dias, 90 dias ou 12 meses; o início é calculado no fuso do servidor e o fim é hoje), perfil e unidade. Perfil e unidade são aplicados na tela, com as opções tiradas das próprias linhas. No celular, perfil e unidade vão para o Popover, como em Usuários.
+- **Troca de período** sem esvaziar a tela (`keepPreviousData`): a tabela anterior fica esmaecida (`aria-busy`) até a resposta nova chegar, como no Painel de Absenteísmo.
+- **Erro ao carregar:** mensagem com o botão "Tentar de novo" (além da nova tentativa automática do SWR). Com dados já na tela, a tabela continua e o aviso fica acima dela, dizendo qual período ela mostra (o Select já está no período que falhou).
+- **Leitor de tela:** o selo de destaque e os dias do calendário (com uso, sem uso, fora do período) têm texto, não só cor.
+- **Detalhe:** o nome abre um diálogo com os dias de uso no período, num calendário por mês (`mesesDoPeriodo`), dias usados em destaque.
+- **Conferência** (banco local com usos de teste, Admin Q&G): 1440 × 900 e 390 × 844, lista, destaque, detalhe em 30 e 90 dias; sem rolagem lateral da página e sem erro no console.
+- Testes: lista e ordem, foto ou iniciais, ordenação por coluna (ciclo e quem nunca entrou), `proximaOrdenacao`, destaque (nunca entrou, 3 dias ou mais), filtros de perfil e unidade com "Limpar filtros", troca de período, detalhe com os dias certos, erro ao carregar com "Tentar de novo", troca de período sem esvaziar, erro com dados na tela, rede sem ninguém, textos para leitor de tela; funções de `lib/acessos.ts` (período, rótulos, calendário virando o ano); seção no Select (Admin Operações Especiais com Usuários e Acessos) e busca só na primeira visita.

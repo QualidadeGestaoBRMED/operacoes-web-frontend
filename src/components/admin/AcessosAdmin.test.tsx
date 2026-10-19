@@ -1,0 +1,292 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SWRConfig } from "swr";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Acessos, Usuario, UsuarioAcesso } from "@/types";
+import { AcessosAdmin } from "./AcessosAdmin";
+
+vi.mock("@/lib/plataforma", () => ({ listarAcessos: vi.fn(), listarUsuarios: vi.fn() }));
+vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
+vi.mock("@/lib/kanban", () => ({ hojeNoFusoDoServidor: () => "2026-10-19" }));
+
+import { listarAcessos, listarUsuarios } from "@/lib/plataforma";
+
+const UNIDADE = { id: 5, nome: "Niterói" };
+const COORDENACAO = { id: 3, nome: "Unidade" };
+const ADMIN = { id: 1, nome: "Admin Q&G" };
+
+function pessoa(dados: Partial<UsuarioAcesso> & Pick<UsuarioAcesso, "id" | "nome">): UsuarioAcesso {
+  return {
+    email: `${dados.nome.toLowerCase().replace(/ /g, ".")}@exemplo.com`,
+    perfil: null,
+    unidade: null,
+    setor: null,
+    ultimo_uso: null,
+    dias_desde_o_ultimo_uso: null,
+    dias_com_uso: 0,
+    dias: [],
+    ...dados,
+  };
+}
+
+// Na ordem da API: quem nunca entrou, depois quem está há mais tempo sem entrar.
+const RESPOSTA: Acessos = {
+  periodo: { inicio: "2026-09-20", fim: "2026-10-19" },
+  hoje: "2026-10-19",
+  usuarios: [
+    pessoa({ id: 1, nome: "Bruna Nunca", perfil: COORDENACAO, unidade: UNIDADE }),
+    pessoa({
+      id: 2,
+      nome: "Carlos Sumido",
+      perfil: COORDENACAO,
+      unidade: UNIDADE,
+      ultimo_uso: "2026-10-14",
+      dias_desde_o_ultimo_uso: 5,
+      dias_com_uso: 3,
+      dias: ["2026-09-30", "2026-10-02", "2026-10-14"],
+    }),
+    pessoa({
+      id: 3,
+      nome: "Dora Recente",
+      perfil: ADMIN,
+      setor: { id: 9, nome: "Qualidade" },
+      ultimo_uso: "2026-10-17",
+      dias_desde_o_ultimo_uso: 2,
+      dias_com_uso: 12,
+      dias: ["2026-10-17"],
+    }),
+    pessoa({
+      id: 4,
+      nome: "Eva Hoje",
+      perfil: ADMIN,
+      ultimo_uso: "2026-10-19",
+      dias_desde_o_ultimo_uso: 0,
+      dias_com_uso: 20,
+      dias: ["2026-10-19"],
+    }),
+  ],
+};
+
+function renderTela() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <AcessosAdmin hidden={false} />
+    </SWRConfig>,
+  );
+}
+
+function linhas() {
+  const tabela = screen.getByRole("table", { name: "Acessos" });
+  return within(tabela).getAllByRole("row").slice(1);
+}
+
+function nomesNaTabela() {
+  return linhas().map((linha) => within(linha).getByRole("button").textContent);
+}
+
+beforeEach(() => {
+  vi.mocked(listarAcessos).mockReset();
+  vi.mocked(listarAcessos).mockResolvedValue(RESPOSTA);
+  vi.mocked(listarUsuarios).mockReset();
+  vi.mocked(listarUsuarios).mockResolvedValue([
+    { id: 2, foto_url: "https://foto.exemplo/carlos.jpg" } as Usuario,
+    { id: 3, foto_url: "" } as Usuario,
+  ]);
+});
+
+describe("AcessosAdmin (STC-746)", () => {
+  it("lista na ordem da API, com último uso, dias sem entrar e dias com uso no período", async () => {
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    expect(listarAcessos).toHaveBeenCalledWith("2026-09-20");
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+    const [bruna, carlos, dora, eva] = linhas();
+    expect(bruna).toHaveTextContent("Nunca entrou");
+    expect(bruna).toHaveTextContent("0 de 30");
+    expect(carlos).toHaveTextContent("5 dias");
+    expect(carlos).toHaveTextContent("14/10/2026");
+    expect(carlos).toHaveTextContent("Niterói");
+    // Sem unidade, a lotação é o setor.
+    expect(dora).toHaveTextContent("Qualidade");
+    expect(eva).toHaveTextContent("Entrou hoje");
+    expect(eva).toHaveTextContent("Hoje");
+  });
+
+  it("foto do Google ao lado do nome, pela lista de usuários; sem ela, as iniciais", async () => {
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    const [bruna, carlos, dora] = linhas();
+
+    await waitFor(() =>
+      expect(carlos.querySelector("img")).toHaveAttribute("src", "https://foto.exemplo/carlos.jpg"),
+    );
+    expect(carlos.querySelector("img")).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(dora.querySelector("img")).toBeNull();
+    expect(dora).toHaveTextContent("DR");
+    // Fora da lista de usuários: iniciais também.
+    expect(bruna.querySelector("img")).toBeNull();
+    expect(bruna).toHaveTextContent("BN");
+  });
+
+  it("destaque a partir de 3 dias sem entrar e para quem nunca entrou", async () => {
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    const destacadas = linhas()
+      .filter((linha) => linha.hasAttribute("data-destaque"))
+      .map((linha) => within(linha).getByRole("button").textContent);
+    expect(destacadas).toEqual(["Bruna Nunca", "Carlos Sumido"]);
+    // O selo é só cor: o leitor de tela ouve o destaque.
+    const [bruna, , dora] = linhas();
+    expect(bruna).toHaveTextContent("em destaque");
+    expect(dora).not.toHaveTextContent("em destaque");
+    expect(screen.getByText(/4 pessoas/)).toHaveTextContent("4 pessoas · 2 em destaque");
+  });
+
+  it("filtra por perfil e por unidade, e Limpar filtros volta tudo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    await user.click(screen.getByRole("combobox", { name: "Filtrar por perfil" }));
+    await user.click(screen.getByRole("option", { name: "Admin Q&G" }));
+    expect(nomesNaTabela()).toEqual(["Dora Recente", "Eva Hoje"]);
+
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await user.click(screen.getByRole("combobox", { name: "Filtrar por unidade" }));
+    await user.click(screen.getByRole("option", { name: "Niterói" }));
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido"]);
+
+    await user.click(screen.getByRole("combobox", { name: "Filtrar por unidade" }));
+    await user.click(screen.getByRole("option", { name: "Sem unidade" }));
+    expect(nomesNaTabela()).toEqual(["Dora Recente", "Eva Hoje"]);
+
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    expect(nomesNaTabela()).toHaveLength(4);
+  });
+
+  it("ordena pela coluna clicada: crescente, decrescente e de volta à ordem da API", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    const diasComUso = screen.getByRole("button", { name: "Dias com uso" });
+
+    await user.click(diasComUso);
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+    expect(screen.getByRole("columnheader", { name: "Dias com uso" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await user.click(diasComUso);
+    expect(nomesNaTabela()).toEqual(["Eva Hoje", "Dora Recente", "Carlos Sumido", "Bruna Nunca"]);
+
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    expect(screen.getByRole("columnheader", { name: "Pessoa" })).not.toHaveAttribute("aria-sort");
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+  });
+
+  it("quem nunca entrou conta como o maior tempo sem entrar e o uso mais antigo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    await user.click(screen.getByRole("button", { name: "Sem entrar" }));
+    expect(nomesNaTabela()).toEqual(["Eva Hoje", "Dora Recente", "Carlos Sumido", "Bruna Nunca"]);
+
+    await user.click(screen.getByRole("button", { name: "Último uso" }));
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+  });
+
+  it("trocar o período busca a partir do novo início, com a tabela anterior na tela até chegar", async () => {
+    let responder: (acessos: Acessos) => void = () => {};
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    vi.mocked(listarAcessos).mockImplementationOnce(
+      () => new Promise((resolver) => (responder = resolver)),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Período" }));
+    await user.click(screen.getByRole("option", { name: "Últimos 12 meses" }));
+
+    expect(listarAcessos).toHaveBeenLastCalledWith("2025-10-20");
+    // Sem esvaziar: a tabela anterior continua, marcada como ocupada.
+    expect(nomesNaTabela()).toHaveLength(4);
+    expect(screen.getByRole("table", { name: "Acessos" }).parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    responder({ ...RESPOSTA, periodo: { inicio: "2025-10-20", fim: "2026-10-19" } });
+    expect(await screen.findByText("0 de 365")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Acessos" }).parentElement).not.toHaveAttribute(
+      "aria-busy",
+    );
+  });
+
+  it("erro ao trocar o período: a tabela anterior continua, com o aviso e Tentar de novo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    vi.mocked(listarAcessos).mockRejectedValueOnce(new Error("falhou"));
+
+    await user.click(screen.getByRole("combobox", { name: "Período" }));
+    await user.click(screen.getByRole("option", { name: "Últimos 90 dias" }));
+
+    // O aviso diz qual período a tabela ainda mostra.
+    expect(await screen.findByText(/Não foi possível carregar o período escolhido/)).toHaveTextContent(
+      "A tabela mostra de 20/09/2026 a 19/10/2026.",
+    );
+    expect(nomesNaTabela()).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+  });
+
+  it("rede sem ninguém: mensagem, sem tabela nem filtros de perfil e unidade", async () => {
+    vi.mocked(listarAcessos).mockResolvedValue({ ...RESPOSTA, usuarios: [] });
+    renderTela();
+
+    expect(await screen.findByText("Nenhuma pessoa da sua rede ainda.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Filtrar por perfil" })).not.toBeInTheDocument();
+  });
+
+  it("detalhe: os dias de uso da pessoa no período, num calendário", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    await user.click(screen.getByRole("button", { name: "Ver os dias de uso de Carlos Sumido" }));
+
+    const dialogo = await screen.findByRole("dialog");
+    expect(within(dialogo).getByText("Carlos Sumido")).toBeInTheDocument();
+    expect(dialogo).toHaveTextContent("3 dias com uso de 20/09/2026 a 19/10/2026");
+    expect(within(dialogo).getByRole("region", { name: "setembro de 2026" })).toBeInTheDocument();
+    expect(within(dialogo).getByRole("region", { name: "outubro de 2026" })).toBeInTheDocument();
+    const usados = [...dialogo.querySelectorAll("[data-usou]")].map((dia) => dia.firstChild?.textContent);
+    expect(usados).toEqual(["30", "2", "14"]);
+    // Cada dia diz ao leitor de tela se teve uso, não teve ou está fora do período.
+    const dia = (numero: string, mes: string) =>
+      [...within(dialogo).getByRole("region", { name: mes }).querySelectorAll("span")].find(
+        (span) => span.firstChild?.textContent === numero,
+      );
+    expect(dia("14", "outubro de 2026")).toHaveTextContent("14, usou o Atlas");
+    expect(dia("13", "outubro de 2026")).toHaveTextContent("13, sem uso");
+    expect(dia("25", "outubro de 2026")).toHaveTextContent("25, fora do período");
+  });
+
+  it("erro ao carregar: mensagem sem tabela, e Tentar de novo busca outra vez", async () => {
+    vi.mocked(listarAcessos).mockRejectedValueOnce(new Error("falhou"));
+    const user = userEvent.setup();
+    renderTela();
+
+    expect(await screen.findByText(/Não foi possível carregar os acessos/)).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(await screen.findByRole("table", { name: "Acessos" })).toBeInTheDocument();
+  });
+});
