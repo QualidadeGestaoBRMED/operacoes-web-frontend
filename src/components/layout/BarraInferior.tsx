@@ -54,9 +54,11 @@ export function BarraInferior() {
   const naBarra = modulos.slice(0, MAXIMO_NA_BARRA);
   const noMais = modulos.slice(MAXIMO_NA_BARRA);
   const atual = moduloAtivo(modulos, pathname);
-  // Fora de um módulo da barra (Administração, ou módulo que foi para o
-  // "Mais"), o "Mais" fica ativo.
-  const maisAtivo = !atual || noMais.includes(atual);
+  // Na Administração ou num módulo que foi para o "Mais", o "Mais" fica
+  // ativo. O Catálogo e os Parâmetros, também em /admin, são do módulo
+  // (atual já os pega). Fora disso (uma página que não existe, por exemplo),
+  // nada fica ativo.
+  const maisAtivo = atual ? noMais.includes(atual) : pathname.startsWith("/admin");
 
   return (
     <nav
