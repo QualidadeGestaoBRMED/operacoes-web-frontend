@@ -417,7 +417,9 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
         )}
       </div>
 
+      {/* key: cada lote abre com a ordem da API, não com a do lote anterior. */}
       <ModalLinhasRejeitadas
+        key={loteRejeitadas?.id}
         lote={loteRejeitadas}
         aberto={rejeitadasAbertas}
         aoFechar={() => setRejeitadasAbertas(false)}
