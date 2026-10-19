@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
@@ -16,6 +16,7 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarUsuario,
+  iniciarVerComo,
   listarPerfis,
   listarSetores,
   listarUnidades,
@@ -504,3 +505,71 @@ describe("GerenciarUsuarios, ordenação por coluna (STC-794)", () => {
     expect(pessoasNaTabela()[0]).toBe("Carla Lima");
   });
 });
+
+describe("GerenciarUsuarios, ver como (STC-790)", () => {
+  const navegar = vi.fn();
+
+  beforeEach(() => {
+    navegar.mockReset();
+    vi.stubGlobal("location", { ...window.location, assign: navegar });
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+      usuario({ id: 2, first_name: "Quésia", perfil: PERFIL_QG }),
+      usuario({ id: 3, first_name: "Bruno", perfil: null }),
+    ]);
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  function comoAdminQG() {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 999, perfil: PERFIL_QG, redes_administradas: ["padrao", "opex"] },
+      redesAdministradas: ["padrao", "opex"],
+      administraRedePadrao: true,
+      administraAsDuasRedes: true,
+      isAdminOps: true,
+      isAdminQG: true,
+    } as unknown as ReturnType<typeof useAuth>);
+  }
+
+  it("Admin Q&G: o botão aparece para quem tem cargo, nunca para outro Admin Q&G", async () => {
+    comoAdminQG();
+    renderTela();
+    await screen.findByText("Carla Lima");
+
+    expect(screen.getByRole("button", { name: "Ver o Atlas como Carla Lima" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver o Atlas como Quésia/ })).not.toBeInTheDocument();
+    // Sem cargo: não há o que ver como.
+    expect(screen.queryByRole("button", { name: /Ver o Atlas como Bruno/ })).not.toBeInTheDocument();
+  });
+
+  it("outro Admin não vê o botão", async () => {
+    renderTela();
+    await screen.findByText("Carla Lima");
+
+    expect(screen.queryByRole("button", { name: /Ver o Atlas como/ })).not.toBeInTheDocument();
+  });
+
+  it("clicar começa no backend, guarda a sessão nesta aba e abre o Atlas como a pessoa", async () => {
+    comoAdminQG();
+    const sessao = {
+      id: "6f1c2a7e-0000-4000-8000-000000000001",
+      usuario: { id: 1, nome: "Carla Lima" },
+      admin: { id: 999, nome: "Admin" },
+      iniciada_em: "2026-10-19T15:00:00Z",
+      expira_em: "2099-10-19T16:00:00Z",
+    };
+    vi.mocked(iniciarVerComo).mockResolvedValue(sessao);
+    renderTela();
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver o Atlas como Carla Lima" }));
+
+    expect(iniciarVerComo).toHaveBeenCalledWith(1);
+    expect(JSON.parse(sessionStorage.getItem("atlas.verComo")!)).toEqual(sessao);
+    expect(navegar).toHaveBeenCalledWith("/modulos/gestao-demandas");
+  });
+});
+

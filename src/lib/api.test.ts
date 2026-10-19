@@ -1,5 +1,5 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from "axios";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signOut } from "next-auth/react";
 
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
@@ -150,5 +150,77 @@ describe("renovação extra evitada no interceptor (STC-611)", () => {
     expect((await original).status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("ver como (STC-790)", () => {
+  const SESSAO = {
+    id: "6f1c2a7e-0000-4000-8000-000000000001",
+    usuario: { id: 7, nome: "Coordenação" },
+    admin: { id: 1, nome: "Admin" },
+    iniciada_em: "2026-10-19T12:00:00Z",
+    expira_em: new Date(Date.now() + 3_600_000).toISOString(),
+  };
+
+  beforeEach(() => {
+    sessionStorage.setItem("atlas.verComo", JSON.stringify(SESSAO));
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it("leitura vai com o id da sessão no X-Ver-Como", async () => {
+    const { api, adapter } = await carregar([200]);
+
+    await api.get("/modulos/gestao-demandas/demandas/");
+
+    expect(adapter.mock.calls[0][0].headers.get("X-Ver-Como")).toBe(SESSAO.id);
+  });
+
+  it("escrita nem sai: recusa com a mensagem de somente leitura", async () => {
+    const { api, adapter } = await carregar([200]);
+    const { extrairMensagemErro } = await import("./erros");
+
+    const erro = await api.post("/modulos/gestao-demandas/demandas/", {}).catch((e) => e);
+
+    expect(adapter).not.toHaveBeenCalled();
+    expect(erro.response.status).toBe(403);
+    expect(erro.response.data.codigo).toBe("ver_como_somente_leitura");
+    expect(extrairMensagemErro(erro)).toBe(
+      "Somente leitura no modo ver como: saia do ver como para fazer alterações.",
+    );
+  });
+
+  it("começar e sair vão como o próprio Admin, sem o cabeçalho", async () => {
+    const { api, adapter } = await carregar([204]);
+
+    await api.post(`/plataforma/ver-como/${SESSAO.id}/encerrar/`, null, { _semVerComo: true });
+
+    expect(adapter).toHaveBeenCalledTimes(1);
+    expect(adapter.mock.calls[0][0].headers.get("X-Ver-Como")).toBeUndefined();
+  });
+
+  it("sessão que não vale mais no backend: sai do ver como, com o aviso", async () => {
+    const navegar = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: navegar });
+    vi.resetModules();
+    const { default: api } = await import("./api");
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      throw new AxiosError("erro", undefined, config, undefined, {
+        data: { detail: "O ver como terminou.", codigo: "ver_como_encerrado" },
+        status: 403,
+        statusText: "",
+        headers: {},
+        config,
+      });
+    });
+
+    await api.get("/auth/me/").catch(() => {});
+
+    expect(navegar).toHaveBeenCalledWith("/admin/permissoes");
+    expect(sessionStorage.getItem("atlas.verComo")).toBeNull();
+    expect(sessionStorage.getItem("atlas.verComoAviso")).toBe("O ver como terminou.");
   });
 });

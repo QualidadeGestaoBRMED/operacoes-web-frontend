@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
@@ -101,3 +101,15 @@ describe("DetalheCard — Pills de área responsável", () => {
     expect(screen.getByText("Niterói")).toBeInTheDocument();
   });
 });
+
+describe("DetalheCard em ver como (STC-790)", () => {
+  afterEach(() => sessionStorage.clear());
+
+  it("só leitura: sem edição, mesmo para quem pode editar", () => {
+    sessionStorage.setItem("atlas.verComo", JSON.stringify({"id":"6f1c2a7e-0000-4000-8000-000000000001","usuario":{"id":7,"nome":"Coordenação"},"admin":{"id":1,"nome":"Admin"},"iniciada_em":"2026-10-19T15:00:00Z","expira_em":"2099-10-19T16:00:00Z"}));
+    renderizar(true);
+
+    expect(screen.getByTestId("capacidade-edicao")).toHaveTextContent("negada");
+  });
+});
+
