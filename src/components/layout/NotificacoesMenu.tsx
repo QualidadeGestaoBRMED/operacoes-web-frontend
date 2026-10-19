@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNotificacoes } from "@/hooks/useNotificacoes";
 import { cn, formatarTempoRelativo } from "@/lib/utils";
 import type { Notificacao } from "@/types";
+import { useVerComo } from "@/lib/verComo";
 
 export function NotificacoesMenu() {
   const router = useRouter();
@@ -29,8 +30,13 @@ export function NotificacoesMenu() {
   const [mostrarTodas, setMostrarTodas] = useState(false);
   const notificacoesExibidas = mostrarTodas ? notificacoes : naoLidas;
 
+  // "Ver como" (STC-790): as notificações são as da pessoa, só para ver.
+  // Abrir uma só navega, sem marcá-la como lida (seria uma escrita, recusada,
+  // com aviso de erro e o contador piscando a cada clique).
+  const verComo = useVerComo();
+
   function abrirNotificacao(notificacao: Notificacao) {
-    void marcarComoLida(notificacao);
+    if (!verComo) void marcarComoLida(notificacao);
     if (notificacao.link) router.push(notificacao.link);
   }
 
@@ -67,7 +73,7 @@ export function NotificacoesMenu() {
             <DropdownMenuLabel className="p-0 text-sm font-semibold">
               Notificações
             </DropdownMenuLabel>
-            {naoLidasCount > 0 && (
+            {naoLidasCount > 0 && !verComo && (
               <button
                 type="button"
                 onClick={() => void marcarTodasComoLidas()}
