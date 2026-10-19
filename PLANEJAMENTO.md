@@ -1045,7 +1045,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.23 STC-790 — "Ver como" na Administração e faixa de simulação (STC-788)
 
-🔄 **Em andamento.** O Admin Q&G vê o Atlas como outra pessoa, só para leitura, para conferir permissões e entender reclamações. O backend (STC-789) responde cada requisição como a pessoa quando ela leva o id da sessão no cabeçalho `X-Ver-Como`; o frontend só manda o cabeçalho, mostra a faixa e trava a escrita.
+✅ **Implementado e mergeado em `main` (PR #122).** O Admin Q&G vê o Atlas como outra pessoa, só para leitura, para conferir permissões e entender reclamações. O backend (STC-789) responde cada requisição como a pessoa quando ela leva o id da sessão no cabeçalho `X-Ver-Como`; o frontend só manda o cabeçalho, mostra a faixa e trava a escrita.
 
 - **Sessão nesta aba** (`src/lib/verComo.ts`): fica no `sessionStorage` (outra aba aberta do zero abre como o Admin, sem a faixa), e sessão vencida some ao ser lida. `useVerComo()` lê na tela; começar e sair recarregam a página, sem nada em cache de quem estava antes.
 - **Começar:** Administração › Usuários, botão "Ver como" na linha (só para o Admin Q&G, e só para quem tem cargo, está ativo e não é Admin Q&G; o backend recusa os mesmos casos). Nome acessível "Ver como {nome}", com o texto visível do botão. Enquanto abre, todos os "Ver como" ficam travados (o clicado mostra "Abrindo..."); se falhar, destravam. Abre a Gestão de Demandas já como a pessoa. Se a aba não deixar guardar a sessão (sem `sessionStorage`), encerra no backend, avisa e não navega.
@@ -1067,4 +1067,13 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - A trava era só na tela: o backend já aceitava abrir o processo de renovação para esses tipos. O tratamento especial dele fica só na movimentação (a entrada atualiza o profissional do documento; a Dosimetria exige antecedência), e uma entrada com processo já aberto reaproveita o mesmo processo.
 - **Conferência** (banco local, Admin Q&G): CNES vencido de Angra dos Reis com "Registrar renovação" e "Reportar Movimentação"; sem erro no console.
 - Testes: CNES (regular e vencido), Dosimetria, CREMERJ e COREN com os dois botões; CNES em andamento e protocolado sem "Registrar renovação". Os dois testes que garantiam o comportamento antigo saíram.
+
+### 7.25 STC-797 — Página rolando para uma área vazia em Acessos e Parâmetros de Gestão RH
+
+🔄 **Em andamento.** Com a lista maior que a tela, a página inteira rolava para uma área branca abaixo do Atlas. Causa: elementos de posição absoluta dentro de um contêiner que rola, sem um ancestral posicionado; o navegador os põe na altura real deles, fora da rolagem, e a página cresce até lá.
+
+- **Acessos** (`AcessosAdmin.tsx`, STC-746): o texto só para leitor de tela ", em destaque" (`sr-only`) das linhas fora da área visível.
+- **Parâmetros de Gestão RH** (`ParametrosGestaoRHAdmin.tsx`): o `<select>` nativo escondido de cada Select do Radix (já existia antes).
+- Os contêineres que rolam nessas duas telas passam a ser `relative`, prendendo esses elementos.
+- **Conferência** (banco local, janela de 1440 × 420 e 390 × 600): altura rolável da página igual à da janela em Usuários, Acessos, Catálogo, Parâmetros, Gestão de Demandas, Matriz, Mapa, Biblioteca, Absenteísmo e Horas Extras. Antes: Acessos 471 e Parâmetros 688 numa janela de 420. Sem teste automatizado: o ambiente de teste não calcula layout.
 

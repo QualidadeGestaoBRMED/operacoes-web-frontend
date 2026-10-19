@@ -31,7 +31,10 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
     // overflow-y-auto também corta na horizontal: sem a folga de 1 (px-1,
     // compensada por -mx-1), o anel de foco dos campos encostados nas bordas
     // (limite de atraso à esquerda, faixa crítica à direita) era cortado.
-    <div hidden={hidden} className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">
+    // relative: prende os elementos de posição absoluta lá de baixo (o
+    // <select> nativo escondido de cada Select do Radix); sem isso, a página
+    // inteira crescia até eles e rolava para uma área vazia.
+    <div hidden={hidden} className="relative -mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto px-1">
       <Tabs
         value={aba}
         onValueChange={(valor) => setAba(valor as AbaParametros)}
