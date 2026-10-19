@@ -3,6 +3,7 @@
 import { isAxiosError } from "axios";
 import { CheckCircle2, FileSpreadsheet, Info, Upload, X, XCircle } from "lucide-react";
 import { useRef, useState } from "react";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,11 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useImportacoesVR, useLinhasRejeitadas } from "@/hooks/useImportacoesVR";
 import { extrairMensagemErro } from "@/lib/erros";
 import { formatarDataISO } from "@/lib/gestaoRH";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import {
   LIMITE_ENVIO_BYTES,
   RELATORIOS_VR,
   ROTULO_RELATORIO,
   periodoPadrao,
+  type LinhaRejeitada,
   type LoteImportacao,
   type RelatorioVR,
 } from "@/lib/gestaoRHImportacao";
@@ -28,13 +31,24 @@ type ErrosEnvio = Partial<Record<CampoEnvio | "geral", string>>;
 
 const CAMPOS_ENVIO: CampoEnvio[] = ["jornada", "abonos", "pendencias", "periodo_inicio", "periodo_fim"];
 
-const COLUNAS_HISTORICO = [
-  "Importado em",
-  "Período",
-  "Origem",
-  "Linhas processadas",
-  "Linhas rejeitadas",
-  "Situação",
+type CampoHistorico = "importadoEm" | "periodo" | "origem" | "processadas" | "rejeitadas" | "situacao";
+
+const COLUNAS_HISTORICO: { campo: CampoHistorico; rotulo: string }[] = [
+  { campo: "importadoEm", rotulo: "Importado em" },
+  { campo: "periodo", rotulo: "Período" },
+  { campo: "origem", rotulo: "Origem" },
+  { campo: "processadas", rotulo: "Linhas processadas" },
+  { campo: "rejeitadas", rotulo: "Linhas rejeitadas" },
+  { campo: "situacao", rotulo: "Situação" },
+];
+
+type CampoRejeitadas = "relatorio" | "linha" | "colaborador" | "motivo";
+
+const COLUNAS_REJEITADAS: { campo: CampoRejeitadas; rotulo: string; className?: string }[] = [
+  { campo: "relatorio", rotulo: "Relatório" },
+  { campo: "linha", rotulo: "Linha", className: "text-right" },
+  { campo: "colaborador", rotulo: "Colaborador" },
+  { campo: "motivo", rotulo: "Motivo" },
 ];
 
 const SITUACAO: Record<LoteImportacao["status"], { rotulo: string; variante: "success" | "destructive" | "muted" }> = {
@@ -52,6 +66,22 @@ function textoOrigem(lote: LoteImportacao): string {
 function textoPeriodo(lote: LoteImportacao): string {
   return `${formatarDataISO(lote.periodo_inicio)} a ${formatarDataISO(lote.periodo_fim)}`;
 }
+
+const CHAVES_DO_HISTORICO = {
+  importadoEm: (lote: LoteImportacao) => lote.concluido_em ?? lote.obtido_em,
+  periodo: (lote: LoteImportacao) => lote.periodo_inicio,
+  origem: (lote: LoteImportacao) => textoOrigem(lote),
+  processadas: (lote: LoteImportacao) => lote.linhas_processadas,
+  rejeitadas: (lote: LoteImportacao) => lote.linhas_rejeitadas,
+  situacao: (lote: LoteImportacao) => SITUACAO[lote.status].rotulo,
+};
+
+const CHAVES_DAS_REJEITADAS = {
+  relatorio: (linha: LinhaRejeitada) => ROTULO_RELATORIO[linha.relatorio],
+  linha: (linha: LinhaRejeitada) => linha.linha,
+  colaborador: (linha: LinhaRejeitada) => linha.colaborador || null,
+  motivo: (linha: LinhaRejeitada) => linha.motivo,
+};
 
 // Tabela do modal: um lote com milhares de linhas rejeitadas travaria a
 // tela; as primeiras bastam para achar o padrão do problema.
@@ -118,6 +148,8 @@ function errosDaResposta(erro: unknown): ErrosEnvio {
 
 export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => void }) {
   const { lotes, isLoading, mensagemErro, recarregar, importar } = useImportacoesVR();
+  // Sem coluna escolhida, vale a ordem da API (a mais recente primeiro).
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoHistorico> | null>(null);
   const [periodo, setPeriodo] = useState(() => periodoPadrao());
   const [arquivos, setArquivos] = useState<Partial<Record<RelatorioVR, File>>>({});
   const [erros, setErros] = useState<ErrosEnvio>({});
@@ -352,9 +384,14 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
               <thead>
                 <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   {COLUNAS_HISTORICO.map((coluna) => (
-                    <th key={coluna} scope="col" className="px-4 py-2.5">
-                      {coluna}
-                    </th>
+                    <CabecalhoOrdenavel
+                      key={coluna.campo}
+                      campo={coluna.campo}
+                      rotulo={coluna.rotulo}
+                      ordenacao={ordenacao}
+                      onOrdenar={(campo) => setOrdenacao((atual) => proximaOrdenacao(atual, campo))}
+                      className="px-4 py-2.5"
+                    />
                   ))}
                 </tr>
               </thead>
@@ -366,7 +403,7 @@ export function AbaImportacao({ aoIrParaEquipes }: { aoIrParaEquipes?: () => voi
                     </td>
                   </tr>
                 ) : (
-                  lotes.map((lote) => (
+                  ordenarPor(lotes, ordenacao, CHAVES_DO_HISTORICO).map((lote) => (
                     <LinhaHistorico
                       key={lote.id}
                       lote={lote}
@@ -489,6 +526,8 @@ function ModalLinhasRejeitadas({
   aoFechar: () => void;
 }) {
   const { linhas, isLoading, mensagemErro } = useLinhasRejeitadas(lote?.id ?? null);
+  // Sem coluna escolhida, vale a ordem da API.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoRejeitadas> | null>(null);
   return (
     <Dialog open={aberto} onOpenChange={(valor) => !valor && aoFechar()}>
       <DialogContent className="max-h-[85dvh] overflow-hidden sm:max-w-3xl">
@@ -515,14 +554,23 @@ function ModalLinhasRejeitadas({
               <table aria-label="Linhas rejeitadas" className="w-full min-w-[560px] text-left text-sm">
                 <thead className="sticky top-0">
                   <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    <th scope="col" className="px-4 py-2.5">Relatório</th>
-                    <th scope="col" className="px-4 py-2.5 text-right">Linha</th>
-                    <th scope="col" className="px-4 py-2.5">Colaborador</th>
-                    <th scope="col" className="px-4 py-2.5">Motivo</th>
+                    {COLUNAS_REJEITADAS.map((coluna) => (
+                      <CabecalhoOrdenavel
+                        key={coluna.campo}
+                        campo={coluna.campo}
+                        rotulo={coluna.rotulo}
+                        ordenacao={ordenacao}
+                        onOrdenar={(campo) => setOrdenacao((atual) => proximaOrdenacao(atual, campo))}
+                        className={`px-4 py-2.5 ${coluna.className ?? ""}`}
+                      />
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {linhas.slice(0, LIMITE_LINHAS_REJEITADAS).map((linha, indice) => (
+                  {/* Ordena tudo antes de cortar: as primeiras são as da ordem escolhida. */}
+                  {ordenarPor(linhas, ordenacao, CHAVES_DAS_REJEITADAS)
+                    .slice(0, LIMITE_LINHAS_REJEITADAS)
+                    .map((linha, indice) => (
                     <tr
                       key={`${linha.relatorio}-${linha.linha}-${indice}`}
                       className="border-b border-border align-top last:border-b-0"

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Info, Search } from "lucide-react";
 import { toast } from "sonner";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,29 @@ import { useEquipesVR } from "@/hooks/useParametrosGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { CATEGORIAS_EQUIPE, errosDeCampo } from "@/lib/gestaoRH";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
+import { cn } from "@/lib/utils";
 import type { CategoriaEquipeVR, EquipeVR, ReclassificarEquipePayload } from "@/types/gestaoRH";
 import { ErroAoCarregar, MensagemErro } from "./mensagens";
+
+type CampoEquipes = "equipe" | "colaboradores" | "categoria" | "unidade" | "turno";
+
+const COLUNAS_EQUIPES: { campo: CampoEquipes; rotulo: string; className: string }[] = [
+  { campo: "equipe", rotulo: "Equipe", className: "sticky left-0 z-20 bg-muted" },
+  { campo: "colaboradores", rotulo: "Colaboradores", className: "w-36 text-right" },
+  { campo: "categoria", rotulo: "Categoria", className: "w-56" },
+  { campo: "unidade", rotulo: "Unidade do Atlas", className: "w-64" },
+  { campo: "turno", rotulo: "Turno variável", className: "w-36" },
+];
+
+// Turno variável: as que têm primeiro.
+const CHAVES_DE_ORDENACAO = {
+  equipe: (equipe: EquipeVR) => equipe.nome,
+  colaboradores: (equipe: EquipeVR) => equipe.colaboradores_ativos,
+  categoria: (equipe: EquipeVR) => equipe.categoria_rotulo,
+  unidade: (equipe: EquipeVR) => equipe.unidade?.nome ?? null,
+  turno: (equipe: EquipeVR) => (equipe.turno_variavel ? 0 : 1),
+};
 
 const SEM_CATEGORIA = "sem_categoria";
 const TODAS = "todas";
@@ -92,13 +114,16 @@ export function AbaEquipes() {
     () => redeOpex.unidades.filter((unidade) => unidade.ativa),
     [redeOpex.unidades],
   );
+  // Sem coluna escolhida, vale a ordem da API.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoEquipes> | null>(null);
   const visiveis = useMemo(() => {
     const termo = normalizar(busca.trim());
-    return (equipes ?? []).filter(
+    const filtradas = (equipes ?? []).filter(
       (equipe) =>
         (filtro === TODAS || equipe.categoria === filtro) && (!termo || normalizar(equipe.nome).includes(termo)),
     );
-  }, [equipes, busca, filtro]);
+    return ordenarPor(filtradas, ordenacao, CHAVES_DE_ORDENACAO);
+  }, [equipes, busca, filtro, ordenacao]);
   const porCategoria = useMemo(() => {
     const contagem: Record<string, number> = { [TODAS]: equipes?.length ?? 0 };
     for (const equipe of equipes ?? []) contagem[equipe.categoria] = (contagem[equipe.categoria] ?? 0) + 1;
@@ -320,11 +345,16 @@ export function AbaEquipes() {
           <table aria-label="Equipes do VR" className="w-full min-w-[860px] table-fixed text-left text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-muted text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Equipe</th>
-                <th className="w-36 px-4 py-2.5 text-right">Colaboradores</th>
-                <th className="w-56 px-4 py-2.5">Categoria</th>
-                <th className="w-64 px-4 py-2.5">Unidade do Atlas</th>
-                <th className="w-36 px-4 py-2.5">Turno variável</th>
+                {COLUNAS_EQUIPES.map((coluna) => (
+                  <CabecalhoOrdenavel
+                    key={coluna.campo}
+                    campo={coluna.campo}
+                    rotulo={coluna.rotulo}
+                    ordenacao={ordenacao}
+                    onOrdenar={(campo) => setOrdenacao((atual) => proximaOrdenacao(atual, campo))}
+                    className={cn("px-4 py-2.5", coluna.className)}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>

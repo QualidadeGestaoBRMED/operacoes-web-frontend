@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +22,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import {
   administra,
   descricaoDoCargo,
@@ -43,6 +45,15 @@ import type { Perfil, Unidade, Usuario } from "@/types";
 // estado interno "sem valor selecionado"). "nenhum" representa null nos três
 // selects (perfil/unidade/setor podem ser desvinculados).
 const SEM_VALOR = "nenhum";
+
+type CampoUsuarios = "pessoa" | "perfil" | "unidade" | "setor";
+
+const COLUNAS_USUARIOS: { campo: CampoUsuarios; rotulo: string }[] = [
+  { campo: "pessoa", rotulo: "Pessoa" },
+  { campo: "perfil", rotulo: "Perfil" },
+  { campo: "unidade", rotulo: "Unidade" },
+  { campo: "setor", rotulo: "Setor" },
+];
 
 // Exportada pra PermissoesAdmin conseguir contar quantas linhas essa seção
 // vai renderizar (ver "peso" de altura das duas seções) sem duplicar a regra
@@ -156,6 +167,14 @@ export function GerenciarUsuarios({
       if (valorUnidade !== filtroUnidade) return false;
     }
     return true;
+  });
+  // Sem coluna escolhida, vale a ordem da API.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoUsuarios> | null>(null);
+  const usuariosOrdenados = ordenarPor(usuariosFiltrados, ordenacao, {
+    pessoa: (usuario) => nomeExibicao(usuario),
+    perfil: (usuario) => usuario.perfil?.nome ?? null,
+    unidade: (usuario) => unidades.find((unidade) => unidade.id === usuario.unidade_id)?.nome ?? null,
+    setor: (usuario) => setores.find((setor) => setor.id === usuario.setor_id)?.nome ?? null,
   });
   const contagemFiltros = [filtroPerfil !== "todos", filtroUnidade !== "todas"].filter(
     Boolean,
@@ -381,14 +400,23 @@ export function GerenciarUsuarios({
                     z-20 (maior que o z-10 do <thead>): garante que o canto
                     fixo nos dois eixos fique acima das outras células do
                     cabeçalho, que só são fixas no eixo vertical. */}
-                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
-                <th className="px-4 py-2.5">Perfil</th>
-                <th className="px-4 py-2.5">Unidade</th>
-                <th className="px-4 py-2.5">Setor</th>
+                {COLUNAS_USUARIOS.map((coluna) => (
+                  <CabecalhoOrdenavel
+                    key={coluna.campo}
+                    campo={coluna.campo}
+                    rotulo={coluna.rotulo}
+                    ordenacao={ordenacao}
+                    onOrdenar={(campo) => setOrdenacao((atual) => proximaOrdenacao(atual, campo))}
+                    className={cn(
+                      "px-4 py-2.5",
+                      coluna.campo === "pessoa" && "sticky left-0 z-20 bg-muted",
+                    )}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>
-              {usuariosFiltrados.map((usuario) => (
+              {usuariosOrdenados.map((usuario) => (
                 <tr key={usuario.id} className="border-b border-border last:border-0">
                   {/* bg-background próprio: mesmo achado do cabeçalho acima
                       -- sem isso, as outras colunas apareceriam por baixo

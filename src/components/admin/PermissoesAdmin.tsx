@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { hojeNoFusoDoServidor } from "@/lib/kanban";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import { ROTULO_REDE } from "@/lib/redes";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type { AcaoPermissao, EscopoPermissao, PermissaoUsuario } from "@/types";
@@ -57,6 +59,18 @@ import { CatalogoLegalizacaoAdmin } from "./legalizacao/CatalogoLegalizacaoAdmin
 const STATUS_PERMISSAO = ["Ativa", "Agendada", "Expirada", "Revogada"] as const;
 
 type Secao = "usuarios" | "permissoes";
+
+type CampoPermissoes = "pessoa" | "recurso" | "concedido" | "acao" | "escopo" | "periodo" | "status";
+
+const COLUNAS_PERMISSOES: { campo: CampoPermissoes; rotulo: string }[] = [
+  { campo: "pessoa", rotulo: "Pessoa" },
+  { campo: "recurso", rotulo: "Recurso" },
+  { campo: "concedido", rotulo: "Concedido" },
+  { campo: "acao", rotulo: "Ação" },
+  { campo: "escopo", rotulo: "Escopo" },
+  { campo: "periodo", rotulo: "Período" },
+  { campo: "status", rotulo: "Status" },
+];
 type Aba = "usuarios" | "acessos" | "catalogo-legalizacao" | "parametros-gestao-rh";
 
 const ROTULO_ABA: Record<Aba, string> = {
@@ -265,6 +279,10 @@ export function PermissoesAdmin() {
   // isso.
   const [filtroPessoas, setFiltroPessoas] = useState<number[]>([]);
   const [filtroAcao, setFiltroAcao] = useState("todas");
+  // Sem coluna escolhida, vale a ordem padrão (status, depois criação mais
+  // recente, ver permissoesOrdenadas).
+  const [ordenacaoPermissoes, setOrdenacaoPermissoes] =
+    useState<Ordenacao<CampoPermissoes> | null>(null);
 
   // Status primeiro (Ativa/Agendada/Expirada/Revogada, ver prioridadeStatus),
   // criação mais recente primeiro como critério de desempate dentro do mesmo
@@ -395,6 +413,18 @@ export function PermissoesAdmin() {
     }
     return ROTULO_ESCOPO[permissao.escopo_tipo];
   }
+
+  const permissoesNaTabela = ordenarPor(permissoesFiltradas, ordenacaoPermissoes, {
+    pessoa: (permissao) => nomeUsuario(permissao.usuario),
+    recurso: (permissao) => rotuloRecurso(permissao.recurso),
+    // Concedido em: a data da concessão (quem concedeu aparece embaixo).
+    concedido: (permissao) => permissao.created_at,
+    acao: (permissao) => ROTULO_ACAO[permissao.acao],
+    escopo: (permissao) => nomeEscopo(permissao),
+    periodo: (permissao) => permissao.data_inicio,
+    // Na ordem dos status (Ativa, Agendada, Expirada, Revogada), não alfabética.
+    status: (permissao) => prioridadeStatus(permissao),
+  });
 
   async function confirmarRevogacao() {
     if (!paraRevogar) return;
@@ -787,18 +817,26 @@ export function PermissoesAdmin() {
                           contexto de qual linha é qual. Mesmo tratamento de
                           GerenciarUsuarios.tsx/TabelaTiposDocumento.tsx -- ver
                           comentário lá pro racional completo do bg/z-index. */}
-                      <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Pessoa</th>
-                      <th className="px-4 py-2.5">Recurso</th>
-                      <th className="px-4 py-2.5">Concedido</th>
-                      <th className="px-4 py-2.5">Ação</th>
-                      <th className="px-4 py-2.5">Escopo</th>
-                      <th className="px-4 py-2.5">Período</th>
-                      <th className="px-4 py-2.5">Status</th>
+                      {COLUNAS_PERMISSOES.map((coluna) => (
+                        <CabecalhoOrdenavel
+                          key={coluna.campo}
+                          campo={coluna.campo}
+                          rotulo={coluna.rotulo}
+                          ordenacao={ordenacaoPermissoes}
+                          onOrdenar={(campo) =>
+                            setOrdenacaoPermissoes((atual) => proximaOrdenacao(atual, campo))
+                          }
+                          className={cn(
+                            "px-4 py-2.5",
+                            coluna.campo === "pessoa" && "sticky left-0 z-20 bg-muted",
+                          )}
+                        />
+                      ))}
                       <th className="px-4 py-2.5" />
                     </tr>
                   </thead>
                   <tbody>
-                    {permissoesFiltradas.map((permissao) => {
+                    {permissoesNaTabela.map((permissao) => {
                       const status = statusPermissao(permissao);
                       return (
                         <tr

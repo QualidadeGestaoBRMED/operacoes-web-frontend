@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/hooks/useTiposDocumento";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import { cn } from "@/lib/utils";
 import type {
   AreaResponsavelDocumento,
@@ -37,6 +39,16 @@ const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
 // simples já usado em GerenciarUsuarios.tsx (useTiposDocumento não pagina).
 const FILTROS_ATIVO = ["todos", "ativos", "inativos"] as const;
 type FiltroAtivo = (typeof FILTROS_ATIVO)[number];
+
+type CampoTipos = "nome" | "categoria" | "area" | "status";
+
+// Na ordem das categorias da Matriz, não alfabética; ativos antes dos inativos.
+const CHAVES_DE_ORDENACAO = {
+  nome: (tipo: TipoDocumentoRegulatorio) => tipo.nome,
+  categoria: (tipo: TipoDocumentoRegulatorio) => ORDEM_CATEGORIA.indexOf(tipo.categoria),
+  area: (tipo: TipoDocumentoRegulatorio) => ROTULO_AREA_RESPONSAVEL[tipo.area_responsavel],
+  status: (tipo: TipoDocumentoRegulatorio) => (tipo.ativo ? 0 : 1),
+};
 
 const ROTULO_FILTRO_ATIVO: Record<FiltroAtivo, string> = {
   todos: "Todos",
@@ -67,6 +79,8 @@ export function TabelaTiposDocumento() {
   const [formAberto, setFormAberto] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>("todos");
+  // Sem coluna escolhida, vale a ordem da API.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao<CampoTipos> | null>(null);
   // STC-501: mesmo diálogo de cadastro (FormNovoTipoDocumento) reaproveitado
   // em modo edição quando tipoEditando não é null.
   const [tipoEditando, setTipoEditando] =
@@ -80,6 +94,10 @@ export function TabelaTiposDocumento() {
     if (filtroAtivo === "inativos" && tipo.ativo) return false;
     return true;
   });
+
+  function ordenarPelaColuna(campo: CampoTipos) {
+    setOrdenacao((atual) => proximaOrdenacao(atual, campo));
+  }
 
   async function alternarAtivo(tipo: TipoDocumentoRegulatorio) {
     try {
@@ -191,16 +209,40 @@ export function TabelaTiposDocumento() {
                     contexto de qual linha é qual. Mesmo tratamento aplicado
                     em GerenciarUsuarios.tsx -- ver comentário lá pro
                     racional completo do bg/z-index. */}
-                <th className="sticky left-0 z-20 bg-muted px-4 py-2.5">Nome</th>
-                <th className="px-4 py-2.5">Categoria</th>
-                <th className="px-4 py-2.5">Área responsável</th>
+                <CabecalhoOrdenavel
+                  campo="nome"
+                  rotulo="Nome"
+                  ordenacao={ordenacao}
+                  onOrdenar={ordenarPelaColuna}
+                  className="sticky left-0 z-20 bg-muted px-4 py-2.5"
+                />
+                <CabecalhoOrdenavel
+                  campo="categoria"
+                  rotulo="Categoria"
+                  ordenacao={ordenacao}
+                  onOrdenar={ordenarPelaColuna}
+                  className="px-4 py-2.5"
+                />
+                <CabecalhoOrdenavel
+                  campo="area"
+                  rotulo="Área responsável"
+                  ordenacao={ordenacao}
+                  onOrdenar={ordenarPelaColuna}
+                  className="px-4 py-2.5"
+                />
                 <th className="px-4 py-2.5">Exigências</th>
-                <th className="px-4 py-2.5">Status</th>
+                <CabecalhoOrdenavel
+                  campo="status"
+                  rotulo="Status"
+                  ordenacao={ordenacao}
+                  onOrdenar={ordenarPelaColuna}
+                  className="px-4 py-2.5"
+                />
                 <th className="px-4 py-2.5">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {tiposFiltrados.map((tipo) => (
+              {ordenarPor(tiposFiltrados, ordenacao, CHAVES_DE_ORDENACAO).map((tipo) => (
                 <tr
                   key={tipo.id}
                   className="border-b border-border last:border-0"
