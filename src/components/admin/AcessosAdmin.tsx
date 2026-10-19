@@ -223,7 +223,8 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
       {error && acessos && (
         <div className="flex flex-wrap items-center gap-3 pb-3">
           <p className="text-sm text-destructive">
-            Não foi possível atualizar os acessos. A tabela mostra a última busca.
+            Não foi possível carregar o período escolhido. A tabela mostra de{" "}
+            {formatarDataCurta(acessos.periodo.inicio)} a {formatarDataCurta(acessos.periodo.fim)}.
           </p>
           <Button variant="outline" size="sm" onClick={recarregar}>
             Tentar de novo
