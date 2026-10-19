@@ -183,6 +183,16 @@ describe("Parâmetros de absenteísmo", () => {
     expect(screen.queryByRole("checkbox", { name: "Afastamento" })).not.toBeInTheDocument();
   });
 
+  it("STC-767: diz que a versão vale para os painéis em qualquer período e não para alertas já gerados", async () => {
+    renderTela();
+
+    expect(
+      await screen.findByText(
+        "Cada alteração cria uma nova versão, que vale para os painéis em qualquer período. Alertas e demandas já gerados mantêm a versão com que foram gerados.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("mostra quem salvou a versão vigente", async () => {
     vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(
       parametros({

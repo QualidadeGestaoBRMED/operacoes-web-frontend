@@ -351,7 +351,7 @@ export interface MesAbsenteismoMensal {
   fim: string;
   /** Começa depois de hoje: números nulos. */
   futuro: boolean;
-  /** Da versão dos parâmetros vigente no fim do mês. */
+  /** Da versão dos parâmetros vigente hoje, igual em todos os meses. */
   meta_percentual: string | null;
   faixas_cadastradas: boolean;
   /** Nulo sem dado no mês ou no mês futuro. */
@@ -363,6 +363,16 @@ export interface MesAbsenteismoMensal {
 
 export interface AbsenteismoMensal {
   ano: number;
+  /** Opcional: ausente na resposta do backend anterior à STC-766. */
+  parametros?: {
+    meta_percentual: string | null;
+    faixas_cadastradas: boolean;
+    /**
+     * Desde quando vale a versão dos parâmetros usada na conta (a vigente hoje,
+     * para qualquer período). Nula na versão inicial, que ninguém configurou.
+     */
+    vigente_a_partir_de: string | null;
+  };
   /** Último dia com jornada importada de quem a pessoa vê. */
   dados_ate: string | null;
   meses: MesAbsenteismoMensal[];
@@ -379,6 +389,8 @@ export interface PainelAbsenteismo {
     meta_percentual: string | null;
     faixas_cadastradas: boolean;
     limite_atraso_minutos: number;
+    /** Opcional: ausente na resposta do backend anterior à STC-766. */
+    vigente_a_partir_de?: string | null;
   };
   cards: CardsAbsenteismo;
   linhas: LinhaPainelAbsenteismo[];
@@ -407,6 +419,12 @@ export interface AlertaAbsenteismo {
   periodo_inicio: string;
   periodo_fim: string;
   faixa: FaixaAbsenteismo;
+  /**
+   * Limite da faixa crítica na versão dos parâmetros que gerou o alerta. Os
+   * indicadores usam a versão de hoje e podem não estar mais em crítica.
+   * Opcional: ausente na resposta do backend anterior à STC-766.
+   */
+  critica_acima_de?: number | null;
   /** Havia pendência de ponto em aberto quando o alerta foi gerado. */
   provisorio: boolean;
   gerado_em: string;
@@ -424,7 +442,12 @@ export interface AlertaAbsenteismo {
 
 export interface AbsenteismoColaborador {
   periodo: { inicio: string; fim: string };
-  parametros: { faixas_cadastradas: boolean; limite_atraso_minutos: number };
+  parametros: {
+    faixas_cadastradas: boolean;
+    limite_atraso_minutos: number;
+    /** Opcional: ausente na resposta do backend anterior à STC-766. */
+    vigente_a_partir_de?: string | null;
+  };
   indicadores: {
     percentual: string | null;
     faixa: FaixaAbsenteismo | null;

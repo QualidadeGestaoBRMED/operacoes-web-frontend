@@ -49,7 +49,7 @@ const SETEMBRO = { inicio: "2026-09-01", fim: "2026-09-30" };
 function aba(extra: Partial<AbsenteismoColaborador> = {}): AbsenteismoColaborador {
   return {
     periodo: SETEMBRO,
-    parametros: { faixas_cadastradas: true, limite_atraso_minutos: 15 },
+    parametros: { faixas_cadastradas: true, limite_atraso_minutos: 15, vigente_a_partir_de: null },
     indicadores: {
       percentual: "13.60",
       faixa: "critica",
@@ -72,6 +72,7 @@ function aba(extra: Partial<AbsenteismoColaborador> = {}): AbsenteismoColaborado
         periodo_inicio: "2026-09-01",
         periodo_fim: "2026-09-30",
         faixa: "critica",
+        critica_acima_de: null,
         provisorio: false,
         gerado_em: "2026-10-01T06:00:00-03:00",
         demanda_id: 41,
@@ -237,6 +238,25 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(within(saida).getByText("acima de 15 min")).toBeInTheDocument();
     expect(within(saida).getByText("pendente no VR")).toBeInTheDocument();
     expect(screen.getByText("Atestados aparecem só com tipo e período, sem dados clínicos.")).toBeInTheDocument();
+  });
+
+  it("STC-767: alerta diz com que limite da crítica foi gerado; sem a versão, não diz", async () => {
+    const [alerta] = aba().alertas;
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+      aba({ alertas: [{ ...alerta, critica_acima_de: 10 }] }),
+    );
+    renderModal();
+    expect(await screen.findByText(/crítica acima de 10% quando gerado/)).toBeInTheDocument();
+  });
+
+  it("STC-767: alerta sem a versão que o gerou, ou sem o campo (backend anterior), não mostra limite", async () => {
+    const [alerta] = aba().alertas;
+    const semCampo = { ...alerta };
+    delete semCampo.critica_acima_de;
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(aba({ alertas: [semCampo] }));
+    renderModal();
+    await screen.findByText("Ocorrências do período");
+    expect(screen.queryByText(/quando gerado/)).not.toBeInTheDocument();
   });
 
   it("registrar tratamento exige ação e justificativa e envia o alerta", async () => {

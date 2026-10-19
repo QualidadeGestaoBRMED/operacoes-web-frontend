@@ -117,8 +117,20 @@ describe("Painel de Absenteísmo", () => {
     });
     expect(screen.getByText("limite: 5%")).toBeInTheDocument();
     expect(screen.getByText(/dados até 30\/09\/2026/)).toBeInTheDocument();
+    // Versão inicial (sem data): sem "parâmetros vigentes desde".
+    expect(screen.queryByText(/parâmetros vigentes desde/)).not.toBeInTheDocument();
     expect(screen.getByText("Faixa crítica")).toBeInTheDocument();
     expect(screen.getByText("8 colaboradores")).toBeInTheDocument();
+  });
+
+  it("STC-767: mostra desde quando valem os parâmetros da conta; na versão inicial, não", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
+      ...PAINEL,
+      parametros: { ...PAINEL.parametros, vigente_a_partir_de: "2026-10-19" },
+    });
+    renderPainel();
+
+    expect(await screen.findByText(/parâmetros vigentes desde 19\/10\/2026/)).toBeInTheDocument();
   });
 
   it("linha: percentual com faixa, provisório, ocorrências e banco de horas", async () => {
@@ -162,7 +174,7 @@ describe("Painel de Absenteísmo", () => {
   it("sem faixas cadastradas: sem cards, filtro e selo de faixa; sem meta, avisa", async () => {
     vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
       ...PAINEL,
-      parametros: { meta_percentual: null, faixas_cadastradas: false, limite_atraso_minutos: 15 },
+      parametros: { ...PAINEL.parametros, meta_percentual: null, faixas_cadastradas: false },
       linhas: PAINEL.linhas.map((linha) => ({ ...linha, faixa: null })),
     });
     renderPainel();
@@ -514,7 +526,11 @@ describe("absenteísmo mês a mês", () => {
   function mensalDe(
     ano: number,
     percentuais: Record<number, string | null>,
-    { faixas = true, dadosAte = "2026-10-05" }: { faixas?: boolean; dadosAte?: string | null } = {},
+    {
+      faixas = true,
+      dadosAte = "2026-10-05",
+      vigenteDesde = null,
+    }: { faixas?: boolean; dadosAte?: string | null; vigenteDesde?: string | null } = {},
   ): AbsenteismoMensal {
     const hoje = new Date();
     const meses = Array.from({ length: 12 }, (_, indice) => {
@@ -536,7 +552,16 @@ describe("absenteísmo mês a mês", () => {
         colaboradores_provisorios: futuro ? null : 0,
       };
     });
-    return { ano, dados_ate: dadosAte, meses };
+    return {
+      ano,
+      parametros: {
+        meta_percentual: "5.00",
+        faixas_cadastradas: faixas,
+        vigente_a_partir_de: vigenteDesde,
+      },
+      dados_ate: dadosAte,
+      meses,
+    };
   }
 
   async function abrirModal(user: ReturnType<typeof usuario>) {
@@ -611,7 +636,33 @@ describe("absenteísmo mês a mês", () => {
     expect(modal.getByText("Sem dados: jan a ago.")).toBeInTheDocument();
   });
 
-  it("sem faixas cadastradas na versão do mês, crítica e atenção dizem isso", async () => {
+  it("STC-767: resposta sem `parametros` (backend anterior) abre o modal sem a data", async () => {
+    const user = usuario();
+    const semParametros = mensalDe(2026, { 9: "4.00" });
+    delete semParametros.parametros;
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(semParametros);
+    renderPainel();
+    const modal = await abrirModal(user);
+
+    expect(await modal.findByRole("table")).toBeInTheDocument();
+    expect(modal.queryByText(/parâmetros vigentes desde/)).not.toBeInTheDocument();
+  });
+
+  it("STC-767: diz desde quando valem os parâmetros de todos os meses", async () => {
+    const user = usuario();
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(
+      mensalDe(2026, { 9: "4.00", 10: "3.50" }, { vigenteDesde: "2026-10-19" }),
+    );
+    renderPainel();
+    const modal = await abrirModal(user);
+    await modal.findByRole("table");
+
+    expect(
+      modal.getByText("Todos os meses com os parâmetros vigentes desde 19/10/2026."),
+    ).toBeInTheDocument();
+  });
+
+  it("sem faixas cadastradas na versão usada, crítica e atenção dizem isso", async () => {
     const user = usuario();
     vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(
       mensalDe(2026, { 9: "4.00" }, { faixas: false }),

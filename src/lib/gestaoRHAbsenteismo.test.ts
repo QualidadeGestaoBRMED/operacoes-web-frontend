@@ -8,6 +8,7 @@ import {
   formatarDiferenca,
   formatarPercentual,
   formatarSaldoHoras,
+  limiteDoMensal,
   mesAnteriorFechado,
   mesesPorExtenso,
   nomeCurtoDoMes,
@@ -22,6 +23,7 @@ import {
 import { painelAbsenteismoDeExemplo } from "@/test-utils/painelAbsenteismoExemplo";
 import { textoHistorico } from "./gestaoRHFerias";
 import type {
+  AbsenteismoMensal,
   AlertaAbsenteismo,
   LinhaPainelAbsenteismo,
   OcorrenciaAbsenteismo,
@@ -289,5 +291,43 @@ describe("ordenação por Unidade", () => {
     ];
     const ordenadas = ordenarLinhasAbsenteismo(linhas, { campo: "unidade", direcao: "asc" });
     expect(ordenadas.map((l) => l.colaborador.id)).toEqual([2, 3, 1]);
+  });
+});
+
+describe("limite do mês a mês (STC-767)", () => {
+  function mensal(metasDosMeses: (string | null)[], parametros?: string | null): AbsenteismoMensal {
+    const meses = metasDosMeses.map((meta, indice) => ({
+      mes: indice + 1,
+      inicio: "",
+      fim: "",
+      futuro: false,
+      meta_percentual: meta,
+      faixas_cadastradas: true,
+      percentual_periodo: "3.00",
+      faixa_critica: 0,
+      faixa_atencao: 0,
+      colaboradores_provisorios: 0,
+    }));
+    return {
+      ano: 2026,
+      dados_ate: null,
+      meses,
+      ...(parametros !== undefined && {
+        parametros: { meta_percentual: parametros, faixas_cadastradas: true, vigente_a_partir_de: null },
+      }),
+    };
+  }
+
+  it("usa o limite da versão da resposta, não o do último mês com dado", () => {
+    expect(limiteDoMensal(mensal(["5.00", "5.00"], "10.00"))).toBe("10.00");
+    expect(limiteDoMensal(mensal(["5.00", "5.00"], null))).toBeNull();
+  });
+
+  it("sem `parametros` (backend anterior), o do último mês com dado", () => {
+    expect(limiteDoMensal(mensal(["4.00", "5.00"]))).toBe("5.00");
+  });
+
+  it("sem resposta, sem limite", () => {
+    expect(limiteDoMensal(undefined)).toBeNull();
   });
 });

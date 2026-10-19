@@ -319,6 +319,18 @@ const FORMATADOR_PERCENTUAL = new Intl.NumberFormat("pt-BR", {
 });
 
 /** "13.60" → "13,6%"; nulo (sem dado no período) → "—". */
+/**
+ * Limite da linha tracejada do mês a mês: o da versão dos parâmetros usada
+ * na conta, a mesma para todos os meses (`parametros`, STC-766). Sem
+ * `parametros` (backend anterior), o do último mês com dado.
+ */
+export function limiteDoMensal(mensal: AbsenteismoMensal | undefined): string | null {
+  if (!mensal) return null;
+  if (mensal.parametros) return mensal.parametros.meta_percentual;
+  const ultimoComDado = mensal.meses.findLast((mes) => !mes.futuro && mes.percentual_periodo !== null);
+  return ultimoComDado?.meta_percentual ?? null;
+}
+
 export function formatarPercentual(valor: string | null): string {
   if (valor === null) return "—";
   return `${FORMATADOR_PERCENTUAL.format(Number(valor))}%`;
