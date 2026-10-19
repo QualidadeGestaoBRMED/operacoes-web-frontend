@@ -143,25 +143,48 @@ describe("BarraInferior (STC-787)", () => {
     expect(screen.getByRole("link", { current: "page" })).toHaveTextContent(ativo);
   });
 
-  it("na Administração, nenhum módulo fica ativo", () => {
+  it("na Administração, nenhum módulo fica ativo e o Mais fica", () => {
     comoCargo("adminQG");
     naRota("/admin/permissoes");
     render(<BarraInferior />);
     expect(screen.queryByRole("link", { current: "page" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mais" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("com mais de 4 módulos, os seguintes vão para o Mais", async () => {
-    comoCargo("coordenacao");
-    vi.mocked(useModulosNavegacao).mockReturnValue([
-      LEGALIZACAO,
-      GESTAO_RH,
-      { nome: "Arquitetura", icon: Building2, descricao: "", codigo: "arquitetura", rota: "/modulos/arquitetura", ativo: true },
-      { nome: "Calibração", icon: Ruler, descricao: "", codigo: "calibracao", rota: "/modulos/calibracao", ativo: true },
-    ]);
+  it("num módulo da barra, o Mais não fica ativo", () => {
+    comoCargo("adminQG");
+    naRota("/modulos/legalizacao");
     render(<BarraInferior />);
+    expect(screen.getByRole("button", { name: "Mais" })).not.toHaveAttribute("aria-current");
+  });
 
-    expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH", "Arquitetura"]);
-    expect(await abrirMais()).toEqual(["Calibração", "Recarregar", "Sair"]);
+  describe("com mais de 4 módulos", () => {
+    beforeEach(() => {
+      comoCargo("coordenacao");
+      vi.mocked(useModulosNavegacao).mockReturnValue([
+        LEGALIZACAO,
+        GESTAO_RH,
+        { nome: "Arquitetura", icon: Building2, descricao: "", codigo: "arquitetura", rota: "/modulos/arquitetura", ativo: true },
+        { nome: "Calibração", icon: Ruler, descricao: "", codigo: "calibracao", rota: "/modulos/calibracao", ativo: true },
+      ]);
+    });
+
+    it("os seguintes vão para o Mais", async () => {
+      render(<BarraInferior />);
+
+      expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH", "Arquitetura"]);
+      expect(await abrirMais()).toEqual(["Calibração", "Recarregar", "Sair"]);
+    });
+
+    it("na rota de um módulo do Mais, o Mais fica ativo e o módulo é o atual dentro dele", async () => {
+      naRota("/modulos/calibracao/instrumentos");
+      render(<BarraInferior />);
+
+      expect(screen.queryByRole("link", { current: "page" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Mais" })).toHaveAttribute("aria-current", "page");
+      await abrirMais();
+      expect(screen.getByRole("menuitem", { name: "Calibração" })).toHaveAttribute("aria-current", "page");
+    });
   });
 });
 
