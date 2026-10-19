@@ -137,6 +137,10 @@ describe("AcessosAdmin (STC-746)", () => {
       .filter((linha) => linha.hasAttribute("data-destaque"))
       .map((linha) => within(linha).getByRole("button").textContent);
     expect(destacadas).toEqual(["Bruna Nunca", "Carlos Sumido"]);
+    // O selo é só cor: o leitor de tela ouve o destaque.
+    const [bruna, , dora] = linhas();
+    expect(bruna).toHaveTextContent("em destaque");
+    expect(dora).not.toHaveTextContent("em destaque");
     expect(screen.getByText(/4 pessoas/)).toHaveTextContent("4 pessoas · 2 em destaque");
   });
 
@@ -197,15 +201,54 @@ describe("AcessosAdmin (STC-746)", () => {
     expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
   });
 
-  it("trocar o período busca de novo a partir do novo início", async () => {
+  it("trocar o período busca a partir do novo início, com a tabela anterior na tela até chegar", async () => {
+    let responder: (acessos: Acessos) => void = () => {};
     const user = userEvent.setup();
     renderTela();
     await screen.findByRole("table", { name: "Acessos" });
+    vi.mocked(listarAcessos).mockImplementationOnce(
+      () => new Promise((resolver) => (responder = resolver)),
+    );
 
     await user.click(screen.getByRole("combobox", { name: "Período" }));
     await user.click(screen.getByRole("option", { name: "Últimos 12 meses" }));
 
     expect(listarAcessos).toHaveBeenLastCalledWith("2025-10-20");
+    // Sem esvaziar: a tabela anterior continua, marcada como ocupada.
+    expect(nomesNaTabela()).toHaveLength(4);
+    expect(screen.getByRole("table", { name: "Acessos" }).parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    responder({ ...RESPOSTA, periodo: { inicio: "2025-10-20", fim: "2026-10-19" } });
+    expect(await screen.findByText("0 de 365")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Acessos" }).parentElement).not.toHaveAttribute(
+      "aria-busy",
+    );
+  });
+
+  it("erro ao trocar o período: a tabela anterior continua, com o aviso e Tentar de novo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    vi.mocked(listarAcessos).mockRejectedValueOnce(new Error("falhou"));
+
+    await user.click(screen.getByRole("combobox", { name: "Período" }));
+    await user.click(screen.getByRole("option", { name: "Últimos 90 dias" }));
+
+    expect(await screen.findByText(/Não foi possível atualizar os acessos/)).toBeInTheDocument();
+    expect(nomesNaTabela()).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+  });
+
+  it("rede sem ninguém: mensagem, sem tabela nem filtros de perfil e unidade", async () => {
+    vi.mocked(listarAcessos).mockResolvedValue({ ...RESPOSTA, usuarios: [] });
+    renderTela();
+
+    expect(await screen.findByText("Nenhuma pessoa da sua rede ainda.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Filtrar por perfil" })).not.toBeInTheDocument();
   });
 
   it("detalhe: os dias de uso da pessoa no período, num calendário", async () => {
@@ -222,6 +265,14 @@ describe("AcessosAdmin (STC-746)", () => {
     expect(within(dialogo).getByRole("region", { name: "outubro de 2026" })).toBeInTheDocument();
     const usados = [...dialogo.querySelectorAll("[data-usou]")].map((dia) => dia.firstChild?.textContent);
     expect(usados).toEqual(["30", "2", "14"]);
+    // Cada dia diz ao leitor de tela se teve uso, não teve ou está fora do período.
+    const dia = (numero: string, mes: string) =>
+      [...within(dialogo).getByRole("region", { name: mes }).querySelectorAll("span")].find(
+        (span) => span.firstChild?.textContent === numero,
+      );
+    expect(dia("14", "outubro de 2026")).toHaveTextContent("14, usou o Atlas");
+    expect(dia("13", "outubro de 2026")).toHaveTextContent("13, sem uso");
+    expect(dia("25", "outubro de 2026")).toHaveTextContent("25, fora do período");
   });
 
   it("erro ao carregar: mensagem sem tabela, e Tentar de novo busca outra vez", async () => {
