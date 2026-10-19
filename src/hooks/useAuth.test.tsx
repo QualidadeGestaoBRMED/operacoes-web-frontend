@@ -186,4 +186,14 @@ describe("useAuth em ver como (STC-790)", () => {
     await waitFor(() => expect(result.current.falhaAoAbrirVerComo).toBe(true));
     expect(result.current.isLoading).toBe(true);
   });
+
+  it("resposta sem a marca de ver como, com a aba em ver como: falha, sem cair no Admin", async () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockResolvedValue(usuarioDaApi({ id: 10, perfil: ADMIN_QG }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.falhaAoAbrirVerComo).toBe(true));
+    expect(result.current.isLoading).toBe(true);
+  });
 });

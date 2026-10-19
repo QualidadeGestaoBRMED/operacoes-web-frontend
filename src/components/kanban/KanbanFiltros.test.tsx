@@ -240,6 +240,7 @@ describe("KanbanFiltros em ver como (STC-790)", () => {
     const botao = screen.getByRole("button", { name: "Nova Demanda" });
     expect(botao).toBeDisabled();
     expect(botao).toHaveAttribute("title", expect.stringContaining("Somente leitura"));
+    expect(botao).toHaveAccessibleDescription(expect.stringContaining("Somente leitura"));
   });
 
   it("fora do ver como, habilitada", () => {
