@@ -133,6 +133,17 @@ describe("Painel de Absenteísmo", () => {
     expect(await screen.findByText(/parâmetros vigentes desde 19\/10\/2026/)).toBeInTheDocument();
   });
 
+  it("STC-791: percentual com largura fixa e alinhado à direita, para os selos de faixa ficarem numa coluna", async () => {
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    const percentuais = screen.getAllByTestId("percentual-absenteismo");
+    expect(percentuais.length).toBeGreaterThan(1);
+    for (const percentual of percentuais) {
+      expect(percentual).toHaveClass("w-[6ch]", "shrink-0", "text-right");
+    }
+  });
+
   it("linha: percentual com faixa, provisório, ocorrências e banco de horas", async () => {
     renderPainel();
 
