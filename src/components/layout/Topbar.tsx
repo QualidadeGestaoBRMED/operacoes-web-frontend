@@ -26,7 +26,8 @@ interface TopbarProps {
   // (o middleware ja tinha confirmado isso no servidor).
   carregando?: boolean;
   sidebarAberta: boolean;
-  onToggleSidebar: () => void;
+  /** Sem ele (celular, STC-787), não há menu lateral e o botão some. */
+  onToggleSidebar?: () => void;
 }
 
 function AvatarUsuario({ imagem, iniciais }: { imagem?: string | null; iniciais: string }) {
@@ -70,17 +71,19 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
         "before:absolute before:inset-y-3 before:left-0 before:w-px before:bg-gradient-to-b before:from-transparent before:via-sidebar-foreground/15 before:to-transparent",
       ].join(" ")}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onToggleSidebar}
-        aria-label={sidebarAberta ? "Esconder menu lateral" : "Exibir menu lateral"}
-        aria-pressed={sidebarAberta}
-        className="-ms-2 text-sidebar-foreground hover:text-accent-foreground"
-      >
-        <PanelLeft className="size-4" />
-      </Button>
+      {onToggleSidebar && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          aria-label={sidebarAberta ? "Esconder menu lateral" : "Exibir menu lateral"}
+          aria-pressed={sidebarAberta}
+          className="-ms-2 text-sidebar-foreground hover:text-accent-foreground"
+        >
+          <PanelLeft className="size-4" />
+        </Button>
+      )}
 
       {pagina && <h1 className="text-lg font-semibold">{pagina.titulo}</h1>}
 
