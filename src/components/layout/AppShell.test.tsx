@@ -5,7 +5,10 @@ import { AppShell } from "./AppShell";
 vi.mock("next/navigation", () => ({ usePathname: vi.fn(() => "/modulos/gestao-rh") }));
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+vi.mock("@/hooks/useMediaQuery", async (original) => ({
+  ...(await original<typeof import("@/hooks/useMediaQuery")>()),
+  useMediaQuery: vi.fn(),
+}));
 vi.mock("@/hooks/useModulosNavegacao", () => ({ useModulosNavegacao: vi.fn(() => []) }));
 vi.mock("./NotificacoesMenu", () => ({ NotificacoesMenu: () => null }));
 

@@ -2,15 +2,13 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { QUERY_MOBILE, useMediaQuery } from "@/hooks/useMediaQuery";
 import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
 import { cn, iniciaisDe } from "@/lib/utils";
 import { AbasDoModulo } from "./AbasDoModulo";
 import { BarraInferior } from "./BarraInferior";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-
-const QUERY_MOBILE = "(max-width: 767px)";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarAberta, setSidebarAberta] = useState(true);
