@@ -1008,7 +1008,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Destaque** (selo âmbar, `emDestaque` em `lib/acessos.ts`): quem nunca entrou ou está há 3 dias ou mais sem entrar (`DIAS_SEM_ENTRAR_EM_DESTAQUE`). Contagem "N pessoas · M em destaque" ao lado dos filtros.
 - **Filtros:** período (últimos 30 dias, 90 dias ou 12 meses; o início é calculado no fuso do servidor e o fim é hoje), perfil e unidade. Perfil e unidade são aplicados na tela, com as opções tiradas das próprias linhas. No celular, perfil e unidade vão para o Popover, como em Usuários.
 - **Troca de período** sem esvaziar a tela (`keepPreviousData`): a tabela anterior fica esmaecida (`aria-busy`) até a resposta nova chegar, como no Painel de Absenteísmo.
-- **Erro ao carregar:** mensagem com o botão "Tentar de novo" (além da nova tentativa automática do SWR). Com dados já na tela, a tabela continua e o aviso fica acima dela.
+- **Erro ao carregar:** mensagem com o botão "Tentar de novo" (além da nova tentativa automática do SWR). Com dados já na tela, a tabela continua e o aviso fica acima dela, dizendo qual período ela mostra (o Select já está no período que falhou).
 - **Leitor de tela:** o selo de destaque e os dias do calendário (com uso, sem uso, fora do período) têm texto, não só cor.
 - **Detalhe:** o nome abre um diálogo com os dias de uso no período, num calendário por mês (`mesesDoPeriodo`), dias usados em destaque.
 - **Conferência** (banco local com usos de teste, Admin Q&G): 1440 × 900 e 390 × 844, lista, destaque, detalhe em 30 e 90 dias; sem rolagem lateral da página e sem erro no console.
