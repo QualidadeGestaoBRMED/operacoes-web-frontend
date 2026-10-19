@@ -1033,7 +1033,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.22 STC-795 — Foto do Google nos responsáveis e comentários
 
-🔄 **Em andamento.** A foto de perfil do Google (`Usuario.foto_url`, gravada no login e já enviada pelo backend nos usuários aninhados) passa a aparecer onde só havia as iniciais:
+✅ **Implementado e mergeado em `main` (PR #120).** A foto de perfil do Google (`Usuario.foto_url`, gravada no login e já enviada pelo backend nos usuários aninhados) passa a aparecer onde só havia as iniciais:
 
 - Gestão de Demandas, detalhe do card: Responsáveis (`ResponsavelSection.tsx`) e Comentários (`ComentarioFeed.tsx`);
 - Legalização: coluna Responsável da Matriz (`MatrizTable.tsx`) e Responsável operacional no detalhe do documento (`DetalheDocumentoModal.tsx`, a visualização com "Editar"; o modo de edição mostra etiquetas só com o nome).
@@ -1042,3 +1042,13 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 - **Conferência** (banco local, 1440 × 900; o navegador de teste preenchia a foto dos usuários sem foto, sem mexer no banco): comentários, responsáveis do card, Matriz e detalhe do documento com a foto; sem erro no console.
 - Testes: `AvatarUsuario` (foto sem Referer, iniciais sem foto, volta às iniciais se a imagem falha, foto de outra pessoa tentada depois de uma falha); foto e iniciais em Comentários (com conta excluída), Responsáveis e na Matriz.
+
+### 7.24 STC-796 — Renovação dos documentos de profissional sem depender da movimentação
+
+🔄 **Em andamento.** Pedido do time de Legalização: o CNES (e os outros tipos rastreados por movimentação de profissional: Dosimetria, Registro CREMERJ e Registro COREN, `CODIGOS_MOVIMENTACAO_PROFISSIONAL`) também é renovado sem que ninguém entre ou saia da unidade. Antes, o detalhe do documento escondia "Registrar renovação" para esses tipos, e um documento vencido só se resolvia reportando a entrada de um profissional.
+
+- `podeRegistrarRenovacao` (`DetalheDocumentoModal.tsx`) deixa de excluir esses tipos: o botão aparece nas mesmas condições dos outros documentos (não com processo em andamento ou protocolado, nem em Não aplicável ou Unidade em encerramento). "Reportar Movimentação" continua igual.
+- A trava era só na tela: o backend já aceitava abrir o processo de renovação para esses tipos. O tratamento especial dele fica só na movimentação (a entrada atualiza o profissional do documento; a Dosimetria exige antecedência), e uma entrada com processo já aberto reaproveita o mesmo processo.
+- **Conferência** (banco local, Admin Q&G): CNES vencido de Angra dos Reis com "Registrar renovação" e "Reportar Movimentação"; sem erro no console.
+- Testes: CNES (regular e vencido), Dosimetria, CREMERJ e COREN com os dois botões; CNES em andamento e protocolado sem "Registrar renovação". Os dois testes que garantiam o comportamento antigo saíram.
+
