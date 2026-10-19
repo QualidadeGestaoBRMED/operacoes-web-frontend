@@ -10,6 +10,15 @@ import type { FaixaAbsenteismo, PainelAbsenteismo } from "@/types/gestaoRH";
 import { cn } from "@/lib/utils";
 import { CardIndicador } from "./CardIndicador";
 
+// O card de Absenteísmo ocupa 2 colunas onde a grade não fecharia: no
+// celular (2 colunas) sempre, e no tablet (3 colunas) com os 5 cards. Sem
+// faixas, os 3 cards já fecham numa linha do tablet. No computador (5
+// colunas), uma coluna só.
+export const LARGURA_DO_ABSENTEISMO = {
+  comFaixas: "col-span-2 xl:col-span-1",
+  semFaixas: "col-span-2 sm:col-span-1",
+} as const;
+
 function plural(quantidade: number, singular: string, plural: string) {
   return `${quantidade} ${quantidade === 1 ? singular : plural}`;
 }
@@ -37,7 +46,10 @@ export function CardsAbsenteismo({
     return (
       <div className="grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5">
         {Array.from({ length: 5 }, (_, indice) => (
-          <Skeleton key={indice} className="h-[76px] rounded-xl" />
+          <Skeleton
+            key={indice}
+            className={cn("h-[76px] rounded-xl", indice === 0 && LARGURA_DO_ABSENTEISMO.comFaixas)}
+          />
         ))}
       </div>
     );
@@ -84,6 +96,7 @@ export function CardsAbsenteismo({
         Icone={Percent}
         rotuloEmDuasLinhas
         onClick={onAbrirComparativo}
+        className={comFaixas ? LARGURA_DO_ABSENTEISMO.comFaixas : LARGURA_DO_ABSENTEISMO.semFaixas}
       />
       {comFaixas && (
         <CardIndicador
