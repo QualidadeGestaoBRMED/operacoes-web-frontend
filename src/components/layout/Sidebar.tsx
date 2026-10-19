@@ -12,10 +12,7 @@ import {
 } from "@/hooks/useNavegacao";
 import { cn } from "@/lib/utils";
 
-// onNavegar: opcional -- só o AppShell em modo overlay mobile passa algo
-// (fecha o drawer ao escolher um destino); no modo "push" (desktop/tablet)
-// não tem drawer pra fechar, então não é passado.
-export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
+export function Sidebar() {
   const pathname = usePathname();
   // Módulos, subitens e links de Administração pelo cargo: a mesma regra
   // da barra inferior do celular (useNavegacao, STC-787).
@@ -58,7 +55,6 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               label={modulo.nome}
               subitens={modulo.subitens}
               pathname={pathname}
-              onClick={onNavegar}
             />
           ) : (
             <SidebarLink
@@ -67,7 +63,6 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               icon={modulo.icon}
               label={modulo.nome}
               active={pathname.startsWith(modulo.rota)}
-              onClick={onNavegar}
             />
           ),
         )}
@@ -114,7 +109,6 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               href={linkDjangoAdmin}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={onNavegar}
               className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
             >
               <Settings className="size-4 shrink-0" />
@@ -130,7 +124,6 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void } = {}) {
               de Admin por rede não cabiam no antigo "Admin Operações". */}
           <Link
             href="/admin/permissoes"
-            onClick={onNavegar}
             className="flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground"
           >
             <ShieldCheck className="size-4 shrink-0" />
@@ -147,18 +140,15 @@ function SidebarLink({
   icon: Icon,
   label,
   active,
-  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
-  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
-      onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
@@ -184,14 +174,12 @@ function SidebarLinkExpansivel({
   label,
   subitens,
   pathname,
-  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   subitens: SubitemDeNavegacao[];
   pathname: string;
-  onClick?: () => void;
 }) {
   const ativo = pathname.startsWith(href);
   // Sub-rota ativa = o match de prefixo mais específico (mais longo) entre
@@ -220,7 +208,6 @@ function SidebarLinkExpansivel({
       <div className="flex items-center gap-0.5">
         <Link
           href={href}
-          onClick={onClick}
           aria-current={ativo ? "page" : undefined}
           className={cn(
             "flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
@@ -263,7 +250,6 @@ function SidebarLinkExpansivel({
               <Link
                 key={subitem.rota}
                 href={subitem.rota}
-                onClick={onClick}
                 aria-current={subitemAtivo?.rota === subitem.rota ? "page" : undefined}
                 className={cn(
                   "flex h-8 items-center rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
