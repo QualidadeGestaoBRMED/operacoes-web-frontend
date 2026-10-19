@@ -98,7 +98,6 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
               ? `Demanda aberta em ${gerado}${alerta.responsavel ? ` · responsável: ${alerta.responsavel}` : ""}`
               : `Gerado em ${gerado} · demanda concluída`}
             {/* Régua com que foi gerado: os indicadores acima usam a de hoje. */}
-            {/* `!= null`: ausente no backend anterior à STC-766. */}
             {alerta.critica_acima_de != null &&
               ` · crítica acima de ${formatarPercentual(String(alerta.critica_acima_de))} quando gerado`}
             {!tratamento && podeAgir && alerta.pode_registrar_tratamento &&

@@ -363,7 +363,8 @@ export interface MesAbsenteismoMensal {
 
 export interface AbsenteismoMensal {
   ano: number;
-  parametros: {
+  /** Opcional: ausente na resposta do backend anterior à STC-766. */
+  parametros?: {
     meta_percentual: string | null;
     faixas_cadastradas: boolean;
     /**
@@ -388,7 +389,8 @@ export interface PainelAbsenteismo {
     meta_percentual: string | null;
     faixas_cadastradas: boolean;
     limite_atraso_minutos: number;
-    vigente_a_partir_de: string | null;
+    /** Opcional: ausente na resposta do backend anterior à STC-766. */
+    vigente_a_partir_de?: string | null;
   };
   cards: CardsAbsenteismo;
   linhas: LinhaPainelAbsenteismo[];
@@ -420,8 +422,9 @@ export interface AlertaAbsenteismo {
   /**
    * Limite da faixa crítica na versão dos parâmetros que gerou o alerta. Os
    * indicadores usam a versão de hoje e podem não estar mais em crítica.
+   * Opcional: ausente na resposta do backend anterior à STC-766.
    */
-  critica_acima_de: number | null;
+  critica_acima_de?: number | null;
   /** Havia pendência de ponto em aberto quando o alerta foi gerado. */
   provisorio: boolean;
   gerado_em: string;
@@ -442,7 +445,8 @@ export interface AbsenteismoColaborador {
   parametros: {
     faixas_cadastradas: boolean;
     limite_atraso_minutos: number;
-    vigente_a_partir_de: string | null;
+    /** Opcional: ausente na resposta do backend anterior à STC-766. */
+    vigente_a_partir_de?: string | null;
   };
   indicadores: {
     percentual: string | null;
