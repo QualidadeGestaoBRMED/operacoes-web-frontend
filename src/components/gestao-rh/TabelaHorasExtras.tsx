@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ListFilter, UserCheck } from "lucide-react";
+import { ListFilter, UserCheck } from "lucide-react";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { unidadeOuEquipe } from "@/lib/gestaoRHAbsenteismo";
 import {
@@ -89,38 +90,20 @@ export function TabelaHorasExtras({
           <table className="w-full min-w-[760px] table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                {colunas.map((coluna, indice) => {
-                  const ativa = ordenacao?.campo === coluna.campo;
-                  const Icone = !ativa ? ArrowUpDown : ordenacao?.direcao === "asc" ? ArrowUp : ArrowDown;
-                  return (
-                    <th
-                      key={coluna.campo}
-                      aria-sort={
-                        ativa ? (ordenacao?.direcao === "asc" ? "ascending" : "descending") : undefined
-                      }
-                      className={cn(
-                        "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
-                        indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
-                        coluna.largura,
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onOrdenar(coluna.campo)}
-                        className={cn(
-                          "group flex items-center gap-1 text-left whitespace-nowrap uppercase hover:text-foreground",
-                          ativa && "text-foreground",
-                        )}
-                      >
-                        {coluna.rotulo}
-                        <Icone
-                          aria-hidden
-                          className={cn("size-3 shrink-0", !ativa && "opacity-70 group-hover:opacity-100")}
-                        />
-                      </button>
-                    </th>
-                  );
-                })}
+                {colunas.map((coluna, indice) => (
+                  <CabecalhoOrdenavel
+                    key={coluna.campo}
+                    campo={coluna.campo}
+                    rotulo={coluna.rotulo}
+                    ordenacao={ordenacao}
+                    onOrdenar={onOrdenar}
+                    className={cn(
+                      "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide whitespace-nowrap text-muted-foreground uppercase",
+                      indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
+                      coluna.largura,
+                    )}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>

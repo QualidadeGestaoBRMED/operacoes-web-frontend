@@ -1811,3 +1811,66 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
     );
   });
 });
+
+describe("PermissoesAdmin -- ordenação das permissões individuais (STC-794)", () => {
+  it("Concedido: crescente, decrescente e de volta à ordem padrão (status, depois mais recente)", async () => {
+    simularAuth({ isAdminOps: true, isLoading: false } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 1, created_at: "2026-01-15T14:30:00Z" }),
+      permissaoBase({ id: 2, ativo: false, created_at: "2026-03-01T10:00:00Z" }),
+      // A agendada foi concedida antes de todas: a ordem por data difere da padrão.
+      permissaoBase({ id: 3, data_inicio: "2099-01-01", created_at: "2026-01-01T10:00:00Z" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = await screen.findByRole("table", { name: "Permissões individuais" });
+    await within(tabela).findByText("Revogada");
+    const status = () =>
+      within(tabela)
+        .getAllByRole("row")
+        .slice(1)
+        .map((linha) => within(linha).getAllByRole("cell")[6].textContent);
+    // Ordem padrão: Ativa, Agendada, Revogada.
+    expect(status()).toEqual(["Ativa", "Agendada", "Revogada"]);
+    const concedido = within(tabela).getByRole("button", { name: "Concedido" });
+
+    await user.click(concedido);
+    expect(status()).toEqual(["Agendada", "Ativa", "Revogada"]);
+    expect(within(tabela).getByRole("columnheader", { name: "Concedido" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await user.click(concedido);
+    expect(status()).toEqual(["Revogada", "Ativa", "Agendada"]);
+    await user.click(concedido);
+    expect(status()).toEqual(["Ativa", "Agendada", "Revogada"]);
+    expect(within(tabela).getByRole("columnheader", { name: "Concedido" })).not.toHaveAttribute(
+      "aria-sort",
+    );
+  });
+
+  it("Status ordena na ordem dos status, não alfabética", async () => {
+    simularAuth({ isAdminOps: true, isLoading: false } as ReturnType<typeof useAuth>);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ id: 2, data_inicio: "2099-01-01", created_at: "2026-03-01T10:00:00Z" }),
+      permissaoBase({ id: 1, created_at: "2026-01-15T14:30:00Z" }),
+    ]);
+    const user = userEvent.setup();
+
+    renderTela();
+    const tabela = await screen.findByRole("table", { name: "Permissões individuais" });
+    await within(tabela).findByText("Agendada");
+    const coluna = within(tabela).getByRole("button", { name: "Status" });
+
+    await user.click(coluna);
+    await user.click(coluna);
+    const status = within(tabela)
+      .getAllByRole("row")
+      .slice(1)
+      .map((linha) => within(linha).getAllByRole("cell")[6].textContent);
+    // Decrescente pela ordem dos status (Ativa, Agendada, ...): Agendada
+    // primeiro. Em ordem alfabética decrescente, seria Ativa primeiro.
+    expect(status).toEqual(["Agendada", "Ativa"]);
+  });
+});

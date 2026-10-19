@@ -32,6 +32,7 @@ import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsHorasExtras } from "./CardsHorasExtras";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaHorasExtras } from "./TabelaHorasExtras";
+import { proximaOrdenacao } from "@/lib/ordenacao";
 
 // Carregado à parte: o Recharts não pesa no resto do Gestão RH.
 const GraficosHorasExtras = dynamic(
@@ -116,11 +117,7 @@ export function PainelHorasExtras() {
   }
 
   function alternarOrdenacao(campo: CampoOrdenavelHorasExtras) {
-    setOrdenacao((atual) => {
-      if (atual?.campo !== campo) return { campo, direcao: "asc" };
-      if (atual.direcao === "asc") return { campo, direcao: "desc" };
-      return null;
-    });
+    setOrdenacao((atual) => proximaOrdenacao(atual, campo));
   }
 
   const selecionado =

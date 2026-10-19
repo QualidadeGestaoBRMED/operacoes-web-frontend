@@ -26,6 +26,7 @@ import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
+import { proximaOrdenacao } from "@/lib/ordenacao";
 
 // Achado no code review: o clique numa célula do Mapa sempre manda um valor
 // de ORDEM_CATEGORIA (MatrizMapaGrid.tsx), mas a URL pode ser editada à mão
@@ -216,11 +217,7 @@ export function MatrizConformidade() {
   // decrescente, 3º volta pra ordem padrão (sem ordenação). Clicar numa
   // coluna diferente da ativa sempre começa em crescente.
   function alternarOrdenacao(campo: CampoOrdenavel) {
-    setOrdenacao((atual) => {
-      if (atual?.campo !== campo) return { campo, direcao: "asc" };
-      if (atual.direcao === "asc") return { campo, direcao: "desc" };
-      return null;
-    });
+    setOrdenacao((atual) => proximaOrdenacao(atual, campo));
   }
 
   // Atualiza a URL junto (shareable/refresh-safe) -- mesmo espírito do
