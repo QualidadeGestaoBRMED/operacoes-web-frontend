@@ -79,7 +79,8 @@ function opcoes(referencias: (ReferenciaPorNome | null)[]) {
  */
 export function AcessosAdmin({ hidden }: { hidden: boolean }) {
   const [dias, setDias] = useState<number>(PERIODOS_DE_ACESSO[0].dias);
-  const { acessos, isLoading, error, recarregar } = useAcessos(dias);
+  const { acessos, carregandoPrimeiraVez, trocandoPeriodo, error, recarregar } =
+    useAcessos(dias);
   // A foto do Google vem da lista de usuários (a mesma da seção Usuários,
   // em cache), não da rota de acessos. Sem ela, as iniciais.
   const { usuarios: listaDeUsuarios } = useUsuarios();
@@ -217,9 +218,22 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
         )}
       </div>
 
-      {isLoading ? (
+      {/* Erro com dados já na tela (nova busca do mesmo período, ou troca de
+          período): a tabela anterior continua, com o aviso acima dela. */}
+      {error && acessos && (
+        <div className="flex flex-wrap items-center gap-3 pb-3">
+          <p className="text-sm text-destructive">
+            Não foi possível atualizar os acessos. A tabela mostra a última busca.
+          </p>
+          <Button variant="outline" size="sm" onClick={recarregar}>
+            Tentar de novo
+          </Button>
+        </div>
+      )}
+
+      {carregandoPrimeiraVez ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : error ? (
+      ) : !acessos ? (
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-destructive">Não foi possível carregar os acessos.</p>
           <Button variant="outline" size="sm" onClick={recarregar}>
@@ -233,7 +247,13 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
       ) : (
         // Mesmo contêiner das tabelas da Administração: rola nos dois eixos,
         // com o cabeçalho e a coluna Pessoa fixos.
-        <div className="scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border">
+        <div
+          aria-busy={trocandoPeriodo || undefined}
+          className={cn(
+            "scrollbar-discreta scroll-fade-x min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-border transition-opacity",
+            trocandoPeriodo && "opacity-60",
+          )}
+        >
           <table aria-label="Acessos" className="w-full min-w-[720px] text-left text-sm">
             <thead className="sticky top-0 z-10">
               {/* O que importa para cobrar quem não entra vem logo depois da
@@ -293,6 +313,8 @@ export function AcessosAdmin({ hidden }: { hidden: boolean }) {
                       >
                         {rotuloDosDiasSemEntrar(usuario)}
                       </span>
+                      {/* O selo é só cor: o leitor de tela ouve o destaque. */}
+                      {destaque && <span className="sr-only">, em destaque</span>}
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap tabular-nums">
                       {rotuloDoUltimoUso(usuario)}
@@ -385,7 +407,9 @@ function DiasDeUsoDialog({
                           )}
                         >
                           {dia.numero}
-                          {usou && <span className="sr-only">, usou o Atlas</span>}
+                          <span className="sr-only">
+                            {!dia.noPeriodo ? ", fora do período" : usou ? ", usou o Atlas" : ", sem uso"}
+                          </span>
                         </span>
                       );
                     })}
