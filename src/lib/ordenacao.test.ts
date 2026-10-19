@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ordenarPor, type ExtratoresDeChave } from "./ordenacao";
+import { ordenarPor, type ExtratoresDeChave, proximaOrdenacao } from "./ordenacao";
 
 interface Item {
   id: number;
@@ -72,5 +72,16 @@ describe("ordenarPor", () => {
     expect(
       ordenarPor(lista, { campo: "pontos", direcao: "desc" }, chaves).map((i) => i.id),
     ).toEqual([3, 1, 2]);
+  });
+});
+
+describe("proximaOrdenacao", () => {
+  it("coluna nova começa crescente, depois decrescente, depois volta à ordem padrão", () => {
+    const crescente = proximaOrdenacao<"nome" | "idade">(null, "nome");
+    expect(crescente).toEqual({ campo: "nome", direcao: "asc" });
+    const decrescente = proximaOrdenacao(crescente, "nome");
+    expect(decrescente).toEqual({ campo: "nome", direcao: "desc" });
+    expect(proximaOrdenacao(decrescente, "nome")).toBeNull();
+    expect(proximaOrdenacao(decrescente, "idade")).toEqual({ campo: "idade", direcao: "asc" });
   });
 });

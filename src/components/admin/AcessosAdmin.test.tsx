@@ -141,6 +141,41 @@ describe("AcessosAdmin (STC-746)", () => {
     expect(nomesNaTabela()).toHaveLength(4);
   });
 
+  it("ordena pela coluna clicada: crescente, decrescente e de volta à ordem da API", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+    const diasComUso = screen.getByRole("button", { name: "Dias com uso" });
+
+    await user.click(diasComUso);
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+    expect(screen.getByRole("columnheader", { name: "Dias com uso" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await user.click(diasComUso);
+    expect(nomesNaTabela()).toEqual(["Eva Hoje", "Dora Recente", "Carlos Sumido", "Bruna Nunca"]);
+
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    await user.click(screen.getByRole("button", { name: "Pessoa" }));
+    expect(screen.getByRole("columnheader", { name: "Pessoa" })).not.toHaveAttribute("aria-sort");
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+  });
+
+  it("quem nunca entrou conta como o maior tempo sem entrar e o uso mais antigo", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByRole("table", { name: "Acessos" });
+
+    await user.click(screen.getByRole("button", { name: "Sem entrar" }));
+    expect(nomesNaTabela()).toEqual(["Eva Hoje", "Dora Recente", "Carlos Sumido", "Bruna Nunca"]);
+
+    await user.click(screen.getByRole("button", { name: "Último uso" }));
+    expect(nomesNaTabela()).toEqual(["Bruna Nunca", "Carlos Sumido", "Dora Recente", "Eva Hoje"]);
+  });
+
   it("trocar o período busca de novo a partir do novo início", async () => {
     const user = userEvent.setup();
     renderTela();
