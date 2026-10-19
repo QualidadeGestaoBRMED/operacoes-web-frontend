@@ -251,11 +251,9 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
 
   it("STC-767: alerta sem a versão que o gerou, ou sem o campo (backend anterior), não mostra limite", async () => {
     const [alerta] = aba().alertas;
-    const semCampo: Partial<typeof alerta> = { ...alerta };
+    const semCampo = { ...alerta };
     delete semCampo.critica_acima_de;
-    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
-      aba({ alertas: [semCampo as typeof alerta] }),
-    );
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(aba({ alertas: [semCampo] }));
     renderModal();
     await screen.findByText("Ocorrências do período");
     expect(screen.queryByText(/quando gerado/)).not.toBeInTheDocument();

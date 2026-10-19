@@ -315,7 +315,7 @@ describe("limite do mês a mês (STC-767)", () => {
       ...(parametros !== undefined && {
         parametros: { meta_percentual: parametros, faixas_cadastradas: true, vigente_a_partir_de: null },
       }),
-    } as AbsenteismoMensal;
+    };
   }
 
   it("usa o limite da versão da resposta, não o do último mês com dado", () => {

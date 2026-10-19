@@ -638,9 +638,9 @@ describe("absenteísmo mês a mês", () => {
 
   it("STC-767: resposta sem `parametros` (backend anterior) abre o modal sem a data", async () => {
     const user = usuario();
-    const semParametros: Partial<AbsenteismoMensal> = mensalDe(2026, { 9: "4.00" });
+    const semParametros = mensalDe(2026, { 9: "4.00" });
     delete semParametros.parametros;
-    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(semParametros as AbsenteismoMensal);
+    vi.mocked(buscarAbsenteismoMensal).mockResolvedValue(semParametros);
     renderPainel();
     const modal = await abrirModal(user);
 
