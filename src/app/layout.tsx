@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { COR_DA_MARCA } from "@/lib/marca";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -14,6 +15,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Atlas - BR MED",
   description: "Hub de operações BR MED",
+  applicationName: "Atlas",
+  // App instalado no iPhone ("Adicionar à Tela de Início"): tela cheia, com
+  // o nome curto. Barra de status preta (não a translúcida): a translúcida
+  // passaria o relógio por cima do topo do Atlas.
+  appleWebApp: { capable: true, title: "Atlas", statusBarStyle: "black" },
+};
+
+// Cor da barra do sistema no app instalado e na barra do navegador.
+export const viewport: Viewport = {
+  themeColor: COR_DA_MARCA,
 };
 
 export default async function RootLayout({
