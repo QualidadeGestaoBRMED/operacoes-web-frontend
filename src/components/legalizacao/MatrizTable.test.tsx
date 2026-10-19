@@ -187,3 +187,31 @@ describe("MatrizTable (STC-380, acessibilidade da linha clicável)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("MatrizTable, foto do Google do responsável (STC-795)", () => {
+  function renderCom(usuario: Usuario) {
+    return render(
+      <table>
+        <MatrizTable
+          documentos={[documento({ responsaveis: [{ ...documento().responsaveis[0], usuario }] })]}
+          carregandoPrimeiraVez={false}
+          ordenacao={null}
+          onOrdenar={vi.fn()}
+          refTabela={{ current: null }}
+          maxHeight={undefined}
+          onClickLinha={vi.fn()}
+        />
+      </table>,
+    );
+  }
+
+  it("com foto, a foto; sem foto, as iniciais", () => {
+    const { container, unmount } = renderCom({ ...USUARIO, foto_url: "https://foto.exemplo/leg.jpg" });
+    expect(container.querySelector("img")).toHaveAttribute("src", "https://foto.exemplo/leg.jpg");
+    unmount();
+
+    renderCom(USUARIO);
+    expect(screen.getByText("TL")).toBeInTheDocument();
+  });
+});
+
