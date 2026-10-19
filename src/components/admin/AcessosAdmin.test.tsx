@@ -237,7 +237,10 @@ describe("AcessosAdmin (STC-746)", () => {
     await user.click(screen.getByRole("combobox", { name: "Período" }));
     await user.click(screen.getByRole("option", { name: "Últimos 90 dias" }));
 
-    expect(await screen.findByText(/Não foi possível atualizar os acessos/)).toBeInTheDocument();
+    // O aviso diz qual período a tabela ainda mostra.
+    expect(await screen.findByText(/Não foi possível carregar o período escolhido/)).toHaveTextContent(
+      "A tabela mostra de 20/09/2026 a 19/10/2026.",
+    );
     expect(nomesNaTabela()).toHaveLength(4);
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
   });
