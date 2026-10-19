@@ -176,4 +176,14 @@ describe("useAuth em ver como (STC-790)", () => {
     expect(result.current.perfil?.nivel).toBe(1);
     expect(result.current.user?.usuarioId).toBe(99);
   });
+
+  it("se a pessoa não vier (falha), continua esperando em vez de cair no Admin", async () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockRejectedValue(new Error("rede"));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(vi.mocked(obterUsuarioLogado)).toHaveBeenCalled());
+    expect(result.current.isLoading).toBe(true);
+  });
 });

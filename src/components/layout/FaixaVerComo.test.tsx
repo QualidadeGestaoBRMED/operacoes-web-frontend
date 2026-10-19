@@ -80,4 +80,14 @@ describe("FaixaVerComo (STC-790)", () => {
     expect(toast.info).toHaveBeenCalledWith("O ver como terminou.");
     expect(sessionStorage.getItem("atlas.verComoAviso")).toBeNull();
   });
+
+  it("sem a resposta da API (carregando ou falhou), mostra a sessão desta aba", () => {
+    vi.mocked(useAuth).mockReturnValue({ verComo: null } as ReturnType<typeof useAuth>);
+    sessionStorage.setItem("atlas.verComo", JSON.stringify(SESSAO));
+
+    render(<FaixaVerComo />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Vendo como Coordenação Niterói");
+    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+  });
 });
