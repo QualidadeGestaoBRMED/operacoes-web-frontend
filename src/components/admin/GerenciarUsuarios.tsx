@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ListFilter, Maximize2, Minimize2, X } from "lucide-react";
+import { Eye, ListFilter, Maximize2, Minimize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +21,11 @@ import { usePerfis } from "@/hooks/usePerfis";
 import { useSetores } from "@/hooks/useSetores";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useAtualizarUsuario, useUsuarios } from "@/hooks/useUsuarios";
+import { encerrarVerComo, iniciarVerComo } from "@/lib/plataforma";
 import { extrairMensagemErro } from "@/lib/erros";
 import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
 import {
+  NIVEL_ADMIN_QG,
   administra,
   descricaoDoCargo,
   eCargoAdministrativo,
@@ -33,6 +35,7 @@ import {
   redeDoUsuario,
 } from "@/lib/redes";
 import { cn, nomeExibicao } from "@/lib/utils";
+import { guardarVerComo } from "@/lib/verComo";
 import type { Perfil, Unidade, Usuario } from "@/types";
 
 // Quem cada Admin gerencia e que cargos oferece seguem as regras do backend
@@ -119,7 +122,7 @@ export function GerenciarUsuarios({
   expandido: boolean;
   onAlternarExpandir: () => void;
 }) {
-  const { user: ator, redesAdministradas, administraRedePadrao } = useAuth();
+  const { user: ator, redesAdministradas, administraRedePadrao, isAdminQG } = useAuth();
   const { usuarios, isLoading: carregandoUsuarios, error: erroUsuarios } = useUsuarios();
   const { perfis, isLoading: carregandoPerfis, error: erroPerfis } = usePerfis();
   // Todas as redes: cada linha oferece as unidades da rede do cargo dela.
@@ -234,6 +237,38 @@ export function GerenciarUsuarios({
         )}
       </>
     );
+  }
+
+  // "Ver como" (STC-790): só o Admin Q&G, e não de outro Admin Q&G (o
+  // backend recusa os mesmos casos). Começa e recarrega a página já como a
+  // pessoa, sem nada do que estava em cache como o Admin.
+  function podeVerComo(usuario: Usuario) {
+    return usuario.ativo && usuario.perfil != null && usuario.perfil.nivel !== NIVEL_ADMIN_QG;
+  }
+
+  // Enquanto abre, todos os "Ver como" ficam travados: um segundo clique
+  // começaria outra sessão (o backend encerra a anterior, mas não há por quê).
+  const [abrindoVerComo, setAbrindoVerComo] = useState<number | null>(null);
+
+  async function verComo(usuario: Usuario) {
+    if (abrindoVerComo !== null) return;
+    setAbrindoVerComo(usuario.id);
+    try {
+      const sessao = await iniciarVerComo(usuario.id);
+      if (!guardarVerComo(sessao)) {
+        // Sem onde guardar a sessão nesta aba, a página abriria como o
+        // Admin: encerra no backend e avisa.
+        void encerrarVerComo(sessao.id).catch(() => {});
+        toast.error("Este navegador não permitiu começar o ver como nesta aba.");
+        setAbrindoVerComo(null);
+        return;
+      }
+      // Sem destravar: a página recarrega já como a pessoa.
+      window.location.assign("/modulos/gestao-demandas");
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+      setAbrindoVerComo(null);
+    }
   }
 
   async function aoMudarPerfil(usuario: Usuario, valor: string) {
@@ -381,7 +416,10 @@ export function GerenciarUsuarios({
         >
           <table
             aria-label="Perfil, unidade e setor"
-            className="w-full min-w-[640px] text-left text-sm"
+            className={cn(
+              "w-full text-left text-sm",
+              isAdminQG ? "min-w-[760px]" : "min-w-[640px]",
+            )}
           >
             {/* sticky: mesmo achado de PermissoesAdmin -- sem isso, rolar a
                 tabela escondia os rótulos das colunas junto com as linhas.
@@ -413,6 +451,11 @@ export function GerenciarUsuarios({
                     )}
                   />
                 ))}
+                {isAdminQG && (
+                  <th className="px-4 py-2.5">
+                    <span className="sr-only">Ver como</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -500,6 +543,23 @@ export function GerenciarUsuarios({
                       </SelectContent>
                     </Select>
                   </td>
+                  {isAdminQG && (
+                    <td className="px-4 py-2.5 text-right">
+                      {podeVerComo(usuario) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void verComo(usuario)}
+                          disabled={abrindoVerComo !== null}
+                          aria-label={`Ver como ${nomeExibicao(usuario)}`}
+                          title="Ver o Atlas como esta pessoa, só para leitura"
+                        >
+                          <Eye className="size-4" />
+                          {abrindoVerComo === usuario.id ? "Abrindo..." : "Ver como"}
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

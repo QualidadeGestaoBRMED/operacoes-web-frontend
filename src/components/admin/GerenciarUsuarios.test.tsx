@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
@@ -16,6 +17,8 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarUsuario,
+  encerrarVerComo,
+  iniciarVerComo,
   listarPerfis,
   listarSetores,
   listarUnidades,
@@ -502,5 +505,124 @@ describe("GerenciarUsuarios, ordenação por coluna (STC-794)", () => {
     await user.click(unidade);
     // Decrescente: Carla continua primeiro, porque os sem unidade vão para o fim.
     expect(pessoasNaTabela()[0]).toBe("Carla Lima");
+  });
+});
+
+describe("GerenciarUsuarios, ver como (STC-790)", () => {
+  const navegar = vi.fn();
+
+  beforeEach(() => {
+    navegar.mockReset();
+    vi.stubGlobal("location", { ...window.location, assign: navegar });
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+      usuario({ id: 2, first_name: "Quésia", perfil: PERFIL_QG }),
+      usuario({ id: 3, first_name: "Bruno", perfil: null }),
+    ]);
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  function comoAdminQG() {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { usuarioId: 999, perfil: PERFIL_QG, redes_administradas: ["padrao", "opex"] },
+      redesAdministradas: ["padrao", "opex"],
+      administraRedePadrao: true,
+      administraAsDuasRedes: true,
+      isAdminOps: true,
+      isAdminQG: true,
+    } as unknown as ReturnType<typeof useAuth>);
+  }
+
+  it("Admin Q&G: o botão aparece para quem tem cargo, nunca para outro Admin Q&G", async () => {
+    comoAdminQG();
+    renderTela();
+    await screen.findByText("Carla Lima");
+
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ver como Quésia/ })).not.toBeInTheDocument();
+    // Sem cargo: não há o que ver como.
+    expect(screen.queryByRole("button", { name: /Ver como Bruno/ })).not.toBeInTheDocument();
+  });
+
+  it("outro Admin não vê o botão", async () => {
+    renderTela();
+    await screen.findByText("Carla Lima");
+
+    expect(screen.queryByRole("button", { name: /Ver como/ })).not.toBeInTheDocument();
+  });
+
+  it("clicar começa no backend, guarda a sessão nesta aba e abre o Atlas como a pessoa", async () => {
+    comoAdminQG();
+    const sessao = {
+      id: "6f1c2a7e-0000-4000-8000-000000000001",
+      usuario: { id: 1, nome: "Carla Lima" },
+      admin: { id: 999, nome: "Admin" },
+      iniciada_em: "2026-10-19T15:00:00Z",
+      expira_em: "2099-10-19T16:00:00Z",
+    };
+    vi.mocked(iniciarVerComo).mockResolvedValue(sessao);
+    renderTela();
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
+
+    expect(iniciarVerComo).toHaveBeenCalledWith(1);
+    expect(JSON.parse(sessionStorage.getItem("atlas.verComo")!)).toEqual(sessao);
+    expect(navegar).toHaveBeenCalledWith("/modulos/gestao-demandas");
+  });
+
+  it("enquanto abre, todos os Ver como ficam travados; se falhar, destravam", async () => {
+    comoAdminQG();
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+      usuario({ id: 4, first_name: "Diego", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    let falhar: (erro: Error) => void = () => {};
+    vi.mocked(iniciarVerComo).mockReturnValue(new Promise((_, rejeitar) => (falhar = rejeitar)));
+    const user = userEvent.setup();
+    renderTela();
+
+    await user.click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
+
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toHaveTextContent("Abrindo...");
+    expect(screen.getByRole("button", { name: "Ver como Diego Lima" })).toBeDisabled();
+    expect(iniciarVerComo).toHaveBeenCalledTimes(1);
+
+    falhar(new Error("rede"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Ver como Diego Lima" })).toBeEnabled(),
+    );
+    expect(navegar).not.toHaveBeenCalled();
+  });
+
+  it("sem onde guardar a sessão na aba: encerra no backend, avisa e não navega", async () => {
+    comoAdminQG();
+    const sessao = {
+      id: "6f1c2a7e-0000-4000-8000-000000000001",
+      usuario: { id: 1, nome: "Carla Lima" },
+      admin: { id: 999, nome: "Admin" },
+      iniciada_em: "2026-10-19T15:00:00Z",
+      expira_em: "2099-10-19T16:00:00Z",
+    };
+    vi.mocked(iniciarVerComo).mockResolvedValue(sessao);
+    vi.mocked(encerrarVerComo).mockResolvedValue(undefined);
+    const gravar = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("sem armazenamento");
+    });
+    renderTela();
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
+
+    expect(encerrarVerComo).toHaveBeenCalledWith(sessao.id);
+    expect(toast.error).toHaveBeenCalledWith(
+      "Este navegador não permitiu começar o ver como nesta aba.",
+    );
+    expect(navegar).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeEnabled();
+    gravar.mockRestore();
   });
 });

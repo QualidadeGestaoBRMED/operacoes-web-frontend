@@ -24,6 +24,7 @@ import {
 } from "@/lib/kanban";
 import { redeDaUnidade } from "@/lib/redes";
 import { cn, nomeExibicao } from "@/lib/utils";
+import { useVerComo } from "@/lib/verComo";
 import type { StatusDemanda } from "@/types";
 import { AnexoList } from "./AnexoList";
 import { ComentarioFeed } from "./ComentarioFeed";
@@ -87,11 +88,13 @@ export function DetalheCard({
   const { comentarios } = useComentarios(demandaId);
   const { anexos } = useAnexos(demandaId);
   const { historico } = useHistorico(demandaId);
-  const podeEscrever = demanda ? demanda.status !== "lixeira" : false;
+  // "Ver como" (STC-790): só leitura, sem campos e botões de ação.
+  const verComo = useVerComo();
+  const podeEscrever = demanda ? demanda.status !== "lixeira" && !verComo : false;
   // Fonte de verdade no backend: inclui admin/solicitante/responsavel e a
   // PermissaoUsuario temporaria "editar" vigente no escopo da demanda.
   // Replicar essa regra aqui faria a UI divergir em expiracao/revogacao.
-  const podeEditar = demanda?.pode_editar ?? false;
+  const podeEditar = (demanda?.pode_editar ?? false) && !verComo;
 
   // Qual seção com formulário está aberta -- ResponsavelSection (adicionar/
   // trocar principal), TransicaoStatusSection (mudar status) e agora

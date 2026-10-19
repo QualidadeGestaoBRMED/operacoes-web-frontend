@@ -41,7 +41,10 @@ export function extrairMensagemErro(error: unknown): string {
     }
 
     if (dados && typeof dados === "object") {
-      const mensagens = Object.values(dados)
+      const mensagens = Object.entries(dados)
+        // "codigo" do "ver como" (STC-789) é para o código, não para a tela.
+        .filter(([campo, valor]) => !(campo === "codigo" && String(valor).startsWith("ver_como_")))
+        .map(([, valor]) => valor)
         .flat()
         .filter((valor): valor is string => typeof valor === "string" && valor.trim() !== "");
       if (mensagens.length > 0) {

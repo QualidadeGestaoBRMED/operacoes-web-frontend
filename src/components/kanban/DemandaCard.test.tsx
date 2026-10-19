@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { criarDemanda, responsavelPrincipal } from "@/test-utils/fixtures";
 import { DemandaCard } from "./DemandaCard";
 
@@ -85,5 +85,35 @@ describe("DemandaCard -- badges de área responsável", () => {
     render(<DemandaCard demanda={demanda} onClick={vi.fn()} />);
 
     expect(screen.getByText("Niterói")).toBeInTheDocument();
+  });
+});
+
+describe("DemandaCard em ver como (STC-790)", () => {
+  afterEach(() => sessionStorage.clear());
+
+  function arrastavel(container: HTMLElement) {
+    return container.querySelector("[aria-roledescription]");
+  }
+
+  it("só leitura: o card não arrasta", () => {
+    sessionStorage.setItem(
+      "atlas.verComo",
+      JSON.stringify({
+        id: "6f1c2a7e-0000-4000-8000-000000000001",
+        usuario: { id: 7, nome: "Coordenação" },
+        admin: { id: 1, nome: "Admin" },
+        iniciada_em: "2026-10-19T15:00:00Z",
+        expira_em: "2099-10-19T16:00:00Z",
+      }),
+    );
+    const { container } = render(<DemandaCard demanda={criarDemanda()} onClick={vi.fn()} />);
+
+    expect(arrastavel(container)).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("fora do ver como, arrasta", () => {
+    const { container } = render(<DemandaCard demanda={criarDemanda()} onClick={vi.fn()} />);
+
+    expect(arrastavel(container)).toHaveAttribute("aria-disabled", "false");
   });
 });

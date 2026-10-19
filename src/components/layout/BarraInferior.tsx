@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, MoreHorizontal, RotateCw, Settings, ShieldCheck } from "lucide-react";
-import { signOut } from "next-auth/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { moduloAtivo, useNavegacao } from "@/hooks/useNavegacao";
+import { sairDaConta } from "@/lib/sairDaConta";
 import { cn } from "@/lib/utils";
 
 // Módulos na barra; os seguintes vão para o "Mais". Com 4 módulos e o
@@ -131,7 +131,7 @@ export function BarraInferior() {
                 <RotateCw className="size-4" />
                 Recarregar
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void signOut({ redirectTo: "/login" })}>
+              <DropdownMenuItem onSelect={() => void sairDaConta()}>
                 <LogOut className="size-4" />
                 Sair
               </DropdownMenuItem>

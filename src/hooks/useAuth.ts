@@ -3,7 +3,8 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 
-import { obterUsuarioLogado } from "@/lib/plataforma";
+import { obterUsuarioLogado, type UsuarioLogado } from "@/lib/plataforma";
+import { useVerComo } from "@/lib/verComo";
 import { NIVEL_ADMIN_QG, NIVEL_SETOR, NIVEL_UNIDADE, redesAdministradas } from "@/lib/redes";
 
 export function useAuth() {
@@ -13,18 +14,40 @@ export function useAuth() {
   // atuais vêm da API, buscados de novo ao montar uma tela e ao voltar para
   // a aba; até chegarem (ou se a busca falhar), vale a sessão.
   const usuarioId = session?.user?.usuarioId;
-  const { data: atual, error: erroAtual } = useSWR(
+  // "Ver como" (STC-790): os dados atuais são os da pessoa simulada, e até
+  // chegarem a tela espera (com a sessão, mostraria o menu do Admin).
+  const verComo = useVerComo();
+  const {
+    data: atual,
+    error: erroAtual,
+    mutate: recarregarAtual,
+  } = useSWR(
     usuarioId ? ["usuario-logado", usuarioId] : null,
     () => obterUsuarioLogado(),
   );
   const user = session?.user && atualizado(session.user, atual);
+  // Em "ver como", só vale a resposta que confirma a simulação deste Admin:
+  // sem a marca (ou de outro Admin), a tela não é a da pessoa.
+  const verComoConfirmado = Boolean(
+    atual?.ver_como && atual.ver_como.admin.id === usuarioId,
+  );
   const nivel = user?.perfil?.nivel;
   const redes = redesAdministradas(user);
 
   return {
     user,
     perfil: user?.perfil,
-    isLoading: status === "loading",
+    // Em "ver como", sem a resposta (ainda, ou porque falhou) não há como
+    // saber a tela da pessoa: espera, sem cair nos dados do Admin; o SWR
+    // tenta de novo, e a faixa (com o Sair) segue visível.
+    isLoading: status === "loading" || (Boolean(verComo) && !verComoConfirmado),
+    /** Sessão de "ver como" em andamento nesta aba (só leitura), ou null. */
+    verComo: atual?.ver_como ?? null,
+    /** Em "ver como", a busca da pessoa falhou: a faixa avisa e oferece
+     * tentar de novo, em vez de a tela só seguir carregando. */
+    falhaAoAbrirVerComo:
+      Boolean(verComo) && !verComoConfirmado && (Boolean(erroAtual) || atual !== undefined),
+    recarregarUsuario: () => void recarregarAtual(),
     // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
     // pessoa de uma página pelo cargo espera, senão quem acabou de virar
     // Admin seria mandado embora com o cargo do login.
@@ -58,11 +81,24 @@ export function useAuth() {
 type UsuarioDaSessao = NonNullable<ReturnType<typeof useSession>["data"]>["user"];
 
 // O `id` da API é o usuarioId da sessão (o `id` da sessão é o do Google):
-// resposta de outra conta (troca de conta em outra aba) não vale.
-function atualizado(
-  daSessao: UsuarioDaSessao,
-  atual: Awaited<ReturnType<typeof obterUsuarioLogado>> | undefined,
-): UsuarioDaSessao {
-  if (!atual || atual.id !== daSessao.usuarioId) return daSessao;
+// resposta de outra conta (troca de conta em outra aba) não vale. Em "ver
+// como", a resposta é da pessoa simulada e vale quando o Admin real dela é
+// quem está logado: daí em diante, a tela é a da pessoa, nome e foto
+// incluídos.
+function atualizado(daSessao: UsuarioDaSessao, atual: UsuarioLogado | undefined): UsuarioDaSessao {
+  if (!atual) return daSessao;
+  if (atual.ver_como && atual.ver_como.admin.id === daSessao.usuarioId) {
+    const nome = [atual.first_name, atual.last_name].filter(Boolean).join(" ").trim();
+    return {
+      ...daSessao,
+      ...atual,
+      id: daSessao.id,
+      usuarioId: atual.id,
+      name: nome || atual.username,
+      email: atual.email,
+      image: atual.foto_url || null,
+    };
+  }
+  if (atual.id !== daSessao.usuarioId) return daSessao;
   return { ...daSessao, ...atual, id: daSessao.id };
 }

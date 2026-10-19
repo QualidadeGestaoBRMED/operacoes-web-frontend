@@ -76,3 +76,32 @@ describe("proxy /api/backend manda o segredo do proxy (STC-651)", () => {
 afterEach(() => {
   vi.unstubAllEnvs();
 });
+
+describe("proxy /api/backend repassa o ver como (STC-790)", () => {
+  it("passa o X-Ver-Como com id de sessão válido", async () => {
+    const id = "6f1c2a7e-0000-4000-8000-000000000001";
+    const requisicao = new NextRequest("http://localhost:3000/api/backend/auth/me", {
+      headers: { "x-ver-como": id },
+    });
+
+    await GET(requisicao, contexto("auth", "me"));
+
+    expect(fetchMock.mock.calls[0][1].headers["X-Ver-Como"]).toBe(id);
+  });
+
+  it("ignora um valor que não é id de sessão", async () => {
+    const requisicao = new NextRequest("http://localhost:3000/api/backend/auth/me", {
+      headers: { "x-ver-como": "7" },
+    });
+
+    await GET(requisicao, contexto("auth", "me"));
+
+    expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("X-Ver-Como");
+  });
+
+  it("sem ver como, sem o cabeçalho", async () => {
+    await GET(new NextRequest("http://localhost:3000/api/backend/auth/me"), contexto("auth", "me"));
+
+    expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("X-Ver-Como");
+  });
+});

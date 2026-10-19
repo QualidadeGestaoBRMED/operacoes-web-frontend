@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeft } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PAGINAS } from "@/config/paginas";
+import { sairDaConta } from "@/lib/sairDaConta";
 import { NotificacoesMenu } from "./NotificacoesMenu";
 
 interface TopbarProps {
@@ -96,7 +96,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => void signOut({ redirectTo: "/login" })}>
+              <DropdownMenuItem onSelect={() => void sairDaConta()}>
                 <LogOut className="size-4" />
                 Sair
               </DropdownMenuItem>

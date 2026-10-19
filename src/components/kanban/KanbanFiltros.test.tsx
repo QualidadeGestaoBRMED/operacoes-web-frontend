@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DemandaFiltros, TipoGestao, Usuario } from "@/types";
 import { KanbanFiltros } from "./KanbanFiltros";
 
@@ -229,3 +229,23 @@ describe("KanbanFiltros -- filtro de Unidade (STC-510)", () => {
     });
   });
 });
+
+describe("KanbanFiltros em ver como (STC-790)", () => {
+  afterEach(() => sessionStorage.clear());
+
+  it("Nova Demanda desabilitada, com a dica de somente leitura", () => {
+    sessionStorage.setItem("atlas.verComo", JSON.stringify({"id":"6f1c2a7e-0000-4000-8000-000000000001","usuario":{"id":7,"nome":"Coordenação"},"admin":{"id":1,"nome":"Admin"},"iniciada_em":"2026-10-19T15:00:00Z","expira_em":"2099-10-19T16:00:00Z"}));
+    renderFiltros({} as DemandaFiltros);
+
+    const botao = screen.getByRole("button", { name: "Nova Demanda" });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveAttribute("title", expect.stringContaining("Somente leitura"));
+    expect(botao).toHaveAccessibleDescription(expect.stringContaining("Somente leitura"));
+  });
+
+  it("fora do ver como, habilitada", () => {
+    renderFiltros({} as DemandaFiltros);
+    expect(screen.getByRole("button", { name: "Nova Demanda" })).toBeEnabled();
+  });
+});
+

@@ -111,6 +111,18 @@ describe("renovarSessao (STC-611)", () => {
 });
 
 describe("encerrarSessao (STC-611)", () => {
+  it("tira o ver como desta aba (STC-790)", async () => {
+    const { encerrarSessao } = await carregar();
+    sessionStorage.setItem(
+      "atlas.verComo",
+      JSON.stringify({ id: "x", usuario: { id: 7, nome: "C" }, admin: { id: 1, nome: "A" }, iniciada_em: "", expira_em: "2099-01-01T00:00:00Z" }),
+    );
+
+    encerrarSessao();
+
+    expect(sessionStorage.getItem("atlas.verComo")).toBeNull();
+  });
+
   it("chama signOut uma vez só, mesmo chamado várias vezes", async () => {
     const { encerrarSessao } = await carregar();
 

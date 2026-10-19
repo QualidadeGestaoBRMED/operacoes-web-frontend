@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useSession } from "next-auth/react";
 import type { ReactNode } from "react";
 import { SWRConfig } from "swr";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { obterUsuarioLogado } from "@/lib/plataforma";
 import type { Usuario } from "@/types";
@@ -114,5 +114,86 @@ describe("useAuth com os dados atuais do usuário (STC-763)", () => {
     expect(result.current.user).toBeUndefined();
     expect(result.current.confirmandoCargo).toBe(false);
     expect(result.current.isAdminOps).toBe(false);
+  });
+});
+
+describe("useAuth em ver como (STC-790)", () => {
+  const ADMIN_QG = { id: 1, nome: "Admin Q&G", descricao: "", nivel: 1 };
+  const UNIDADE = { id: 3, nome: "Unidade", descricao: "", nivel: 3 };
+  const SESSAO = {
+    id: "6f1c2a7e-0000-4000-8000-000000000001",
+    usuario: { id: 7, nome: "Coordenação Niterói" },
+    admin: { id: 10, nome: "Felipe" },
+    iniciada_em: "2026-10-19T12:00:00Z",
+    expira_em: new Date(Date.now() + 3_600_000).toISOString(),
+  };
+
+  beforeEach(() => {
+    sessionStorage.setItem("atlas.verComo", JSON.stringify(SESSAO));
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("a tela é a da pessoa simulada quando o Admin real é quem está logado", async () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockResolvedValue({
+      ...usuarioDaApi({ id: 7, perfil: UNIDADE, first_name: "Coordenação", last_name: "Niterói" }),
+      foto_url: "https://foto.exemplo/c.jpg",
+      ver_como: SESSAO,
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.perfil?.nivel).toBe(3));
+    expect(result.current.isAdminQG).toBe(false);
+    expect(result.current.user?.usuarioId).toBe(7);
+    expect(result.current.user?.name).toBe("Coordenação Niterói");
+    expect(result.current.user?.image).toBe("https://foto.exemplo/c.jpg");
+    expect(result.current.verComo?.id).toBe(SESSAO.id);
+  });
+
+  it("enquanto a pessoa não chega, espera em vez de mostrar o Admin", () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it("resposta de ver como de outro Admin não vale", async () => {
+    sessaoCom(ADMIN_QG, 99);
+    vi.mocked(obterUsuarioLogado).mockResolvedValue({
+      ...usuarioDaApi({ id: 7, perfil: UNIDADE }),
+      ver_como: SESSAO,
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(vi.mocked(obterUsuarioLogado)).toHaveBeenCalled());
+    expect(result.current.perfil?.nivel).toBe(1);
+    expect(result.current.user?.usuarioId).toBe(99);
+  });
+
+  it("se a pessoa não vier (falha), continua esperando em vez de cair no Admin", async () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockRejectedValue(new Error("rede"));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.falhaAoAbrirVerComo).toBe(true));
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it("resposta sem a marca de ver como, com a aba em ver como: falha, sem cair no Admin", async () => {
+    sessaoCom(ADMIN_QG);
+    vi.mocked(obterUsuarioLogado).mockResolvedValue(usuarioDaApi({ id: 10, perfil: ADMIN_QG }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.falhaAoAbrirVerComo).toBe(true));
+    expect(result.current.isLoading).toBe(true);
   });
 });
