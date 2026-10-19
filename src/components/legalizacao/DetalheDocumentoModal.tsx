@@ -540,21 +540,14 @@ export function DetalheDocumentoModal({
   // acompanhamento do processo já existente é a STC-381 (ainda não existe).
   const processoJaEmCurso =
     documento?.status === "em_andamento" || documento?.status === "protocolado";
-  // Achado no dogfooding: pros tipos rastreados por movimentação
-  // profissional (mostraMovimentacaoProfissional acima), o ciclo de vida é
-  // sempre via "Reportar Movimentação" -- "entrada" já cria/reaproveita o
-  // processo de renovação sozinha por trás (STC-382, ver comentário em
-  // DocumentoUnidadeViewSet.movimentacao_profissional, backend). Oferecer
-  // "Registrar renovação" também é um caminho paralelo sem sentido de
-  // negócio pra esses tipos -- CNES/Dosimetria/CRM/CREMERJ-COREN não têm
-  // um ciclo de renovação independente de quem é o profissional
-  // responsável, então "vencido" nesses casos só se resolve reportando a
-  // entrada de um novo responsável, nunca por um protocolo/evidência
-  // avulsos.
+  // Também para os tipos rastreados por movimentação de profissional (CNES,
+  // Dosimetria, CREMERJ, COREN): a Legalização renova esses documentos sem
+  // que ninguém entre ou saia (STC-796). Os dois caminhos convivem: uma
+  // entrada de profissional com processo já aberto reaproveita o mesmo
+  // processo (DocumentoUnidadeViewSet.movimentacao_profissional, backend).
   const podeRegistrarRenovacao =
     documento &&
     !processoJaEmCurso &&
-    !mostraMovimentacaoProfissional &&
     documento.status !== "nao_aplicavel" &&
     documento.status !== "unidade_encerramento";
   // STC-430 (backend): reverter só é aceito a partir desses dois status.
