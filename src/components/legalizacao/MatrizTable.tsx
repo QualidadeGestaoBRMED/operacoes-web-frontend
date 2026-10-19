@@ -1,4 +1,5 @@
 import { FileX2 } from "lucide-react";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
@@ -106,9 +107,11 @@ function ResponsavelCelula({ documento }: { documento: DocumentoUnidade }) {
   const nome = nomeExibicao(principal.usuario);
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">
-        {iniciaisDe(nome)}
-      </div>
+      <AvatarUsuario
+        imagem={principal.usuario.foto_url}
+        iniciais={iniciaisDe(nome)}
+        className="size-6 bg-secondary text-[10px] font-bold text-secondary-foreground"
+      />
       <span className="truncate">{nome}</span>
     </div>
   );

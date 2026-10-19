@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Calendar, Lock, MessageSquare, Paperclip, RotateCcw } from "lucide-react";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   COR_PRIORIDADE,
@@ -58,33 +58,19 @@ function formatarData(iso: string) {
 }
 
 function AvatarResponsavel({ principal }: { principal: DemandaResponsavel | undefined }) {
-  const [erro, setErro] = useState(false);
-
-  if (principal?.usuario.foto_url && !erro) {
+  if (!principal) {
     return (
-      // referrerPolicy="no-referrer": mesmo achado do avatar da Topbar --
-      // sem isso, o Google recusa servir a foto de perfil pro Referer do
-      // nosso domínio.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={principal.usuario.foto_url}
-        alt=""
-        referrerPolicy="no-referrer"
-        className="size-[22px] shrink-0 rounded-full object-cover"
-        onError={() => setErro(true)}
-      />
+      <div className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-muted text-[9.5px] font-bold text-muted-foreground">
+        —
+      </div>
     );
   }
-
   return (
-    <div
-      className={cn(
-        "flex size-[22px] shrink-0 items-center justify-center rounded-full text-[9.5px] font-bold",
-        principal ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground",
-      )}
-    >
-      {principal ? iniciaisDe(nomeExibicao(principal.usuario)) : "—"}
-    </div>
+    <AvatarUsuario
+      imagem={principal.usuario.foto_url}
+      iniciais={iniciaisDe(nomeExibicao(principal.usuario))}
+      className="size-[22px] bg-secondary text-[9.5px] font-bold text-secondary-foreground"
+    />
   );
 }
 

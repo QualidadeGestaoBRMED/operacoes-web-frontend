@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DialogNovaVersao } from "@/components/admin/legalizacao/FormNovaVersaoRegra";
@@ -806,9 +807,11 @@ export function DetalheDocumentoModal({
                         ) : (
                           documento.responsaveis.map((resp) => (
                             <span key={resp.id} className="flex items-center gap-1">
-                              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                                {iniciaisDe(nomeExibicao(resp.usuario))}
-                              </span>
+                              <AvatarUsuario
+                                imagem={resp.usuario.foto_url}
+                                iniciais={iniciaisDe(nomeExibicao(resp.usuario))}
+                                className="size-5 bg-secondary text-[9px] font-bold text-secondary-foreground"
+                              />
                               {nomeExibicao(resp.usuario)}
                             </span>
                           ))

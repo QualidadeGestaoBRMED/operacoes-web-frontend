@@ -269,3 +269,16 @@ describe("ResponsavelSection -- elegibilidade pela rede da demanda (STC-747)", (
     expect(screen.queryByRole("option", { name: "Fernanda Ops" })).not.toBeInTheDocument();
   });
 });
+
+describe("ResponsavelSection, foto do Google (STC-795)", () => {
+  it("responsável com foto mostra a foto; sem foto, as iniciais", () => {
+    renderSecao([
+      { id: 1, tipo: "principal", usuario: { ...NOVO_PRINCIPAL, foto_url: "https://foto.exemplo/novo.jpg" } },
+      responsavelColaboradorExistente(),
+    ]);
+
+    const fotos = [...document.querySelectorAll("img")].map((img) => img.getAttribute("src"));
+    expect(fotos).toEqual(["https://foto.exemplo/novo.jpg"]);
+    expect(screen.getByText("CE")).toBeInTheDocument();
+  });
+});
