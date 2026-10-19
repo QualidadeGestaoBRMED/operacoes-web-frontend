@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeft } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,34 +28,6 @@ interface TopbarProps {
   sidebarAberta: boolean;
   /** Sem ele (celular, STC-787), não há menu lateral e o botão some. */
   onToggleSidebar?: () => void;
-}
-
-function AvatarUsuario({ imagem, iniciais }: { imagem?: string | null; iniciais: string }) {
-  const [erro, setErro] = useState(false);
-
-  if (imagem && !erro) {
-    return (
-      // referrerPolicy="no-referrer": sem isso, a foto de perfil do Google
-      // costuma falhar ao carregar (o Google recusa servir a imagem com o
-      // Referer do nosso domínio). <img> puro de propósito, não next/image
-      // -- é um avatar de 32px, não justifica configurar remotePatterns no
-      // next.config.ts só por isso.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={imagem}
-        alt=""
-        referrerPolicy="no-referrer"
-        className="size-8 shrink-0 rounded-full object-cover"
-        onError={() => setErro(true)}
-      />
-    );
-  }
-
-  return (
-    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
-      {iniciais}
-    </div>
-  );
 }
 
 export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: TopbarProps) {
@@ -113,7 +85,11 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
                 aria-label={`Olá, ${usuario.nome}`}
                 className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-foreground/10"
               >
-                <AvatarUsuario imagem={usuario.imagem} iniciais={usuario.iniciais} />
+                <AvatarUsuario
+                  imagem={usuario.imagem}
+                  iniciais={usuario.iniciais}
+                  className="bg-sidebar-primary text-sidebar-primary-foreground"
+                />
                 <span className="hidden sm:inline" aria-hidden="true">
                   Olá, <strong>{usuario.nome}</strong>
                 </span>
