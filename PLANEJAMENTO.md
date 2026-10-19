@@ -931,7 +931,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.15 STC-727 — Suíte do Vitest mais rápida e sem falhas por tempo
 
-🔄 **Em andamento.** Com todos os arquivos em paralelo, os formulários pesados de Legalização (vários Select do Radix por teste) chegavam a dobrar de duração e algum teste passava do limite padrão de 5 s, falhando sem relação com o código alterado. Rodados isolados, passavam sempre.
+✅ **Implementado e mergeado em `main` (PR #110).** Com todos os arquivos em paralelo, os formulários pesados de Legalização (vários Select do Radix por teste) chegavam a dobrar de duração e algum teste passava do limite padrão de 5 s, falhando sem relação com o código alterado. Rodados isolados, passavam sempre.
 
 - `vitest.config.ts`: `pool: "threads"` (o padrão era `forks`) e `testTimeout: 15_000`.
 - Medição de 16/10/2026 (71 arquivos, 1038 testes, 12 núcleos, com o `next dev` no ar): antes, 87,6 s e 4 testes por tempo; depois, 78,8 s, 87,3 s (1 falha, não identificada) e 76,0 s nas três primeiras execuções, e 7 execuções seguidas sem falha depois disso.
@@ -950,7 +950,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.16 STC-747 — Menu, botões de Admin e Administração pelos cargos novos (STC-742)
 
-🔄 **Em andamento.** Frontend das STC-745 e STC-762: o que decidia "é Admin?" pelo nível (≤ 2) passa a decidir pelas redes administradas. Sobe em produção junto com a STC-762.
+✅ **Implementado e mergeado em `main` (PR #111).** Frontend das STC-745 e STC-762: o que decidia "é Admin?" pelo nível (≤ 2) passa a decidir pelas redes administradas. Sobe em produção junto com a STC-762.
 
 - **Regras centrais** (`src/lib/redes.ts`): espelham o backend (`REDES_ADMINISTRADAS`, `QUEM_ATRIBUI`, rede do usuário pela unidade ou pelo cargo, cargo × rede da unidade). `redesAdministradas` usa o `redes_administradas` da API e, em sessão aberta antes do campo existir (os dados do usuário só são gravados no login), deriva do cargo: ninguém perde os botões de Admin no deploy.
 - **`useAuth`:** `isAdminOps` passa a ser "Admin de alguma rede" (o nome ficou para não tocar em ~110 usos nos testes); novos `redesAdministradas`, `administraRedePadrao` e `administraAsDuasRedes`. Os botões de Admin dos módulos conferem a rede do item: transições e anexos pela rede da demanda, excluir documento pela rede do documento, Gestão RH por `administraRedePadrao` (o módulo é da rede padrão). Assim, item de outra rede visto por permissão individual não oferece ação que o backend recusaria.
@@ -963,7 +963,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.17 STC-763 — Cargo e redes atualizados na tela sem sair e entrar de novo (STC-742)
 
-🔄 **Em andamento.** A sessão guarda os dados do usuário do login (`token.backendUser` em `src/auth.ts`); o backend já usa o cargo atual a cada requisição, mas menu, abas e botões seguiam o cargo do login.
+✅ **Implementado e mergeado em `main` (PR #112).** A sessão guarda os dados do usuário do login (`token.backendUser` em `src/auth.ts`); o backend já usa o cargo atual a cada requisição, mas menu, abas e botões seguiam o cargo do login.
 
 - **`useAuth`** busca `GET /api/auth/me/` (`obterUsuarioLogado`, SWR com chave `["usuario-logado", usuarioId]`, uma chamada compartilhada por todos os componentes) e usa cargo, redes, unidade e setor de lá. Revalida ao montar uma tela e ao voltar para a aba (padrão do SWR).
 - **Reserva:** enquanto a resposta não chega, se ela falhar, ou se vier de outra conta (troca de conta em outra aba), vale a sessão. `id` e `usuarioId` continuam os da sessão.

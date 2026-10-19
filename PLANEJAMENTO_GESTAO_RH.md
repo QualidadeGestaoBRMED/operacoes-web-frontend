@@ -35,9 +35,9 @@
 | STC-737 Comparativo do absenteísmo com o período anterior (Semanal 14/10) | P5.1 | ✅ Mergeada |
 | STC-735 Turno variável na aba Equipes e jornada incompleta no Painel e no modal (Semanal 14/10) | P5.1/P5.3/P5.4 | ✅ Mergeada |
 | STC-749 Absenteísmo mês a mês pela rota agregada da STC-748 | P5.1 | ✅ Mergeada |
-| STC-767 Painel e mês a mês mostram os parâmetros usados (rota da STC-766) | P5.1 | 🔄 Em andamento |
+| STC-767 Painel e mês a mês mostram os parâmetros usados (rota da STC-766) | P5.1 | ✅ Mergeada |
 | STC-740 Painel de Horas Extras (rota da STC-739) | P5.1 | ✅ Mergeada |
-| STC-753 Categoria Operações Especiais na aba Equipes e painéis sem o filtro de categoria (Semanal 14/10) | P5.1/P5.4 | 🔄 Em andamento |
+| STC-753 Categoria Operações Especiais na aba Equipes e painéis sem o filtro de categoria (Semanal 14/10) | P5.1/P5.4 | ✅ Mergeada |
 
 ---
 
