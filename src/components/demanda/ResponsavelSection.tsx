@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -224,9 +225,11 @@ export function ResponsavelSection({
         demanda.responsaveis.map((responsavel) => (
           <div key={responsavel.usuario.id} className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground">
-                {iniciaisDe(nomeExibicao(responsavel.usuario))}
-              </div>
+              <AvatarUsuario
+                imagem={responsavel.usuario.foto_url}
+                iniciais={iniciaisDe(nomeExibicao(responsavel.usuario))}
+                className="size-6 bg-secondary text-[9px] font-bold text-secondary-foreground"
+              />
               <span className="text-[13.5px] font-medium text-foreground">
                 {nomeExibicao(responsavel.usuario)}
               </span>
