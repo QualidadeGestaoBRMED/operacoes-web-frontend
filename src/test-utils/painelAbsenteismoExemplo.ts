@@ -123,7 +123,12 @@ export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): P
       : (comValor.reduce((soma, l) => soma + Number(l.percentual), 0) / comValor.length).toFixed(2);
   return {
     periodo: { inicio: filtros.inicio, fim: filtros.fim },
-    parametros: { meta_percentual: "5.00", faixas_cadastradas: true, limite_atraso_minutos: 15 },
+    parametros: {
+      meta_percentual: "5.00",
+      faixas_cadastradas: true,
+      limite_atraso_minutos: 15,
+      vigente_a_partir_de: null,
+    },
     cards: {
       percentual_periodo: media,
       faixa_critica: daUnidade.filter((l) => l.faixa === "critica").length,
