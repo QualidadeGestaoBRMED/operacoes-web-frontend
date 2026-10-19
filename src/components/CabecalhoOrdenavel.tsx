@@ -6,8 +6,8 @@ import type { Ordenacao } from "@/lib/ordenacao";
  * Cabeçalho de coluna que ordena a tabela ao ser clicado: ↑↓ quando a
  * coluna não ordena, ↑ crescente, ↓ decrescente, com `aria-sort` para o
  * leitor de tela. O ciclo do clique é `proximaOrdenacao` (lib/ordenacao.ts);
- * a ordenação em si, `ordenarPor`. O estilo do <th> (sticky, cores, largura)
- * vem de quem usa, em `className`.
+ * a ordenação em si, `ordenarPor`. O estilo do <th> (sticky, cores, largura,
+ * quebra de linha do rótulo) vem de quem usa, em `className`.
  */
 export function CabecalhoOrdenavel<Campo extends string>({
   campo,
@@ -33,7 +33,7 @@ export function CabecalhoOrdenavel<Campo extends string>({
         type="button"
         onClick={() => onOrdenar(campo)}
         className={cn(
-          "group inline-flex items-center gap-1 whitespace-nowrap uppercase hover:text-foreground",
+          "group inline-flex items-center gap-1 text-left uppercase hover:text-foreground",
           ativa && "text-foreground",
         )}
       >

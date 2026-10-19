@@ -32,6 +32,7 @@ import type { LinhaPainelFerias, StatusPeriodoFerias } from "@/types/gestaoRH";
 import { CardsFerias } from "./CardsFerias";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaFerias } from "./TabelaFerias";
+import { proximaOrdenacao } from "@/lib/ordenacao";
 
 function numeroDaUrl(valor: string | null): number | null {
   if (!valor || !/^\d+$/.test(valor)) return null;
@@ -98,11 +99,7 @@ export function PainelFerias() {
   }, [painel, busca, ordenacao]);
 
   function alternarOrdenacao(campo: CampoOrdenavelFerias) {
-    setOrdenacao((atual) => {
-      if (atual?.campo !== campo) return { campo, direcao: "asc" };
-      if (atual.direcao === "asc") return { campo, direcao: "desc" };
-      return null;
-    });
+    setOrdenacao((atual) => proximaOrdenacao(atual, campo));
   }
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();

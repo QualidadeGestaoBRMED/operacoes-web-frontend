@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarCheck2 } from "lucide-react";
+import { CalendarCheck2 } from "lucide-react";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { formatarDataISO } from "@/lib/gestaoRH";
@@ -114,40 +115,25 @@ export function TabelaFerias({
             <thead>
               <tr>
                 {COLUNAS.map((coluna, indice) => {
-                  const ativa = !!coluna.campo && ordenacao?.campo === coluna.campo;
-                  const Icone = !ativa ? ArrowUpDown : ordenacao?.direcao === "asc" ? ArrowUp : ArrowDown;
-                  return (
-                    <th
+                  const classe = cn(
+                    "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
+                    indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
+                    coluna.largura,
+                  );
+                  // Mesmo comportamento da Matriz de Conformidade: crescente,
+                  // decrescente e de volta à ordem da API.
+                  return coluna.campo ? (
+                    <CabecalhoOrdenavel
                       key={coluna.rotulo}
-                      aria-sort={
-                        ativa ? (ordenacao?.direcao === "asc" ? "ascending" : "descending") : undefined
-                      }
-                      className={cn(
-                        "sticky top-0 border-b border-border bg-muted px-3 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
-                        indice === 0 ? CLASSE_CABECALHO_FIXO : CLASSE_CABECALHO,
-                        coluna.largura,
-                      )}
-                    >
-                      {coluna.campo ? (
-                        // Mesmo comportamento da Matriz de Conformidade: crescente,
-                        // decrescente e de volta à ordem da API.
-                        <button
-                          type="button"
-                          onClick={() => onOrdenar(coluna.campo as CampoOrdenavelFerias)}
-                          className={cn(
-                            "group flex items-center gap-1 uppercase hover:text-foreground",
-                            ativa && "text-foreground",
-                          )}
-                        >
-                          {coluna.rotulo}
-                          <Icone
-                            aria-hidden
-                            className={cn("size-3", !ativa && "opacity-70 group-hover:opacity-100")}
-                          />
-                        </button>
-                      ) : (
-                        coluna.rotulo
-                      )}
+                      campo={coluna.campo as CampoOrdenavelFerias}
+                      rotulo={coluna.rotulo}
+                      ordenacao={ordenacao}
+                      onOrdenar={onOrdenar}
+                      className={classe}
+                    />
+                  ) : (
+                    <th key={coluna.rotulo} className={classe}>
+                      {coluna.rotulo}
                     </th>
                   );
                 })}

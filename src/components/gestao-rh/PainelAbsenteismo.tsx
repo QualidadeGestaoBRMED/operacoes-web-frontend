@@ -45,6 +45,7 @@ import { CampoPeriodo } from "./CampoPeriodo";
 import { CardsAbsenteismo } from "./CardsAbsenteismo";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
+import { proximaOrdenacao } from "@/lib/ordenacao";
 
 // Carregado só ao abrir: o gráfico (Recharts) não pesa na abertura do Painel.
 const AbsenteismoMensalModal = dynamic(
@@ -175,11 +176,7 @@ export function PainelAbsenteismo() {
   }
 
   function alternarOrdenacao(campo: CampoOrdenavelAbsenteismo) {
-    setOrdenacao((atual) => {
-      if (atual?.campo !== campo) return { campo, direcao: "asc" };
-      if (atual.direcao === "asc") return { campo, direcao: "desc" };
-      return null;
-    });
+    setOrdenacao((atual) => proximaOrdenacao(atual, campo));
   }
 
   const { refPai, refTabela, maxHeight } = useAlturaSemLinhaCortada();

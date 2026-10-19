@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, FileX2 } from "lucide-react";
+import { FileX2 } from "lucide-react";
+import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import {
@@ -156,44 +157,19 @@ export function MatrizTable({
           <table className="w-full min-w-[820px] table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                {COLUNAS.map((coluna) => {
-                  const ativa = ordenacao?.campo === coluna.campo;
-                  const Icone = !ativa
-                    ? ArrowUpDown
-                    : ordenacao.direcao === "asc"
-                      ? ArrowUp
-                      : ArrowDown;
-                  return (
-                    <th
-                      key={coluna.rotulo}
-                      className={cn(
-                        "sticky top-0 border-b border-border bg-muted px-4 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
-                        coluna.largura,
-                      )}
-                    >
-                      {/* opacity-70 (era 40) + hover:opacity-100: achado no
-                          review visual -- o ícone quase invisível nas
-                          colunas inativas não deixava claro que o
-                          cabeçalho é clicável. */}
-                      <button
-                        type="button"
-                        onClick={() => onOrdenar(coluna.campo)}
-                        className={cn(
-                          "group flex items-center gap-1 hover:text-foreground",
-                          ativa && "text-foreground",
-                        )}
-                      >
-                        {coluna.rotulo}
-                        <Icone
-                          className={cn(
-                            "size-3",
-                            !ativa && "opacity-70 group-hover:opacity-100",
-                          )}
-                        />
-                      </button>
-                    </th>
-                  );
-                })}
+                {COLUNAS.map((coluna) => (
+                  <CabecalhoOrdenavel
+                    key={coluna.rotulo}
+                    campo={coluna.campo}
+                    rotulo={coluna.rotulo}
+                    ordenacao={ordenacao}
+                    onOrdenar={onOrdenar}
+                    className={cn(
+                      "sticky top-0 border-b border-border bg-muted px-4 py-2.5 text-left text-[13px] font-bold tracking-wide text-muted-foreground uppercase",
+                      coluna.largura,
+                    )}
+                  />
+                ))}
               </tr>
             </thead>
             <tbody>
