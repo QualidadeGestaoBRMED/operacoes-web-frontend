@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Perfil, Setor, Unidade, Usuario } from "@/types";
@@ -16,6 +17,7 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarUsuario,
+  encerrarVerComo,
   iniciarVerComo,
   listarPerfis,
   listarSetores,
@@ -595,5 +597,32 @@ describe("GerenciarUsuarios, ver como (STC-790)", () => {
       expect(screen.getByRole("button", { name: "Ver como Diego Lima" })).toBeEnabled(),
     );
     expect(navegar).not.toHaveBeenCalled();
+  });
+
+  it("sem onde guardar a sessão na aba: encerra no backend, avisa e não navega", async () => {
+    comoAdminQG();
+    const sessao = {
+      id: "6f1c2a7e-0000-4000-8000-000000000001",
+      usuario: { id: 1, nome: "Carla Lima" },
+      admin: { id: 999, nome: "Admin" },
+      iniciada_em: "2026-10-19T15:00:00Z",
+      expira_em: "2099-10-19T16:00:00Z",
+    };
+    vi.mocked(iniciarVerComo).mockResolvedValue(sessao);
+    vi.mocked(encerrarVerComo).mockResolvedValue(undefined);
+    const gravar = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("sem armazenamento");
+    });
+    renderTela();
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ver como Carla Lima" }));
+
+    expect(encerrarVerComo).toHaveBeenCalledWith(sessao.id);
+    expect(toast.error).toHaveBeenCalledWith(
+      "Este navegador não permitiu começar o ver como nesta aba.",
+    );
+    expect(navegar).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Ver como Carla Lima" })).toBeEnabled();
+    gravar.mockRestore();
   });
 });
