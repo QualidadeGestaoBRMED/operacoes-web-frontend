@@ -55,6 +55,8 @@ interface CardIndicadorProps {
   rotuloEmDuasLinhas?: boolean;
   /** Dica do navegador ao passar o mouse no card. */
   dica?: string;
+  /** Classes de posição na grade (ex.: ocupar 2 colunas). */
+  className?: string;
 }
 
 export function CardIndicador({
@@ -67,6 +69,7 @@ export function CardIndicador({
   selecionado,
   rotuloEmDuasLinhas = false,
   dica,
+  className,
 }: CardIndicadorProps) {
   const Elemento = onClick ? "button" : "div";
   return (
@@ -80,6 +83,7 @@ export function CardIndicador({
         onClick &&
           "cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
         selecionado && cn("ring-2", COR_ANEL[cor]),
+        className,
       )}
     >
       <div className="min-w-0">

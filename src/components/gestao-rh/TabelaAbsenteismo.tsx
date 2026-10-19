@@ -84,9 +84,12 @@ function CelulaAbsenteismo({ linha }: { linha: LinhaPainelAbsenteismo }) {
   return (
     <td className="px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-2">
+        {/* Largura do maior valor ("100,0%") e alinhado à direita: os selos
+            ficam numa coluna reta, e os números, alinhados pela direita. */}
         <span
+          data-testid="percentual-absenteismo"
           className={cn(
-            "text-[13px] font-semibold tabular-nums",
+            "w-[6ch] shrink-0 text-right text-[13px] font-semibold tabular-nums",
             linha.faixa === "critica" && "text-red-600",
             linha.faixa === "atencao" && "text-amber-700",
           )}
