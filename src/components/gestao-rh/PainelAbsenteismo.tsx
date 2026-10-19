@@ -228,6 +228,9 @@ export function PainelAbsenteismo() {
               ? `Última importação: ${formatarDataHora(cards.ultima_importacao)}`
               : "Nenhuma importação ainda"}
             {cards.dados_ate && ` · dados até ${formatarDataISO(cards.dados_ate)}`}
+            {/* A conta de qualquer período usa os parâmetros de hoje. */}
+            {painel.parametros.vigente_a_partir_de &&
+              ` · parâmetros vigentes desde ${formatarDataISO(painel.parametros.vigente_a_partir_de)}`}
           </p>
         )}
       </div>

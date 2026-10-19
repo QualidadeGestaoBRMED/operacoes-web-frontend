@@ -147,9 +147,9 @@ export function AbsenteismoMensalModal({
   const meses = mensal?.meses;
 
   const pontos = meses ? pontosDoGrafico(meses, hoje) : [];
-  // Limite da versão vigente no último mês com dado (pode mudar entre versões).
-  const ultimoComDado = meses?.findLast(comDado);
-  const limite = ultimoComDado?.meta_percentual ?? null;
+  // Todos os meses usam a versão dos parâmetros vigente hoje.
+  const limite = mensal?.parametros.meta_percentual ?? null;
+  const vigenteDesde = mensal?.parametros.vigente_a_partir_de ?? null;
   const maior = Math.max(0, ...pontos.map((ponto) => ponto.percentual ?? 0), limite ? Number(limite) : 0);
   // Marcas com passo fixo (0, 2, 4, 6...): com o teto livre, a última marca
   // ficava colada na anterior.
@@ -317,6 +317,11 @@ export function AbsenteismoMensalModal({
             )}
             {semDado.length > 0 && linhas.length > 0 && (
               <p className="text-[11.5px] text-muted-foreground sm:text-[13px]">Sem dados: {mesesPorExtenso(semDado)}.</p>
+            )}
+            {vigenteDesde && linhas.length > 0 && (
+              <p className="text-[11.5px] text-muted-foreground sm:text-[13px]">
+                Todos os meses com os parâmetros vigentes desde {formatarDataISO(vigenteDesde)}.
+              </p>
             )}
           </>
         )}

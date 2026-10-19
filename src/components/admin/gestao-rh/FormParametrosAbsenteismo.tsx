@@ -246,8 +246,8 @@ export function FormParametrosAbsenteismo() {
             Parâmetros de absenteísmo
           </h2>
           <p className="text-sm text-muted-foreground">
-            Cada alteração cria uma nova versão; a versão anterior continua valendo para os
-            períodos já calculados.
+            Cada alteração cria uma nova versão, que vale para os painéis em qualquer período.
+            Alertas e demandas já gerados mantêm a versão com que foram gerados.
           </p>
         </div>
         <Badge variant="outline">{textoVersaoVigente(vigente)}</Badge>
