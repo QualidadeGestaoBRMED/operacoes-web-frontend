@@ -999,7 +999,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.20 STC-746 — Tela de Acessos em Administração
 
-🔄 **Em andamento.** Frontend da STC-741 (histórico de acesso dos usuários); o backend é a STC-744 (`GET /api/plataforma/acessos/`, um uso por pessoa por dia, só de quem o Admin administra).
+✅ **Implementado e mergeado em `main` (PR #118).** Frontend da STC-741 (histórico de acesso dos usuários); o backend é a STC-744 (`GET /api/plataforma/acessos/`, um uso por pessoa por dia, só de quem o Admin administra).
 
 - **Seção "Acessos"** no Select de Administração (`AcessosAdmin.tsx`, rota `/admin/permissoes/acessos`, com a `page.tsx` vazia como as outras seções): para todo Admin, inclusive o Admin Operações Especiais (a API já devolve só as pessoas da rede dele). Busca só na primeira visita à seção, como os Parâmetros de Gestão RH.
 - **Lista** na ordem da API (quem nunca entrou, depois quem está há mais tempo sem entrar): foto do Google, pessoa e e-mail, dias sem entrar, último uso ("Hoje", "Ontem" ou a data), dias com uso no período ("16 de 30"), perfil e unidade (ou setor, sem unidade). Os dias sem entrar vêm logo depois da pessoa, para caber no celular sem rolar de lado.
@@ -1013,3 +1013,20 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Detalhe:** o nome abre um diálogo com os dias de uso no período, num calendário por mês (`mesesDoPeriodo`), dias usados em destaque.
 - **Conferência** (banco local com usos de teste, Admin Q&G): 1440 × 900 e 390 × 844, lista, destaque, detalhe em 30 e 90 dias; sem rolagem lateral da página e sem erro no console.
 - Testes: lista e ordem, foto ou iniciais, ordenação por coluna (ciclo e quem nunca entrou), `proximaOrdenacao`, destaque (nunca entrou, 3 dias ou mais), filtros de perfil e unidade com "Limpar filtros", troca de período, detalhe com os dias certos, erro ao carregar com "Tentar de novo", troca de período sem esvaziar, erro com dados na tela, rede sem ninguém, textos para leitor de tela; funções de `lib/acessos.ts` (período, rótulos, calendário virando o ano); seção no Select (Admin Operações Especiais com Usuários e Acessos) e busca só na primeira visita.
+
+### 7.21 STC-794 — Ordenação por coluna em todas as tabelas
+
+🔄 **Em andamento.** Toda tabela de lista ordena pela coluna, com o cabeçalho compartilhado da STC-746 (`CabecalhoOrdenavel`, ↑↓, ↑ e ↓, com `aria-sort`) e o ciclo do clique `proximaOrdenacao` (crescente, decrescente, ordem padrão). Valores vazios ficam no fim nas duas direções (`ordenarPor`).
+
+- **Tabelas que já ordenavam** (Matriz de Conformidade, Absenteísmo, Horas Extras e Férias) trocaram a cópia manual do cabeçalho e do ciclo pelo componente, sem mudar o comportamento (os testes delas passam sem alteração). Cada tabela passa a quebra de linha do rótulo no `className` do `<th>`: Absenteísmo e Horas Extras sem quebra, Matriz e Férias com.
+- **Cabeçalho:** a última palavra do rótulo fica presa ao ícone. Se o rótulo quebra linha ("Turno variável", "Área responsável"), o ícone vem junto da última palavra, não solto na lateral da coluna nem sozinho na linha de baixo.
+- **Tabelas novas com ordenação** (sem coluna escolhida, vale a ordem de hoje):
+  - Usuários (Perfil, unidade e setor): pessoa, perfil, unidade, setor;
+  - Permissões individuais: todas menos a de ações. "Concedido" ordena pela data da concessão; "Status", na ordem dos status (Ativa, Agendada, Expirada, Revogada), não alfabética. Sem coluna escolhida, continua status e depois a concessão mais recente;
+  - Catálogo de Legalização: nome, categoria (na ordem da Matriz), área responsável e status (ativos primeiro); Exigências e Ações não ordenam;
+  - Equipes: todas as colunas (turno variável: as que têm primeiro). "Colaboradores" e "Turno variável" ficaram com `w-40` (o rótulo com o ícone não cabia em `w-36`) e a tabela com `min-w-[900px]`, para a coluna Equipe não perder largura no celular;
+  - Importação: o histórico e a lista de linhas rejeitadas. As rejeitadas são ordenadas antes do corte das 500 primeiras: as que aparecem são as primeiras da ordem escolhida.
+- **Edição em tabela ordenada** (Usuários, Equipes): ao mudar o valor da coluna que ordena, a linha muda de lugar, como em qualquer tabela ordenada.
+- **Fora:** Mapa da Legalização (grade), Absenteísmo mês a mês (colunas fixas por mês) e as tabelas da documentação da API.
+- **Conferência** (banco local, Admin Q&G): 1440 × 900 e 390 × 844 em Usuários e Permissões, Catálogo, Equipes, Importação, Matriz e Absenteísmo, com uma coluna ordenada em cada; sem erro no console.
+- Testes: em cada tabela nova, o ciclo crescente, decrescente e ordem padrão com `aria-sort`, com dados em que as três ordens diferem; valores vazios no fim; Status na ordem dos status; colunas que não ordenam sem botão; rejeitadas ordenadas antes do corte.
