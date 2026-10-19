@@ -223,4 +223,25 @@ describe("ver como (STC-790)", () => {
     expect(sessionStorage.getItem("atlas.verComo")).toBeNull();
     expect(sessionStorage.getItem("atlas.verComoAviso")).toBe("O ver como terminou.");
   });
+
+  it("recusa de fim numa chamada como o Admin (sair) não navega de novo", async () => {
+    const navegar = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: navegar });
+    vi.resetModules();
+    const { default: api } = await import("./api");
+    api.defaults.adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      throw new AxiosError("erro", undefined, config, undefined, {
+        data: { detail: "O ver como terminou.", codigo: "ver_como_encerrado" },
+        status: 403,
+        statusText: "",
+        headers: {},
+        config,
+      });
+    });
+
+    await api.post(`/plataforma/ver-como/${SESSAO.id}/encerrar/`, null, { _semVerComo: true }).catch(() => {});
+
+    expect(navegar).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("atlas.verComoAviso")).toBeNull();
+  });
 });
