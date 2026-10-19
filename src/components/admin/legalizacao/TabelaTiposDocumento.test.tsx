@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -292,5 +292,53 @@ describe("TabelaTiposDocumento -- histórico de edição (STC-501)", () => {
     expect(
       await screen.findByText("Nenhuma edição registrada ainda."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("TabelaTiposDocumento, ordenação por coluna (STC-794)", () => {
+  function nomesNaTabela() {
+    const tabela = screen.getByRole("table", { name: "Tipos de documento" });
+    return within(tabela)
+      .getAllByRole("row")
+      .slice(1)
+      .map((linha) => within(linha).getAllByRole("cell")[0].textContent);
+  }
+
+  beforeEach(() => {
+    // Ordem da API diferente da crescente e da decrescente por categoria.
+    vi.mocked(listarTiposDocumento).mockResolvedValue([
+      { ...TIPO, id: 1, nome: "Treinamento NR", categoria: "capacitacao" },
+      { ...TIPO, id: 2, nome: "Alvará", categoria: "regularizacao", ativo: false },
+      { ...TIPO, id: 3, nome: "Registro no CRM", categoria: "registros_tecnicos" },
+    ]);
+  });
+
+  it("categoria na ordem da Matriz: crescente, decrescente e de volta à ordem da API", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Alvará");
+    const categoria = screen.getByRole("button", { name: "Categoria" });
+
+    await user.click(categoria);
+    expect(nomesNaTabela()).toEqual(["Alvará", "Registro no CRM", "Treinamento NR"]);
+    expect(screen.getByRole("columnheader", { name: "Categoria" })).toHaveAttribute("aria-sort", "ascending");
+
+    await user.click(categoria);
+    expect(nomesNaTabela()).toEqual(["Treinamento NR", "Registro no CRM", "Alvará"]);
+
+    await user.click(categoria);
+    expect(nomesNaTabela()).toEqual(["Treinamento NR", "Alvará", "Registro no CRM"]);
+    expect(screen.getByRole("columnheader", { name: "Categoria" })).not.toHaveAttribute("aria-sort");
+  });
+
+  it("status: ativos antes dos inativos; Exigências e Ações não ordenam", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Alvará");
+
+    await user.click(screen.getByRole("button", { name: "Status" }));
+    expect(nomesNaTabela().at(-1)).toBe("Alvará");
+    expect(screen.queryByRole("button", { name: "Exigências" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ações" })).not.toBeInTheDocument();
   });
 });

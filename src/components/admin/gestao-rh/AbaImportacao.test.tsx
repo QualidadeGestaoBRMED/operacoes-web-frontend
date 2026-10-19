@@ -344,3 +344,60 @@ describe("Aba Importação: histórico", () => {
     expect(await screen.findByText("Nenhuma importação ainda.")).toBeInTheDocument();
   });
 });
+
+describe("Aba Importação: ordenação por coluna (STC-794)", () => {
+  it("histórico: crescente, decrescente e de volta à ordem da API", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listarImportacoes).mockResolvedValue([
+      lote({ id: 1, linhas_processadas: 100 }),
+      lote({ id: 2, linhas_processadas: 300 }),
+      lote({ id: 3, linhas_processadas: 200 }),
+    ]);
+    renderAba();
+    const tabela = await screen.findByRole("table", { name: "Importações" });
+    await within(tabela).findByText("300");
+    const processadas = () =>
+      within(tabela)
+        .getAllByRole("row")
+        .slice(1)
+        .map((linha) => within(linha).getAllByRole("cell")[3].textContent);
+    const coluna = within(tabela).getByRole("button", { name: "Linhas processadas" });
+
+    await user.click(coluna);
+    expect(processadas()).toEqual(["100", "200", "300"]);
+    expect(within(tabela).getByRole("columnheader", { name: "Linhas processadas" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await user.click(coluna);
+    expect(processadas()).toEqual(["300", "200", "100"]);
+    await user.click(coluna);
+    expect(processadas()).toEqual(["100", "300", "200"]);
+  });
+
+  it("linhas rejeitadas: ordena antes de cortar, sem identificação no fim", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listarImportacoes).mockResolvedValue([lote({ id: 7, linhas_rejeitadas: 3 })]);
+    vi.mocked(listarLinhasRejeitadas).mockResolvedValue([
+      { relatorio: "jornada", linha: 5, colaborador: "ZECA", motivo: "Nome repetido." },
+      { relatorio: "abonos", linha: 2, colaborador: "", motivo: "Data inválida." },
+      { relatorio: "pendencias", linha: 9, colaborador: "ANA", motivo: "Sem equipe." },
+    ]);
+    renderAba();
+
+    await user.click(await screen.findByRole("button", { name: /Ver 3 linhas rejeitadas/ }));
+    const modal = await screen.findByRole("dialog", { name: "Linhas rejeitadas" });
+    await within(modal).findByText("ZECA");
+    const colaboradores = () =>
+      within(modal)
+        .getAllByRole("row")
+        .slice(1)
+        .map((linha) => within(linha).getAllByRole("cell")[2].textContent);
+    const coluna = within(modal).getByRole("button", { name: "Colaborador" });
+
+    await user.click(coluna);
+    expect(colaboradores()).toEqual(["ANA", "ZECA", "Sem identificação"]);
+    await user.click(coluna);
+    expect(colaboradores()).toEqual(["ZECA", "ANA", "Sem identificação"]);
+  });
+});

@@ -453,3 +453,54 @@ describe("GerenciarUsuarios -- cargos por rede (STC-747)", () => {
   });
 });
 
+
+describe("GerenciarUsuarios, ordenação por coluna (STC-794)", () => {
+  function pessoasNaTabela() {
+    const tabela = screen.getByRole("table", { name: "Perfil, unidade e setor" });
+    return within(tabela)
+      .getAllByRole("row")
+      .slice(1)
+      .map((linha) => within(linha).getAllByRole("cell")[0].textContent);
+  }
+
+  beforeEach(() => {
+    // Ordem da API diferente da crescente e da decrescente por nome.
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ id: 2, first_name: "Bruno", perfil: null, setor_id: SETOR.id }),
+      usuario({ id: 1, first_name: "Carla", perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+      usuario({ id: 3, first_name: "Ana", perfil: PERFIL_SETOR }),
+    ]);
+  });
+
+  it("clicar ordena crescente, depois decrescente, depois volta à ordem da API", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Carla Lima");
+    const pessoa = screen.getByRole("button", { name: "Pessoa" });
+
+    await user.click(pessoa);
+    expect(pessoasNaTabela()).toEqual(["Ana Lima", "Bruno Lima", "Carla Lima"]);
+    expect(screen.getByRole("columnheader", { name: "Pessoa" })).toHaveAttribute("aria-sort", "ascending");
+
+    await user.click(pessoa);
+    expect(pessoasNaTabela()).toEqual(["Carla Lima", "Bruno Lima", "Ana Lima"]);
+    expect(screen.getByRole("columnheader", { name: "Pessoa" })).toHaveAttribute("aria-sort", "descending");
+
+    await user.click(pessoa);
+    expect(pessoasNaTabela()).toEqual(["Bruno Lima", "Carla Lima", "Ana Lima"]);
+    expect(screen.getByRole("columnheader", { name: "Pessoa" })).not.toHaveAttribute("aria-sort");
+  });
+
+  it("sem unidade fica no fim nas duas direções", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    await screen.findByText("Carla Lima");
+    const unidade = screen.getByRole("button", { name: "Unidade" });
+
+    await user.click(unidade);
+    expect(pessoasNaTabela()[0]).toBe("Carla Lima");
+    await user.click(unidade);
+    // Decrescente: Carla continua primeiro, porque os sem unidade vão para o fim.
+    expect(pessoasNaTabela()[0]).toBe("Carla Lima");
+  });
+});

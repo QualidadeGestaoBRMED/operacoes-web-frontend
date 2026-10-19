@@ -714,6 +714,41 @@ describe("Aba Equipes", () => {
     await user.click(await screen.findByRole("tab", { name: "Equipes" }));
   }
 
+  it("STC-794: ordena por coluna; sem unidade fica no fim, e o terceiro clique volta à ordem da API", async () => {
+    vi.mocked(listarEquipesVR).mockResolvedValue([
+      equipe({ id: 1, nome: "Bravo", colaboradores_ativos: 30, unidade: { id: 1, nome: "Niterói" } }),
+      equipe({ id: 2, nome: "Alfa", colaboradores_ativos: 5, unidade: null, categoria: "fora_do_indicador" }),
+      equipe({ id: 3, nome: "Charlie", colaboradores_ativos: 12, unidade: { id: 2, nome: "Barra" } }),
+    ]);
+    const user = userEvent.setup();
+    await abrirAba(user);
+    const tabela = await screen.findByRole("table", { name: "Equipes do VR" });
+    await within(tabela).findByText("Bravo");
+    const nomes = () =>
+      within(tabela)
+        .getAllByRole("row")
+        .slice(1)
+        .map((linha) => within(linha).getAllByRole("cell")[0].textContent);
+    const colaboradores = within(tabela).getByRole("button", { name: "Colaboradores" });
+
+    await user.click(colaboradores);
+    expect(nomes()).toEqual(["Alfa", "Charlie", "Bravo"]);
+    expect(within(tabela).getByRole("columnheader", { name: "Colaboradores" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await user.click(colaboradores);
+    expect(nomes()).toEqual(["Bravo", "Charlie", "Alfa"]);
+    await user.click(colaboradores);
+    expect(nomes()).toEqual(["Bravo", "Alfa", "Charlie"]);
+
+    const unidade = within(tabela).getByRole("button", { name: "Unidade do Atlas" });
+    await user.click(unidade);
+    expect(nomes()).toEqual(["Charlie", "Bravo", "Alfa"]);
+    await user.click(unidade);
+    expect(nomes()).toEqual(["Bravo", "Charlie", "Alfa"]);
+  });
+
   it("lista as equipes e avisa quantas estão sem categoria", async () => {
     vi.mocked(listarEquipesVR).mockResolvedValue([equipe(EQUIPE_NOVA), equipe()]);
     const user = userEvent.setup();
