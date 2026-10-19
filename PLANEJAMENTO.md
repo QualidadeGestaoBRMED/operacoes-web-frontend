@@ -1016,7 +1016,7 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 
 ### 7.21 STC-794 — Ordenação por coluna em todas as tabelas
 
-🔄 **Em andamento.** Toda tabela de lista ordena pela coluna, com o cabeçalho compartilhado da STC-746 (`CabecalhoOrdenavel`, ↑↓, ↑ e ↓, com `aria-sort`) e o ciclo do clique `proximaOrdenacao` (crescente, decrescente, ordem padrão). Valores vazios ficam no fim nas duas direções (`ordenarPor`).
+✅ **Implementado e mergeado em `main` (PR #119).** Toda tabela de lista ordena pela coluna, com o cabeçalho compartilhado da STC-746 (`CabecalhoOrdenavel`, ↑↓, ↑ e ↓, com `aria-sort`) e o ciclo do clique `proximaOrdenacao` (crescente, decrescente, ordem padrão). Valores vazios ficam no fim nas duas direções (`ordenarPor`).
 
 - **Tabelas que já ordenavam** (Matriz de Conformidade, Absenteísmo, Horas Extras e Férias) trocaram a cópia manual do cabeçalho e do ciclo pelo componente, sem mudar o comportamento (os testes delas passam sem alteração). Cada tabela passa a quebra de linha do rótulo no `className` do `<th>`: Absenteísmo e Horas Extras sem quebra, Matriz e Férias com.
 - **Cabeçalho:** a última palavra do rótulo fica presa ao ícone. Se o rótulo quebra linha ("Turno variável", "Área responsável"), o ícone vem junto da última palavra, não solto na lateral da coluna nem sozinho na linha de baixo.
@@ -1030,3 +1030,15 @@ Suíte completa do frontend em 417 testes, `tsc --noEmit`/`eslint` limpos.
 - **Fora:** Mapa da Legalização (grade), Absenteísmo mês a mês (colunas fixas por mês) e as tabelas da documentação da API.
 - **Conferência** (banco local, Admin Q&G): 1440 × 900 e 390 × 844 em Usuários e Permissões, Catálogo, Equipes, Importação, Matriz e Absenteísmo, com uma coluna ordenada em cada; sem erro no console.
 - Testes: em cada tabela nova, o ciclo crescente, decrescente e ordem padrão com `aria-sort`, com dados em que as três ordens diferem; valores vazios no fim; Status na ordem dos status; colunas que não ordenam sem botão; rejeitadas ordenadas antes do corte; outro lote abre as rejeitadas sem a ordem do anterior.
+
+### 7.22 STC-795 — Foto do Google nos responsáveis e comentários
+
+🔄 **Em andamento.** A foto de perfil do Google (`Usuario.foto_url`, gravada no login e já enviada pelo backend nos usuários aninhados) passa a aparecer onde só havia as iniciais:
+
+- Gestão de Demandas, detalhe do card: Responsáveis (`ResponsavelSection.tsx`) e Comentários (`ComentarioFeed.tsx`);
+- Legalização: coluna Responsável da Matriz (`MatrizTable.tsx`) e Responsável operacional no detalhe do documento (`DetalheDocumentoModal.tsx`, a visualização com "Editar"; o modo de edição mostra etiquetas só com o nome).
+
+Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando existe, iniciais sem ela ou se a imagem não carregar, com o tamanho e as cores de antes. Comentário de conta excluída continua com as iniciais de "Usuário removido". Os colaboradores das tabelas de Gestão RH vêm do VR, não são usuários do Atlas e ficam com as iniciais.
+
+- **Conferência** (banco local, 1440 × 900; o navegador de teste preenchia a foto dos usuários sem foto, sem mexer no banco): comentários, responsáveis do card, Matriz e detalhe do documento com a foto; sem erro no console.
+- Testes: `AvatarUsuario` (foto sem Referer, iniciais sem foto, volta às iniciais se a imagem falha); foto e iniciais em Comentários (com conta excluída), Responsáveis e na Matriz.
