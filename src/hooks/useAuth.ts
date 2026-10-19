@@ -17,7 +17,11 @@ export function useAuth() {
   // "Ver como" (STC-790): os dados atuais são os da pessoa simulada, e até
   // chegarem a tela espera (com a sessão, mostraria o menu do Admin).
   const verComo = useVerComo();
-  const { data: atual, error: erroAtual } = useSWR(
+  const {
+    data: atual,
+    error: erroAtual,
+    mutate: recarregarAtual,
+  } = useSWR(
     usuarioId ? ["usuario-logado", usuarioId] : null,
     () => obterUsuarioLogado(),
   );
@@ -34,6 +38,10 @@ export function useAuth() {
     isLoading: status === "loading" || (Boolean(verComo) && atual === undefined),
     /** Sessão de "ver como" em andamento nesta aba (só leitura), ou null. */
     verComo: atual?.ver_como ?? null,
+    /** Em "ver como", a busca da pessoa falhou: a faixa avisa e oferece
+     * tentar de novo, em vez de a tela só seguir carregando. */
+    falhaAoAbrirVerComo: Boolean(verComo) && atual === undefined && Boolean(erroAtual),
+    recarregarUsuario: () => void recarregarAtual(),
     // Dados atuais ainda a caminho: a tela já usa a sessão, mas quem tira a
     // pessoa de uma página pelo cargo espera, senão quem acabou de virar
     // Admin seria mandado embora com o cargo do login.

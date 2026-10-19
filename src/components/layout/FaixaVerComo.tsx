@@ -25,7 +25,7 @@ const FORMATADOR_HORA = new Intl.DateTimeFormat("pt-BR", {
 export function FaixaVerComo() {
   // A da API (com a pessoa confirmada) e, sem ela (carregando ou falhou), a
   // desta aba: a faixa não some enquanto as requisições vão como a pessoa.
-  const { verComo: daApi } = useAuth();
+  const { verComo: daApi, falhaAoAbrirVerComo, recarregarUsuario } = useAuth();
   const daAba = useVerComo();
   const verComo = daApi ?? daAba;
   const [saindo, setSaindo] = useState(false);
@@ -73,6 +73,18 @@ export function FaixaVerComo() {
           leitura) · até {FORMATADOR_HORA.format(new Date(verComo.expira_em))}
         </span>
       </span>
+      {falhaAoAbrirVerComo && (
+        <span className="flex items-center gap-2">
+          Não foi possível abrir o Atlas como esta pessoa.
+          <button
+            type="button"
+            onClick={recarregarUsuario}
+            className="rounded-md bg-amber-950/10 px-2 py-0.5 font-semibold hover:bg-amber-950/20"
+          >
+            Tentar de novo
+          </button>
+        </span>
+      )}
       <button
         type="button"
         onClick={() => void sair()}

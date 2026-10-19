@@ -534,7 +534,7 @@ export function GerenciarUsuarios({
                           variant="outline"
                           size="sm"
                           onClick={() => void verComo(usuario)}
-                          aria-label={`Ver o Atlas como ${nomeExibicao(usuario)}`}
+                          aria-label={`Ver como ${nomeExibicao(usuario)}`}
                           title="Ver o Atlas como esta pessoa, só para leitura"
                         >
                           <Eye className="size-4" />
