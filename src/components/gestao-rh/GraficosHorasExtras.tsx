@@ -259,11 +259,15 @@ function GraficoDeBarras({
                 tick={<RotuloDoEixo caracteres={rotulo.caracteres} />}
               />
               <Tooltip content={<Dica painel={painel} />} cursor={{ fillOpacity: 0.4 }} />
-              {visiveis.map((item) => (
+              {/* Os dois fatores sempre montados, o não escolhido com `hide`: o
+                  Recharts empilha na ordem em que as barras montam, e montar o
+                  de 50% de novo depois do de 100% inverteria a pilha. */}
+              {FATORES.map((item) => (
                 <Bar
                   key={item}
                   dataKey={`fator_${item}`}
                   stackId="horas"
+                  hide={!visiveis.includes(item)}
                   fill={`var(--color-fator_${item})`}
                   // Cantos arredondados só na ponta da barra.
                   radius={item === visiveis.at(-1) ? [0, 4, 4, 0] : undefined}
