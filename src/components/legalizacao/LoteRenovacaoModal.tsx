@@ -67,7 +67,12 @@ function PassoSelecao({
 }) {
   const { user } = useAuth();
   const { iniciar, emAndamento } = useAcoesDoLote();
-  const { documentos, isLoading, mensagemErro } = useDocumentosLegalizacao({
+  const {
+    documentos,
+    isLoading,
+    mensagemErro,
+    mutate: recarregar,
+  } = useDocumentosLegalizacao({
     unidade: documentoInicial.unidade.id,
     tipo_documento: documentoInicial.tipo_documento.id,
   });
@@ -114,7 +119,16 @@ function PassoSelecao({
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando instâncias...</p>
         ) : mensagemErro ? (
-          <p className="text-sm text-destructive">{mensagemErro}</p>
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-destructive">{mensagemErro}</p>
+            <Button variant="outline" size="sm" onClick={() => void recarregar()}>
+              Tentar novamente
+            </Button>
+          </div>
+        ) : instancias.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma instância deste tipo nesta clínica.
+          </p>
         ) : (
           <ul className="flex flex-col gap-1.5" aria-label="Instâncias">
             {instancias.map((documento) => {
@@ -284,10 +298,12 @@ function FormularioDoLote({
   async function enviarCertificadoDoItem(item: ItemDoLote, arquivo: File) {
     try {
       await acoes.enviarCertificadoDoItem(lote.id, item.documento.id, arquivo);
-      toast.success(`Certificado de ${rotuloDoItem(item.documento.identificador)} anexado.`);
     } catch (erro) {
+      // Só falha do envio em si: a releitura do lote depois dele não lança.
       toast.error(extrairMensagemErro(erro));
+      return;
     }
+    toast.success(`Certificado de ${rotuloDoItem(item.documento.identificador)} anexado.`);
   }
 
   async function concluir() {
@@ -563,15 +579,17 @@ function FormularioDoLote({
                 );
               })}
             </ul>
-            {aConcluir.length > 0 && !podeConcluir && (
-              <p className="text-[11.5px] text-muted-foreground" role="status">
-                {semCertificado.length > 0
+            {/* Sempre montado (só o texto muda): leitor de tela anuncia a
+                região quando o conteúdo muda, não quando ela entra no DOM. */}
+            <p className="text-[11.5px] text-muted-foreground empty:hidden" role="status">
+              {aConcluir.length === 0 || podeConcluir
+                ? ""
+                : semCertificado.length > 0
                   ? `Falta certificado: ${semCertificado
                       .map((item) => rotuloDoItem(item.documento.identificador))
                       .join(", ")}.`
                   : "Informe a nova validade de todos os itens marcados."}
-              </p>
-            )}
+            </p>
             <Button
               className="self-start"
               disabled={!podeConcluir || ocupado}

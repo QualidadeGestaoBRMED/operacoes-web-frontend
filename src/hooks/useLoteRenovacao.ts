@@ -83,12 +83,19 @@ export function useAcoesDoLote() {
     enviarCertificadoUnico: (id: number, arquivo: File) =>
       executar("certificado", () => enviarCertificadoUnicoLote(id, arquivo)),
     // Um PDF por equipamento: a evidência sobe pela rota do próprio documento,
-    // que a liga ao processo em curso (o do lote); depois o lote é relido.
-    enviarCertificadoDoItem: (id: number, documentoId: number, arquivo: File) =>
-      executar(`certificado-${documentoId}`, async () => {
+    // que a liga ao processo em curso (o do lote). Depois, o lote é
+    // revalidado sem lançar: uma falha só na releitura não é falha do envio
+    // (o arquivo já foi gravado), e o SWR tenta de novo.
+    enviarCertificadoDoItem: async (id: number, documentoId: number, arquivo: File) => {
+      setEmAndamento(`certificado-${documentoId}`);
+      try {
         await enviarEvidenciaLegalizacao(documentoId, arquivo);
-        return buscarLote(id);
-      }),
+      } finally {
+        setEmAndamento(null);
+      }
+      void mutate(chaveDoLote(id)).catch(() => {});
+      void mutate(afetadaPeloLote);
+    },
     concluir: (id: number, itens: { processo: number; nova_validade: string }[]) =>
       executar("concluir", () => concluirLote(id, itens)),
     retirar: async (id: number, processo: number, manterRenovacao: boolean) => {
