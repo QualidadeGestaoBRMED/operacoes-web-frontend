@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   History as HistoryIcon,
+  MessageSquare,
   Paperclip,
   Pencil,
   Trash2,
@@ -28,17 +29,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { BotaoComentarios } from "@/components/demanda/PainelComentarios";
-import {
-  PainelComentariosDaRenovacao,
-  processosComComentarios,
-} from "./ComentariosDaRenovacao";
+import { ComentarioFeed } from "@/components/demanda/ComentarioFeed";
 import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
 import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 import {
   useAdicionarResponsavelLegalizacao,
   useAtualizarDocumentoLegalizacao,
+  fonteDoDocumento,
   useCandidatosResponsaveis,
   useDocumentoLegalizacao,
   useExcluirDocumentoLegalizacao,
@@ -46,6 +44,7 @@ import {
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useAuth } from "@/hooks/useAuth";
+import { useComentariosDaFonte } from "@/hooks/useComentarios";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { useProcessosRenovacao } from "@/hooks/useProcessoRenovacao";
@@ -403,17 +402,6 @@ export function DetalheDocumentoModal({
   const [processandoResponsavelId, setProcessandoResponsavelId] = useState<
     number | null
   >(null);
-  // STC-774: comentários da renovação sobre a coluna das abas. Qualquer
-  // troca de documento (inclusive fechar) fecha o painel.
-  const [comentarios, setComentarios] = useState<{ origem: HTMLElement } | null>(
-    null,
-  );
-  const [documentoDosComentarios, setDocumentoDosComentarios] =
-    useState(documentoId);
-  if (documentoDosComentarios !== documentoId) {
-    setDocumentoDosComentarios(documentoId);
-    setComentarios(null);
-  }
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -436,6 +424,15 @@ export function DetalheDocumentoModal({
     isLoading: carregandoProcessos,
     mensagemErro: erroProcessos,
   } = useProcessosRenovacao(aberto ? documentoId : null);
+  // STC-804: a conversa do documento. A contagem da aba vem da mesma lista
+  // (e da mesma chave) do feed da aba.
+  const {
+    comentarios,
+    isLoading: carregandoComentarios,
+    mensagemErro: erroComentarios,
+  } = useComentariosDaFonte(
+    aberto && documentoId !== null ? fonteDoDocumento(documentoId) : null,
+  );
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
@@ -461,14 +458,6 @@ export function DetalheDocumentoModal({
     mostrandoEdicaoResponsaveis ? documento?.tipo_documento.id : undefined,
   );
 
-  function voltarDosComentarios() {
-    const origem = comentarios?.origem;
-    setComentarios(null);
-    // Devolve o foco ao botão que abriu, depois que as abas voltam a aceitar
-    // foco.
-    requestAnimationFrame(() => origem?.focus());
-  }
-
   function fechar() {
     setMostrandoJustificativa(false);
     setJustificativa("");
@@ -481,7 +470,6 @@ export function DetalheDocumentoModal({
     setMostrandoNovaVersaoRegra(false);
     setMostrandoEdicaoResponsaveis(false);
     setBuscaResponsavel("");
-    setComentarios(null);
     onOpenChange(false);
   }
 
@@ -624,21 +612,6 @@ export function DetalheDocumentoModal({
     (total, processo) => total + processo.comprovantes_protocolo.length,
     0,
   );
-  // A renovação que o botão "Comentários" abre: a em curso, se tiver card;
-  // senão, a mais recente com card. Sem nenhuma com card, sem o botão.
-  const processosComCard = processosComComentarios(processos);
-  const renovacaoDosComentarios =
-    processosComCard.find((processo) => processo.status !== "concluido") ??
-    processosComCard[0] ??
-    null;
-  // Painel aberto só com renovação para mostrar: sem ela (a lista mudou
-  // com o painel aberto), o estado se desfaz, para as abas não ficarem
-  // travadas (inert) sem painel por cima.
-  const painelComentariosAberto =
-    comentarios !== null && renovacaoDosComentarios !== null;
-  if (comentarios !== null && renovacaoDosComentarios === null) {
-    setComentarios(null);
-  }
   const evidenciasExibidas = mostrandoHistoricoEvidencias
     ? evidencias
     : evidenciaVigente
@@ -707,14 +680,6 @@ export function DetalheDocumentoModal({
       <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
         <DialogContent
           showCloseButton
-          // Com os comentários abertos, Esc volta às abas (sem perder o
-          // modal); com as abas na tela, fecha o modal como sempre.
-          onEscapeKeyDown={(evento) => {
-            if (painelComentariosAberto) {
-              evento.preventDefault();
-              voltarDosComentarios();
-            }
-          }}
           className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
         >
           {isLoading ? (
@@ -769,15 +734,7 @@ export function DetalheDocumentoModal({
                 cima (scroll próprio limitado a 35vh) e as abas ocupam o
                 resto -- de sm pra cima, volta a ser o grid 270px+1fr. */}
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
-                {/* Com os comentários abertos, abaixo de sm, os dados do
-                    documento saem da frente: os dois não cabem juntos na
-                    altura do celular, e o campo de envio ficaria cortado. */}
-                <div
-                  className={cn(
-                    "scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0",
-                    painelComentariosAberto && "hidden sm:flex",
-                  )}
-                >
+                <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
                   {(prazo.urgencia === "vencido" ||
                     prazo.urgencia === "proximo") && (
                     <div
@@ -1083,17 +1040,6 @@ export function DetalheDocumentoModal({
                           Registrar renovação
                         </Button>
                       )}
-                      {renovacaoDosComentarios?.card_kanban && (
-                        <BotaoComentarios
-                          rotulo="Comentários"
-                          quantidade={
-                            renovacaoDosComentarios.card_kanban
-                              .comentarios_count
-                          }
-                          onAbrir={(origem) => setComentarios({ origem })}
-                          className="h-9 w-full"
-                        />
-                      )}
                       {podeMarcarNaoAplicavel && (
                         <Button
                           variant="outline"
@@ -1146,172 +1092,177 @@ export function DetalheDocumentoModal({
                   </div>
                 </div>
 
-                {/* O painel de comentários é absolute: a altura vem das
-                    abas por baixo. No celular elas podem ser baixas (pouco
-                    conteúdo), então, com o painel aberto, a área ganha
-                    altura mínima para o feed caber, no lugar dos dados do
-                    documento. */}
-                <div
-                  className={cn(
-                    "relative flex min-h-0 min-w-0 flex-1 flex-col",
-                    painelComentariosAberto && "min-h-[60vh] sm:min-h-0",
-                  )}
+                <Tabs
+                  defaultValue="evidencias"
+                  // min-w-0: achado testando com nome de evidência longo --
+                  // item de grid (coluna 1fr do grid pai) tem min-width:
+                  // auto por padrão, que considera o conteúdo intrínseco de
+                  // descendentes (o nome do arquivo sem quebra) e estourava
+                  // a coluna inteira, ignorando qualquer truncate interno.
+                  className="min-h-0 min-w-0 flex-1 gap-0"
                 >
-                  <Tabs
-                    inert={painelComentariosAberto}
-                    defaultValue="evidencias"
-                    // min-w-0: achado testando com nome de evidência longo --
-                    // item de grid (coluna 1fr do grid pai) tem min-width:
-                    // auto por padrão, que considera o conteúdo intrínseco de
-                    // descendentes (o nome do arquivo sem quebra) e estourava
-                    // a coluna inteira, ignorando qualquer truncate interno.
-                    className="min-h-0 min-w-0 flex-1 gap-0"
+                  {/* Abaixo de sm, só ícone e contagem (o nome fica para leitor
+                      de tela) e menos espaço: as quatro abas não cabem lado a
+                      lado com o nome num celular de 360 px. */}
+                  <TabsList
+                    variant="line"
+                    className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
                   >
-                    {/* Sem ícone e com menos espaço abaixo de sm: as três
-                        abas não cabem lado a lado num celular de 360 px. */}
-                    <TabsList
-                      variant="line"
-                      className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
-                    >
-                      <TabsTrigger
-                        value="evidencias"
-                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                      >
-                        <FileText className="hidden size-3.5 sm:block" />
-                        Evidências
-                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                          {evidencias.length}
-                        </span>
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="protocolo"
-                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                      >
-                        <Paperclip className="hidden size-3.5 sm:block" />
-                        Protocolo
-                        {/* Sem contagem enquanto carrega ou se falhou: "0"
-                            diria que não há comprovante. */}
-                        {!carregandoProcessos && !erroProcessos && (
-                          <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                            {totalComprovantes}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="historico"
-                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                      >
-                        <HistoryIcon className="hidden size-3.5 sm:block" />
-                        Histórico
-                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                          {historico.length}
-                        </span>
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent
+                    <TabsTrigger
                       value="evidencias"
-                      className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      {carregandoEvidencias ? (
-                        <div className="flex flex-col gap-2.5">
-                          <Skeleton className="h-14 w-full" />
-                          <Skeleton className="h-14 w-full" />
-                        </div>
-                      ) : erroEvidencias ? (
-                        <p className="text-sm text-destructive">
-                          Não foi possível carregar as evidências:{" "}
-                          {erroEvidencias}
-                        </p>
-                      ) : evidencias.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Nenhuma evidência enviada ainda.
-                        </p>
-                      ) : (
-                        <>
-                          {evidenciasExibidas.map((evidencia) => (
-                            <ItemEvidencia
-                              key={evidencia.id}
-                              evidencia={evidencia}
-                            />
-                          ))}
-                          {evidencias.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMostrandoHistoricoEvidencias((atual) => !atual)
-                              }
-                              className="text-[12.5px] font-medium text-secondary hover:underline"
-                            >
-                              {mostrandoHistoricoEvidencias
-                                ? "Ver só a vigente"
-                                : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </TabsContent>
-                    <TabsContent
+                      <FileText aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Evidências</span>
+                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                        {evidencias.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
                       value="protocolo"
-                      className="scrollbar-discreta flex-1 space-y-4 overflow-y-auto p-5"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <p className="text-[11.5px] text-muted-foreground">
-                        Documentos de protocolo: comprovam o pedido feito ao
-                        órgão.
-                      </p>
-                      {carregandoProcessos ? (
-                        <div className="flex flex-col gap-2.5">
-                          <Skeleton className="h-14 w-full" />
-                          <Skeleton className="h-14 w-full" />
-                        </div>
-                      ) : erroProcessos ? (
-                        <p className="text-sm text-destructive">
-                          Não foi possível carregar os documentos de protocolo:{" "}
-                          {erroProcessos}
-                        </p>
-                      ) : processosComComprovante.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Nenhum documento de protocolo anexado ainda.
-                        </p>
-                      ) : (
-                        processosComComprovante.map((processo) => (
-                          <GrupoComprovantes key={processo.id} processo={processo} />
-                        ))
+                      <Paperclip aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Protocolo</span>
+                      {/* Sem contagem enquanto carrega ou se falhou: "0"
+                          diria que não há comprovante. */}
+                      {!carregandoProcessos && !erroProcessos && (
+                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                          {totalComprovantes}
+                        </span>
                       )}
-                    </TabsContent>
-                    <TabsContent
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="comentarios"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    >
+                      <MessageSquare aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Comentários</span>
+                      {/* Mesmo motivo da contagem de Protocolo. */}
+                      {!carregandoComentarios && !erroComentarios && (
+                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                          {comentarios.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger
                       value="historico"
-                      className="scrollbar-discreta flex-1 overflow-y-auto p-5"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      {carregandoHistorico ? (
-                        <div className="flex flex-col gap-2.5">
-                          <Skeleton className="h-10 w-full" />
-                          <Skeleton className="h-10 w-full" />
-                        </div>
-                      ) : erroHistorico ? (
-                        <p className="text-sm text-destructive">
-                          Não foi possível carregar o histórico: {erroHistorico}
-                        </p>
-                      ) : historico.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Nenhum registro de histórico ainda.
-                        </p>
-                      ) : (
-                        historico.map((item) => (
-                          <ItemHistorico key={item.id} item={item} />
-                        ))
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                  {painelComentariosAberto && renovacaoDosComentarios && (
-                    <PainelComentariosDaRenovacao
-                      documento={documento}
-                      processos={processosComCard}
-                      processoInicialId={renovacaoDosComentarios.id}
-                      onVoltar={voltarDosComentarios}
-                    />
-                  )}
-                </div>
+                      <HistoryIcon aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Histórico</span>
+                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                        {historico.length}
+                      </span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent
+                    value="evidencias"
+                    className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
+                  >
+                    {carregandoEvidencias ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-14 w-full" />
+                        <Skeleton className="h-14 w-full" />
+                      </div>
+                    ) : erroEvidencias ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar as evidências:{" "}
+                        {erroEvidencias}
+                      </p>
+                    ) : evidencias.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma evidência enviada ainda.
+                      </p>
+                    ) : (
+                      <>
+                        {evidenciasExibidas.map((evidencia) => (
+                          <ItemEvidencia
+                            key={evidencia.id}
+                            evidencia={evidencia}
+                          />
+                        ))}
+                        {evidencias.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMostrandoHistoricoEvidencias((atual) => !atual)
+                            }
+                            className="text-[12.5px] font-medium text-secondary hover:underline"
+                          >
+                            {mostrandoHistoricoEvidencias
+                              ? "Ver só a vigente"
+                              : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
+                  <TabsContent
+                    value="protocolo"
+                    className="scrollbar-discreta flex-1 space-y-4 overflow-y-auto p-5"
+                  >
+                    <p className="text-[11.5px] text-muted-foreground">
+                      Documentos de protocolo: comprovam o pedido feito ao
+                      órgão.
+                    </p>
+                    {carregandoProcessos ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-14 w-full" />
+                        <Skeleton className="h-14 w-full" />
+                      </div>
+                    ) : erroProcessos ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar os documentos de protocolo:{" "}
+                        {erroProcessos}
+                      </p>
+                    ) : processosComComprovante.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum documento de protocolo anexado ainda.
+                      </p>
+                    ) : (
+                      processosComComprovante.map((processo) => (
+                        <GrupoComprovantes key={processo.id} processo={processo} />
+                      ))
+                    )}
+                  </TabsContent>
+                  {/* O feed tem rolagem própria e o campo de envio embaixo. */}
+                  <TabsContent
+                    value="comentarios"
+                    className="flex min-h-0 flex-1 flex-col"
+                  >
+                    {documentoId !== null && (
+                      <ComentarioFeed
+                        fonte={fonteDoDocumento(documentoId)}
+                        podeComentar
+                      />
+                    )}
+                  </TabsContent>
+                  <TabsContent
+                    value="historico"
+                    className="scrollbar-discreta flex-1 overflow-y-auto p-5"
+                  >
+                    {carregandoHistorico ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ) : erroHistorico ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar o histórico: {erroHistorico}
+                      </p>
+                    ) : historico.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum registro de histórico ainda.
+                      </p>
+                    ) : (
+                      historico.map((item) => (
+                        <ItemHistorico key={item.id} item={item} />
+                      ))
+                    )}
+                  </TabsContent>
+                </Tabs>
               </div>
             </>
           )}

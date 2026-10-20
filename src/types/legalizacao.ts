@@ -286,12 +286,9 @@ export interface ProcessoRenovacao {
   created_at: string;
 }
 
-// Os comentários do card se leem e se escrevem pela Legalização
-// (processos-renovacao/{id}/comentarios/), com o acesso do documento.
 export interface CardKanbanDoProcesso {
   demanda: number;
   status: StatusDemanda;
-  comentarios_count: number;
 }
 
 // STC-771: PDF que comprova o pedido feito ao órgão. Separado da evidência:

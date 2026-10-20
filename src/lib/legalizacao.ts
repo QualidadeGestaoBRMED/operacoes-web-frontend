@@ -263,23 +263,23 @@ export async function enviarComprovanteProtocolo(
   );
 }
 
-// STC-774: comentários do card espelho da renovação, pela Legalização (o
-// setor de Legalização não enxerga o card pelo Kanban).
-export async function listarComentariosDaRenovacao(
-  processoId: number,
+// STC-804: a conversa do documento, uma só ao longo do tempo, com ou sem
+// renovação aberta.
+export async function listarComentariosDoDocumento(
+  documentoId: number,
 ): Promise<Comentario[]> {
   const { data } = await api.get<Comentario[]>(
-    `${PROCESSOS_RENOVACAO_URL}${processoId}/comentarios/`,
+    `${DOCUMENTOS_URL}${documentoId}/comentarios/`,
   );
   return data;
 }
 
-export async function comentarNaRenovacao(
-  processoId: number,
+export async function comentarNoDocumento(
+  documentoId: number,
   texto: string,
 ): Promise<Comentario> {
   const { data } = await api.post<Comentario>(
-    `${PROCESSOS_RENOVACAO_URL}${processoId}/comentarios/`,
+    `${DOCUMENTOS_URL}${documentoId}/comentarios/`,
     { texto },
   );
   return data;

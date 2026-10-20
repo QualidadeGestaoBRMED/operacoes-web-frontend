@@ -3,7 +3,10 @@
 import { useRef, useState } from "react";
 import { Download, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { BotaoComentarios } from "@/components/demanda/PainelComentarios";
+import {
+  BotaoComentarios,
+  PainelComentarios,
+} from "@/components/demanda/PainelComentarios";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
-import { useEnviarEvidenciaLegalizacao } from "@/hooks/useDocumentosLegalizacao";
+import { useComentariosDaFonte } from "@/hooks/useComentarios";
+import {
+  fonteDoDocumento,
+  useEnviarEvidenciaLegalizacao,
+} from "@/hooks/useDocumentosLegalizacao";
 import {
   useAtualizarProcessoRenovacao,
   useCriarProcessoRenovacao,
@@ -30,7 +37,6 @@ import {
   formatarDataDeDatetime,
   LABEL_STATUS_PROCESSO,
 } from "@/lib/legalizacaoRenovacao";
-import { PainelComentariosDaRenovacao } from "./ComentariosDaRenovacao";
 import type { DocumentoUnidade, ProcessoRenovacao } from "@/types/legalizacao";
 
 // Mesma whitelist de FormCadastrarDocumento.tsx (Administração) -- mesmos
@@ -450,21 +456,19 @@ export function ProcessoRenovacaoModal({
     mutate: mutateProcessos,
   } = useProcessosRenovacao(aberto ? (documento?.id ?? null) : null);
   const { criar, isLoading: criando } = useCriarProcessoRenovacao();
-  // STC-774: comentários do card espelho do processo em curso, sobre o
-  // conteúdo do modal.
+  // STC-804: a conversa do documento (a mesma da aba Comentários do
+  // detalhe), sobre o conteúdo do modal.
   const [comentarios, setComentarios] = useState<{ origem: HTMLElement } | null>(
     null,
   );
-
-  // Painel aberto só com o processo em curso com card: se ele deixar de
-  // existir com o painel aberto (concluído por outra pessoa), o estado se
-  // desfaz, sem deixar o modal travado (inert) nem reabrir o painel numa
-  // renovação nova.
-  const painelComentariosAberto =
-    comentarios !== null && !!processoAtivo?.card_kanban;
-  if (comentarios !== null && !processoAtivo?.card_kanban) {
-    setComentarios(null);
-  }
+  const painelComentariosAberto = comentarios !== null && documento !== null;
+  const {
+    comentarios: listaDeComentarios,
+    isLoading: carregandoComentarios,
+    mensagemErro: erroComentarios,
+  } = useComentariosDaFonte(
+    aberto && documento ? fonteDoDocumento(documento.id) : null,
+  );
 
   function voltarDosComentarios() {
     const origem = comentarios?.origem;
@@ -518,69 +522,67 @@ export function ProcessoRenovacaoModal({
                 {processoAtivo &&
                   ` · ${LABEL_STATUS_PROCESSO[processoAtivo.status]}`}
               </p>
-              {processoAtivo?.card_kanban && (
-                <BotaoComentarios
-                  rotulo="Comentários"
-                  quantidade={processoAtivo.card_kanban.comentarios_count}
-                  onAbrir={(origem) => setComentarios({ origem })}
-                />
-              )}
+              <BotaoComentarios
+                rotulo="Comentários"
+                quantidade={
+                  carregandoComentarios || erroComentarios
+                    ? undefined
+                    : listaDeComentarios.length
+                }
+                onAbrir={(origem) => setComentarios({ origem })}
+              />
             </div>
           )}
         </DialogHeader>
 
-        {carregandoProcesso ? (
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        ) : erroProcessos ? (
-          <>
-            <p className="text-sm text-destructive">{erroProcessos}</p>
-            <DialogFooter>
-              <Button variant="outline" onClick={fechar}>
-                Fechar
-              </Button>
-              <Button onClick={() => void mutateProcessos()}>
-                Tentar novamente
-              </Button>
-            </DialogFooter>
-          </>
-        ) : processoAtivo && documento ? (
-          <>
-            <div
-              inert={painelComentariosAberto}
-              className="flex min-h-0 flex-1 flex-col gap-4"
-            >
-              <FormularioProcessoAtivo
-                key={processoAtivo.id}
-                documento={documento}
-                processo={processoAtivo}
-                onFechar={fechar}
-                onAtualizado={onAtualizado}
-              />
-            </div>
-            {painelComentariosAberto && processoAtivo.card_kanban && (
-              <PainelComentariosDaRenovacao
-                documento={documento}
-                processos={[processoAtivo]}
-                processoInicialId={processoAtivo.id}
-                onVoltar={voltarDosComentarios}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-foreground">
-              Isso inicia o processo de renovação e move o documento para
-              &quot;Em andamento&quot;.
-            </p>
-            <DialogFooter>
-              <Button variant="outline" onClick={fechar} disabled={criando}>
-                Cancelar
-              </Button>
-              <Button disabled={criando} onClick={() => void iniciarProcesso()}>
-                {criando ? "Iniciando..." : "Iniciar processo de renovação"}
-              </Button>
-            </DialogFooter>
-          </>
+        {/* contents: o inert vale para o conteúdo sem mudar o layout. */}
+        <div inert={painelComentariosAberto} className="contents">
+          {carregandoProcesso ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : erroProcessos ? (
+            <>
+              <p className="text-sm text-destructive">{erroProcessos}</p>
+              <DialogFooter>
+                <Button variant="outline" onClick={fechar}>
+                  Fechar
+                </Button>
+                <Button onClick={() => void mutateProcessos()}>
+                  Tentar novamente
+                </Button>
+              </DialogFooter>
+            </>
+          ) : processoAtivo && documento ? (
+            <FormularioProcessoAtivo
+              key={processoAtivo.id}
+              documento={documento}
+              processo={processoAtivo}
+              onFechar={fechar}
+              onAtualizado={onAtualizado}
+            />
+          ) : (
+            <>
+              <p className="text-sm text-foreground">
+                Isso inicia o processo de renovação e move o documento para
+                &quot;Em andamento&quot;.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={fechar} disabled={criando}>
+                  Cancelar
+                </Button>
+                <Button disabled={criando} onClick={() => void iniciarProcesso()}>
+                  {criando ? "Iniciando..." : "Iniciar processo de renovação"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </div>
+        {painelComentariosAberto && documento && (
+          <PainelComentarios
+            titulo={`Comentários · ${documento.tipo_documento.nome}`}
+            fonte={fonteDoDocumento(documento.id)}
+            podeComentar
+            onVoltar={voltarDosComentarios}
+          />
         )}
       </DialogContent>
     </Dialog>
