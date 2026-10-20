@@ -665,6 +665,16 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       ).toHaveAttribute("accept", ".pdf");
     });
 
+    it("o botão de anexar leva o título do campo como descrição", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      expect(
+        screen.getByRole("button", { name: "Anexar comprovante" }),
+      ).toHaveAccessibleDescription("Comprovante de protocolo (PDF)");
+    });
+
     it("arquivo inválido mostra o erro do backend e não lista nada", async () => {
       vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
       vi.mocked(enviarComprovanteProtocolo).mockRejectedValue(
