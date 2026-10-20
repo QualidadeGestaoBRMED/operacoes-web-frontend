@@ -154,14 +154,34 @@ describe("LoteRenovacaoModal (STC-779)", () => {
         unidade: 1,
         tipo_documento: 4,
       });
-      const [primeira, segunda, terceira] = within(lista).getAllByRole("checkbox");
-      expect(primeira).toBeChecked();
-      expect(segunda).not.toBeChecked();
-      expect(terceira).toBeDisabled();
+      expect(within(lista).getByRole("checkbox", { name: /BALANÇA 01/ })).toBeChecked();
+      expect(within(lista).getByRole("checkbox", { name: /BALANÇA 02/ })).not.toBeChecked();
+      expect(within(lista).getByRole("checkbox", { name: /BALANÇA 03/ })).toBeDisabled();
       expect(within(lista).getByText("em renovação")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Iniciar lote com 1 itens" }),
       ).toBeDisabled();
+    });
+
+    it("lista vazia diz que não há instâncias", async () => {
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+      renderComponente({ documentoInicial: documento() });
+
+      expect(
+        await screen.findByText("Nenhuma instância deste tipo nesta clínica."),
+      ).toBeInTheDocument();
+    });
+
+    it("falha ao listar oferece tentar de novo", async () => {
+      vi.mocked(listarDocumentosLegalizacao)
+        .mockRejectedValueOnce(erroDaApi("Falha ao listar."))
+        .mockResolvedValue([documento()]);
+      const user = userEvent.setup();
+      renderComponente({ documentoInicial: documento() });
+
+      await user.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+
+      expect(await screen.findByRole("list", { name: "Instâncias" })).toBeInTheDocument();
     });
 
     it("inicia o lote com as marcadas e passa para o lote", async () => {
@@ -282,6 +302,26 @@ describe("LoteRenovacaoModal (STC-779)", () => {
 
       await waitFor(() => expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(102, arquivo));
       expect(screen.queryByLabelText("Arquivo do PDF único do lote")).not.toBeInTheDocument();
+      // O lote é relido para mostrar o certificado novo.
+      await waitFor(() => expect(vi.mocked(buscarLote).mock.calls.length).toBeGreaterThan(1));
+      expect(toast.success).toHaveBeenCalledWith("Certificado de BALANÇA 02 anexado.");
+    });
+
+    it("PDF por item enviado e releitura do lote falhando não vira erro de envio", async () => {
+      vi.mocked(buscarLote)
+        .mockResolvedValueOnce(lote())
+        .mockRejectedValue(new Error("Falha de rede."));
+      const user = userEvent.setup();
+      renderComponente({ loteId: 5 });
+      await screen.findByRole("list", { name: "Itens do lote" });
+      await user.click(screen.getByLabelText("Um PDF por item"));
+
+      await user.upload(screen.getByLabelText("Certificado de BALANÇA 01"), pdf());
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith("Certificado de BALANÇA 01 anexado."),
+      );
+      expect(toast.error).not.toHaveBeenCalled();
     });
 
     it("sem certificado não conclui e diz quem falta", async () => {
@@ -292,7 +332,7 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       renderComponente({ loteId: 5 });
       await user.type(await screen.findByLabelText("Nova validade (para todos)"), "2027-01-01");
 
-      expect(screen.getByText("Falta certificado: BALANÇA 02.")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Falta certificado: BALANÇA 02.");
       expect(screen.getByRole("button", { name: "Concluir 2 itens" })).toBeDisabled();
 
       await user.click(screen.getByRole("checkbox", { name: "Concluir BALANÇA 02" }));
