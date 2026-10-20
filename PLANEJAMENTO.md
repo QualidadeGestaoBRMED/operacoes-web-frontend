@@ -1092,7 +1092,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.27 STC-774 — Comentários do documento: aba no detalhe e botão na renovação (STC-769)
 
-🔄 **Em andamento.** Decisão revista em 20/10/2026: os comentários são do documento, uma conversa única ao longo do tempo, com ou sem renovação e sem depender do card no Kanban. Ligados ao card (como a STC-773 fazia), ficavam de fora PGR, CRM, regras sem `gera_card_demanda` e renovação iniciada antes da regra. Backend: STC-804 (`documentos/{id}/comentarios/`).
+✅ **Implementado e mergeado em `main` (PR #125).** Decisão revista em 20/10/2026: os comentários são do documento, uma conversa única ao longo do tempo, com ou sem renovação e sem depender do card no Kanban. Ligados ao card (como a STC-773 fazia), ficavam de fora PGR, CRM, regras sem `gera_card_demanda` e renovação iniciada antes da regra. Backend: STC-804 (`documentos/{id}/comentarios/`).
 
 - **Feed e painel por fonte** (`useComentarios.ts`, `ComentarioFeed.tsx`, `PainelComentarios.tsx`): o feed recebe uma `FonteComentarios` (chave SWR, listar, criar) em vez do `demandaId`. `fonteDaDemanda(id)` é o Kanban; `fonteDoDocumento(id)` (`useDocumentosLegalizacao.ts`) é a Legalização. `BotaoComentarios` e `PainelComentarios` saíram de `ConversaDoAlerta.tsx` (Gestão RH, STC-722), que passa a usá-los sem mudar texto nem comportamento. Outra fonte no mesmo painel começa com o campo de envio vazio.
 - **Detalhe do documento:** aba "Comentários" entre Protocolo e Histórico, com o feed e o envio. A contagem vem da mesma lista (mesma chave SWR do feed), sem número enquanto carrega ou se falhar. Abaixo de `sm`, as quatro abas mostram só ícone e contagem (o nome fica para leitor de tela) e cabem a partir de 360 px.
@@ -1101,3 +1101,20 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Ordem dos deploys:** depende do backend da STC-804 em produção (sem ele, a aba mostra o erro de carregar e o envio falha com aviso). `normalizarProcesso` (`src/lib/legalizacao.ts`) continua completando `comprovantes_protocolo` e `card_kanban` quando o backend ainda não manda.
 - Testes: aba com a contagem, a conversa e o envio num documento sem renovação; aba sem número enquanto carrega; documento sem comentários; botão do modal sem card no Kanban (abrir, comentar, voltar com foco) e no passo de iniciar, com Esc voltando sem fechar o modal. Gestão RH e Kanban sem mudança de comportamento (testes existentes passando).
 - **Conferência** (banco local): documento 59 (Calibração · TESTER, sem card no Kanban) com comentário pela aba, em 1400 px e 360 × 640 (abas até 347 px, campo de envio visível).
+
+### 7.28 STC-779 — Renovar selecionados e modal do lote de renovação (STC-777)
+
+🔄 **Em andamento.** Frontend da renovação em lote; o backend é a STC-778 (PR #131, rotas em `lotes-renovacao/`): instâncias do mesmo tipo e da mesma clínica renovadas juntas, cada uma com o próprio processo, e um card só no Kanban.
+
+- **Onde começa (opção 1, decidida em 20/10/2026):** no detalhe de uma instância de tipo com várias instâncias, botão "Renovar em lote" (junto de "Registrar renovação", quando não há renovação em curso). A Matriz não mudou.
+- **Modal `LoteRenovacaoModal.tsx`:**
+  - **Escolha das instâncias** (sem lote ainda): as instâncias do tipo na clínica (`listarDocumentosLegalizacao` com `unidade` e `tipo_documento`), a aberta já marcada; em renovação, não aplicável ou em encerramento ficam de fora. Data da solicitação; o responsável é quem inicia, como na renovação avulsa. "Iniciar lote com N itens" (pelo menos 2).
+  - **Lote** (mesmas seções do modal de renovação, `TituloSecao`/`CampoSomenteLeitura` exportados de `ProcessoRenovacaoModal.tsx`): **Itens** (status, certificado, "Retirar": seguir com renovação à parte ou sair sem renovação, este desligado quando o item já tem certificado), **Protocolo** (dados e "Anexar comprovante", uma vez para os itens abertos) e **Conclusão** (certificado como laudo único para todos ou um PDF por item, pela rota de evidência do documento; validade comum com ajuste por item; caixa por item para concluir só parte; "Concluir N itens" só com certificado e validade em todos os marcados, com o motivo quando não dá).
+  - Erro da API vira toast e o que foi preenchido continua (seleção, dados do protocolo, validades).
+- **Hooks** (`useLoteRenovacao.ts`): `useLoteRenovacao` e `useAcoesDoLote`; depois de cada operação, o lote no cache e as listas e detalhes de documento, processos e evidências vigentes são refeitos.
+- **Detalhe da instância em lote:** "Acompanhar lote de renovação" no lugar de "Acompanhar Renovação" (o PATCH avulso de um processo de lote é recusado), com a nota de que a renovação faz parte de um lote.
+- **Link `?lote=`** (card do lote no Kanban e aviso de lote concluído): a Matriz abre o modal do lote. O card do lote no Kanban já mostra itens e progresso no título e na descrição (backend), sem mudança no Kanban.
+- **Celular:** nas linhas da conclusão, o nome do item fica numa linha só dele abaixo de `sm`, com a data e o PDF embaixo.
+- **Ordem dos deploys:** depende do backend da STC-778 em produção; `normalizarProcesso` completa `lote` com `null` enquanto o backend não manda.
+- Testes: escolha (lista, marcada, de fora, iniciar com os marcados, erro mantendo a seleção), protocolo e comprovante, laudo único, PDF por item, conclusão sem certificado (motivo e caixa por item), conclusão com validade comum e ajustada (erro mantendo o preenchido), retirar, item com certificado sem a opção de sair sem renovação, lote inexistente; no detalhe, "Renovar em lote" só para tipo de várias instâncias e "Acompanhar lote de renovação" quando a renovação é de lote.
+- **Conferência** (banco local): lote iniciado pelo documento 100 (Calibração · Niterói, 5 instâncias), seções do lote e conclusão por PDF por item em 1400 px; `?lote=1` (concluído) e a conclusão do lote 2 em 360 px.
