@@ -527,7 +527,9 @@ function FormularioDoLote({
                     key={item.id}
                     className="flex flex-wrap items-center gap-2 rounded-md bg-background px-3 py-2 text-[13px]"
                   >
-                    <label className="flex min-w-0 flex-1 items-center gap-2">
+                    {/* basis-full abaixo de sm: o nome numa linha só dele, com
+                        a data e o PDF embaixo; lado a lado, cortaria o nome. */}
+                    <label className="flex min-w-0 basis-full items-center gap-2 sm:basis-auto sm:flex-1">
                       <Checkbox
                         checked={!foraDaConclusao.has(item.id)}
                         disabled={ocupado}
