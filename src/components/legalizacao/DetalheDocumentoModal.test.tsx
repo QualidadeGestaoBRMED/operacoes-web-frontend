@@ -4,9 +4,11 @@ import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
 import type {
+  ComprovanteProtocolo,
   DocumentoUnidade,
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
+  ProcessoRenovacao,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
@@ -197,6 +199,41 @@ function historico(
     valor_anterior: "em_andamento",
     valor_novo: "vencido",
     created_at: "2026-08-15T03:00:00Z",
+    ...overrides,
+  };
+}
+
+function comprovante(
+  overrides: Partial<ComprovanteProtocolo> = {},
+): ComprovanteProtocolo {
+  return {
+    id: 31,
+    processo_renovacao: 9,
+    usuario: USUARIO,
+    arquivo: "https://r2.exemplo/protocolos/a.pdf",
+    nome_original: "protocolo.pdf",
+    tamanho_bytes: 2048,
+    created_at: "2026-06-03T13:30:00Z",
+    ...overrides,
+  };
+}
+
+function processo(
+  overrides: Partial<ProcessoRenovacao> = {},
+): ProcessoRenovacao {
+  return {
+    id: 9,
+    documento_unidade: documento(),
+    status: "em_andamento",
+    data_solicitacao: null,
+    protocolo_numero: "",
+    protocolo_orgao: "",
+    protocolo_data: null,
+    observacoes: "",
+    data_conclusao: null,
+    usuario_responsavel: null,
+    comprovantes_protocolo: [],
+    created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
 }
@@ -770,6 +807,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       observacoes: "",
       data_conclusao: null,
       usuario_responsavel: null,
+      comprovantes_protocolo: [],
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -811,6 +849,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       observacoes: "",
       data_conclusao: null,
       usuario_responsavel: null,
+      comprovantes_protocolo: [],
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -852,6 +891,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       observacoes: "",
       data_conclusao: null,
       usuario_responsavel: null,
+      comprovantes_protocolo: [],
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -1701,5 +1741,88 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
       expect(toast.error).toHaveBeenCalledWith("Você não tem permissão para executar essa ação."),
     );
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  describe("documentos de protocolo (STC-772)", () => {
+    it("aba Protocolo lista os comprovantes de cada renovação, com quem anexou, quando e download", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({
+          id: 12,
+          protocolo_numero: "2026/00184-LIC",
+          created_at: "2026-09-10T15:00:00Z",
+          comprovantes_protocolo: [
+            comprovante({ id: 41, processo_renovacao: 12, nome_original: "protocolo-atual.pdf" }),
+          ],
+        }),
+        // Renovação sem comprovante não aparece na aba.
+        processo({ id: 11, status: "concluido", created_at: "2025-09-01T15:00:00Z" }),
+        processo({
+          id: 9,
+          status: "concluido",
+          created_at: "2024-09-02T15:00:00Z",
+          comprovantes_protocolo: [
+            comprovante({
+              id: 31,
+              nome_original: "protocolo-2024.pdf",
+              usuario: OUTRO_USUARIO,
+              arquivo: "https://r2.exemplo/protocolos/2024.pdf",
+            }),
+          ],
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      const aba = screen.getByRole("tab", { name: /protocolo/i });
+      expect(aba).toHaveTextContent("2");
+      await user.click(aba);
+
+      expect(await screen.findByText("Renovação de 10/09/2026")).toBeInTheDocument();
+      expect(screen.getByText(/Em andamento · Protocolo 2026\/00184-LIC/)).toBeInTheDocument();
+      expect(screen.getByText("Renovação de 02/09/2024")).toBeInTheDocument();
+      expect(screen.queryByText("Renovação de 01/09/2025")).not.toBeInTheDocument();
+      expect(screen.getByText("protocolo-atual.pdf")).toBeInTheDocument();
+      expect(
+        screen.getByText(/enviado por Ana Souza/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Baixar protocolo-2024.pdf" }),
+      ).toHaveAttribute("href", "https://r2.exemplo/protocolos/2024.pdf");
+    });
+
+    it("aba Protocolo sem comprovante mostra o vazio", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      await user.click(screen.getByRole("tab", { name: /protocolo/i }));
+
+      expect(
+        await screen.findByText("Nenhum documento de protocolo anexado ainda."),
+      ).toBeInTheDocument();
+    });
+
+    it("histórico mostra o anexo do comprovante de protocolo", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
+        historico({
+          acao: "comprovante_protocolo",
+          valor_anterior: "",
+          valor_novo: "protocolo.pdf",
+        }),
+      ]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+      expect(screen.getByText("comprovante de protocolo")).toBeInTheDocument();
+      expect(screen.getByText('"protocolo.pdf"')).toBeInTheDocument();
+    });
   });
 });

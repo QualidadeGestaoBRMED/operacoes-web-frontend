@@ -1,9 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { AxiosError, type AxiosResponse } from "axios";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
 import type {
+  ComprovanteProtocolo,
   DocumentoUnidade,
   EvidenciaRegulatoria,
   ProcessoRenovacao,
@@ -26,8 +28,10 @@ vi.mock("@/hooks/useAuth", () => ({
 import {
   atualizarProcessoRenovacao,
   criarProcessoRenovacao,
+  enviarComprovanteProtocolo,
   enviarEvidenciaLegalizacao,
   listarProcessosRenovacao,
+  urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
 import { toast } from "sonner";
 
@@ -109,7 +113,23 @@ function processo(
     observacoes: "",
     data_conclusao: null,
     usuario_responsavel: USUARIO,
+    comprovantes_protocolo: [],
     created_at: "2026-06-02T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function comprovante(
+  overrides: Partial<ComprovanteProtocolo> = {},
+): ComprovanteProtocolo {
+  return {
+    id: 31,
+    processo_renovacao: 9,
+    usuario: USUARIO,
+    arquivo: "/media/legalizacao/protocolos/documento_55/a.pdf",
+    nome_original: "protocolo-prefeitura.pdf",
+    tamanho_bytes: 2048,
+    created_at: "2026-06-03T13:30:00Z",
     ...overrides,
   };
 }
@@ -379,9 +399,7 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       renderComponente(true);
       await screen.findByLabelText("Número do protocolo");
 
-      const inputArquivo = document.querySelector(
-        'input[type="file"]',
-      ) as HTMLInputElement;
+      const inputArquivo = screen.getByLabelText("Arquivo da evidência") as HTMLInputElement;
 
       expect(inputArquivo).toHaveAttribute("accept", ".pdf");
     });
@@ -413,9 +431,7 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       const arquivo = new File(["conteudo"], "renovado.pdf", {
         type: "application/pdf",
       });
-      const inputArquivo = document.querySelector(
-        'input[type="file"]',
-      ) as HTMLInputElement;
+      const inputArquivo = screen.getByLabelText("Arquivo da evidência") as HTMLInputElement;
       await user.upload(inputArquivo, arquivo);
 
       await user.click(
@@ -473,9 +489,7 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       const arquivo = new File(["conteudo"], "renovado.pdf", {
         type: "application/pdf",
       });
-      const inputArquivo = document.querySelector(
-        'input[type="file"]',
-      ) as HTMLInputElement;
+      const inputArquivo = screen.getByLabelText("Arquivo da evidência") as HTMLInputElement;
       await user.upload(inputArquivo, arquivo);
 
       await user.click(
@@ -521,9 +535,7 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       const arquivo = new File(["conteudo"], "renovado.pdf", {
         type: "application/pdf",
       });
-      const inputArquivo = document.querySelector(
-        'input[type="file"]',
-      ) as HTMLInputElement;
+      const inputArquivo = screen.getByLabelText("Arquivo da evidência") as HTMLInputElement;
       await user.upload(inputArquivo, arquivo);
 
       await user.click(
@@ -579,9 +591,7 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       const arquivo = new File(["conteudo"], "renovado.pdf", {
         type: "application/pdf",
       });
-      const inputArquivo = document.querySelector(
-        'input[type="file"]',
-      ) as HTMLInputElement;
+      const inputArquivo = screen.getByLabelText("Arquivo da evidência") as HTMLInputElement;
       await user.upload(inputArquivo, arquivo);
       await user.click(
         screen.getByRole("button", { name: "Concluir renovação" }),
@@ -598,6 +608,124 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
         expect(atualizarProcessoRenovacao).toHaveBeenCalledTimes(2);
       });
       expect(enviarEvidenciaLegalizacao).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("comprovante de protocolo (STC-772)", () => {
+    beforeEach(() => {
+      vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
+    });
+
+    it("anexa o PDF ao escolher o arquivo e lista com nome, data e download", async () => {
+      const anexado = comprovante();
+      vi.mocked(listarProcessosRenovacao)
+        .mockResolvedValueOnce([processo()])
+        .mockResolvedValue([processo({ comprovantes_protocolo: [anexado] })]);
+      vi.mocked(enviarComprovanteProtocolo).mockResolvedValue(anexado);
+      const onAtualizado = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, vi.fn(), onAtualizado);
+      await screen.findByLabelText("Número do protocolo");
+      const arquivo = new File(["%PDF"], "protocolo-prefeitura.pdf", {
+        type: "application/pdf",
+      });
+
+      await user.upload(
+        screen.getByLabelText("Arquivo do comprovante de protocolo"),
+        arquivo,
+      );
+
+      await waitFor(() => {
+        expect(enviarComprovanteProtocolo).toHaveBeenCalledWith(9, arquivo);
+      });
+      expect(toast.success).toHaveBeenCalledWith(
+        "Comprovante de protocolo anexado.",
+      );
+      expect(onAtualizado).toHaveBeenCalled();
+      expect(
+        await screen.findByText("protocolo-prefeitura.pdf"),
+      ).toBeInTheDocument();
+      // 13:30 UTC é 10:30 em America/Sao_Paulo (fuso fixado no vitest).
+      expect(screen.getByText("03/06/2026 · 10:30")).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Baixar protocolo-prefeitura.pdf" }),
+      ).toHaveAttribute("href", anexado.arquivo);
+      expect(
+        screen.getByRole("button", { name: "Anexar outro comprovante" }),
+      ).toBeInTheDocument();
+    });
+
+    it("aceita só PDF no seletor de arquivo", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      expect(
+        screen.getByLabelText("Arquivo do comprovante de protocolo"),
+      ).toHaveAttribute("accept", ".pdf");
+    });
+
+    it("arquivo inválido mostra o erro do backend e não lista nada", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(enviarComprovanteProtocolo).mockRejectedValue(
+        new AxiosError("Bad Request", "ERR_BAD_REQUEST", undefined, undefined, {
+          status: 400,
+          data: { arquivo: ["Tipo de arquivo não permitido. Aceito: PDF."] },
+        } as AxiosResponse),
+      );
+      const onAtualizado = vi.fn();
+      renderComponente(true, vi.fn(), onAtualizado);
+      await screen.findByLabelText("Número do protocolo");
+
+      // fireEvent: o userEvent.upload descarta o arquivo fora do `accept`,
+      // e o arquivo inválido chega por "Todos os arquivos" no seletor.
+      fireEvent.change(
+        screen.getByLabelText("Arquivo do comprovante de protocolo"),
+        {
+          target: {
+            files: [new File(["x"], "protocolo.docx", { type: "application/msword" })],
+          },
+        },
+      );
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(
+          "Tipo de arquivo não permitido. Aceito: PDF.",
+        );
+      });
+      expect(onAtualizado).not.toHaveBeenCalled();
+      expect(screen.queryByText("protocolo.docx")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Anexar comprovante" }),
+      ).toBeEnabled();
+    });
+
+    it("'Concluir renovação' e 'Salvar protocolo' ficam desabilitados enquanto o comprovante sobe", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(enviarComprovanteProtocolo).mockReturnValue(
+        new Promise(() => {}),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await user.type(
+        await screen.findByLabelText("Número do protocolo"),
+        "2026/00184-LIC",
+      );
+
+      await user.upload(
+        screen.getByLabelText("Arquivo do comprovante de protocolo"),
+        new File(["%PDF"], "protocolo.pdf", { type: "application/pdf" }),
+      );
+
+      expect(
+        await screen.findByRole("button", { name: "Enviando comprovante..." }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "Salvar protocolo" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "Concluir renovação" }),
+      ).toBeDisabled();
     });
   });
 });
