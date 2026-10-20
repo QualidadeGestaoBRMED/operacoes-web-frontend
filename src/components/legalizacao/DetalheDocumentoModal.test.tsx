@@ -1792,6 +1792,29 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
       ).toHaveAttribute("href", "https://r2.exemplo/protocolos/2024.pdf");
     });
 
+    it("aba Protocolo sem contagem enquanto a lista carrega ou se ela falhar", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      let falhar: (erro: Error) => void = () => {};
+      vi.mocked(listarProcessosRenovacao).mockReturnValue(
+        new Promise((_resolver, rejeitar) => {
+          falhar = rejeitar;
+        }),
+      );
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      const aba = screen.getByRole("tab", { name: /protocolo/i });
+      expect(aba).toHaveTextContent(/^Protocolo$/);
+
+      falhar(new Error("Falha de rede."));
+      await user.click(aba);
+      expect(
+        await screen.findByText(/Não foi possível carregar os documentos de protocolo/),
+      ).toBeInTheDocument();
+      expect(aba).toHaveTextContent(/^Protocolo$/);
+    });
+
     it("aba Protocolo sem comprovante mostra o vazio", async () => {
       vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
       vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
@@ -1799,11 +1822,13 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
       renderComponente(55);
       await screen.findByText("Alvará de Funcionamento");
 
-      await user.click(screen.getByRole("tab", { name: /protocolo/i }));
+      const aba = screen.getByRole("tab", { name: /protocolo/i });
+      await user.click(aba);
 
       expect(
         await screen.findByText("Nenhum documento de protocolo anexado ainda."),
       ).toBeInTheDocument();
+      expect(aba).toHaveTextContent("Protocolo0");
     });
 
     it("histórico mostra o anexo do comprovante de protocolo", async () => {
