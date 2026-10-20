@@ -211,6 +211,17 @@ export async function listarHistoricoLegalizacao(
   return data;
 }
 
+// Backend de produção sem a STC-771 (sobe por deploy manual; o frontend pode
+// chegar antes): o processo vem sem `comprovantes_protocolo`, e ler
+// `.length` dele quebraria o detalhe de qualquer documento. Lista vazia
+// até o backend subir.
+function comComprovantes(processo: ProcessoRenovacao): ProcessoRenovacao {
+  return {
+    ...processo,
+    comprovantes_protocolo: processo.comprovantes_protocolo ?? [],
+  };
+}
+
 // POST em si já é o "iniciar" (nasce direto em em_andamento) -- não existe
 // um passo de "solicitar" separado. O botão "Registrar renovação" (Detalhe
 // do Documento) chama isto direto; a tela de acompanhamento (Protocolo/
@@ -222,7 +233,7 @@ export async function criarProcessoRenovacao(
     PROCESSOS_RENOVACAO_URL,
     payload,
   );
-  return data;
+  return comComprovantes(data);
 }
 
 // Sem paginação (mesmo motivo de listarHistoricoLegalizacao) -- processos de
@@ -235,7 +246,7 @@ export async function listarProcessosRenovacao(
   const { data } = await api.get<ProcessoRenovacao[]>(PROCESSOS_RENOVACAO_URL, {
     params: { documento_unidade: documentoUnidadeId },
   });
-  return data;
+  return data.map(comComprovantes);
 }
 
 // STC-772: mesmo envio da evidência (direto ao R2 quando houver).
@@ -261,7 +272,7 @@ export async function atualizarProcessoRenovacao(
     `${PROCESSOS_RENOVACAO_URL}${id}/`,
     payload,
   );
-  return data;
+  return comComprovantes(data);
 }
 
 // Não existe endpoint em lote (STC-382) -- uma chamada por documento
