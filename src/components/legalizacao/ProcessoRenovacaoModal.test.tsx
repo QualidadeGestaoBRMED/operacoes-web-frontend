@@ -27,11 +27,11 @@ vi.mock("@/hooks/useAuth", () => ({
 
 import {
   atualizarProcessoRenovacao,
-  comentarNaRenovacao,
+  comentarNoDocumento,
   criarProcessoRenovacao,
   enviarComprovanteProtocolo,
   enviarEvidenciaLegalizacao,
-  listarComentariosDaRenovacao,
+  listarComentariosDoDocumento,
   listarProcessosRenovacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
@@ -742,27 +742,13 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
     });
   });
 
-  describe("comentários da renovação (STC-774)", () => {
-    const CARD = { demanda: 36, status: "em_andamento" as const, comentarios_count: 1 };
-
-    it("processo sem card não tem o botão Comentários", async () => {
+  describe("comentários do documento (STC-774)", () => {
+    it("botão Comentários mesmo sem card no Kanban: abre a conversa do documento, comenta e volta", async () => {
       vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
-      renderComponente(true);
-      await screen.findByLabelText("Número do protocolo");
-
-      expect(
-        screen.queryByRole("button", { name: /Comentários/ }),
-      ).not.toBeInTheDocument();
-    });
-
-    it("abre os comentários do processo, comenta e volta ao formulário", async () => {
-      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
-        processo({ card_kanban: CARD }),
-      ]);
-      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([
         { id: 1, usuario: USUARIO, texto: "Protocolo enviado.", created_at: "2026-06-03T13:30:00Z" },
       ]);
-      vi.mocked(comentarNaRenovacao).mockResolvedValue({
+      vi.mocked(comentarNoDocumento).mockResolvedValue({
         id: 2,
         usuario: USUARIO,
         texto: "Recebido.",
@@ -772,28 +758,20 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       renderComponente(true);
       await screen.findByLabelText("Número do protocolo");
 
-      const botao = screen.getByRole("button", { name: "Comentários, 1 comentário" });
+      const botao = await screen.findByRole("button", { name: "Comentários, 1 comentário" });
       await user.click(botao);
 
       expect(
         await screen.findByRole("heading", { name: "Comentários · Alvará de Funcionamento" }),
       ).toBeInTheDocument();
       expect(await screen.findByText("Protocolo enviado.")).toBeInTheDocument();
-      expect(listarComentariosDaRenovacao).toHaveBeenCalledWith(9);
-
-      const chamadasAntes = vi.mocked(listarProcessosRenovacao).mock.calls.length;
+      expect(listarComentariosDoDocumento).toHaveBeenCalledWith(55);
       await user.type(
         screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
         "Recebido.{Enter}",
       );
       await waitFor(() => {
-        expect(comentarNaRenovacao).toHaveBeenCalledWith(9, "Recebido.");
-      });
-      // A contagem do botão vem da lista de processos: ela é atualizada.
-      await waitFor(() => {
-        expect(vi.mocked(listarProcessosRenovacao).mock.calls.length).toBeGreaterThan(
-          chamadasAntes,
-        );
+        expect(comentarNoDocumento).toHaveBeenCalledWith(55, "Recebido.");
       });
 
       await user.click(screen.getByRole("button", { name: "Voltar" }));
@@ -801,49 +779,25 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
         screen.queryByRole("heading", { name: /Comentários ·/ }),
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("Número do protocolo")).toBeInTheDocument();
+      await waitFor(() => expect(botao).toHaveFocus());
     });
 
-    it("renovação concluída por outra pessoa com o painel aberto: o painel fecha sem travar o modal", async () => {
-      vi.mocked(listarProcessosRenovacao)
-        .mockResolvedValueOnce([processo({ card_kanban: CARD })])
-        // Depois de comentar, a lista é recarregada: a renovação já foi
-        // concluída por outra pessoa.
-        .mockResolvedValue([
-          processo({ status: "concluido", card_kanban: { ...CARD, status: "concluido" } }),
-        ]);
-      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([]);
-      vi.mocked(comentarNaRenovacao).mockResolvedValue({
-        id: 2,
-        usuario: USUARIO,
-        texto: "Última mensagem.",
-        created_at: "2026-06-03T14:00:00Z",
-      });
-      vi.mocked(criarProcessoRenovacao).mockResolvedValue(
-        processo({ id: 10, card_kanban: { ...CARD, comentarios_count: 0 } }),
-      );
+    it("também no passo de iniciar a renovação, e Esc volta sem fechar o modal", async () => {
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([]);
+      const onOpenChange = vi.fn();
       const user = userEvent.setup();
-      renderComponente(true);
-      await screen.findByLabelText("Número do protocolo");
-      await user.click(screen.getByRole("button", { name: "Comentários, 1 comentário" }));
+      renderComponente(true, onOpenChange);
+      await screen.findByRole("button", { name: "Iniciar processo de renovação" });
+
+      await user.click(await screen.findByRole("button", { name: "Comentários, 0 comentários" }));
       await screen.findByText("Nenhum comentário ainda.");
+      await user.keyboard("{Escape}");
 
-      await user.type(
-        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
-        "Última mensagem.{Enter}",
-      );
-
-      const iniciar = await screen.findByRole("button", {
-        name: "Iniciar processo de renovação",
-      });
       expect(screen.queryByRole("heading", { name: /Comentários ·/ })).not.toBeInTheDocument();
+      expect(onOpenChange).not.toHaveBeenCalledWith(false);
       expect(
-        screen.getByRole("heading", { name: "Processo de Renovação" }).closest("[inert]"),
-      ).toBeNull();
-
-      // Uma renovação nova não reabre o painel sozinha.
-      await user.click(iniciar);
-      expect(await screen.findByLabelText("Número do protocolo")).toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: /Comentários ·/ })).not.toBeInTheDocument();
+        screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+      ).toBeInTheDocument();
     });
   });
 });
