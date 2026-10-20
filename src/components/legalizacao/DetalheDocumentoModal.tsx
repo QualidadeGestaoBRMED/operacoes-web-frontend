@@ -1174,7 +1174,7 @@ export function DetalheDocumentoModal({
                   >
                     <p className="text-[11.5px] text-muted-foreground">
                       Documentos de protocolo: comprovam o pedido feito ao
-                      órgão e não contam como evidência.
+                      órgão.
                     </p>
                     {carregandoProcessos ? (
                       <div className="flex flex-col gap-2.5">
