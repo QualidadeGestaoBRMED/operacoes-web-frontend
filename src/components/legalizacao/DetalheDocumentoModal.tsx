@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   History as HistoryIcon,
+  Paperclip,
   Pencil,
   Trash2,
   X,
@@ -30,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
 import {
+  formatarDataDeDatetime,
   LABEL_STATUS_PROCESSO,
   ProcessoRenovacaoModal,
 } from "./ProcessoRenovacaoModal";
@@ -45,6 +47,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
+import { useProcessosRenovacao } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
 import { administra } from "@/lib/redes";
@@ -62,10 +65,13 @@ import {
   iniciaisDe,
   nomeExibicao,
 } from "@/lib/utils";
+import type { Usuario } from "@/types";
 import type {
   AreaResponsavelDocumento,
+  ComprovanteProtocolo,
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
+  ProcessoRenovacao,
   StatusDocumento,
   StatusProcessoRenovacao,
 } from "@/types/legalizacao";
@@ -113,6 +119,7 @@ const LABEL_ACAO_HISTORICO: Record<string, string> = {
   regra_aplicada: "Regra de prazo aplicada",
   responsavel: "Responsável",
   evidencia: "Evidência",
+  comprovante_protocolo: "Comprovante de protocolo",
   movimentacao_profissional: "Movimentação profissional",
   processo_status: "Status do processo de renovação",
   processo_protocolo_numero: "Número do protocolo",
@@ -152,13 +159,29 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
-  const extensao = extensaoDe(evidencia.nome_original);
+// Linha de arquivo das abas Evidências e Protocolo: ícone da extensão, nome,
+// tamanho, quem enviou, quando, e o download.
+function ItemArquivo({
+  nome,
+  tamanhoBytes,
+  usuario,
+  enviadoEm,
+  url,
+  vigente = false,
+}: {
+  nome: string;
+  tamanhoBytes: number;
+  usuario: Usuario;
+  enviadoEm: string;
+  url: string;
+  vigente?: boolean;
+}) {
+  const extensao = extensaoDe(nome);
   return (
     <div
       className={cn(
         "flex items-center gap-3.5 rounded-lg border border-border bg-background p-2.5",
-        evidencia.vigente && "border-green-600/40 bg-green-600/5",
+        vigente && "border-green-600/40 bg-green-600/5",
       )}
     >
       <div
@@ -175,31 +198,73 @@ function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
               isso, um <span> filho de flex não encolhe abaixo do próprio
               conteúdo (min-width: auto é o default), então o truncate
               nunca entrava em ação e o nome estourava a área do item. */}
-          <span className="min-w-0 flex-1 truncate">
-            {evidencia.nome_original}
-          </span>
-          {evidencia.vigente && (
+          <span className="min-w-0 flex-1 truncate">{nome}</span>
+          {vigente && (
             <span className="shrink-0 rounded-full bg-green-600/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-green-700 uppercase">
               Vigente
             </span>
           )}
         </div>
         <div className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
-          {formatarTamanhoArquivo(evidencia.tamanho_bytes)} · enviado por{" "}
-          {nomeExibicao(evidencia.usuario)} ·{" "}
-          {formatarDataHora(evidencia.created_at)}
+          {formatarTamanhoArquivo(tamanhoBytes)} · enviado por{" "}
+          {nomeExibicao(usuario)} · {formatarDataHora(enviadoEm)}
         </div>
       </div>
       <a
-        href={urlAbsolutaDaEvidencia(evidencia.arquivo)}
+        href={urlAbsolutaDaEvidencia(url)}
         target="_blank"
         rel="noreferrer"
-        download={evidencia.nome_original}
+        download={nome}
         title="Baixar"
+        aria-label={`Baixar ${nome}`}
         className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Download className="size-4" />
       </a>
+    </div>
+  );
+}
+
+function ItemEvidencia({ evidencia }: { evidencia: EvidenciaRegulatoria }) {
+  return (
+    <ItemArquivo
+      nome={evidencia.nome_original}
+      tamanhoBytes={evidencia.tamanho_bytes}
+      usuario={evidencia.usuario}
+      enviadoEm={evidencia.created_at}
+      url={evidencia.arquivo}
+      vigente={evidencia.vigente}
+    />
+  );
+}
+
+function ItemComprovante({ comprovante }: { comprovante: ComprovanteProtocolo }) {
+  return (
+    <ItemArquivo
+      nome={comprovante.nome_original}
+      tamanhoBytes={comprovante.tamanho_bytes}
+      usuario={comprovante.usuario}
+      enviadoEm={comprovante.created_at}
+      url={comprovante.arquivo}
+    />
+  );
+}
+
+// Um bloco por renovação com comprovante (STC-772): quando começou, em que
+// status está e o número do protocolo, se houver.
+function GrupoComprovantes({ processo }: { processo: ProcessoRenovacao }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11.5px] text-muted-foreground">
+        <strong className="font-semibold text-foreground">
+          Renovação de {formatarDataDeDatetime(processo.created_at)}
+        </strong>{" "}
+        · {LABEL_STATUS_PROCESSO[processo.status]}
+        {processo.protocolo_numero && ` · Protocolo ${processo.protocolo_numero}`}
+      </p>
+      {processo.comprovantes_protocolo.map((comprovante) => (
+        <ItemComprovante key={comprovante.id} comprovante={comprovante} />
+      ))}
     </div>
   );
 }
@@ -224,11 +289,13 @@ function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
   // transicionando pra Vencido), não dá pra distinguir os dois casos só
   // pelos dados (ver comentário em HistoricoRegulatorio, types/legalizacao.ts).
   const autor = item.usuario ? nomeExibicao(item.usuario) : "Sistema";
-  const Icone = item.acao === "evidencia" ? FileText : HistoryIcon;
+  const ehArquivo =
+    item.acao === "evidencia" || item.acao === "comprovante_protocolo";
+  const Icone = ehArquivo ? FileText : HistoryIcon;
   const corDot =
     item.acao === "movimentacao_profissional"
       ? "border-red-600/50 bg-red-600/10 text-red-700"
-      : item.acao === "evidencia"
+      : ehArquivo
         ? "border-amber-600/50 bg-amber-600/10 text-amber-700"
         : "border-secondary/50 bg-secondary/10 text-secondary";
 
@@ -346,6 +413,13 @@ export function DetalheDocumentoModal({
     mensagemErro: erroHistorico,
     mutate: mutateHistorico,
   } = useHistoricoLegalizacao(aberto ? documentoId : null);
+  // Mesma lista (e mesma chave SWR) do modal de renovação: anexar ali já
+  // atualiza a aba Protocolo.
+  const {
+    processos,
+    isLoading: carregandoProcessos,
+    mensagemErro: erroProcessos,
+  } = useProcessosRenovacao(aberto ? documentoId : null);
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
@@ -517,6 +591,13 @@ export function DetalheDocumentoModal({
   // fonte (a flag em cada item) pra achar o mesmo dado.
   const evidenciaVigente = evidencias.find(
     (evidencia) => evidencia.id === documento?.evidencia_vigente,
+  );
+  const processosComComprovante = processos.filter(
+    (processo) => processo.comprovantes_protocolo.length > 0,
+  );
+  const totalComprovantes = processosComComprovante.reduce(
+    (total, processo) => total + processo.comprovantes_protocolo.length,
+    0,
   );
   const evidenciasExibidas = mostrandoHistoricoEvidencias
     ? evidencias
@@ -1007,25 +1088,37 @@ export function DetalheDocumentoModal({
                   // a coluna inteira, ignorando qualquer truncate interno.
                   className="min-h-0 min-w-0 flex-1 gap-0"
                 >
+                  {/* Sem ícone e com menos espaço abaixo de sm: as três
+                      abas não cabem lado a lado num celular de 360 px. */}
                   <TabsList
                     variant="line"
-                    className="h-11 w-full justify-start gap-4 rounded-none border-b border-border bg-transparent px-5"
+                    className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
                   >
                     <TabsTrigger
                       value="evidencias"
                       className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <FileText className="size-3.5" />
+                      <FileText className="hidden size-3.5 sm:block" />
                       Evidências
                       <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                         {evidencias.length}
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
+                      value="protocolo"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    >
+                      <Paperclip className="hidden size-3.5 sm:block" />
+                      Protocolo
+                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                        {totalComprovantes}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
                       value="historico"
                       className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <HistoryIcon className="size-3.5" />
+                      <HistoryIcon className="hidden size-3.5 sm:block" />
                       Histórico
                       <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                         {historico.length}
@@ -1073,6 +1166,34 @@ export function DetalheDocumentoModal({
                           </button>
                         )}
                       </>
+                    )}
+                  </TabsContent>
+                  <TabsContent
+                    value="protocolo"
+                    className="scrollbar-discreta flex-1 space-y-4 overflow-y-auto p-5"
+                  >
+                    <p className="text-[11.5px] text-muted-foreground">
+                      Documentos de protocolo: comprovam o pedido feito ao
+                      órgão e não contam como evidência.
+                    </p>
+                    {carregandoProcessos ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-14 w-full" />
+                        <Skeleton className="h-14 w-full" />
+                      </div>
+                    ) : erroProcessos ? (
+                      <p className="text-sm text-destructive">
+                        Não foi possível carregar os documentos de protocolo:{" "}
+                        {erroProcessos}
+                      </p>
+                    ) : processosComComprovante.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum documento de protocolo anexado ainda.
+                      </p>
+                    ) : (
+                      processosComComprovante.map((processo) => (
+                        <GrupoComprovantes key={processo.id} processo={processo} />
+                      ))
                     )}
                   </TabsContent>
                   <TabsContent

@@ -3,6 +3,7 @@ import { enviarArquivo, type AoProgredir } from "./uploadDireto";
 import type { RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
+  ComprovanteProtocolo,
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
   DocumentoUnidadeLotePayload,
@@ -235,6 +236,19 @@ export async function listarProcessosRenovacao(
     params: { documento_unidade: documentoUnidadeId },
   });
   return data;
+}
+
+// STC-772: mesmo envio da evidência (direto ao R2 quando houver).
+export async function enviarComprovanteProtocolo(
+  processoId: number,
+  arquivo: File,
+  aoProgredir?: AoProgredir,
+): Promise<ComprovanteProtocolo> {
+  return enviarArquivo<ComprovanteProtocolo>(
+    `${PROCESSOS_RENOVACAO_URL}${processoId}/comprovantes-protocolo/`,
+    arquivo,
+    aoProgredir,
+  );
 }
 
 // "Salvar protocolo" e "Concluir renovação" (STC-381) usam isto -- PATCH
