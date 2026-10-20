@@ -1,4 +1,4 @@
-import type { Unidade, Usuario } from "./index";
+import type { StatusDemanda, Unidade, Usuario } from "./index";
 
 // Espelha TipoDocumentoRegulatorio.Categoria (backend/legalizacao/models.py).
 export type CategoriaDocumento =
@@ -281,7 +281,17 @@ export interface ProcessoRenovacao {
   usuario_responsavel: Usuario | null;
   // STC-771: comprovantes de protocolo do processo, mais recente primeiro.
   comprovantes_protocolo: ComprovanteProtocolo[];
+  // STC-773: card espelho no Kanban; null quando o processo não gerou card.
+  card_kanban: CardKanbanDoProcesso | null;
   created_at: string;
+}
+
+// Os comentários do card se leem e se escrevem pela Legalização
+// (processos-renovacao/{id}/comentarios/), com o acesso do documento.
+export interface CardKanbanDoProcesso {
+  demanda: number;
+  status: StatusDemanda;
+  comentarios_count: number;
 }
 
 // STC-771: PDF que comprova o pedido feito ao órgão. Separado da evidência:

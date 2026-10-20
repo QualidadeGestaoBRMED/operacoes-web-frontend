@@ -1,11 +1,15 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
+import type { FonteComentarios } from "@/hooks/useComentarios";
 import {
   atualizarProcessoRenovacao,
+  comentarNaRenovacao,
   criarProcessoRenovacao,
   enviarComprovanteProtocolo,
+  listarComentariosDaRenovacao,
   listarProcessosRenovacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -126,4 +130,26 @@ export function useEnviarComprovanteProtocolo(documentoId: number) {
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
   };
+}
+
+// STC-774: os comentários do card espelho de uma renovação, pela rota da
+// Legalização. Depois de comentar, a lista de processos do documento é
+// atualizada: é dela que vem a contagem do botão "Comentários".
+export function useFonteDaRenovacao(
+  processoId: number,
+  documentoId: number,
+): FonteComentarios {
+  const { mutate } = useSWRConfig();
+  return useMemo(
+    () => ({
+      chave: ["processo-renovacao", processoId, "comentarios"],
+      listar: () => listarComentariosDaRenovacao(processoId),
+      criar: async (texto: string) => {
+        const comentario = await comentarNaRenovacao(processoId, texto);
+        void mutate(chaveProcessosDoDocumento(documentoId));
+        return comentario;
+      },
+    }),
+    [processoId, documentoId, mutate],
+  );
 }

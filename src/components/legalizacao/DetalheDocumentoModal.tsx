@@ -28,13 +28,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { BotaoComentarios } from "@/components/demanda/PainelComentarios";
+import {
+  PainelComentariosDaRenovacao,
+  processosComComentarios,
+} from "./ComentariosDaRenovacao";
 import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
-import {
-  formatarDataDeDatetime,
-  LABEL_STATUS_PROCESSO,
-  ProcessoRenovacaoModal,
-} from "./ProcessoRenovacaoModal";
+import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 import {
   useAdicionarResponsavelLegalizacao,
   useAtualizarDocumentoLegalizacao,
@@ -50,6 +51,10 @@ import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { useProcessosRenovacao } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
+import {
+  formatarDataDeDatetime,
+  LABEL_STATUS_PROCESSO,
+} from "@/lib/legalizacaoRenovacao";
 import { administra } from "@/lib/redes";
 import {
   CODIGOS_MOVIMENTACAO_PROFISSIONAL,
@@ -398,6 +403,17 @@ export function DetalheDocumentoModal({
   const [processandoResponsavelId, setProcessandoResponsavelId] = useState<
     number | null
   >(null);
+  // STC-774: comentários da renovação sobre a coluna das abas. Qualquer
+  // troca de documento (inclusive fechar) fecha o painel.
+  const [comentarios, setComentarios] = useState<{ origem: HTMLElement } | null>(
+    null,
+  );
+  const [documentoDosComentarios, setDocumentoDosComentarios] =
+    useState(documentoId);
+  if (documentoDosComentarios !== documentoId) {
+    setDocumentoDosComentarios(documentoId);
+    setComentarios(null);
+  }
 
   const { documento, isLoading, mensagemErro, mutate } =
     useDocumentoLegalizacao(documentoId);
@@ -445,6 +461,14 @@ export function DetalheDocumentoModal({
     mostrandoEdicaoResponsaveis ? documento?.tipo_documento.id : undefined,
   );
 
+  function voltarDosComentarios() {
+    const origem = comentarios?.origem;
+    setComentarios(null);
+    // Devolve o foco ao botão que abriu, depois que as abas voltam a aceitar
+    // foco.
+    requestAnimationFrame(() => origem?.focus());
+  }
+
   function fechar() {
     setMostrandoJustificativa(false);
     setJustificativa("");
@@ -457,6 +481,7 @@ export function DetalheDocumentoModal({
     setMostrandoNovaVersaoRegra(false);
     setMostrandoEdicaoResponsaveis(false);
     setBuscaResponsavel("");
+    setComentarios(null);
     onOpenChange(false);
   }
 
@@ -599,6 +624,13 @@ export function DetalheDocumentoModal({
     (total, processo) => total + processo.comprovantes_protocolo.length,
     0,
   );
+  // A renovação que o botão "Comentários" abre: a em curso, se tiver card;
+  // senão, a mais recente com card. Sem nenhuma com card, sem o botão.
+  const processosComCard = processosComComentarios(processos);
+  const renovacaoDosComentarios =
+    processosComCard.find((processo) => processo.status !== "concluido") ??
+    processosComCard[0] ??
+    null;
   const evidenciasExibidas = mostrandoHistoricoEvidencias
     ? evidencias
     : evidenciaVigente
@@ -667,6 +699,14 @@ export function DetalheDocumentoModal({
       <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
         <DialogContent
           showCloseButton
+          // Com os comentários abertos, Esc volta às abas (sem perder o
+          // modal); com as abas na tela, fecha o modal como sempre.
+          onEscapeKeyDown={(evento) => {
+            if (comentarios) {
+              evento.preventDefault();
+              voltarDosComentarios();
+            }
+          }}
           className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
         >
           {isLoading ? (
@@ -1027,6 +1067,17 @@ export function DetalheDocumentoModal({
                           Registrar renovação
                         </Button>
                       )}
+                      {renovacaoDosComentarios?.card_kanban && (
+                        <BotaoComentarios
+                          rotulo="Comentários"
+                          quantidade={
+                            renovacaoDosComentarios.card_kanban
+                              .comentarios_count
+                          }
+                          onAbrir={(origem) => setComentarios({ origem })}
+                          className="h-9 w-full"
+                        />
+                      )}
                       {podeMarcarNaoAplicavel && (
                         <Button
                           variant="outline"
@@ -1079,151 +1130,162 @@ export function DetalheDocumentoModal({
                   </div>
                 </div>
 
-                <Tabs
-                  defaultValue="evidencias"
-                  // min-w-0: achado testando com nome de evidência longo --
-                  // item de grid (coluna 1fr do grid pai) tem min-width:
-                  // auto por padrão, que considera o conteúdo intrínseco de
-                  // descendentes (o nome do arquivo sem quebra) e estourava
-                  // a coluna inteira, ignorando qualquer truncate interno.
-                  className="min-h-0 min-w-0 flex-1 gap-0"
-                >
-                  {/* Sem ícone e com menos espaço abaixo de sm: as três
-                      abas não cabem lado a lado num celular de 360 px. */}
-                  <TabsList
-                    variant="line"
-                    className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                  <Tabs
+                    inert={comentarios !== null}
+                    defaultValue="evidencias"
+                    // min-w-0: achado testando com nome de evidência longo --
+                    // item de grid (coluna 1fr do grid pai) tem min-width:
+                    // auto por padrão, que considera o conteúdo intrínseco de
+                    // descendentes (o nome do arquivo sem quebra) e estourava
+                    // a coluna inteira, ignorando qualquer truncate interno.
+                    className="min-h-0 min-w-0 flex-1 gap-0"
                   >
-                    <TabsTrigger
-                      value="evidencias"
-                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    {/* Sem ícone e com menos espaço abaixo de sm: as três
+                        abas não cabem lado a lado num celular de 360 px. */}
+                    <TabsList
+                      variant="line"
+                      className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
                     >
-                      <FileText className="hidden size-3.5 sm:block" />
-                      Evidências
-                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                        {evidencias.length}
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="protocolo"
-                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                    >
-                      <Paperclip className="hidden size-3.5 sm:block" />
-                      Protocolo
-                      {/* Sem contagem enquanto carrega ou se falhou: "0"
-                          diria que não há comprovante. */}
-                      {!carregandoProcessos && !erroProcessos && (
+                      <TabsTrigger
+                        value="evidencias"
+                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                      >
+                        <FileText className="hidden size-3.5 sm:block" />
+                        Evidências
                         <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                          {totalComprovantes}
+                          {evidencias.length}
                         </span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="historico"
-                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
-                    >
-                      <HistoryIcon className="hidden size-3.5 sm:block" />
-                      Histórico
-                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                        {historico.length}
-                      </span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent
-                    value="evidencias"
-                    className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
-                  >
-                    {carregandoEvidencias ? (
-                      <div className="flex flex-col gap-2.5">
-                        <Skeleton className="h-14 w-full" />
-                        <Skeleton className="h-14 w-full" />
-                      </div>
-                    ) : erroEvidencias ? (
-                      <p className="text-sm text-destructive">
-                        Não foi possível carregar as evidências:{" "}
-                        {erroEvidencias}
-                      </p>
-                    ) : evidencias.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhuma evidência enviada ainda.
-                      </p>
-                    ) : (
-                      <>
-                        {evidenciasExibidas.map((evidencia) => (
-                          <ItemEvidencia
-                            key={evidencia.id}
-                            evidencia={evidencia}
-                          />
-                        ))}
-                        {evidencias.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setMostrandoHistoricoEvidencias((atual) => !atual)
-                            }
-                            className="text-[12.5px] font-medium text-secondary hover:underline"
-                          >
-                            {mostrandoHistoricoEvidencias
-                              ? "Ver só a vigente"
-                              : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
-                          </button>
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="protocolo"
+                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                      >
+                        <Paperclip className="hidden size-3.5 sm:block" />
+                        Protocolo
+                        {/* Sem contagem enquanto carrega ou se falhou: "0"
+                            diria que não há comprovante. */}
+                        {!carregandoProcessos && !erroProcessos && (
+                          <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                            {totalComprovantes}
+                          </span>
                         )}
-                      </>
-                    )}
-                  </TabsContent>
-                  <TabsContent
-                    value="protocolo"
-                    className="scrollbar-discreta flex-1 space-y-4 overflow-y-auto p-5"
-                  >
-                    <p className="text-[11.5px] text-muted-foreground">
-                      Documentos de protocolo: comprovam o pedido feito ao
-                      órgão.
-                    </p>
-                    {carregandoProcessos ? (
-                      <div className="flex flex-col gap-2.5">
-                        <Skeleton className="h-14 w-full" />
-                        <Skeleton className="h-14 w-full" />
-                      </div>
-                    ) : erroProcessos ? (
-                      <p className="text-sm text-destructive">
-                        Não foi possível carregar os documentos de protocolo:{" "}
-                        {erroProcessos}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="historico"
+                        className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                      >
+                        <HistoryIcon className="hidden size-3.5 sm:block" />
+                        Histórico
+                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                          {historico.length}
+                        </span>
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent
+                      value="evidencias"
+                      className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
+                    >
+                      {carregandoEvidencias ? (
+                        <div className="flex flex-col gap-2.5">
+                          <Skeleton className="h-14 w-full" />
+                          <Skeleton className="h-14 w-full" />
+                        </div>
+                      ) : erroEvidencias ? (
+                        <p className="text-sm text-destructive">
+                          Não foi possível carregar as evidências:{" "}
+                          {erroEvidencias}
+                        </p>
+                      ) : evidencias.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhuma evidência enviada ainda.
+                        </p>
+                      ) : (
+                        <>
+                          {evidenciasExibidas.map((evidencia) => (
+                            <ItemEvidencia
+                              key={evidencia.id}
+                              evidencia={evidencia}
+                            />
+                          ))}
+                          {evidencias.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMostrandoHistoricoEvidencias((atual) => !atual)
+                              }
+                              className="text-[12.5px] font-medium text-secondary hover:underline"
+                            >
+                              {mostrandoHistoricoEvidencias
+                                ? "Ver só a vigente"
+                                : `Ver histórico de evidências (${evidencias.length - 1} anterior${evidencias.length - 1 === 1 ? "" : "es"})`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </TabsContent>
+                    <TabsContent
+                      value="protocolo"
+                      className="scrollbar-discreta flex-1 space-y-4 overflow-y-auto p-5"
+                    >
+                      <p className="text-[11.5px] text-muted-foreground">
+                        Documentos de protocolo: comprovam o pedido feito ao
+                        órgão.
                       </p>
-                    ) : processosComComprovante.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhum documento de protocolo anexado ainda.
-                      </p>
-                    ) : (
-                      processosComComprovante.map((processo) => (
-                        <GrupoComprovantes key={processo.id} processo={processo} />
-                      ))
-                    )}
-                  </TabsContent>
-                  <TabsContent
-                    value="historico"
-                    className="scrollbar-discreta flex-1 overflow-y-auto p-5"
-                  >
-                    {carregandoHistorico ? (
-                      <div className="flex flex-col gap-2.5">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                      </div>
-                    ) : erroHistorico ? (
-                      <p className="text-sm text-destructive">
-                        Não foi possível carregar o histórico: {erroHistorico}
-                      </p>
-                    ) : historico.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhum registro de histórico ainda.
-                      </p>
-                    ) : (
-                      historico.map((item) => (
-                        <ItemHistorico key={item.id} item={item} />
-                      ))
-                    )}
-                  </TabsContent>
-                </Tabs>
+                      {carregandoProcessos ? (
+                        <div className="flex flex-col gap-2.5">
+                          <Skeleton className="h-14 w-full" />
+                          <Skeleton className="h-14 w-full" />
+                        </div>
+                      ) : erroProcessos ? (
+                        <p className="text-sm text-destructive">
+                          Não foi possível carregar os documentos de protocolo:{" "}
+                          {erroProcessos}
+                        </p>
+                      ) : processosComComprovante.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum documento de protocolo anexado ainda.
+                        </p>
+                      ) : (
+                        processosComComprovante.map((processo) => (
+                          <GrupoComprovantes key={processo.id} processo={processo} />
+                        ))
+                      )}
+                    </TabsContent>
+                    <TabsContent
+                      value="historico"
+                      className="scrollbar-discreta flex-1 overflow-y-auto p-5"
+                    >
+                      {carregandoHistorico ? (
+                        <div className="flex flex-col gap-2.5">
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      ) : erroHistorico ? (
+                        <p className="text-sm text-destructive">
+                          Não foi possível carregar o histórico: {erroHistorico}
+                        </p>
+                      ) : historico.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum registro de histórico ainda.
+                        </p>
+                      ) : (
+                        historico.map((item) => (
+                          <ItemHistorico key={item.id} item={item} />
+                        ))
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                  {comentarios && renovacaoDosComentarios && (
+                    <PainelComentariosDaRenovacao
+                      documento={documento}
+                      processos={processosComCard}
+                      processoInicialId={renovacaoDosComentarios.id}
+                      onVoltar={voltarDosComentarios}
+                    />
+                  )}
+                </div>
               </div>
             </>
           )}

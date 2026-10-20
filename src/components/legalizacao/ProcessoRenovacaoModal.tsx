@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Download, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { BotaoComentarios } from "@/components/demanda/PainelComentarios";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,11 +26,12 @@ import {
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
-import type {
-  DocumentoUnidade,
-  ProcessoRenovacao,
-  StatusProcessoRenovacao,
-} from "@/types/legalizacao";
+import {
+  formatarDataDeDatetime,
+  LABEL_STATUS_PROCESSO,
+} from "@/lib/legalizacaoRenovacao";
+import { PainelComentariosDaRenovacao } from "./ComentariosDaRenovacao";
+import type { DocumentoUnidade, ProcessoRenovacao } from "@/types/legalizacao";
 
 // Mesma whitelist de FormCadastrarDocumento.tsx (Administração) -- mesmos
 // tipos de arquivo aceitos em todo o módulo.
@@ -37,31 +39,6 @@ import type {
 // já rejeita qualquer outra extensão para evidências e comprovantes de
 // protocolo de Legalização.
 const ACCEPT_PDF = ".pdf";
-
-// Exportado -- reaproveitado no Histórico do documento (DetalheDocumentoModal.tsx)
-// pra traduzir o valor cru de HistoricoRegulatorio quando acao=="processo_status".
-export const LABEL_STATUS_PROCESSO: Record<StatusProcessoRenovacao, string> = {
-  nao_iniciado: "Não iniciado",
-  em_andamento: "Em andamento",
-  protocolado: "Protocolado",
-  concluido: "Concluído",
-};
-
-// created_at é datetime UTC completo -- fatiar a string crua ("YYYY-MM-DD"
-// dos 10 primeiros caracteres) mostraria o dia errado pra quem estiver num
-// fuso atrás de UTC durante a virada (achado em análise de falhas
-// críticas). new Date(iso) + Intl já convertem pro fuso do navegador,
-// mesmo princípio de formatarDataHora (@/lib/utils).
-const FORMATADOR_DATA_LOCAL = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-// Exportado -- também no cabeçalho de cada renovação da aba Protocolo
-// (DetalheDocumentoModal.tsx).
-export function formatarDataDeDatetime(iso: string) {
-  return FORMATADOR_DATA_LOCAL.format(new Date(iso));
-}
 
 // Mesmo padrão de CampoMeta (DetalheDocumentoModal.tsx) -- rótulo pequeno em
 // caixa alta acima do valor.
@@ -473,8 +450,20 @@ export function ProcessoRenovacaoModal({
     mutate: mutateProcessos,
   } = useProcessosRenovacao(aberto ? (documento?.id ?? null) : null);
   const { criar, isLoading: criando } = useCriarProcessoRenovacao();
+  // STC-774: comentários do card espelho do processo em curso, sobre o
+  // conteúdo do modal.
+  const [comentarios, setComentarios] = useState<{ origem: HTMLElement } | null>(
+    null,
+  );
+
+  function voltarDosComentarios() {
+    const origem = comentarios?.origem;
+    setComentarios(null);
+    requestAnimationFrame(() => origem?.focus());
+  }
 
   function fechar() {
+    setComentarios(null);
     onOpenChange(false);
   }
 
@@ -500,15 +489,33 @@ export function ProcessoRenovacaoModal({
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
-      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[620px]">
-        <DialogHeader>
+      <DialogContent
+        // Com os comentários abertos, Esc volta ao processo; senão, fecha.
+        onEscapeKeyDown={(evento) => {
+          if (comentarios) {
+            evento.preventDefault();
+            voltarDosComentarios();
+          }
+        }}
+        className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[620px]"
+      >
+        <DialogHeader inert={comentarios !== null}>
           <DialogTitle>Processo de Renovação</DialogTitle>
           {documento && (
-            <p className="text-[12.5px] text-muted-foreground">
-              {documento.tipo_documento.nome} · {documento.unidade.nome}
-              {processoAtivo &&
-                ` · ${LABEL_STATUS_PROCESSO[processoAtivo.status]}`}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[12.5px] text-muted-foreground">
+                {documento.tipo_documento.nome} · {documento.unidade.nome}
+                {processoAtivo &&
+                  ` · ${LABEL_STATUS_PROCESSO[processoAtivo.status]}`}
+              </p>
+              {processoAtivo?.card_kanban && (
+                <BotaoComentarios
+                  rotulo="Comentários"
+                  quantidade={processoAtivo.card_kanban.comentarios_count}
+                  onAbrir={(origem) => setComentarios({ origem })}
+                />
+              )}
+            </div>
           )}
         </DialogHeader>
 
@@ -527,13 +534,28 @@ export function ProcessoRenovacaoModal({
             </DialogFooter>
           </>
         ) : processoAtivo && documento ? (
-          <FormularioProcessoAtivo
-            key={processoAtivo.id}
-            documento={documento}
-            processo={processoAtivo}
-            onFechar={fechar}
-            onAtualizado={onAtualizado}
-          />
+          <>
+            <div
+              inert={comentarios !== null}
+              className="flex min-h-0 flex-1 flex-col gap-4"
+            >
+              <FormularioProcessoAtivo
+                key={processoAtivo.id}
+                documento={documento}
+                processo={processoAtivo}
+                onFechar={fechar}
+                onAtualizado={onAtualizado}
+              />
+            </div>
+            {comentarios && processoAtivo.card_kanban && (
+              <PainelComentariosDaRenovacao
+                documento={documento}
+                processos={[processoAtivo]}
+                processoInicialId={processoAtivo.id}
+                onVoltar={voltarDosComentarios}
+              />
+            )}
+          </>
         ) : (
           <>
             <p className="text-sm text-foreground">

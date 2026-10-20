@@ -18,6 +18,7 @@ export function BotaoComentarios({
   rotuloAcessivel = rotulo,
   quantidade,
   onAbrir,
+  className,
 }: {
   /** Texto do botão: "Conversa", "Comentários". */
   rotulo: string;
@@ -25,12 +26,14 @@ export function BotaoComentarios({
   rotuloAcessivel?: string;
   quantidade?: number;
   onAbrir: (origem: HTMLElement) => void;
+  className?: string;
 }) {
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
+      className={className}
       onClick={(evento) => onAbrir(evento.currentTarget)}
       aria-label={
         quantidade === undefined
@@ -97,7 +100,14 @@ export function PainelComentarios({
         </h3>
       </div>
       {children}
-      <ComentarioFeed fonte={fonte} podeComentar={podeComentar} aviso={aviso} />
+      {/* key: outra fonte (ex.: outra renovação escolhida) começa com o
+          campo de envio vazio, sem levar o texto digitado na anterior. */}
+      <ComentarioFeed
+        key={fonte.chave.join("/")}
+        fonte={fonte}
+        podeComentar={podeComentar}
+        aviso={aviso}
+      />
       {!podeComentar && somenteLeitura && (
         <p className="border-t border-border px-5 py-3 text-xs text-muted-foreground">
           {somenteLeitura}
