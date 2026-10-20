@@ -84,6 +84,12 @@ function PassoSelecao({
     (a.profissional || "").localeCompare(b.profissional || "", "pt-BR"),
   );
   const iniciando = emAndamento === "iniciar";
+  // Só as marcadas que ainda podem entrar: a lista é relida de tempos em
+  // tempos, e uma instância marcada pode ter entrado em renovação por outra
+  // pessoa (a caixa fica desligada e não deve contar nem ir no pedido).
+  const selecionados = instancias
+    .filter((documento) => marcados.has(documento.id) && !motivoParaFicarDeFora(documento))
+    .map((documento) => documento.id);
 
   function alternar(id: number) {
     setMarcados((atual) => {
@@ -97,7 +103,7 @@ function PassoSelecao({
   async function iniciarLote() {
     try {
       const lote = await iniciar({
-        documentos: [...marcados],
+        documentos: selecionados,
         data_solicitacao: dataSolicitacao || null,
         usuario_responsavel: user?.usuarioId ?? null,
       });
@@ -142,7 +148,7 @@ function PassoSelecao({
                     )}
                   >
                     <Checkbox
-                      checked={marcados.has(documento.id)}
+                      checked={marcados.has(documento.id) && !motivo}
                       disabled={Boolean(motivo) || iniciando}
                       onCheckedChange={() => alternar(documento.id)}
                     />
@@ -175,10 +181,10 @@ function PassoSelecao({
           Cancelar
         </Button>
         <Button
-          disabled={marcados.size < MINIMO_DE_ITENS || iniciando}
+          disabled={selecionados.length < MINIMO_DE_ITENS || iniciando}
           onClick={() => void iniciarLote()}
         >
-          {iniciando ? "Iniciando..." : `Iniciar lote com ${marcados.size} itens`}
+          {iniciando ? "Iniciando..." : `Iniciar lote com ${selecionados.length} itens`}
         </Button>
       </DialogFooter>
     </>
@@ -259,17 +265,30 @@ function FormularioDoLote({
   const validadeDe = (item: ItemDoLote) => validadePorItem[item.id] || validadeComum;
   const semCertificado = aConcluir.filter((item) => !item.tem_certificado);
   const semValidade = aConcluir.filter((item) => !validadeDe(item));
+  // Protocolo digitado e ainda não salvo: vai junto ao concluir (mesmo
+  // cuidado do modal de renovação avulsa), para não se perder.
+  const dadosDoProtocolo = {
+    protocolo_numero: protocoloNumero.trim(),
+    protocolo_orgao: protocoloOrgao.trim(),
+    protocolo_data: protocoloData || null,
+    observacoes: observacoes.trim(),
+  };
+  const protocoloPendente =
+    dadosDoProtocolo.protocolo_numero !== lote.protocolo_numero ||
+    dadosDoProtocolo.protocolo_orgao !== lote.protocolo_orgao ||
+    dadosDoProtocolo.protocolo_data !== lote.protocolo_data ||
+    dadosDoProtocolo.observacoes !== lote.observacoes;
+  // Sem número o protocolo não é salvo (o backend exige): não dá para levar.
+  const protocoloSemNumero = protocoloPendente && !dadosDoProtocolo.protocolo_numero;
   const podeConcluir =
-    aConcluir.length > 0 && semCertificado.length === 0 && semValidade.length === 0;
+    aConcluir.length > 0 &&
+    semCertificado.length === 0 &&
+    semValidade.length === 0 &&
+    !protocoloSemNumero;
 
   async function salvarProtocolo() {
     try {
-      await acoes.registrarProtocolo(lote.id, {
-        protocolo_numero: protocoloNumero.trim(),
-        protocolo_orgao: protocoloOrgao.trim(),
-        protocolo_data: protocoloData || null,
-        observacoes: observacoes.trim(),
-      });
+      await acoes.registrarProtocolo(lote.id, dadosDoProtocolo);
       toast.success("Protocolo salvo para o lote.");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
@@ -308,6 +327,7 @@ function FormularioDoLote({
 
   async function concluir() {
     try {
+      if (protocoloPendente) await acoes.registrarProtocolo(lote.id, dadosDoProtocolo);
       const atualizado = await acoes.concluir(
         lote.id,
         aConcluir.map((item) => ({ processo: item.id, nova_validade: validadeDe(item) })),
@@ -588,7 +608,9 @@ function FormularioDoLote({
                   ? `Falta certificado: ${semCertificado
                       .map((item) => rotuloDoItem(item.documento.identificador))
                       .join(", ")}.`
-                  : "Informe a nova validade de todos os itens marcados."}
+                  : semValidade.length > 0
+                    ? "Informe a nova validade de todos os itens marcados."
+                    : "Informe o número do protocolo ou apague os dados dele para concluir."}
             </p>
             <Button
               className="self-start"
