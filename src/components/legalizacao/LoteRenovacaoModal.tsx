@@ -606,6 +606,11 @@ export function LoteRenovacaoModal({
 }) {
   // Lote criado aqui mesmo, no passo de seleção.
   const [loteCriadoId, setLoteCriadoId] = useState<number | null>(null);
+  // Fechado de qualquer jeito (inclusive por fora, sem passar por fechar()),
+  // esquece o lote criado: a próxima abertura começa pela escolha.
+  if (!aberto && loteCriadoId !== null) {
+    setLoteCriadoId(null);
+  }
   const idAtual = loteId ?? loteCriadoId;
   const { lote, isLoading, mensagemErro } = useLoteRenovacao(aberto ? idAtual : null);
 

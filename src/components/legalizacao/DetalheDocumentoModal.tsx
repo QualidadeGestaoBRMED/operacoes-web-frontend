@@ -366,6 +366,13 @@ export function DetalheDocumentoModal({
   // STC-779: renovação em lote. {id: null}: começar um lote a partir deste
   // documento; {id}: o lote de que a renovação em curso faz parte.
   const [loteAberto, setLoteAberto] = useState<{ id: number | null } | null>(null);
+  // Outro documento (ou nenhum, quando o detalhe fecha por fora, como pelo
+  // "voltar" do navegador): o lote aberto era do anterior e fecha.
+  const [documentoDoLote, setDocumentoDoLote] = useState(documentoId);
+  if (documentoDoLote !== documentoId) {
+    setDocumentoDoLote(documentoId);
+    setLoteAberto(null);
+  }
   const [mostrandoProcessoRenovacao, setMostrandoProcessoRenovacao] =
     useState(false);
   const [
