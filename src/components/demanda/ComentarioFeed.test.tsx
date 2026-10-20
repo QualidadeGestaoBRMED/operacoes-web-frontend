@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { describe, expect, it, vi } from "vitest";
 import type { Comentario, Usuario } from "@/types";
+import { fonteDaDemanda } from "@/hooks/useComentarios";
 import { ComentarioFeed } from "./ComentarioFeed";
 
 vi.mock("@/lib/demandas");
@@ -39,7 +40,7 @@ describe("ComentarioFeed (STC-795)", () => {
     ]);
     const { container } = render(
       <SWRConfig value={{ provider: () => new Map() }}>
-        <ComentarioFeed demandaId={9} podeComentar={false} />
+        <ComentarioFeed fonte={fonteDaDemanda(9)} podeComentar={false} />
       </SWRConfig>,
     );
 

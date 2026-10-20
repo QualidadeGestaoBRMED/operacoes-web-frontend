@@ -4,11 +4,32 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { criarComentario, listarComentarios } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
+import type { Comentario } from "@/types";
 
-export function useComentarios(demandaId: number | null) {
+/**
+ * De onde vêm e para onde vão os comentários de um feed: a demanda no
+ * Kanban (fonteDaDemanda) ou outra rota que grava nos comentários dela, como
+ * a da renovação na Legalização (STC-774). `chave` é a chave do cache SWR,
+ * a mesma na leitura e no envio.
+ */
+export interface FonteComentarios {
+  chave: readonly (string | number)[];
+  listar: () => Promise<Comentario[]>;
+  criar: (texto: string) => Promise<Comentario>;
+}
+
+export function fonteDaDemanda(demandaId: number): FonteComentarios {
+  return {
+    chave: ["demanda", demandaId, "comentarios"],
+    listar: () => listarComentarios(demandaId),
+    criar: (texto) => criarComentario(demandaId, texto),
+  };
+}
+
+export function useComentariosDaFonte(fonte: FonteComentarios | null) {
   const { data, error, isLoading, mutate } = useSWR(
-    demandaId ? ["demanda", demandaId, "comentarios"] : null,
-    () => listarComentarios(demandaId as number),
+    fonte ? fonte.chave : null,
+    () => (fonte as FonteComentarios).listar(),
     // STC-206: um comentário de outro usuário só aparecia com F5 -- key vira
     // null (sem polling) quando o modal fecha, então isso só roda com ele aberto.
     { refreshInterval: 10_000 },
@@ -23,15 +44,19 @@ export function useComentarios(demandaId: number | null) {
   };
 }
 
-export function useCriarComentario(demandaId: number) {
+export function useComentarios(demandaId: number | null) {
+  return useComentariosDaFonte(demandaId ? fonteDaDemanda(demandaId) : null);
+}
+
+export function useCriarComentario(fonte: FonteComentarios) {
   // Diferente de useDemandaMutations (STC-165, achado do Tech Lead): lá a
   // chave de mutação não batia com a chave parametrizada da lista, exigindo
   // um matcher via useSWRConfig(). Aqui a chave de leitura e a de mutação já
   // são idênticas (sem filtro variável), então o revalidate automático do
   // useSWRMutation (comportamento padrão) já busca a lista atualizada.
   const { trigger, isMutating, error } = useSWRMutation(
-    ["demanda", demandaId, "comentarios"],
-    (_chave, { arg }: { arg: string }) => criarComentario(demandaId, arg),
+    fonte.chave,
+    (_chave, { arg }: { arg: string }) => fonte.criar(arg),
   );
 
   return {

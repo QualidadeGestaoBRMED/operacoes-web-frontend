@@ -9,7 +9,7 @@ import type { Demanda } from "@/types";
 import { DetalheCard } from "./DetalheCard";
 
 vi.mock("@/hooks/useAnexos", () => ({ useAnexos: vi.fn() }));
-vi.mock("@/hooks/useComentarios", () => ({ useComentarios: vi.fn() }));
+vi.mock("@/hooks/useComentarios", () => ({ useComentarios: vi.fn(), fonteDaDemanda: vi.fn() }));
 vi.mock("@/hooks/useDemandas", () => ({ useDemanda: vi.fn() }));
 vi.mock("@/hooks/useHistorico", () => ({ useHistorico: vi.fn() }));
 
