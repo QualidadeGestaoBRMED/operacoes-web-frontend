@@ -231,6 +231,53 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       expect(screen.queryByRole("list", { name: "Itens do lote" })).not.toBeInTheDocument();
     });
 
+    it("instância marcada que entra em renovação depois não conta nem vai no pedido", async () => {
+      vi.mocked(listarDocumentosLegalizacao)
+        .mockResolvedValueOnce([
+          documento(),
+          documento({ id: 11, profissional: "BALANÇA 02", status: "regular" }),
+          documento({ id: 12, profissional: "BALANÇA 03", status: "regular" }),
+        ])
+        .mockResolvedValue([
+          documento(),
+          documento({ id: 11, profissional: "BALANÇA 02", status: "em_andamento" }),
+          documento({ id: 12, profissional: "BALANÇA 03", status: "regular" }),
+        ]);
+      vi.mocked(iniciarLote).mockResolvedValue(lote());
+      vi.mocked(buscarLote).mockResolvedValue(lote());
+      const user = userEvent.setup();
+      // Sem o intervalo de dedupe e de foco do SWR: a releitura por foco logo
+      // depois da primeira busca seria descartada.
+      render(
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, focusThrottleInterval: 0 }}
+        >
+          <LoteRenovacaoModal
+            aberto
+            onOpenChange={vi.fn()}
+            loteId={null}
+            documentoInicial={documento()}
+          />
+        </SWRConfig>,
+      );
+      const lista = await screen.findByRole("list", { name: "Instâncias" });
+      await user.click(within(lista).getByRole("checkbox", { name: /BALANÇA 02/ }));
+      await user.click(within(lista).getByRole("checkbox", { name: /BALANÇA 03/ }));
+      expect(screen.getByRole("button", { name: "Iniciar lote com 3 itens" })).toBeEnabled();
+
+      // A lista é relida (ex.: a janela volta a ter foco) e a BALANÇA 02 já
+      // está em renovação por outra pessoa.
+      window.dispatchEvent(new Event("focus"));
+      await waitFor(() =>
+        expect(within(lista).getByRole("checkbox", { name: /BALANÇA 02/ })).toBeDisabled(),
+      );
+      await user.click(screen.getByRole("button", { name: "Iniciar lote com 2 itens" }));
+
+      expect(iniciarLote).toHaveBeenCalledWith(
+        expect.objectContaining({ documentos: [10, 12] }),
+      );
+    });
+
     it("erro da API mostra a mensagem e mantém a seleção", async () => {
       vi.mocked(iniciarLote).mockRejectedValue(erroDaApi("Já têm renovação em andamento: BALANÇA 02."));
       const user = userEvent.setup();
@@ -373,6 +420,56 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       await waitFor(() =>
         expect(toast.success).toHaveBeenCalledWith("Renovação em lote concluída."),
       );
+    });
+
+    it("protocolo digitado e não salvo vai junto ao concluir", async () => {
+      const comCertificado = lote({
+        itens: [
+          item(1, "BALANÇA 01", { tem_certificado: true }),
+          item(2, "BALANÇA 02", { tem_certificado: true }),
+        ],
+      });
+      vi.mocked(buscarLote).mockResolvedValue(comCertificado);
+      vi.mocked(registrarProtocoloLote).mockResolvedValue({
+        ...comCertificado,
+        protocolo_numero: "2026/9",
+      });
+      vi.mocked(concluirLote).mockResolvedValue(comCertificado);
+      const user = userEvent.setup();
+      renderComponente({ loteId: 5 });
+      await user.type(await screen.findByLabelText("Número do protocolo"), "2026/9");
+      await user.type(screen.getByLabelText("Nova validade (para todos)"), "2027-01-01");
+
+      await user.click(screen.getByRole("button", { name: "Concluir 2 itens" }));
+
+      await waitFor(() => expect(concluirLote).toHaveBeenCalled());
+      expect(registrarProtocoloLote).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ protocolo_numero: "2026/9" }),
+      );
+      expect(vi.mocked(registrarProtocoloLote).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(concluirLote).mock.invocationCallOrder[0],
+      );
+    });
+
+    it("protocolo alterado sem número não deixa concluir e diz por quê", async () => {
+      vi.mocked(buscarLote).mockResolvedValue(
+        lote({
+          itens: [
+            item(1, "BALANÇA 01", { tem_certificado: true }),
+            item(2, "BALANÇA 02", { tem_certificado: true }),
+          ],
+        }),
+      );
+      const user = userEvent.setup();
+      renderComponente({ loteId: 5 });
+      await user.type(await screen.findByLabelText("Órgão"), "INMETRO");
+      await user.type(screen.getByLabelText("Nova validade (para todos)"), "2027-01-01");
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Informe o número do protocolo ou apague os dados dele para concluir.",
+      );
+      expect(screen.getByRole("button", { name: "Concluir 2 itens" })).toBeDisabled();
     });
 
     it("retira um item seguindo com a renovação à parte", async () => {
