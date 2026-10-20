@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ComentarioFeed } from "@/components/demanda/ComentarioFeed";
 import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
+import { LoteRenovacaoModal } from "./LoteRenovacaoModal";
 import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 import {
   useAdicionarResponsavelLegalizacao,
@@ -362,6 +363,9 @@ export function DetalheDocumentoModal({
   // documento, pra não vazar "expandido" de um documento pro próximo.
   const [mostrandoHistoricoEvidencias, setMostrandoHistoricoEvidencias] =
     useState(false);
+  // STC-779: renovação em lote. {id: null}: começar um lote a partir deste
+  // documento; {id}: o lote de que a renovação em curso faz parte.
+  const [loteAberto, setLoteAberto] = useState<{ id: number | null } | null>(null);
   const [mostrandoProcessoRenovacao, setMostrandoProcessoRenovacao] =
     useState(false);
   const [
@@ -470,6 +474,7 @@ export function DetalheDocumentoModal({
     setMostrandoNovaVersaoRegra(false);
     setMostrandoEdicaoResponsaveis(false);
     setBuscaResponsavel("");
+    setLoteAberto(null);
     onOpenChange(false);
   }
 
@@ -632,6 +637,10 @@ export function DetalheDocumentoModal({
   // → Renovação concluída → volta pra Regular") -- "Registrar renovação"
   // começa um processo NOVO, não faz sentido nesses dois estados. O
   // acompanhamento do processo já existente é a STC-381 (ainda não existe).
+  // Renovação em curso feita num lote: só anda pelo lote (o PATCH avulso do
+  // processo é recusado), então o acompanhamento abre o lote.
+  const loteDaRenovacaoEmCurso =
+    processos.find((processo) => processo.status !== "concluido")?.lote ?? null;
   const processoJaEmCurso =
     documento?.status === "em_andamento" || documento?.status === "protocolado";
   // Também para os tipos rastreados por movimentação de profissional (CNES,
@@ -1025,14 +1034,27 @@ export function DetalheDocumentoModal({
                     </div>
                   ) : mostrandoEdicao ? null : (
                     <div className="flex flex-col gap-2">
-                      {processoJaEmCurso && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setMostrandoProcessoRenovacao(true)}
-                        >
-                          Acompanhar Renovação
-                        </Button>
-                      )}
+                      {processoJaEmCurso &&
+                        (loteDaRenovacaoEmCurso !== null ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => setLoteAberto({ id: loteDaRenovacaoEmCurso })}
+                            >
+                              Acompanhar lote de renovação
+                            </Button>
+                            <p className="-mt-1 text-[11.5px] text-muted-foreground">
+                              Esta renovação faz parte de um lote com outras instâncias.
+                            </p>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => setMostrandoProcessoRenovacao(true)}
+                          >
+                            Acompanhar Renovação
+                          </Button>
+                        ))}
                       {podeRegistrarRenovacao && (
                         <Button
                           onClick={() => setMostrandoProcessoRenovacao(true)}
@@ -1040,6 +1062,12 @@ export function DetalheDocumentoModal({
                           Registrar renovação
                         </Button>
                       )}
+                      {podeRegistrarRenovacao &&
+                        documento.tipo_documento.permite_multiplas_instancias && (
+                          <Button variant="outline" onClick={() => setLoteAberto({ id: null })}>
+                            Renovar em lote
+                          </Button>
+                        )}
                       {podeMarcarNaoAplicavel && (
                         <Button
                           variant="outline"
@@ -1268,6 +1296,12 @@ export function DetalheDocumentoModal({
           )}
         </DialogContent>
       </Dialog>
+      <LoteRenovacaoModal
+        aberto={loteAberto !== null}
+        onOpenChange={(open) => !open && setLoteAberto(null)}
+        loteId={loteAberto?.id ?? null}
+        documentoInicial={documento ?? null}
+      />
       <ProcessoRenovacaoModal
         documento={documento ?? null}
         aberto={mostrandoProcessoRenovacao}

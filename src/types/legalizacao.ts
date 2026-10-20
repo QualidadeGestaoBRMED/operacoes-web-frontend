@@ -283,7 +283,54 @@ export interface ProcessoRenovacao {
   comprovantes_protocolo: ComprovanteProtocolo[];
   // STC-773: card espelho no Kanban; null quando o processo não gerou card.
   card_kanban: CardKanbanDoProcesso | null;
+  // STC-778: o lote de renovação de que o processo faz parte, se houver.
+  lote: number | null;
   created_at: string;
+}
+
+// STC-778: renovação em lote das instâncias de um tipo numa clínica. Cada
+// item é o processo de uma instância.
+export interface ItemDoLote {
+  id: number;
+  documento: {
+    id: number;
+    identificador: string;
+    status: StatusDocumento;
+    validade: string | null;
+  };
+  status: StatusProcessoRenovacao;
+  data_conclusao: string | null;
+  tem_certificado: boolean;
+}
+
+export interface LoteRenovacao {
+  id: number;
+  tipo_documento: { id: number; nome: string };
+  unidade: { id: number; nome: string };
+  data_solicitacao: string | null;
+  usuario_responsavel: Usuario | null;
+  protocolo_numero: string;
+  protocolo_orgao: string;
+  protocolo_data: string | null;
+  observacoes: string;
+  concluido_em: string | null;
+  itens: ItemDoLote[];
+  progresso: { concluidos: number; total: number };
+  card_kanban: CardKanbanDoProcesso | null;
+  created_at: string;
+}
+
+export interface IniciarLotePayload {
+  documentos: number[];
+  data_solicitacao?: string | null;
+  usuario_responsavel?: number | null;
+}
+
+export interface ProtocoloLotePayload {
+  protocolo_numero: string;
+  protocolo_orgao?: string;
+  protocolo_data?: string | null;
+  observacoes?: string;
 }
 
 export interface CardKanbanDoProcesso {
