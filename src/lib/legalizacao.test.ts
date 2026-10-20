@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AlertaRegulatorio } from "@/types/legalizacao";
+import type { AlertaRegulatorio, ProcessoRenovacao } from "@/types/legalizacao";
 import api from "./api";
-import { alertaAindaRelevante, listarAlertasPendentes } from "./legalizacao";
+import {
+  alertaAindaRelevante,
+  listarAlertasPendentes,
+  listarProcessosRenovacao,
+} from "./legalizacao";
 
 vi.mock("./api", () => ({
   default: { get: vi.fn() },
@@ -124,5 +128,28 @@ describe("listarAlertasPendentes", () => {
     const resultado = await listarAlertasPendentes();
 
     expect(resultado.map((a) => a.id)).toEqual([1]);
+  });
+});
+
+describe("listarProcessosRenovacao", () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+  });
+
+  it("completa comprovantes_protocolo com lista vazia quando o backend ainda não manda o campo", async () => {
+    // Backend sem a STC-771 (deploy manual em produção): sem o campo, ler
+    // `.length` quebraria o detalhe do documento.
+    const semCampo = { id: 9, status: "em_andamento" } as unknown as ProcessoRenovacao;
+    const comCampo = {
+      id: 8,
+      status: "concluido",
+      comprovantes_protocolo: [{ id: 1 }],
+    } as unknown as ProcessoRenovacao;
+    apiGetMock.mockResolvedValue({ data: [semCampo, comCampo] });
+
+    const processos = await listarProcessosRenovacao(55);
+
+    expect(processos[0].comprovantes_protocolo).toEqual([]);
+    expect(processos[1].comprovantes_protocolo).toEqual([{ id: 1 }]);
   });
 });

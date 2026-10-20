@@ -279,6 +279,20 @@ export interface ProcessoRenovacao {
   observacoes: string;
   data_conclusao: string | null;
   usuario_responsavel: Usuario | null;
+  // STC-771: comprovantes de protocolo do processo, mais recente primeiro.
+  comprovantes_protocolo: ComprovanteProtocolo[];
+  created_at: string;
+}
+
+// STC-771: PDF que comprova o pedido feito ao órgão. Separado da evidência:
+// não conta como documento regular nem muda status/validade.
+export interface ComprovanteProtocolo {
+  id: number;
+  processo_renovacao: number;
+  usuario: Usuario;
+  arquivo: string;
+  nome_original: string;
+  tamanho_bytes: number;
   created_at: string;
 }
 

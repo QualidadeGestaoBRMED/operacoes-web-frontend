@@ -5,6 +5,7 @@ import useSWRMutation from "swr/mutation";
 import {
   atualizarProcessoRenovacao,
   criarProcessoRenovacao,
+  enviarComprovanteProtocolo,
   listarProcessosRenovacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -63,6 +64,9 @@ export function useProcessosRenovacao(documentoId: number | null) {
   );
 
   return {
+    // Todos, ativo e concluídos: o detalhe do documento lista os
+    // comprovantes de protocolo de cada renovação (STC-772).
+    processos: data ?? [],
     processoAtivo:
       data?.find((processo) => processo.status !== "concluido") ?? null,
     isLoading,
@@ -98,6 +102,26 @@ export function useAtualizarProcessoRenovacao() {
 
   return {
     atualizar: trigger,
+    isLoading: isMutating,
+    error,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// STC-772: anexar o comprovante de protocolo no modal de renovação. A lista
+// de processos do documento traz os comprovantes de cada um, então é ela
+// que se invalida.
+export function useEnviarComprovanteProtocolo(documentoId: number) {
+  const { mutate } = useSWRConfig();
+  const { trigger, isMutating, error } = useSWRMutation(
+    ["comprovante-protocolo", documentoId],
+    (_chave, { arg }: { arg: { processoId: number; arquivo: File } }) =>
+      enviarComprovanteProtocolo(arg.processoId, arg.arquivo),
+    { onSuccess: () => mutate(chaveProcessosDoDocumento(documentoId)) },
+  );
+
+  return {
+    enviar: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Download, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +19,12 @@ import { useEnviarEvidenciaLegalizacao } from "@/hooks/useDocumentosLegalizacao"
 import {
   useAtualizarProcessoRenovacao,
   useCriarProcessoRenovacao,
+  useEnviarComprovanteProtocolo,
   useProcessosRenovacao,
 } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
-import { cn, nomeExibicao } from "@/lib/utils";
+import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
+import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import type {
   DocumentoUnidade,
   ProcessoRenovacao,
@@ -32,8 +34,9 @@ import type {
 // Mesma whitelist de FormCadastrarDocumento.tsx (Administração) -- mesmos
 // tipos de arquivo aceitos em todo o módulo.
 // STC-433: restrito a PDF -- o backend (validar_arquivo, core/arquivos.py)
-// já rejeita qualquer outra extensão para evidências de Legalização.
-const ACCEPT_EVIDENCIA = ".pdf";
+// já rejeita qualquer outra extensão para evidências e comprovantes de
+// protocolo de Legalização.
+const ACCEPT_PDF = ".pdf";
 
 // Exportado -- reaproveitado no Histórico do documento (DetalheDocumentoModal.tsx)
 // pra traduzir o valor cru de HistoricoRegulatorio quando acao=="processo_status".
@@ -54,7 +57,9 @@ const FORMATADOR_DATA_LOCAL = new Intl.DateTimeFormat("pt-BR", {
   month: "2-digit",
   year: "numeric",
 });
-function formatarDataDeDatetime(iso: string) {
+// Exportado -- também no cabeçalho de cada renovação da aba Protocolo
+// (DetalheDocumentoModal.tsx).
+export function formatarDataDeDatetime(iso: string) {
   return FORMATADOR_DATA_LOCAL.format(new Date(iso));
 }
 
@@ -120,6 +125,8 @@ function FormularioProcessoAtivo({
   const { atualizar, isLoading: salvando } = useAtualizarProcessoRenovacao();
   const { enviar: enviarEvidencia, isLoading: enviandoEvidencia } =
     useEnviarEvidenciaLegalizacao(documento.id);
+  const { enviar: enviarComprovante, isLoading: enviandoComprovante } =
+    useEnviarComprovanteProtocolo(documento.id);
 
   const [protocoloNumero, setProtocoloNumero] = useState(
     processo.protocolo_numero,
@@ -135,6 +142,23 @@ function FormularioProcessoAtivo({
   const [arquivoEvidencia, setArquivoEvidencia] = useState<File | null>(null);
   const [evidenciaJaEnviada, setEvidenciaJaEnviada] = useState(false);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const inputComprovanteRef = useRef<HTMLInputElement>(null);
+  const ocupado = salvando || enviandoEvidencia || enviandoComprovante;
+
+  // Envia na hora, sem esperar "Salvar protocolo": o comprovante não depende
+  // do status do processo (o protocolo é opcional) e fica listado logo
+  // abaixo, com nome e data.
+  async function anexarComprovante(arquivo: File) {
+    try {
+      await enviarComprovante({ processoId: processo.id, arquivo });
+      toast.success("Comprovante de protocolo anexado.");
+      onAtualizado();
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      if (inputComprovanteRef.current) inputComprovanteRef.current.value = "";
+    }
+  }
 
   async function salvarProtocolo() {
     if (!protocoloNumero.trim()) return;
@@ -270,11 +294,72 @@ function FormularioProcessoAtivo({
               placeholder="Anotações internas sobre o andamento do protocolo..."
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            {/* Título do campo, não <Label>: o controle é o botão abaixo,
+                que já tem nome próprio ("Anexar comprovante"); o título
+                entra nele como descrição. */}
+            <span
+              id="rn-comprovante-titulo"
+              className="text-xs leading-none font-medium select-none"
+            >
+              Comprovante de protocolo (PDF)
+            </span>
+            <input
+              ref={inputComprovanteRef}
+              type="file"
+              accept={ACCEPT_PDF}
+              aria-label="Arquivo do comprovante de protocolo"
+              className="hidden"
+              onChange={(evento) => {
+                const arquivo = evento.target.files?.[0];
+                if (arquivo) void anexarComprovante(arquivo);
+              }}
+            />
+            {processo.comprovantes_protocolo.map((comprovante) => (
+              <div
+                key={comprovante.id}
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">
+                  {comprovante.nome_original}
+                </span>
+                <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                  {formatarDataHora(comprovante.created_at)}
+                </span>
+                <a
+                  href={urlAbsolutaDaEvidencia(comprovante.arquivo)}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={comprovante.nome_original}
+                  title="Baixar"
+                  aria-label={`Baixar ${comprovante.nome_original}`}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Download className="size-3.5" />
+                </a>
+              </div>
+            ))}
+            <button
+              type="button"
+              aria-describedby="rn-comprovante-titulo"
+              disabled={ocupado}
+              onClick={() => inputComprovanteRef.current?.click()}
+              className="flex h-10 items-center justify-center gap-1.5 rounded-md border-1.5 border-dashed border-border text-[12.5px] font-medium text-muted-foreground transition-colors hover:border-secondary hover:text-secondary disabled:pointer-events-none disabled:opacity-60"
+            >
+              <Plus className="size-3.5" />
+              {enviandoComprovante
+                ? "Enviando comprovante..."
+                : processo.comprovantes_protocolo.length > 0
+                  ? "Anexar outro comprovante"
+                  : "Anexar comprovante"}
+            </button>
+          </div>
           <Button
             variant="outline"
             size="sm"
             className="self-start"
-            disabled={!protocoloNumero.trim() || salvando || enviandoEvidencia}
+            disabled={!protocoloNumero.trim() || ocupado}
             onClick={() => void salvarProtocolo()}
           >
             {salvando ? "Salvando..." : "Salvar protocolo"}
@@ -306,7 +391,8 @@ function FormularioProcessoAtivo({
             <input
               ref={inputArquivoRef}
               type="file"
-              accept={ACCEPT_EVIDENCIA}
+              accept={ACCEPT_PDF}
+              aria-label="Arquivo da evidência"
               className="hidden"
               onChange={(evento) => {
                 setArquivoEvidencia(evento.target.files?.[0] ?? null);
@@ -347,17 +433,11 @@ function FormularioProcessoAtivo({
       </div>
 
       <DialogFooter>
-        <Button
-          variant="outline"
-          onClick={onFechar}
-          disabled={salvando || enviandoEvidencia}
-        >
+        <Button variant="outline" onClick={onFechar} disabled={ocupado}>
           Cancelar
         </Button>
         <Button
-          disabled={
-            !novaValidade || !arquivoEvidencia || salvando || enviandoEvidencia
-          }
+          disabled={!novaValidade || !arquivoEvidencia || ocupado}
           onClick={() => void concluirRenovacao()}
         >
           {salvando || enviandoEvidencia
