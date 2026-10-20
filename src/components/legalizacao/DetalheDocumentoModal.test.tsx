@@ -236,6 +236,7 @@ function processo(
     usuario_responsavel: null,
     comprovantes_protocolo: [],
     card_kanban: null,
+    lote: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
@@ -812,6 +813,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       usuario_responsavel: null,
       comprovantes_protocolo: [],
       card_kanban: null,
+      lote: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -855,6 +857,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       usuario_responsavel: null,
       comprovantes_protocolo: [],
       card_kanban: null,
+      lote: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -898,6 +901,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       usuario_responsavel: null,
       comprovantes_protocolo: [],
       card_kanban: null,
+      lote: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -1912,6 +1916,41 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
       expect(await screen.findByText("Nenhum comentário ainda.")).toBeInTheDocument();
       expect(
         screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("renovação em lote (STC-779)", () => {
+    it("'Renovar em lote' só para tipo de várias instâncias", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ tipo_documento: tipo({ permite_multiplas_instancias: true }) }),
+      );
+      const { unmount } = renderComponente(55);
+      expect(await screen.findByRole("button", { name: "Renovar em lote" })).toBeInTheDocument();
+      unmount();
+
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      renderComponente(55);
+      await screen.findByRole("button", { name: "Registrar renovação" });
+      expect(screen.queryByRole("button", { name: "Renovar em lote" })).not.toBeInTheDocument();
+    });
+
+    it("renovação em curso num lote abre o lote em vez do processo avulso", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({
+          status: "em_andamento",
+          tipo_documento: tipo({ permite_multiplas_instancias: true }),
+        }),
+      );
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo({ lote: 5 })]);
+      renderComponente(55);
+
+      expect(
+        await screen.findByRole("button", { name: "Acompanhar lote de renovação" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Acompanhar Renovação" })).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Esta renovação faz parte de um lote com outras instâncias."),
       ).toBeInTheDocument();
     });
   });
