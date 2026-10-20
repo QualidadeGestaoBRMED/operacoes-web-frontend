@@ -1079,7 +1079,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.26 STC-772 — Anexar o PDF do protocolo no modal de renovação (STC-768)
 
-🔄 **Em andamento.** Frontend do comprovante de protocolo; o backend é a STC-771 (PR #128): `ComprovanteProtocolo`, separado da evidência, sem mudar status, validade nem evidência vigente.
+✅ **Implementado e mergeado em `main` (PR #124).** Frontend do comprovante de protocolo; o backend é a STC-771 (PR #128): `ComprovanteProtocolo`, separado da evidência, sem mudar status, validade nem evidência vigente.
 
 - **Modal de renovação** (`ProcessoRenovacaoModal.tsx`, seção Protocolo): "Comprovante de protocolo (PDF)", com a lista dos já anexados (nome, data e hora, download) e o botão "Anexar comprovante" / "Anexar outro comprovante". O envio sai na hora, ao escolher o arquivo, sem esperar "Salvar protocolo": o protocolo é opcional e o comprovante não depende do status do processo. Mesmo `enviarArquivo` da evidência (direto ao R2, `src/lib/uploadDireto.ts`). Enquanto sobe, "Salvar protocolo", "Concluir renovação" e "Cancelar" ficam desabilitados. Erro do backend (arquivo que não é PDF, acima de 35 MB, processo concluído) vira toast. O título "Comprovante de protocolo (PDF)" não é `<Label>` (o controle é o botão, com nome próprio): entra no botão como descrição (`aria-describedby`).
 - **Hook** `useEnviarComprovanteProtocolo` (`useProcessoRenovacao.ts`): invalida a lista de processos do documento, que traz os comprovantes de cada um. `useProcessosRenovacao` passa a devolver também `processos` (todos, não só o ativo).
@@ -1089,3 +1089,15 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Abas no celular:** abaixo de `sm`, sem ícone e com menos espaço; as três abas cabem a partir de 360 px.
 - Testes: anexar no modal (chamada, toast, lista com nome, data no fuso local e download), só PDF no seletor, arquivo inválido com o erro do backend, botões desabilitados durante o envio; aba Protocolo agrupada por renovação (com quem anexou e download), vazio, e o histórico; processo sem o campo vira lista vazia (`legalizacao.test.ts`). Os testes que achavam o input da evidência pelo primeiro `input[type=file]` passam a achar pelo rótulo ("Arquivo da evidência").
 - **Conferência** (banco local, processo protocolado com card no Kanban, documento 58): anexar no modal, aba Protocolo e histórico, em 1400, 390 e 360 px.
+
+### 7.27 STC-774 — Comentários do documento: aba no detalhe e botão na renovação (STC-769)
+
+🔄 **Em andamento.** Decisão revista em 20/10/2026: os comentários são do documento, uma conversa única ao longo do tempo, com ou sem renovação e sem depender do card no Kanban. Ligados ao card (como a STC-773 fazia), ficavam de fora PGR, CRM, regras sem `gera_card_demanda` e renovação iniciada antes da regra. Backend: STC-804 (`documentos/{id}/comentarios/`).
+
+- **Feed e painel por fonte** (`useComentarios.ts`, `ComentarioFeed.tsx`, `PainelComentarios.tsx`): o feed recebe uma `FonteComentarios` (chave SWR, listar, criar) em vez do `demandaId`. `fonteDaDemanda(id)` é o Kanban; `fonteDoDocumento(id)` (`useDocumentosLegalizacao.ts`) é a Legalização. `BotaoComentarios` e `PainelComentarios` saíram de `ConversaDoAlerta.tsx` (Gestão RH, STC-722), que passa a usá-los sem mudar texto nem comportamento. Outra fonte no mesmo painel começa com o campo de envio vazio.
+- **Detalhe do documento:** aba "Comentários" entre Protocolo e Histórico, com o feed e o envio. A contagem vem da mesma lista (mesma chave SWR do feed), sem número enquanto carrega ou se falhar. Abaixo de `sm`, as quatro abas mostram só ícone e contagem (o nome fica para leitor de tela) e cabem a partir de 360 px.
+- **Modal de renovação:** botão "Comentários" (com a contagem) no cabeçalho, em qualquer passo (inclusive antes de iniciar a renovação), abrindo a mesma conversa sobre o conteúdo do modal. Esc e "Voltar" devolvem ao modal e o foco ao botão; o conteúdo por baixo fica `inert` com o painel aberto.
+- `LABEL_STATUS_PROCESSO` e `formatarDataDeDatetime` foram para `src/lib/legalizacaoRenovacao.ts` (antes em `ProcessoRenovacaoModal.tsx`).
+- **Ordem dos deploys:** depende do backend da STC-804 em produção (sem ele, a aba mostra o erro de carregar e o envio falha com aviso). `normalizarProcesso` (`src/lib/legalizacao.ts`) continua completando `comprovantes_protocolo` e `card_kanban` quando o backend ainda não manda.
+- Testes: aba com a contagem, a conversa e o envio num documento sem renovação; aba sem número enquanto carrega; documento sem comentários; botão do modal sem card no Kanban (abrir, comentar, voltar com foco) e no passo de iniciar, com Esc voltando sem fechar o modal. Gestão RH e Kanban sem mudança de comportamento (testes existentes passando).
+- **Conferência** (banco local): documento 59 (Calibração · TESTER, sem card no Kanban) com comentário pela aba, em 1400 px e 360 × 640 (abas até 347 px, campo de envio visível).

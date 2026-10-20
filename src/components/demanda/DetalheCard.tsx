@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAnexos } from "@/hooks/useAnexos";
-import { useComentarios } from "@/hooks/useComentarios";
+import { fonteDaDemanda, useComentarios } from "@/hooks/useComentarios";
 import { useDemanda } from "@/hooks/useDemandas";
 import { useHistorico } from "@/hooks/useHistorico";
 import {
@@ -349,7 +349,7 @@ export function DetalheCard({
                 </TabsList>
 
                 <TabsContent value="comentarios" className="flex min-h-0 flex-col overflow-hidden">
-                  <ComentarioFeed demandaId={demanda.id} podeComentar={podeEscrever} />
+                  <ComentarioFeed fonte={fonteDaDemanda(demanda.id)} podeComentar={podeEscrever} />
                 </TabsContent>
                 <TabsContent value="anexos" className="flex min-h-0 flex-col overflow-hidden">
                   <AnexoList

@@ -1,6 +1,6 @@
 import api from "./api";
 import { enviarArquivo, type AoProgredir } from "./uploadDireto";
-import type { RespostaPaginada, Usuario } from "@/types";
+import type { Comentario, RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
   ComprovanteProtocolo,
@@ -211,14 +211,15 @@ export async function listarHistoricoLegalizacao(
   return data;
 }
 
-// Backend de produção sem a STC-771 (sobe por deploy manual; o frontend pode
-// chegar antes): o processo vem sem `comprovantes_protocolo`, e ler
-// `.length` dele quebraria o detalhe de qualquer documento. Lista vazia
-// até o backend subir.
-function comComprovantes(processo: ProcessoRenovacao): ProcessoRenovacao {
+// Backend de produção sem a STC-771 ou a STC-773 (sobe por deploy manual; o
+// frontend pode chegar antes): o processo vem sem `comprovantes_protocolo`
+// ou sem `card_kanban`, e ler `.length` do primeiro quebraria o detalhe de
+// qualquer documento. Lista vazia e sem card até o backend subir.
+function normalizarProcesso(processo: ProcessoRenovacao): ProcessoRenovacao {
   return {
     ...processo,
     comprovantes_protocolo: processo.comprovantes_protocolo ?? [],
+    card_kanban: processo.card_kanban ?? null,
   };
 }
 
@@ -233,7 +234,7 @@ export async function criarProcessoRenovacao(
     PROCESSOS_RENOVACAO_URL,
     payload,
   );
-  return comComprovantes(data);
+  return normalizarProcesso(data);
 }
 
 // Sem paginação (mesmo motivo de listarHistoricoLegalizacao) -- processos de
@@ -246,7 +247,7 @@ export async function listarProcessosRenovacao(
   const { data } = await api.get<ProcessoRenovacao[]>(PROCESSOS_RENOVACAO_URL, {
     params: { documento_unidade: documentoUnidadeId },
   });
-  return data.map(comComprovantes);
+  return data.map(normalizarProcesso);
 }
 
 // STC-772: mesmo envio da evidência (direto ao R2 quando houver).
@@ -262,6 +263,28 @@ export async function enviarComprovanteProtocolo(
   );
 }
 
+// STC-804: a conversa do documento, uma só ao longo do tempo, com ou sem
+// renovação aberta.
+export async function listarComentariosDoDocumento(
+  documentoId: number,
+): Promise<Comentario[]> {
+  const { data } = await api.get<Comentario[]>(
+    `${DOCUMENTOS_URL}${documentoId}/comentarios/`,
+  );
+  return data;
+}
+
+export async function comentarNoDocumento(
+  documentoId: number,
+  texto: string,
+): Promise<Comentario> {
+  const { data } = await api.post<Comentario>(
+    `${DOCUMENTOS_URL}${documentoId}/comentarios/`,
+    { texto },
+  );
+  return data;
+}
+
 // "Salvar protocolo" e "Concluir renovação" (STC-381) usam isto -- PATCH
 // parcial, aceita qualquer subconjunto dos campos editáveis do processo.
 export async function atualizarProcessoRenovacao(
@@ -272,7 +295,7 @@ export async function atualizarProcessoRenovacao(
     `${PROCESSOS_RENOVACAO_URL}${id}/`,
     payload,
   );
-  return comComprovantes(data);
+  return normalizarProcesso(data);
 }
 
 // Não existe endpoint em lote (STC-382) -- uma chamada por documento

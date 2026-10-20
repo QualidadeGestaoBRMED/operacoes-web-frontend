@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   History as HistoryIcon,
+  MessageSquare,
   Paperclip,
   Pencil,
   Trash2,
@@ -28,16 +29,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ComentarioFeed } from "@/components/demanda/ComentarioFeed";
 import { EditarDocumentoSection } from "./EditarDocumentoSection";
 import { MovimentacaoProfissionalModal } from "./MovimentacaoProfissionalModal";
-import {
-  formatarDataDeDatetime,
-  LABEL_STATUS_PROCESSO,
-  ProcessoRenovacaoModal,
-} from "./ProcessoRenovacaoModal";
+import { ProcessoRenovacaoModal } from "./ProcessoRenovacaoModal";
 import {
   useAdicionarResponsavelLegalizacao,
   useAtualizarDocumentoLegalizacao,
+  fonteDoDocumento,
   useCandidatosResponsaveis,
   useDocumentoLegalizacao,
   useExcluirDocumentoLegalizacao,
@@ -45,11 +44,16 @@ import {
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useAuth } from "@/hooks/useAuth";
+import { useComentariosDaFonte } from "@/hooks/useComentarios";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
 import { useProcessosRenovacao } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
+import {
+  formatarDataDeDatetime,
+  LABEL_STATUS_PROCESSO,
+} from "@/lib/legalizacaoRenovacao";
 import { administra } from "@/lib/redes";
 import {
   CODIGOS_MOVIMENTACAO_PROFISSIONAL,
@@ -420,6 +424,15 @@ export function DetalheDocumentoModal({
     isLoading: carregandoProcessos,
     mensagemErro: erroProcessos,
   } = useProcessosRenovacao(aberto ? documentoId : null);
+  // STC-804: a conversa do documento. A contagem da aba vem da mesma lista
+  // (e da mesma chave) do feed da aba.
+  const {
+    comentarios,
+    isLoading: carregandoComentarios,
+    mensagemErro: erroComentarios,
+  } = useComentariosDaFonte(
+    aberto && documentoId !== null ? fonteDoDocumento(documentoId) : null,
+  );
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
@@ -1088,8 +1101,9 @@ export function DetalheDocumentoModal({
                   // a coluna inteira, ignorando qualquer truncate interno.
                   className="min-h-0 min-w-0 flex-1 gap-0"
                 >
-                  {/* Sem ícone e com menos espaço abaixo de sm: as três
-                      abas não cabem lado a lado num celular de 360 px. */}
+                  {/* Abaixo de sm, só ícone e contagem (o nome fica para leitor
+                      de tela) e menos espaço: as quatro abas não cabem lado a
+                      lado com o nome num celular de 360 px. */}
                   <TabsList
                     variant="line"
                     className="h-11 w-full justify-start gap-2 rounded-none border-b border-border bg-transparent px-3 sm:gap-4 sm:px-5"
@@ -1098,8 +1112,8 @@ export function DetalheDocumentoModal({
                       value="evidencias"
                       className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <FileText className="hidden size-3.5 sm:block" />
-                      Evidências
+                      <FileText aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Evidências</span>
                       <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                         {evidencias.length}
                       </span>
@@ -1108,8 +1122,8 @@ export function DetalheDocumentoModal({
                       value="protocolo"
                       className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <Paperclip className="hidden size-3.5 sm:block" />
-                      Protocolo
+                      <Paperclip aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Protocolo</span>
                       {/* Sem contagem enquanto carrega ou se falhou: "0"
                           diria que não há comprovante. */}
                       {!carregandoProcessos && !erroProcessos && (
@@ -1119,11 +1133,24 @@ export function DetalheDocumentoModal({
                       )}
                     </TabsTrigger>
                     <TabsTrigger
+                      value="comentarios"
+                      className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
+                    >
+                      <MessageSquare aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Comentários</span>
+                      {/* Mesmo motivo da contagem de Protocolo. */}
+                      {!carregandoComentarios && !erroComentarios && (
+                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                          {comentarios.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger
                       value="historico"
                       className="gap-1.5 rounded-none px-1 text-[13px] data-[state=active]:shadow-none"
                     >
-                      <HistoryIcon className="hidden size-3.5 sm:block" />
-                      Histórico
+                      <HistoryIcon aria-hidden className="size-3.5" />
+                      <span className="sr-only sm:not-sr-only">Histórico</span>
                       <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
                         {historico.length}
                       </span>
@@ -1198,6 +1225,18 @@ export function DetalheDocumentoModal({
                       processosComComprovante.map((processo) => (
                         <GrupoComprovantes key={processo.id} processo={processo} />
                       ))
+                    )}
+                  </TabsContent>
+                  {/* O feed tem rolagem própria e o campo de envio embaixo. */}
+                  <TabsContent
+                    value="comentarios"
+                    className="flex min-h-0 flex-1 flex-col"
+                  >
+                    {documentoId !== null && (
+                      <ComentarioFeed
+                        fonte={fonteDoDocumento(documentoId)}
+                        podeComentar
+                      />
                     )}
                   </TabsContent>
                   <TabsContent

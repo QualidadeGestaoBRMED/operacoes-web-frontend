@@ -27,9 +27,11 @@ vi.mock("@/hooks/useAuth", () => ({
 
 import {
   atualizarProcessoRenovacao,
+  comentarNoDocumento,
   criarProcessoRenovacao,
   enviarComprovanteProtocolo,
   enviarEvidenciaLegalizacao,
+  listarComentariosDoDocumento,
   listarProcessosRenovacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
@@ -114,6 +116,7 @@ function processo(
     data_conclusao: null,
     usuario_responsavel: USUARIO,
     comprovantes_protocolo: [],
+    card_kanban: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
@@ -736,6 +739,65 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       expect(
         screen.getByRole("button", { name: "Concluir renovação" }),
       ).toBeDisabled();
+    });
+  });
+
+  describe("comentários do documento (STC-774)", () => {
+    it("botão Comentários mesmo sem card no Kanban: abre a conversa do documento, comenta e volta", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([
+        { id: 1, usuario: USUARIO, texto: "Protocolo enviado.", created_at: "2026-06-03T13:30:00Z" },
+      ]);
+      vi.mocked(comentarNoDocumento).mockResolvedValue({
+        id: 2,
+        usuario: USUARIO,
+        texto: "Recebido.",
+        created_at: "2026-06-03T14:00:00Z",
+      });
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      const botao = await screen.findByRole("button", { name: "Comentários, 1 comentário" });
+      await user.click(botao);
+
+      expect(
+        await screen.findByRole("heading", { name: "Comentários · Alvará de Funcionamento" }),
+      ).toBeInTheDocument();
+      expect(await screen.findByText("Protocolo enviado.")).toBeInTheDocument();
+      expect(listarComentariosDoDocumento).toHaveBeenCalledWith(55);
+      await user.type(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+        "Recebido.{Enter}",
+      );
+      await waitFor(() => {
+        expect(comentarNoDocumento).toHaveBeenCalledWith(55, "Recebido.");
+      });
+
+      await user.click(screen.getByRole("button", { name: "Voltar" }));
+      expect(
+        screen.queryByRole("heading", { name: /Comentários ·/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Número do protocolo")).toBeInTheDocument();
+      await waitFor(() => expect(botao).toHaveFocus());
+    });
+
+    it("também no passo de iniciar a renovação, e Esc volta sem fechar o modal", async () => {
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([]);
+      const onOpenChange = vi.fn();
+      const user = userEvent.setup();
+      renderComponente(true, onOpenChange);
+      await screen.findByRole("button", { name: "Iniciar processo de renovação" });
+
+      await user.click(await screen.findByRole("button", { name: "Comentários, 0 comentários" }));
+      await screen.findByText("Nenhum comentário ainda.");
+      await user.keyboard("{Escape}");
+
+      expect(screen.queryByRole("heading", { name: /Comentários ·/ })).not.toBeInTheDocument();
+      expect(onOpenChange).not.toHaveBeenCalledWith(false);
+      expect(
+        screen.getByRole("button", { name: "Iniciar processo de renovação" }),
+      ).toBeInTheDocument();
     });
   });
 });

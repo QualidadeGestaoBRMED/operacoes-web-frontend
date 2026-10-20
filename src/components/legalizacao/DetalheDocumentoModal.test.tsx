@@ -46,11 +46,13 @@ import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
+  comentarNoDocumento,
   criarProcessoRenovacao,
   excluirDocumentoLegalizacao,
   listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
+  listarComentariosDoDocumento,
   listarHistoricoLegalizacao,
   listarProcessosRenovacao,
   removerResponsavelLegalizacao,
@@ -233,6 +235,7 @@ function processo(
     data_conclusao: null,
     usuario_responsavel: null,
     comprovantes_protocolo: [],
+    card_kanban: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
@@ -808,6 +811,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -850,6 +854,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -892,6 +897,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -1848,6 +1854,65 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
 
       expect(screen.getByText("comprovante de protocolo")).toBeInTheDocument();
       expect(screen.getByText('"protocolo.pdf"')).toBeInTheDocument();
+    });
+  });
+
+  describe("comentários do documento (STC-774)", () => {
+    function comentario(id: number, texto: string) {
+      return { id, usuario: USUARIO, texto, created_at: "2026-06-03T13:30:00Z" };
+    }
+
+    it("aba Comentários com a contagem, a conversa e o envio, mesmo sem renovação", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([]);
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([
+        comentario(1, "Aguardando a prefeitura."),
+        comentario(2, "Prefeitura respondeu."),
+      ]);
+      vi.mocked(comentarNoDocumento).mockResolvedValue(comentario(3, "Ok."));
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      const aba = screen.getByRole("tab", { name: /comentários/i });
+      await waitFor(() => expect(aba).toHaveTextContent("Comentários2"));
+      await user.click(aba);
+
+      expect(await screen.findByText("Prefeitura respondeu.")).toBeInTheDocument();
+      expect(listarComentariosDoDocumento).toHaveBeenCalledWith(55);
+      await user.type(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+        "Ok.{Enter}",
+      );
+      await waitFor(() => {
+        expect(comentarNoDocumento).toHaveBeenCalledWith(55, "Ok.");
+      });
+    });
+
+    it("sem contagem na aba enquanto a conversa carrega", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarComentariosDoDocumento).mockReturnValue(new Promise(() => {}));
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      expect(screen.getByRole("tab", { name: /comentários/i })).toHaveTextContent(
+        /^Comentários$/,
+      );
+    });
+
+    it("documento sem comentários mostra o vazio e aceita o primeiro", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarComentariosDoDocumento).mockResolvedValue([]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      await user.click(screen.getByRole("tab", { name: /comentários/i }));
+
+      expect(await screen.findByText("Nenhum comentário ainda.")).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -6,18 +6,21 @@ import useSWRMutation from "swr/mutation";
 import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
+  comentarNoDocumento,
   excluirDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
   enviarEvidenciaLegalizacao,
   listarCandidatosResponsaveis,
+  listarComentariosDoDocumento,
   listarDocumentosLegalizacao,
   listarEvidenciasVigentes,
   removerResponsavelLegalizacao,
   reverterDocumentoLegalizacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
+import type { FonteComentarios } from "./useComentarios";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type {
   DocumentoUnidade,
@@ -324,5 +327,16 @@ export function useRemoverResponsavelLegalizacao(documentoId: number) {
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
+  };
+}
+
+// STC-804: os comentários do documento, no mesmo feed do Kanban
+// (ComentarioFeed). A aba Comentários e o botão do modal de renovação usam a
+// mesma chave: comentar num atualiza a contagem do outro.
+export function fonteDoDocumento(documentoId: number): FonteComentarios {
+  return {
+    chave: ["documento-legalizacao", documentoId, "comentarios"],
+    listar: () => listarComentariosDoDocumento(documentoId),
+    criar: (texto) => comentarNoDocumento(documentoId, texto),
   };
 }

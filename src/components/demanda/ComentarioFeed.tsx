@@ -6,22 +6,27 @@ import { toast } from "sonner";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useComentarios, useCriarComentario } from "@/hooks/useComentarios";
+import {
+  type FonteComentarios,
+  useComentariosDaFonte,
+  useCriarComentario,
+} from "@/hooks/useComentarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { formatarDataHora, iniciaisDe, nomeOuRemovido } from "@/lib/utils";
 
 export function ComentarioFeed({
-  demandaId,
+  fonte,
   podeComentar,
   aviso,
 }: {
-  demandaId: number;
+  /** A demanda (fonteDaDemanda) ou outra rota que grava nos comentários dela. */
+  fonte: FonteComentarios;
   podeComentar: boolean;
   /** Texto fixo acima do campo de envio (ex.: o que não registrar ali). */
   aviso?: string;
 }) {
-  const { comentarios, isLoading, mensagemErro } = useComentarios(demandaId);
-  const { criar, isLoading: enviando } = useCriarComentario(demandaId);
+  const { comentarios, isLoading, mensagemErro } = useComentariosDaFonte(fonte);
+  const { criar, isLoading: enviando } = useCriarComentario(fonte);
   const [texto, setTexto] = useState("");
   const idAviso = useId();
 
