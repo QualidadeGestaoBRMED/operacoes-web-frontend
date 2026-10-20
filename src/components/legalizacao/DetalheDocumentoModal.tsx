@@ -631,6 +631,14 @@ export function DetalheDocumentoModal({
     processosComCard.find((processo) => processo.status !== "concluido") ??
     processosComCard[0] ??
     null;
+  // Painel aberto só com renovação para mostrar: sem ela (a lista mudou
+  // com o painel aberto), o estado se desfaz, para as abas não ficarem
+  // travadas (inert) sem painel por cima.
+  const painelComentariosAberto =
+    comentarios !== null && renovacaoDosComentarios !== null;
+  if (comentarios !== null && renovacaoDosComentarios === null) {
+    setComentarios(null);
+  }
   const evidenciasExibidas = mostrandoHistoricoEvidencias
     ? evidencias
     : evidenciaVigente
@@ -702,7 +710,7 @@ export function DetalheDocumentoModal({
           // Com os comentários abertos, Esc volta às abas (sem perder o
           // modal); com as abas na tela, fecha o modal como sempre.
           onEscapeKeyDown={(evento) => {
-            if (comentarios) {
+            if (painelComentariosAberto) {
               evento.preventDefault();
               voltarDosComentarios();
             }
@@ -767,7 +775,7 @@ export function DetalheDocumentoModal({
                 <div
                   className={cn(
                     "scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0",
-                    comentarios && "hidden sm:flex",
+                    painelComentariosAberto && "hidden sm:flex",
                   )}
                 >
                   {(prazo.urgencia === "vencido" ||
@@ -1146,11 +1154,11 @@ export function DetalheDocumentoModal({
                 <div
                   className={cn(
                     "relative flex min-h-0 min-w-0 flex-1 flex-col",
-                    comentarios && "min-h-[60vh] sm:min-h-0",
+                    painelComentariosAberto && "min-h-[60vh] sm:min-h-0",
                   )}
                 >
                   <Tabs
-                    inert={comentarios !== null}
+                    inert={painelComentariosAberto}
                     defaultValue="evidencias"
                     // min-w-0: achado testando com nome de evidência longo --
                     // item de grid (coluna 1fr do grid pai) tem min-width:
@@ -1295,7 +1303,7 @@ export function DetalheDocumentoModal({
                       )}
                     </TabsContent>
                   </Tabs>
-                  {comentarios && renovacaoDosComentarios && (
+                  {painelComentariosAberto && renovacaoDosComentarios && (
                     <PainelComentariosDaRenovacao
                       documento={documento}
                       processos={processosComCard}

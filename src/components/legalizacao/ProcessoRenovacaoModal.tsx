@@ -456,6 +456,16 @@ export function ProcessoRenovacaoModal({
     null,
   );
 
+  // Painel aberto só com o processo em curso com card: se ele deixar de
+  // existir com o painel aberto (concluído por outra pessoa), o estado se
+  // desfaz, sem deixar o modal travado (inert) nem reabrir o painel numa
+  // renovação nova.
+  const painelComentariosAberto =
+    comentarios !== null && !!processoAtivo?.card_kanban;
+  if (comentarios !== null && !processoAtivo?.card_kanban) {
+    setComentarios(null);
+  }
+
   function voltarDosComentarios() {
     const origem = comentarios?.origem;
     setComentarios(null);
@@ -492,14 +502,14 @@ export function ProcessoRenovacaoModal({
       <DialogContent
         // Com os comentários abertos, Esc volta ao processo; senão, fecha.
         onEscapeKeyDown={(evento) => {
-          if (comentarios) {
+          if (painelComentariosAberto) {
             evento.preventDefault();
             voltarDosComentarios();
           }
         }}
         className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[620px]"
       >
-        <DialogHeader inert={comentarios !== null}>
+        <DialogHeader inert={painelComentariosAberto}>
           <DialogTitle>Processo de Renovação</DialogTitle>
           {documento && (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -536,7 +546,7 @@ export function ProcessoRenovacaoModal({
         ) : processoAtivo && documento ? (
           <>
             <div
-              inert={comentarios !== null}
+              inert={painelComentariosAberto}
               className="flex min-h-0 flex-1 flex-col gap-4"
             >
               <FormularioProcessoAtivo
@@ -547,7 +557,7 @@ export function ProcessoRenovacaoModal({
                 onAtualizado={onAtualizado}
               />
             </div>
-            {comentarios && processoAtivo.card_kanban && (
+            {painelComentariosAberto && processoAtivo.card_kanban && (
               <PainelComentariosDaRenovacao
                 documento={documento}
                 processos={[processoAtivo]}
