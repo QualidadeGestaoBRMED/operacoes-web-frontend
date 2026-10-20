@@ -802,5 +802,48 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("Número do protocolo")).toBeInTheDocument();
     });
+
+    it("renovação concluída por outra pessoa com o painel aberto: o painel fecha sem travar o modal", async () => {
+      vi.mocked(listarProcessosRenovacao)
+        .mockResolvedValueOnce([processo({ card_kanban: CARD })])
+        // Depois de comentar, a lista é recarregada: a renovação já foi
+        // concluída por outra pessoa.
+        .mockResolvedValue([
+          processo({ status: "concluido", card_kanban: { ...CARD, status: "concluido" } }),
+        ]);
+      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([]);
+      vi.mocked(comentarNaRenovacao).mockResolvedValue({
+        id: 2,
+        usuario: USUARIO,
+        texto: "Última mensagem.",
+        created_at: "2026-06-03T14:00:00Z",
+      });
+      vi.mocked(criarProcessoRenovacao).mockResolvedValue(
+        processo({ id: 10, card_kanban: { ...CARD, comentarios_count: 0 } }),
+      );
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+      await user.click(screen.getByRole("button", { name: "Comentários, 1 comentário" }));
+      await screen.findByText("Nenhum comentário ainda.");
+
+      await user.type(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+        "Última mensagem.{Enter}",
+      );
+
+      const iniciar = await screen.findByRole("button", {
+        name: "Iniciar processo de renovação",
+      });
+      expect(screen.queryByRole("heading", { name: /Comentários ·/ })).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Processo de Renovação" }).closest("[inert]"),
+      ).toBeNull();
+
+      // Uma renovação nova não reabre o painel sozinha.
+      await user.click(iniciar);
+      expect(await screen.findByLabelText("Número do protocolo")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /Comentários ·/ })).not.toBeInTheDocument();
+    });
   });
 });
