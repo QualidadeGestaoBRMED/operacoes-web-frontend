@@ -1110,9 +1110,13 @@ export function DetalheDocumentoModal({
                     >
                       <Paperclip className="hidden size-3.5 sm:block" />
                       Protocolo
-                      <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
-                        {totalComprovantes}
-                      </span>
+                      {/* Sem contagem enquanto carrega ou se falhou: "0"
+                          diria que não há comprovante. */}
+                      {!carregandoProcessos && !erroProcessos && (
+                        <span className="rounded-full bg-muted px-1.5 py-px text-[10.5px] font-bold text-muted-foreground">
+                          {totalComprovantes}
+                        </span>
+                      )}
                     </TabsTrigger>
                     <TabsTrigger
                       value="historico"
