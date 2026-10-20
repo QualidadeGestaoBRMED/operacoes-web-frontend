@@ -295,7 +295,15 @@ function FormularioProcessoAtivo({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">Comprovante de protocolo (PDF)</Label>
+            {/* Título do campo, não <Label>: o controle é o botão abaixo,
+                que já tem nome próprio ("Anexar comprovante"); o título
+                entra nele como descrição. */}
+            <span
+              id="rn-comprovante-titulo"
+              className="text-xs leading-none font-medium select-none"
+            >
+              Comprovante de protocolo (PDF)
+            </span>
             <input
               ref={inputComprovanteRef}
               type="file"
@@ -334,6 +342,7 @@ function FormularioProcessoAtivo({
             ))}
             <button
               type="button"
+              aria-describedby="rn-comprovante-titulo"
               disabled={ocupado}
               onClick={() => inputComprovanteRef.current?.click()}
               className="flex h-10 items-center justify-center gap-1.5 rounded-md border-1.5 border-dashed border-border text-[12.5px] font-medium text-muted-foreground transition-colors hover:border-secondary hover:text-secondary disabled:pointer-events-none disabled:opacity-60"
