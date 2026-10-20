@@ -517,7 +517,7 @@ function FormularioDoLote({
               />
             </div>
             <p className="-mb-1 text-[11.5px] text-muted-foreground">
-              Validade de um item só se for diferente da comum; em branco, vale a comum.
+              Cada item usa a nova validade acima. Preencha a data de um item só se ela for diferente.
             </p>
             <ul className="flex flex-col gap-1.5" aria-label="Itens a concluir">
               {abertos.map((item) => {
