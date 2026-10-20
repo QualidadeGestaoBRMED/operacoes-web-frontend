@@ -27,9 +27,11 @@ vi.mock("@/hooks/useAuth", () => ({
 
 import {
   atualizarProcessoRenovacao,
+  comentarNaRenovacao,
   criarProcessoRenovacao,
   enviarComprovanteProtocolo,
   enviarEvidenciaLegalizacao,
+  listarComentariosDaRenovacao,
   listarProcessosRenovacao,
   urlAbsolutaDaEvidencia,
 } from "@/lib/legalizacao";
@@ -114,6 +116,7 @@ function processo(
     data_conclusao: null,
     usuario_responsavel: USUARIO,
     comprovantes_protocolo: [],
+    card_kanban: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
@@ -736,6 +739,68 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       expect(
         screen.getByRole("button", { name: "Concluir renovação" }),
       ).toBeDisabled();
+    });
+  });
+
+  describe("comentários da renovação (STC-774)", () => {
+    const CARD = { demanda: 36, status: "em_andamento" as const, comentarios_count: 1 };
+
+    it("processo sem card não tem o botão Comentários", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      expect(
+        screen.queryByRole("button", { name: /Comentários/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("abre os comentários do processo, comenta e volta ao formulário", async () => {
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({ card_kanban: CARD }),
+      ]);
+      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([
+        { id: 1, usuario: USUARIO, texto: "Protocolo enviado.", created_at: "2026-06-03T13:30:00Z" },
+      ]);
+      vi.mocked(comentarNaRenovacao).mockResolvedValue({
+        id: 2,
+        usuario: USUARIO,
+        texto: "Recebido.",
+        created_at: "2026-06-03T14:00:00Z",
+      });
+      const user = userEvent.setup();
+      renderComponente(true);
+      await screen.findByLabelText("Número do protocolo");
+
+      const botao = screen.getByRole("button", { name: "Comentários, 1 comentário" });
+      await user.click(botao);
+
+      expect(
+        await screen.findByRole("heading", { name: "Comentários · Alvará de Funcionamento" }),
+      ).toBeInTheDocument();
+      expect(await screen.findByText("Protocolo enviado.")).toBeInTheDocument();
+      expect(listarComentariosDaRenovacao).toHaveBeenCalledWith(9);
+
+      const chamadasAntes = vi.mocked(listarProcessosRenovacao).mock.calls.length;
+      await user.type(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+        "Recebido.{Enter}",
+      );
+      await waitFor(() => {
+        expect(comentarNaRenovacao).toHaveBeenCalledWith(9, "Recebido.");
+      });
+      // A contagem do botão vem da lista de processos: ela é atualizada.
+      await waitFor(() => {
+        expect(vi.mocked(listarProcessosRenovacao).mock.calls.length).toBeGreaterThan(
+          chamadasAntes,
+        );
+      });
+
+      await user.click(screen.getByRole("button", { name: "Voltar" }));
+      expect(
+        screen.queryByRole("heading", { name: /Comentários ·/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Número do protocolo")).toBeInTheDocument();
     });
   });
 });

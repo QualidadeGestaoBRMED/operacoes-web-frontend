@@ -46,11 +46,13 @@ import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
+  comentarNaRenovacao,
   criarProcessoRenovacao,
   excluirDocumentoLegalizacao,
   listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
+  listarComentariosDaRenovacao,
   listarHistoricoLegalizacao,
   listarProcessosRenovacao,
   removerResponsavelLegalizacao,
@@ -233,6 +235,7 @@ function processo(
     data_conclusao: null,
     usuario_responsavel: null,
     comprovantes_protocolo: [],
+    card_kanban: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };
@@ -808,6 +811,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -850,6 +854,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -892,6 +897,7 @@ describe("DetalheDocumentoModal (STC-380)", () => {
       data_conclusao: null,
       usuario_responsavel: null,
       comprovantes_protocolo: [],
+      card_kanban: null,
       created_at: "2026-01-01T00:00:00Z",
     });
     const user = userEvent.setup();
@@ -1848,6 +1854,131 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
 
       expect(screen.getByText("comprovante de protocolo")).toBeInTheDocument();
       expect(screen.getByText('"protocolo.pdf"')).toBeInTheDocument();
+    });
+  });
+
+  describe("comentários da renovação (STC-774)", () => {
+    function comentario(id: number, texto: string) {
+      return { id, usuario: USUARIO, texto, created_at: "2026-06-03T13:30:00Z" };
+    }
+
+    it("documento sem renovação com card não tem o botão Comentários", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([processo()]);
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+      await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+
+      expect(
+        screen.queryByRole("button", { name: /Comentários/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("abre a renovação em curso, comenta, e mostra as anteriores por renovação, só leitura", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ status: "em_andamento" }),
+      );
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({
+          id: 12,
+          created_at: "2026-09-10T15:00:00Z",
+          card_kanban: { demanda: 40, status: "em_andamento", comentarios_count: 2 },
+        }),
+        processo({
+          id: 9,
+          status: "concluido",
+          created_at: "2025-09-02T15:00:00Z",
+          data_conclusao: "2025-10-10",
+          card_kanban: { demanda: 30, status: "concluido", comentarios_count: 1 },
+        }),
+      ]);
+      vi.mocked(listarComentariosDaRenovacao).mockImplementation(async (processoId) =>
+        processoId === 12
+          ? [comentario(1, "Aguardando a prefeitura."), comentario(2, "Prefeitura respondeu.")]
+          : [comentario(3, "Renovação de 2025 concluída.")],
+      );
+      vi.mocked(comentarNaRenovacao).mockResolvedValue(comentario(4, "Ok."));
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      await user.click(
+        await screen.findByRole("button", { name: "Comentários, 2 comentários" }),
+      );
+
+      expect(await screen.findByText("Prefeitura respondeu.")).toBeInTheDocument();
+      expect(listarComentariosDaRenovacao).toHaveBeenCalledWith(12);
+      await user.type(
+        screen.getByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+        "Ok.{Enter}",
+      );
+      await waitFor(() => {
+        expect(comentarNaRenovacao).toHaveBeenCalledWith(12, "Ok.");
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "Renovação" }));
+      await user.click(
+        await screen.findByRole("option", {
+          name: "Renovação de 02/09/2025 a 10/10/2025 · Concluído",
+        }),
+      );
+
+      expect(await screen.findByText("Renovação de 2025 concluída.")).toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Renovação concluída: os comentários ficam só para leitura."),
+      ).toBeInTheDocument();
+    });
+
+    it("só com renovações concluídas, abre a mais recente, só leitura", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento({ status: "regular" }));
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({
+          id: 9,
+          status: "concluido",
+          data_conclusao: "2026-06-20",
+          card_kanban: { demanda: 30, status: "concluido", comentarios_count: 1 },
+        }),
+      ]);
+      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([
+        comentario(3, "Concluída."),
+      ]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+
+      await user.click(
+        await screen.findByRole("button", { name: "Comentários, 1 comentário" }),
+      );
+
+      expect(await screen.findByText("Concluída.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Renovação de 02/06/2026 a 20/06/2026 · Concluído"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText("Adicionar comentário... (Enter para enviar)"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("Voltar devolve às abas e o foco ao botão", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento({ status: "em_andamento" }));
+      vi.mocked(listarProcessosRenovacao).mockResolvedValue([
+        processo({ card_kanban: { demanda: 40, status: "em_andamento", comentarios_count: 0 } }),
+      ]);
+      vi.mocked(listarComentariosDaRenovacao).mockResolvedValue([]);
+      const user = userEvent.setup();
+      renderComponente(55);
+      await screen.findByText("Alvará de Funcionamento");
+      const botao = await screen.findByRole("button", { name: "Comentários, 0 comentários" });
+
+      await user.click(botao);
+      await screen.findByText("Nenhum comentário ainda.");
+      await user.click(screen.getByRole("button", { name: "Voltar" }));
+
+      await waitFor(() => expect(botao).toHaveFocus());
+      expect(screen.getByRole("tab", { name: /evidências/i })).toBeInTheDocument();
     });
   });
 });
