@@ -478,7 +478,7 @@ function FormularioDoLote({
               <legend className="mb-1 text-xs font-medium">Certificado</legend>
               {(
                 [
-                  ["unico", "Um laudo para todos"],
+                  ["unico", "Um PDF para todos"],
                   ["por_item", "Um PDF por item"],
                 ] as const
               ).map(([valor, rotulo]) => (
@@ -497,8 +497,8 @@ function FormularioDoLote({
             {modoCertificado === "unico" && (
               <div>
                 <BotaoPdf
-                  rotulo="Enviar laudo para todos"
-                  rotuloAcessivel="Arquivo do laudo único do lote"
+                  rotulo="Enviar PDF para todos"
+                  rotuloAcessivel="Arquivo do PDF único do lote"
                   enviando={acoes.emAndamento === "certificado"}
                   desabilitado={ocupado}
                   onArquivo={enviarCertificadoUnico}

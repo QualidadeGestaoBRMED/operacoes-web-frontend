@@ -254,7 +254,7 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       expect(await screen.findByText("Anexado: protocolo.pdf")).toBeInTheDocument();
     });
 
-    it("laudo único para todos", async () => {
+    it("um PDF para todos", async () => {
       vi.mocked(buscarLote).mockResolvedValue(lote());
       vi.mocked(enviarCertificadoUnicoLote).mockResolvedValue(
         lote({ itens: [item(1, "BALANÇA 01", { tem_certificado: true }), item(2, "BALANÇA 02", { tem_certificado: true })] }),
@@ -264,7 +264,7 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       await screen.findByRole("list", { name: "Itens do lote" });
       const arquivo = pdf();
 
-      await user.upload(screen.getByLabelText("Arquivo do laudo único do lote"), arquivo);
+      await user.upload(screen.getByLabelText("Arquivo do PDF único do lote"), arquivo);
 
       await waitFor(() => expect(enviarCertificadoUnicoLote).toHaveBeenCalledWith(5, arquivo));
       expect(await screen.findByLabelText("Com certificado: BALANÇA 01")).toBeInTheDocument();
@@ -281,7 +281,7 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       await user.upload(screen.getByLabelText("Certificado de BALANÇA 02"), arquivo);
 
       await waitFor(() => expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(102, arquivo));
-      expect(screen.queryByLabelText("Arquivo do laudo único do lote")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Arquivo do PDF único do lote")).not.toBeInTheDocument();
     });
 
     it("sem certificado não conclui e diz quem falta", async () => {
