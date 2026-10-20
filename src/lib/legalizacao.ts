@@ -4,6 +4,9 @@ import type { Comentario, RespostaPaginada, Usuario } from "@/types";
 import type {
   AlertaRegulatorio,
   ComprovanteProtocolo,
+  IniciarLotePayload,
+  LoteRenovacao,
+  ProtocoloLotePayload,
   DocumentoUnidade,
   DocumentoUnidadeFiltros,
   DocumentoUnidadeLotePayload,
@@ -23,6 +26,7 @@ const MODULO_URL = "/modulos/legalizacao/";
 const DOCUMENTOS_URL = `${MODULO_URL}documentos/`;
 const PROCESSOS_RENOVACAO_URL = `${MODULO_URL}processos-renovacao/`;
 const ALERTAS_URL = `${MODULO_URL}alertas/`;
+const LOTES_URL = `${MODULO_URL}lotes-renovacao/`;
 
 // Mesmo motivo de demandas.ts::urlAbsolutaDoAnexo -- ambiente sem R2
 // configurado (dev/staging, fallback pra FileSystemStorage) devolve URL
@@ -211,15 +215,17 @@ export async function listarHistoricoLegalizacao(
   return data;
 }
 
-// Backend de produção sem a STC-771 ou a STC-773 (sobe por deploy manual; o
-// frontend pode chegar antes): o processo vem sem `comprovantes_protocolo`
-// ou sem `card_kanban`, e ler `.length` do primeiro quebraria o detalhe de
-// qualquer documento. Lista vazia e sem card até o backend subir.
+// Backend de produção sem a STC-771, a STC-773 ou a STC-778 (sobe por deploy
+// manual; o frontend pode chegar antes): o processo vem sem
+// `comprovantes_protocolo`, `card_kanban` ou `lote`, e ler `.length` do
+// primeiro quebraria o detalhe de qualquer documento. Lista vazia, sem card
+// e sem lote até o backend subir.
 function normalizarProcesso(processo: ProcessoRenovacao): ProcessoRenovacao {
   return {
     ...processo,
     comprovantes_protocolo: processo.comprovantes_protocolo ?? [],
     card_kanban: processo.card_kanban ?? null,
+    lote: processo.lote ?? null,
   };
 }
 
@@ -395,4 +401,67 @@ export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
     }
   }
   return resultados;
+}
+
+// STC-778: renovação em lote (rotas em lotes-renovacao/). Cada operação vale
+// para todos os itens do lote ou para nenhum; a resposta é o lote atualizado.
+export async function iniciarLote(payload: IniciarLotePayload): Promise<LoteRenovacao> {
+  const { data } = await api.post<LoteRenovacao>(LOTES_URL, payload);
+  return data;
+}
+
+export async function buscarLote(id: number): Promise<LoteRenovacao> {
+  const { data } = await api.get<LoteRenovacao>(`${LOTES_URL}${id}/`);
+  return data;
+}
+
+export async function registrarProtocoloLote(
+  id: number,
+  payload: ProtocoloLotePayload,
+): Promise<LoteRenovacao> {
+  const { data } = await api.post<LoteRenovacao>(`${LOTES_URL}${id}/protocolo/`, payload);
+  return data;
+}
+
+// Comprovante e laudo único: o mesmo envio direto ao R2 da evidência
+// (src/lib/uploadDireto.ts); o backend copia o arquivo para cada item.
+export async function enviarComprovanteLote(
+  id: number,
+  arquivo: File,
+  aoProgredir?: AoProgredir,
+): Promise<LoteRenovacao> {
+  return enviarArquivo<LoteRenovacao>(
+    `${LOTES_URL}${id}/comprovantes-protocolo/`,
+    arquivo,
+    aoProgredir,
+  );
+}
+
+export async function enviarCertificadoUnicoLote(
+  id: number,
+  arquivo: File,
+  aoProgredir?: AoProgredir,
+): Promise<LoteRenovacao> {
+  return enviarArquivo<LoteRenovacao>(`${LOTES_URL}${id}/certificado/`, arquivo, aoProgredir);
+}
+
+export async function concluirLote(
+  id: number,
+  itens: { processo: number; nova_validade: string }[],
+): Promise<LoteRenovacao> {
+  const { data } = await api.post<LoteRenovacao>(`${LOTES_URL}${id}/concluir/`, { itens });
+  return data;
+}
+
+// null: o lote ficou sem itens e saiu (204).
+export async function retirarItemLote(
+  id: number,
+  processo: number,
+  manterRenovacao: boolean,
+): Promise<LoteRenovacao | null> {
+  const resposta = await api.post<LoteRenovacao>(`${LOTES_URL}${id}/retirar/`, {
+    processo,
+    manter_renovacao: manterRenovacao,
+  });
+  return resposta.status === 204 ? null : resposta.data;
 }

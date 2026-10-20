@@ -23,6 +23,7 @@ import type {
   DocumentoUnidadeFiltros,
 } from "@/types/legalizacao";
 import { DetalheDocumentoModal } from "./DetalheDocumentoModal";
+import { LoteRenovacaoModal } from "./LoteRenovacaoModal";
 import { MatrizFiltros } from "./MatrizFiltros";
 import { MatrizTable } from "./MatrizTable";
 import { ToggleMapaLista } from "./ToggleMapaLista";
@@ -88,6 +89,11 @@ export function MatrizConformidade() {
   useEffect(() => {
     setDocumentoAbertoId(documentoIdNaUrl);
   }, [documentoIdNaUrl]);
+
+  // STC-779: ?lote= abre a renovação em lote (alvo do card do lote no Kanban
+  // e do aviso de lote concluído). Lido da URL a cada mudança, pelo mesmo
+  // motivo do ?documento= acima.
+  const loteIdNaUrl = numeroDaUrl(searchParams.get("lote")) ?? null;
 
   // Achado no code review: numeroDaUrl só valida que o valor é numérico, não
   // que corresponde a uma unidade real -- diferente de categoriaDaUrl (união
@@ -230,6 +236,15 @@ export function MatrizConformidade() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
+  function fecharLote() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("lote");
+    router.replace(
+      params.toString() ? `${pathname}?${params.toString()}` : pathname,
+      { scroll: false },
+    );
+  }
+
   function fecharDetalhe() {
     setDocumentoAbertoId(null);
     const params = new URLSearchParams(searchParams.toString());
@@ -274,6 +289,11 @@ export function MatrizConformidade() {
       <DetalheDocumentoModal
         documentoId={documentoAbertoId}
         onOpenChange={(open) => !open && fecharDetalhe()}
+      />
+      <LoteRenovacaoModal
+        aberto={loteIdNaUrl !== null}
+        onOpenChange={(open) => !open && fecharLote()}
+        loteId={loteIdNaUrl}
       />
     </div>
   );

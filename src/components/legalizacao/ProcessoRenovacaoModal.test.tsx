@@ -117,6 +117,7 @@ function processo(
     usuario_responsavel: USUARIO,
     comprovantes_protocolo: [],
     card_kanban: null,
+    lote: null,
     created_at: "2026-06-02T10:00:00Z",
     ...overrides,
   };

@@ -48,7 +48,7 @@ const ACCEPT_PDF = ".pdf";
 
 // Mesmo padrão de CampoMeta (DetalheDocumentoModal.tsx) -- rótulo pequeno em
 // caixa alta acima do valor.
-function CampoSomenteLeitura({
+export function CampoSomenteLeitura({
   rotulo,
   children,
 }: {
@@ -67,7 +67,7 @@ function CampoSomenteLeitura({
   );
 }
 
-function TituloSecao({
+export function TituloSecao({
   numero,
   titulo,
   concluida,
