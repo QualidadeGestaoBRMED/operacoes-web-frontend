@@ -761,7 +761,15 @@ export function DetalheDocumentoModal({
                 cima (scroll próprio limitado a 35vh) e as abas ocupam o
                 resto -- de sm pra cima, volta a ser o grid 270px+1fr. */}
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:grid-cols-[270px_1fr]">
-                <div className="scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0">
+                {/* Com os comentários abertos, abaixo de sm, os dados do
+                    documento saem da frente: os dois não cabem juntos na
+                    altura do celular, e o campo de envio ficaria cortado. */}
+                <div
+                  className={cn(
+                    "scrollbar-discreta flex max-h-[35vh] shrink-0 flex-col gap-4 overflow-y-auto border-b border-border p-4.5 sm:max-h-none sm:shrink sm:border-r sm:border-b-0",
+                    comentarios && "hidden sm:flex",
+                  )}
+                >
                   {(prazo.urgencia === "vencido" ||
                     prazo.urgencia === "proximo") && (
                     <div
@@ -1130,7 +1138,17 @@ export function DetalheDocumentoModal({
                   </div>
                 </div>
 
-                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                {/* O painel de comentários é absolute: a altura vem das
+                    abas por baixo. No celular elas podem ser baixas (pouco
+                    conteúdo), então, com o painel aberto, a área ganha
+                    altura mínima para o feed caber, no lugar dos dados do
+                    documento. */}
+                <div
+                  className={cn(
+                    "relative flex min-h-0 min-w-0 flex-1 flex-col",
+                    comentarios && "min-h-[60vh] sm:min-h-0",
+                  )}
+                >
                   <Tabs
                     inert={comentarios !== null}
                     defaultValue="evidencias"
