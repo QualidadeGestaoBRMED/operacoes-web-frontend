@@ -184,6 +184,33 @@ describe("LoteRenovacaoModal (STC-779)", () => {
       expect(screen.getByText("0 de 2 concluídos")).toBeInTheDocument();
     });
 
+    it("fechado por fora e reaberto, volta à escolha em vez do lote criado", async () => {
+      vi.mocked(iniciarLote).mockResolvedValue(lote());
+      vi.mocked(buscarLote).mockResolvedValue(lote());
+      const user = userEvent.setup();
+      const montar = (aberto: boolean) => (
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <LoteRenovacaoModal
+            aberto={aberto}
+            onOpenChange={vi.fn()}
+            loteId={null}
+            documentoInicial={documento()}
+          />
+        </SWRConfig>
+      );
+      const { rerender } = render(montar(true));
+      const lista = await screen.findByRole("list", { name: "Instâncias" });
+      await user.click(within(lista).getAllByRole("checkbox")[1]);
+      await user.click(screen.getByRole("button", { name: "Iniciar lote com 2 itens" }));
+      await screen.findByRole("list", { name: "Itens do lote" });
+
+      rerender(montar(false));
+      rerender(montar(true));
+
+      expect(await screen.findByRole("list", { name: "Instâncias" })).toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Itens do lote" })).not.toBeInTheDocument();
+    });
+
     it("erro da API mostra a mensagem e mantém a seleção", async () => {
       vi.mocked(iniciarLote).mockRejectedValue(erroDaApi("Já têm renovação em andamento: BALANÇA 02."));
       const user = userEvent.setup();

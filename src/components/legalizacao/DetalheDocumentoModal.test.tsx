@@ -1935,6 +1935,34 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
       expect(screen.queryByRole("button", { name: "Renovar em lote" })).not.toBeInTheDocument();
     });
 
+    it("trocar de documento fecha o lote aberto do anterior", async () => {
+      vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+        documento({ tipo_documento: tipo({ permite_multiplas_instancias: true }) }),
+      );
+      vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([]);
+      const user = userEvent.setup();
+      const montar = (documentoId: number | null) => (
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <DetalheDocumentoModal documentoId={documentoId} onOpenChange={vi.fn()} />
+        </SWRConfig>
+      );
+      const { rerender } = render(montar(55));
+      await user.click(await screen.findByRole("button", { name: "Renovar em lote" }));
+      expect(
+        await screen.findByRole("dialog", { name: "Renovação em lote" }),
+      ).toBeInTheDocument();
+
+      // O detalhe fecha por fora (ex.: "voltar" do navegador tira o ?documento=).
+      // Pelo título: com o detalhe reaberto, as outras camadas ficam
+      // aria-hidden e a busca por papel não acharia um modal que sobrou.
+      rerender(montar(null));
+      expect(screen.queryByText("Renovação em lote")).not.toBeInTheDocument();
+
+      rerender(montar(56));
+      await screen.findByText("Alvará de Funcionamento");
+      expect(screen.queryByText("Renovação em lote")).not.toBeInTheDocument();
+    });
+
     it("renovação em curso num lote abre o lote em vez do processo avulso", async () => {
       vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
         documento({
