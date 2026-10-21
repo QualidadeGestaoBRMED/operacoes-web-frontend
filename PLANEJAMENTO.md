@@ -1119,3 +1119,12 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Ordem dos deploys:** depende do backend da STC-778 em produção; `normalizarProcesso` completa `lote` com `null` enquanto o backend não manda.
 - Testes: escolha (lista, marcada, de fora, iniciar com os marcados, erro mantendo a seleção), protocolo e comprovante, PDF para todos, PDF por item, conclusão sem certificado (motivo e caixa por item), conclusão com validade comum e ajustada (erro mantendo o preenchido), retirar, item com certificado sem a opção de sair sem renovação, lote inexistente; no detalhe, "Renovar em lote" só para tipo de várias instâncias e "Acompanhar lote de renovação" quando a renovação é de lote; modal fechado por fora volta à escolha e troca de documento fecha o lote aberto.
 - **Conferência** (banco local): lote iniciado pelo documento 100 (Calibração · Niterói, 5 instâncias), seções do lote e conclusão por PDF por item em 1400 px; `?lote=1` (concluído) e a conclusão do lote 2 em 360 px.
+
+### 7.29 STC-830 — Instruções para instalar o Atlas no celular
+
+🔄 **Em andamento.** No Android, o Chrome oferece a instalação do app (STC-786) sozinho; no iPhone, o Safari não oferece nada, e o caminho pelo Compartilhar não é conhecido (observação do Tech Lead, 20/10/2026). Decisão (21/10/2026): só as instruções, num item fixo do menu, sem aviso automático, detecção de aparelho nem backend: o Safari não sabe se o app já está instalado (nem se foi desinstalado).
+
+- **Item "Instalar o Atlas no celular"** no menu do nome (`Topbar.tsx`) e no "Mais" da barra inferior (`BarraInferior.tsx`, antes de Recarregar e Sair). Abre `InstalarAppDialog.tsx`, com os passos do iPhone (Safari: Compartilhar, que em alguns iPhones fica no botão •••; "Adicionar à Tela de Início"; "Adicionar") e do Android (Chrome: menu; "Instalar app"; "Instalar"), com o ícone do botão ao lado do passo.
+- **App instalado:** o item some (`useAppInstalado`: `display-mode: standalone`, ou `navigator.standalone` no Safari do iPhone).
+- Testes: passos do iPhone e do Android pelo "Mais", a mesma janela pelo menu do nome, item escondido nos dois menus no app instalado (pela media query e por `navigator.standalone`); listas do "Mais" em `BarraInferior.test.tsx` com o item novo.
+- **Conferência** (banco local): menu e janela em 390 px e 1440 px.
