@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import type { ComponentType, RefObject } from "react";
 import { EllipsisVertical, Share, SquarePlus } from "lucide-react";
 import {
   Dialog,
@@ -28,13 +28,14 @@ interface Passo {
   icone?: ComponentType<{ className?: string }>;
 }
 
-const PASSOS: { aparelho: string; navegador: string; passos: Passo[] }[] = [
+const PASSOS: { chave: string; aparelho: string; navegador: string; passos: Passo[] }[] = [
   {
-    aparelho: "iPhone",
+    chave: "ios",
+    aparelho: "iPhone e iPad",
     navegador: "Safari",
     passos: [
       {
-        texto: "Toque em Compartilhar. Em alguns iPhones, ele fica dentro do botão ••• da barra.",
+        texto: "Toque em Compartilhar. Em alguns aparelhos, ele fica dentro do botão ••• da barra.",
         icone: Share,
       },
       { texto: "Toque em \"Adicionar à Tela de Início\".", icone: SquarePlus },
@@ -42,6 +43,7 @@ const PASSOS: { aparelho: string; navegador: string; passos: Passo[] }[] = [
     ],
   },
   {
+    chave: "android",
     aparelho: "Android",
     navegador: "Chrome",
     passos: [
@@ -62,22 +64,31 @@ const PASSOS: { aparelho: string; navegador: string; passos: Passo[] }[] = [
 export function InstalarAppDialog({
   aberto,
   onOpenChange,
+  focoAoFechar,
 }: {
   aberto: boolean;
   onOpenChange: (aberto: boolean) => void;
+  /** Botão do menu que abriu a janela: o item clicado já não existe ao fechar. */
+  focoAoFechar: RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog open={aberto} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        onCloseAutoFocus={(evento) => {
+          evento.preventDefault();
+          focoAoFechar.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Instalar o Atlas no celular</DialogTitle>
           <DialogDescription>
             Com o Atlas na tela de início, ele abre como um aplicativo, em tela cheia.
           </DialogDescription>
         </DialogHeader>
-        {PASSOS.map(({ aparelho, navegador, passos }) => (
-          <section key={aparelho} aria-labelledby={`instalar-${aparelho}`} className="space-y-2">
-            <h3 id={`instalar-${aparelho}`} className="text-sm font-semibold">
+        {PASSOS.map(({ chave, aparelho, navegador, passos }) => (
+          <section key={chave} aria-labelledby={`instalar-${chave}`} className="space-y-2">
+            <h3 id={`instalar-${chave}`} className="text-sm font-semibold">
               {aparelho} <span className="font-normal text-muted-foreground">· pelo {navegador}</span>
             </h3>
             <ol className="space-y-2">

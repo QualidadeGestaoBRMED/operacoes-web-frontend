@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeft, Smartphone } from "lucide-react";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
@@ -37,6 +37,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
   const pagina = PAGINAS.find((p) => pathname.startsWith(p.prefixo));
   const appInstalado = useAppInstalado();
   const [instalarAberto, setInstalarAberto] = useState(false);
+  const botaoDoMenu = useRef<HTMLButtonElement>(null);
 
   return (
     <header
@@ -85,6 +86,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
                   aria-label no botão pra não perder o nome anunciado por
                   leitor de tela quando o texto visível some. */}
               <button
+                ref={botaoDoMenu}
                 type="button"
                 aria-label={`Olá, ${usuario.nome}`}
                 className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-foreground/10"
@@ -121,7 +123,11 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
           </div>
         )}
       </div>
-      <InstalarAppDialog aberto={instalarAberto} onOpenChange={setInstalarAberto} />
+      <InstalarAppDialog
+        aberto={instalarAberto}
+        onOpenChange={setInstalarAberto}
+        focoAoFechar={botaoDoMenu}
+      />
     </header>
   );
 }

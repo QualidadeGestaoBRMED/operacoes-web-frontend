@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, MoreHorizontal, RotateCw, Settings, ShieldCheck, Smartphone } from "lucide-react";
@@ -64,6 +64,7 @@ export function BarraInferior() {
   const maisAtivo = atual ? noMais.includes(atual) : pathname.startsWith("/admin");
   const appInstalado = useAppInstalado();
   const [instalarAberto, setInstalarAberto] = useState(false);
+  const botaoMais = useRef<HTMLButtonElement>(null);
 
   return (
     <nav
@@ -90,6 +91,7 @@ export function BarraInferior() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={botaoMais}
                 type="button"
                 aria-current={maisAtivo ? "page" : undefined}
                 className={cn(ITEM, maisAtivo ? ITEM_ATIVO : ITEM_INATIVO)}
@@ -150,7 +152,11 @@ export function BarraInferior() {
           </DropdownMenu>
         </li>
       </ul>
-      <InstalarAppDialog aberto={instalarAberto} onOpenChange={setInstalarAberto} />
+      <InstalarAppDialog
+        aberto={instalarAberto}
+        onOpenChange={setInstalarAberto}
+        focoAoFechar={botaoMais}
+      />
     </nav>
   );
 }
