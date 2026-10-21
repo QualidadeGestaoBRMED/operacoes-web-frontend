@@ -1104,7 +1104,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.28 STC-779 — Renovar selecionados e modal do lote de renovação (STC-777)
 
-🔄 **Em andamento.** Frontend da renovação em lote; o backend é a STC-778 (PR #131, rotas em `lotes-renovacao/`): instâncias do mesmo tipo e da mesma clínica renovadas juntas, cada uma com o próprio processo, e um card só no Kanban.
+✅ **Implementado e mergeado em `main` (PR #126).** Frontend da renovação em lote; o backend é a STC-778 (PR #131, rotas em `lotes-renovacao/`): instâncias do mesmo tipo e da mesma clínica renovadas juntas, cada uma com o próprio processo, e um card só no Kanban.
 
 - **Onde começa (opção 1, decidida em 20/10/2026):** no detalhe de uma instância de tipo com várias instâncias, botão "Renovar em lote" (junto de "Registrar renovação", quando não há renovação em curso). A Matriz não mudou.
 - **Modal `LoteRenovacaoModal.tsx`:**

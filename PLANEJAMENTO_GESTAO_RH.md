@@ -36,7 +36,7 @@
 | STC-735 Turno variável na aba Equipes e jornada incompleta no Painel e no modal (Semanal 14/10) | P5.1/P5.3/P5.4 | ✅ Mergeada |
 | STC-749 Absenteísmo mês a mês pela rota agregada da STC-748 | P5.1 | ✅ Mergeada |
 | STC-767 Painel e mês a mês mostram os parâmetros usados (rota da STC-766) | P5.1 | ✅ Mergeada |
-| STC-791 Cards sem buraco no celular e selo de faixa alinhado na tabela | P5.1 | 🔄 Em andamento |
+| STC-791 Cards sem buraco no celular e selo de faixa alinhado na tabela | P5.1 | ✅ Mergeada |
 | STC-740 Painel de Horas Extras (rota da STC-739) | P5.1 | ✅ Mergeada |
 | STC-753 Categoria Operações Especiais na aba Equipes e painéis sem o filtro de categoria (Semanal 14/10) | P5.1/P5.4 | ✅ Mergeada |
 
@@ -179,6 +179,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 ## Pacote P6 — Testes e Homologação
 **Datas:** 19–20/10 · 2 dias úteis
+**Status:** ✅ Concluído (homologação na STC-600, 19/10/2026)
 
 - Já cobertos (STC-597): seção só para Admin, faixas as duas ou nenhuma, estado sem faixas, limite vazio, "completou o período" sem dias, "limite vencido" ausente, versão inicial, botões só com alteração, erro da API no campo e na linha do marco, edição preservada ao recarregar, aba Importação desligada.
 - Já cobertos também (STC-596/598/599/601): faixa escondida sem critérios, "provisório", ações de férias, justificativa obrigatória, abertura por querystring.
@@ -186,6 +187,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 - `tsc`, lint e testes limpos; conferência visual contra as telas reais do Atlas.
 
 ## Pacote P7 — Go-Live
+**Status:** ✅ Concluído (STC-602, 21/10/2026): módulo ativo em produção e apresentado aos coordenadores.
 
 - Entrada "Gestão RH" de `modulos-futuros.ts` já com `codigo`/`rota`; liberação real por `Modulo.status=ativo` no backend, sem deploy de frontend (mecanismo da STC-423).
 
