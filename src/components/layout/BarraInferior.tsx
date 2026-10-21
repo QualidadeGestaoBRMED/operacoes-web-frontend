@@ -1,8 +1,9 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, MoreHorizontal, RotateCw, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, MoreHorizontal, RotateCw, Settings, ShieldCheck, Smartphone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,7 @@ import {
 import { moduloAtivo, useNavegacao } from "@/hooks/useNavegacao";
 import { sairDaConta } from "@/lib/sairDaConta";
 import { cn } from "@/lib/utils";
+import { InstalarAppDialog, useAppInstalado } from "./InstalarAppDialog";
 
 // Módulos na barra; os seguintes vão para o "Mais". Com 4 módulos e o
 // "Mais", cada item fica com cerca de 75px numa tela de 375px.
@@ -45,7 +47,8 @@ function Icone({
 /**
  * Navegação do celular (STC-787), no lugar do menu lateral: um item por
  * módulo que a pessoa vê, pelo cargo (useNavegacao, a mesma regra do menu
- * lateral), e "Mais" com o que não cabe, a Administração, Recarregar e Sair.
+ * lateral), e "Mais" com o que não cabe, a Administração, as instruções para
+ * instalar o app (STC-830), Recarregar e Sair.
  * Faz parte do layout (não flutua): o conteúdo nunca fica atrás dela.
  */
 export function BarraInferior() {
@@ -59,6 +62,9 @@ export function BarraInferior() {
   // (atual já os pega). Fora disso (uma página que não existe, por exemplo),
   // nada fica ativo.
   const maisAtivo = atual ? noMais.includes(atual) : pathname.startsWith("/admin");
+  const appInstalado = useAppInstalado();
+  const [instalarAberto, setInstalarAberto] = useState(false);
+  const botaoMais = useRef<HTMLButtonElement>(null);
 
   return (
     <nav
@@ -85,6 +91,7 @@ export function BarraInferior() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                ref={botaoMais}
                 type="button"
                 aria-current={maisAtivo ? "page" : undefined}
                 className={cn(ITEM, maisAtivo ? ITEM_ATIVO : ITEM_INATIVO)}
@@ -124,6 +131,12 @@ export function BarraInferior() {
               {(noMais.length > 0 || temAdministracao || linkDjangoAdmin) && (
                 <DropdownMenuSeparator />
               )}
+              {!appInstalado && (
+                <DropdownMenuItem onSelect={() => setInstalarAberto(true)}>
+                  <Smartphone className="size-4" />
+                  Instalar o Atlas no celular
+                </DropdownMenuItem>
+              )}
               {/* No app instalado não há a barra do navegador nem o botão
                   de recarregar (STC-786), e o puxar para atualizar não
                   funciona no iPhone. */}
@@ -139,6 +152,11 @@ export function BarraInferior() {
           </DropdownMenu>
         </li>
       </ul>
+      <InstalarAppDialog
+        aberto={instalarAberto}
+        onOpenChange={setInstalarAberto}
+        focoAoFechar={botaoMais}
+      />
     </nav>
   );
 }

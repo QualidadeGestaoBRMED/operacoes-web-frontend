@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { LogOut, PanelLeft } from "lucide-react";
+import { LogOut, PanelLeft, Smartphone } from "lucide-react";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PAGINAS } from "@/config/paginas";
 import { sairDaConta } from "@/lib/sairDaConta";
+import { InstalarAppDialog, useAppInstalado } from "./InstalarAppDialog";
 import { NotificacoesMenu } from "./NotificacoesMenu";
 
 interface TopbarProps {
@@ -33,6 +35,9 @@ interface TopbarProps {
 export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: TopbarProps) {
   const pathname = usePathname();
   const pagina = PAGINAS.find((p) => pathname.startsWith(p.prefixo));
+  const appInstalado = useAppInstalado();
+  const [instalarAberto, setInstalarAberto] = useState(false);
+  const botaoDoMenu = useRef<HTMLButtonElement>(null);
 
   return (
     <header
@@ -81,6 +86,7 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
                   aria-label no botão pra não perder o nome anunciado por
                   leitor de tela quando o texto visível some. */}
               <button
+                ref={botaoDoMenu}
                 type="button"
                 aria-label={`Olá, ${usuario.nome}`}
                 className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-foreground/10"
@@ -96,6 +102,12 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {!appInstalado && (
+                <DropdownMenuItem onSelect={() => setInstalarAberto(true)}>
+                  <Smartphone className="size-4" />
+                  Instalar o Atlas no celular
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={() => void sairDaConta()}>
                 <LogOut className="size-4" />
                 Sair
@@ -111,6 +123,11 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
           </div>
         )}
       </div>
+      <InstalarAppDialog
+        aberto={instalarAberto}
+        onOpenChange={setInstalarAberto}
+        focoAoFechar={botaoDoMenu}
+      />
     </header>
   );
 }

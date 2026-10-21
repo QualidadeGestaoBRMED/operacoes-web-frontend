@@ -107,16 +107,22 @@ describe("BarraInferior (STC-787)", () => {
     expect(itensDaBarra()).toEqual(["Demandas"]);
   });
 
-  it("Admin Q&G: o Mais tem Administração, Admin Q&G, Recarregar e Sair", async () => {
+  it("Admin Q&G: o Mais tem Administração, Admin Q&G, as instruções de instalação, Recarregar e Sair", async () => {
     comoCargo("adminQG");
     render(<BarraInferior />);
-    expect(await abrirMais()).toEqual(["Administração", "Admin Q&G", "Recarregar", "Sair"]);
+    expect(await abrirMais()).toEqual([
+      "Administração",
+      "Admin Q&G",
+      "Instalar o Atlas no celular",
+      "Recarregar",
+      "Sair",
+    ]);
   });
 
-  it("coordenação: o Mais tem só Recarregar e Sair", async () => {
+  it("coordenação: o Mais tem só as instruções de instalação, Recarregar e Sair", async () => {
     comoCargo("coordenacao");
     render(<BarraInferior />);
-    expect(await abrirMais()).toEqual(["Recarregar", "Sair"]);
+    expect(await abrirMais()).toEqual(["Instalar o Atlas no celular", "Recarregar", "Sair"]);
   });
 
   it("Recarregar recarrega a página e Sair encerra a sessão", async () => {
@@ -186,7 +192,12 @@ describe("BarraInferior (STC-787)", () => {
       render(<BarraInferior />);
 
       expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH", "Arquitetura"]);
-      expect(await abrirMais()).toEqual(["Calibração", "Recarregar", "Sair"]);
+      expect(await abrirMais()).toEqual([
+        "Calibração",
+        "Instalar o Atlas no celular",
+        "Recarregar",
+        "Sair",
+      ]);
     });
 
     it("na rota de um módulo do Mais, o Mais fica ativo e o módulo é o atual dentro dele", async () => {
