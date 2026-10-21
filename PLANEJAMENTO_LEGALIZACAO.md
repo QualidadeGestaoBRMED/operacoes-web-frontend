@@ -187,7 +187,7 @@ removido junto com `buscarIndicadoresLegalizacao`/`IndicadoresLegalizacao`
 
 ## Pacote P4 — Interface Operacional
 **Datas:** 10/09 – 17/09 · 6 dias úteis
-**Status:** 🔄 Em andamento (P4.1, P4.2, P4.3, P4.4, P4.5, P4.6, P4.7 e P4.8 implementados — P4.3/STC-380 (PR #35, 7 rodadas de code review automático, todas corrigidas), P4.4/STC-381 (PR #36, 1 rodada de code review automático, 2 achados corrigidos), P4.5/STC-382 (PR #37, 6 rodadas de code review automático, todas corrigidas), P4.6/STC-416 (fast-follow, depende do backend da STC-441), P4.7/STC-415 (PR #34, 2 rodadas de code review automático), P4.8/STC-434 (branch aberta, ainda sem PR))
+**Status:** ✅ Concluído (P4.1, P4.2, P4.3, P4.4, P4.5, P4.6, P4.7 e P4.8 implementados — P4.3/STC-380 (PR #35, 7 rodadas de code review automático, todas corrigidas), P4.4/STC-381 (PR #36, 1 rodada de code review automático, 2 achados corrigidos), P4.5/STC-382 (PR #37, 6 rodadas de code review automático, todas corrigidas), P4.6/STC-416 (fast-follow, depende do backend da STC-441), P4.7/STC-415 (PR #34, 2 rodadas de code review automático), P4.8/STC-434 (branch aberta, ainda sem PR))
 
 Base visual: os 6 mockups já refinados. Trabalho real aqui é integração com API + estado, não desenho.
 
@@ -315,7 +315,7 @@ relação ao plano original abaixo:
 
 ### P4.8 Botão "Reverter para aplicável" (STC-434) — `mockup` inexistente, mesmo padrão de confirmação simples já usado no módulo
 
-**Status:** ✅ Implementado, branch aberta ainda sem PR (STC-434). Depende do endpoint `documentos/{id}/reverter/` da STC-430 (backend, `PR #36 em revisão`) — implementado e testado contra o contrato já fechado nessa PR, antes do merge.
+**Status:** ✅ Implementado e mergeado em `main` (STC-434, 11/09/2026). Depende do endpoint `documentos/{id}/reverter/` da STC-430 (backend, `PR #36 em revisão`) — implementado e testado contra o contrato já fechado nessa PR, antes do merge.
 
 - Botão em `DetalheDocumentoModal.tsx`, visível só quando `documento.status` é `nao_aplicavel` ou `unidade_encerramento` (`podeReverter`).
 - **Confirmação via `ConfirmDialog` (componente compartilhado, já usado em `AnexoList.tsx`/`ResponsavelSection.tsx`)**, não um modal de formulário — sem campo nenhum pra preencher, batendo com o backend não exigir justificativa pra reverter.
@@ -337,7 +337,7 @@ relação ao plano original abaixo:
 
 ### P4.10 Dosimetria: cadastro e exibição por profissional (STC-432) — sem mockup próprio
 
-**Status:** ✅ Implementado, branch aberta ainda sem PR. Depende do backend (STC-428, PR aberto, em revisão) aceitar `profissional`/`controlado_por_profissional`.
+**Status:** ✅ Implementado e mergeado em `main` (STC-432, 14/09/2026). Dependia do backend (STC-428) aceitar `profissional`/`controlado_por_profissional`.
 
 - `FormCadastrarDocumento.tsx`: campo "Profissional" exibido/exigido só quando o tipo escolhido tem `controlado_por_profissional=True` (schema zod virou uma função do conjunto de tipos controlados, `criarSchema`, montada via `useMemo`). Tipos controlados continuam na lista de tipos disponíveis mesmo já cadastrados na unidade -- cada profissional é uma linha própria, "já tem um documento deste tipo" não esgota a unidade só pra esses tipos.
 - Duplicata pra tipos controlados vira "mesmo profissional já tem documento deste tipo/unidade" (escopada por profissional), não mais "qualquer documento deste tipo/unidade" -- reaproveita a `RegraDocumento` já existente de outro profissional do mesmo tipo+unidade (nunca cria uma segunda, que colidiria com a `UniqueConstraint` do backend em `(tipo_documento, unidade, vigente_a_partir)`), com o cleanup de "desfazer regra órfã se o documento falhar" ajustado pra nunca excluir uma regra reaproveitada.
@@ -549,7 +549,7 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
 
 ## Pacote P6 — Testes e Homologação
 **Datas:** 23/09 – 25/09 · 3 dias úteis
-**Status:** ⏳ A iniciar
+**Status:** ✅ Concluído (ver `Plano de Ação - Legalização.md` §8)
 
 - Verificação visual e funcional manual das 5 telas do lançamento, golden path + casos de borda (documento "Não aplicável" sem justificativa deve bloquear confirmação; matriz com as 12 unidades reais carregando).
 - **Suíte completa de testes automatizados (Playwright E2E) fica fast-follow** — mesmo padrão que o MP001 seguiu de fato (a suíte E2E dele, STC-216, só veio no Pacote 7, bem depois do prazo "oficial").
@@ -558,7 +558,7 @@ Requisito já confirmado, não uma ideia nova (RN22, `Requisitos Funcionais.md`/
 
 ## Pacote P7 — Go-Live
 **Data:** 28/09/2026 · 1 dia útil
-**Status:** ⏳ A iniciar
+**Status:** ✅ Concluído, adiantado: módulo ativo em produção em 16/09/2026 (STC-384)
 
 - Deploy real na Vercel — mesmo projeto do MP001, sem serviço novo.
 - Item "Legalização" da sidebar deixa de ficar `em breve`.
