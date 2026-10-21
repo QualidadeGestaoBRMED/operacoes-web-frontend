@@ -49,8 +49,8 @@ describe("Instruções para instalar o Atlas no celular", () => {
     render(<BarraInferior />);
     const janela = await abrirInstrucoes("Mais");
 
-    expect(passos(janela, "iPhone")).toEqual([
-      "1Toque em Compartilhar. Em alguns iPhones, ele fica dentro do botão ••• da barra.",
+    expect(passos(janela, "iPhone e iPad")).toEqual([
+      "1Toque em Compartilhar. Em alguns aparelhos, ele fica dentro do botão ••• da barra.",
       '2Toque em "Adicionar à Tela de Início".',
       '3Toque em "Adicionar".',
     ]);
@@ -67,6 +67,18 @@ describe("Instruções para instalar o Atlas no celular", () => {
 
     expect(within(janela).getByRole("region", { name: /^iPhone/ })).toBeInTheDocument();
     expect(within(janela).getByRole("region", { name: /^Android/ })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Mais", () => render(<BarraInferior />)],
+    ["Olá, Felipe", () => render(<Topbar usuario={USUARIO} sidebarAberta />)],
+  ])("fechada pelo X, o foco volta ao botão %s", async (botao, renderizar) => {
+    renderizar();
+    const janela = await abrirInstrucoes(botao);
+    await userEvent.setup().click(within(janela).getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("button", { name: botao })).toHaveFocus();
   });
 
   it("aberto como app instalado, o item some dos dois menus", async () => {
