@@ -1961,6 +1961,29 @@ describe("DetalheDocumentoModal -- desativar documento (STC-854)", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
+  it("depois de desativar, o próximo documento abre com a justificativa vazia", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    const { rerender } = renderComponente(55);
+    await screen.findAllByText(/Alvará de Funcionamento/);
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.type(screen.getByLabelText("Justificativa"), "Motivo do primeiro.");
+    await user.click(screen.getByRole("button", { name: "Desativar" }));
+    await waitFor(() => expect(desativarDocumentoLegalizacao).toHaveBeenCalled());
+
+    rerender(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <DetalheDocumentoModal documentoId={56} onOpenChange={vi.fn()} />
+      </SWRConfig>,
+    );
+    await screen.findAllByText(/Alvará de Funcionamento/);
+    await user.click(screen.getByRole("button", BOTAO));
+
+    expect(screen.getByLabelText("Justificativa")).toHaveValue("");
+  });
+
   it("recusa do backend (item em lote aberto) avisa e mantém o diálogo", async () => {
     sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(desativarDocumentoLegalizacao).mockRejectedValue(

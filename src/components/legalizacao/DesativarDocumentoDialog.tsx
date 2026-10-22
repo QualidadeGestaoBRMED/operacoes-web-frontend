@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +34,16 @@ export function DesativarDocumentoDialog({
 }) {
   const [justificativa, setJustificativa] = useState("");
   const [erro, setErro] = useState("");
+
+  // Limpa a cada abertura: depois de uma desativação bem-sucedida o diálogo
+  // fecha sem passar pelo Cancelar, e o motivo do documento anterior ficaria
+  // no campo do próximo.
+  useEffect(() => {
+    if (aberto) {
+      setJustificativa("");
+      setErro("");
+    }
+  }, [aberto]);
 
   function fechar(proximo: boolean) {
     if (isLoading) return;
