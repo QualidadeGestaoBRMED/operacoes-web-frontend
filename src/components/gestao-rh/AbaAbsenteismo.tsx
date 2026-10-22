@@ -19,7 +19,7 @@ import {
 import { cn, formatarDataHora } from "@/lib/utils";
 import type { AcaoTratamento, AlertaAbsenteismo } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
-import { BotaoConversa, type ConversaAberta } from "./ConversaDoAlerta";
+import { BotaoAnexos, BotaoConversa, type ConversaAberta } from "./ConversaDoAlerta";
 import { FormRegistrarTratamento } from "./FormRegistrarTratamento";
 import { HistoricoRH } from "./HistoricoRH";
 
@@ -158,17 +158,39 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
             </Button>
           )}
           {/* Conversa entre o RH (Admin) e a coordenação na demanda do
-              alerta (STC-722), aberta sobre a área do modal. */}
+              alerta (STC-722) e os anexos dela (STC-850), abertos sobre a
+              área do modal. */}
           {mostrarConversa && demandaId !== null && (
-            <BotaoConversa
-              demandaId={demandaId}
-              onAbrir={(origem) =>
-                onAbrirConversa?.(
-                  { demandaId, titulo: tituloAlerta(alerta), aberta: alerta.demanda_aberta },
-                  origem,
-                )
-              }
-            />
+            <>
+              <BotaoConversa
+                demandaId={demandaId}
+                onAbrir={(origem) =>
+                  onAbrirConversa?.(
+                    {
+                      demandaId,
+                      titulo: tituloAlerta(alerta),
+                      aberta: alerta.demanda_aberta,
+                      conteudo: "conversa",
+                    },
+                    origem,
+                  )
+                }
+              />
+              <BotaoAnexos
+                demandaId={demandaId}
+                onAbrir={(origem) =>
+                  onAbrirConversa?.(
+                    {
+                      demandaId,
+                      titulo: tituloAlerta(alerta),
+                      aberta: alerta.demanda_aberta,
+                      conteudo: "anexos",
+                    },
+                    origem,
+                  )
+                }
+              />
+            </>
           )}
         </div>
       )}
