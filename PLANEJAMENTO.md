@@ -1132,7 +1132,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.30 STC-834 — Status livre com justificativa no "Editar" do documento (STC-832)
 
-🔄 **Em andamento.** Frontend da STC-833 (backend). Pedido da apresentação do Gestão RH de 21/10/2026: corrigir o status do documento sem a sequência fixa, com registro de quem mudou e por quê.
+✅ **Implementado e mergeado em `main` (PR #129).** Frontend da STC-833 (backend). Pedido da apresentação do Gestão RH de 21/10/2026: corrigir o status do documento sem a sequência fixa, com registro de quem mudou e por quê.
 
 - **"Editar" do detalhe** (`EditarDocumentoSection.tsx`): os cinco status normais vão para qualquer um deles. Ao mudar o status, aparece o campo **Justificativa** (obrigatório, até 2000 caracteres, enviado aparado em `justificativa_status`); sem mudança de status, o campo some e nada é enviado. A obrigatoriedade e o limite de tamanho só valem com o status mudado (achado no code review: um texto longo guardado depois de voltar o status travaria o Salvar sem mensagem visível). Não aplicável, Unidade em encerramento e "Reverter para aplicável" continuam nos botões próprios.
 - **Mesmas regras do backend, conferidas antes de enviar:** Regular com validade vencida ("atualize a validade"); com renovação aberta, Regular sem validade ("Informe a nova validade"); renovação de lote não vai para Regular pela edição (mensagem no campo Status). As recusas do backend em status, validade, justificativa e identificador caem no próprio campo (`separarErrosPorCampo`), sem fechar a edição; o resto vai para o aviso.
