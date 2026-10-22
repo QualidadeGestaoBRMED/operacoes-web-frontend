@@ -48,6 +48,7 @@ export function criarDemanda(overrides: Partial<Demanda> = {}): Demanda {
     data_conclusao: null,
     confidencial: false,
     origem_url: "",
+    origem_aceita_anexos: false,
     comentarios_count: 0,
     anexos_count: 0,
     pode_editar: false,

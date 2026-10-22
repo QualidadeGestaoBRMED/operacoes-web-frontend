@@ -107,9 +107,12 @@ export function PainelConversa({
     : conversa.aberta;
 
   if (conversa.conteudo === "anexos") {
-    // Anexar continua possível com a demanda concluída: a carta costuma
-    // chegar depois de o tratamento ser registrado, e registrar conclui.
-    const podeAnexar = demanda ? demanda.status !== "lixeira" && !verComo : false;
+    // Só quando a origem libera anexos. Anexar continua possível com a
+    // demanda concluída: a carta costuma chegar depois de o tratamento ser
+    // registrado, e registrar conclui.
+    const podeAnexar = demanda
+      ? demanda.origem_aceita_anexos === true && demanda.status !== "lixeira" && !verComo
+      : false;
     return (
       <PainelSobreposto titulo={`Anexos · ${conversa.titulo}`} onVoltar={onVoltar}>
         <p className="border-b border-border px-5 py-2.5 text-xs text-muted-foreground">

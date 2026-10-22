@@ -473,6 +473,12 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
       return within(screen.getByRole("region", { name: "Anexos · Alerta de setembro/2026" }));
     }
 
+    beforeEach(() => {
+      vi.mocked(buscarDemanda).mockResolvedValue(
+        criarDemanda({ id: 41, status: "em_andamento", origem_aceita_anexos: true }),
+      );
+    });
+
     it("botão com a contagem abre a lista, a orientação e o envio", async () => {
       vi.mocked(listarAnexos).mockResolvedValue([anexo(1, "advertencia.pdf")]);
       vi.mocked(enviarAnexo).mockResolvedValue(anexo(2, "desligamento.pdf"));
@@ -496,12 +502,27 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
 
     it("demanda concluída pelo tratamento continua aceitando anexo", async () => {
       vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
-      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "concluido" }));
+      vi.mocked(buscarDemanda).mockResolvedValue(
+        criarDemanda({ id: 41, status: "concluido", origem_aceita_anexos: true }),
+      );
       const user = usuario();
       renderModal();
 
       const painel = await abrirAnexos(user);
       expect(await painel.findByRole("button", { name: "Adicionar anexo" })).toBeInTheDocument();
+    });
+
+    it("demanda cuja origem não libera anexos: lista só para consulta", async () => {
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "em_andamento" }));
+      vi.mocked(listarAnexos).mockResolvedValue([anexo(1, "advertencia.pdf")]);
+      const user = usuario();
+      renderModal();
+
+      const painel = await abrirAnexos(user, "1 anexo");
+      expect(await painel.findByText("advertencia.pdf")).toBeInTheDocument();
+      await waitFor(() => expect(buscarDemanda).toHaveBeenCalledWith(41));
+      expect(painel.queryByRole("button", { name: "Adicionar anexo" })).not.toBeInTheDocument();
+      expect(painel.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
     });
 
     it("voltar fecha a lista e mantém a aba", async () => {

@@ -146,6 +146,9 @@ export interface Demanda {
   // Legalização, STC-448) -- vazio ("") no caso comum. Link de volta pra
   // tela real de onde a demanda foi gerada (STC-450/STC-451).
   origem_url: string;
+  // Card controlado por outro módulo que aceita anexos mesmo assim (ex.:
+  // card de absenteísmo do Gestão RH, STC-846).
+  origem_aceita_anexos: boolean;
   comentarios_count: number;
   anexos_count: number;
   // Capacidade calculada pelo backend para o usuário autenticado. Inclui
