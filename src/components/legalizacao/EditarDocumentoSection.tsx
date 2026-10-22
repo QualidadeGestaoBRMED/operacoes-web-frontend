@@ -247,7 +247,9 @@ export function EditarDocumentoSection({
       toast.success(
         atualizado?.renovacao_concluida_junto
           ? "Documento atualizado. A renovação foi concluída junto, e o card foi para Concluído."
-          : "Documento atualizado.",
+          : atualizado?.renovacao_aberta_junto
+            ? "Documento atualizado. A renovação foi aberta junto: acompanhe em \"Acompanhar Renovação\"."
+            : "Documento atualizado.",
       );
       aoSalvar();
     } catch (erro) {

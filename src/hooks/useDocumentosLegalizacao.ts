@@ -182,9 +182,9 @@ export function useAtualizarDocumentoLegalizacao() {
     {
       onSuccess: (documento) => {
         void mutate(ehChaveDeListaDeDocumentos);
-        // STC-833: Regular à mão concluiu a renovação aberta e levou o card
-        // para Concluído.
-        if (documento.renovacao_concluida_junto) {
+        // STC-833: Regular à mão concluiu a renovação aberta (card em
+        // Concluído), ou Em andamento/Protocolado abriu uma (card novo).
+        if (documento.renovacao_concluida_junto || documento.renovacao_aberta_junto) {
           void mutate(chaveProcessosDoDocumento(documento.id));
           void mutate(ehChaveDoKanban);
         }

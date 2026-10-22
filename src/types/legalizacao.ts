@@ -116,10 +116,12 @@ export interface DocumentoUnidade {
 }
 
 // Resposta do PATCH do documento (STC-833): Regular à mão com a renovação
-// aberta conclui a renovação junto. Opcional: o backend anterior à STC-833
-// não manda o campo (o frontend é publicado antes dele).
+// aberta conclui a renovação junto; Em andamento ou Protocolado sem renovação
+// aberta abre uma no mesmo status. Opcionais: o backend anterior à STC-833
+// não manda os campos (o frontend é publicado antes dele).
 export interface DocumentoUnidadeAtualizado extends DocumentoUnidade {
   renovacao_concluida_junto?: boolean;
+  renovacao_aberta_junto?: boolean;
 }
 
 // Espelha HistoricoRegulatorioSerializer -- usuario vem null quando a ação
