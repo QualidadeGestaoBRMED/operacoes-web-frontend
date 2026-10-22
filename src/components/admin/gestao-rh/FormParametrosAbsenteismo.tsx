@@ -116,7 +116,7 @@ const OPCOES_JANELA: { valor: TipoJanelaNaTela; rotulo: string }[] = [
 ];
 
 const QUANDO_AVALIA: Record<Exclude<TipoJanelaNaTela, "desligada">, string> = {
-  mes_anterior_fechado: "Todo dia 1º, à noite, avalia o mês que acabou.",
+  mes_anterior_fechado: "No primeiro dia útil do mês, à noite, avalia o mês que acabou.",
   ultimos_dias: "Toda segunda-feira, à noite, avalia os N dias até o domingo.",
 };
 
