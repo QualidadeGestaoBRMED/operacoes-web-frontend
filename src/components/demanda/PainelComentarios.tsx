@@ -54,25 +54,14 @@ export function BotaoComentarios({
 
 /** Painel sobre a área de conteúdo de um modal (o pai precisa ser
  * `relative`); "Voltar" devolve ao conteúdo como estava. */
-export function PainelComentarios({
+export function PainelSobreposto({
   titulo,
-  fonte,
-  podeComentar,
-  aviso,
-  somenteLeitura,
   onVoltar,
   children,
 }: {
   titulo: string;
-  fonte: FonteComentarios;
-  podeComentar: boolean;
-  /** Texto fixo acima do campo de envio. */
-  aviso?: string;
-  /** Rodapé quando não dá para comentar (ex.: demanda concluída). */
-  somenteLeitura?: string;
   onVoltar: () => void;
-  /** Entre o cabeçalho e o feed (ex.: escolha da renovação). */
-  children?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   const idTitulo = useId();
   const refTitulo = useRef<HTMLHeadingElement>(null);
@@ -100,6 +89,34 @@ export function PainelComentarios({
         </h3>
       </div>
       {children}
+    </section>
+  );
+}
+
+/** Comentários de uma demanda num `PainelSobreposto`. */
+export function PainelComentarios({
+  titulo,
+  fonte,
+  podeComentar,
+  aviso,
+  somenteLeitura,
+  onVoltar,
+  children,
+}: {
+  titulo: string;
+  fonte: FonteComentarios;
+  podeComentar: boolean;
+  /** Texto fixo acima do campo de envio. */
+  aviso?: string;
+  /** Rodapé quando não dá para comentar (ex.: demanda concluída). */
+  somenteLeitura?: string;
+  onVoltar: () => void;
+  /** Entre o cabeçalho e o feed (ex.: escolha da renovação). */
+  children?: React.ReactNode;
+}) {
+  return (
+    <PainelSobreposto titulo={titulo} onVoltar={onVoltar}>
+      {children}
       {/* key: outra fonte (ex.: outra renovação escolhida) começa com o
           campo de envio vazio, sem levar o texto digitado na anterior. */}
       <ComentarioFeed
@@ -113,6 +130,6 @@ export function PainelComentarios({
           {somenteLeitura}
         </p>
       )}
-    </section>
+    </PainelSobreposto>
   );
 }

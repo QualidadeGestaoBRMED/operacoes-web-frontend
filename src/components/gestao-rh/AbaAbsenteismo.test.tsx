@@ -23,14 +23,24 @@ vi.mock("@/lib/demandas", async (original) => ({
   listarComentarios: vi.fn(),
   criarComentario: vi.fn(),
   buscarDemanda: vi.fn(),
+  listarAnexos: vi.fn(),
+  enviarAnexo: vi.fn(),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// A lista de anexos usa o usuário logado só para oferecer o botão de remover.
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { usuarioId: 1 } }) }));
 
 import { toast } from "sonner";
 import { buscarAbsenteismoColaborador, registrarTratamento } from "@/lib/gestaoRHAbsenteismo";
-import { buscarDemanda, criarComentario, listarComentarios } from "@/lib/demandas";
+import {
+  buscarDemanda,
+  criarComentario,
+  enviarAnexo,
+  listarAnexos,
+  listarComentarios,
+} from "@/lib/demandas";
 import { criarDemanda } from "@/test-utils/fixtures";
-import type { Comentario } from "@/types";
+import type { Anexo, Comentario } from "@/types";
 import { buscarColaboradorRH, buscarFeriasColaborador } from "@/lib/gestaoRHFerias";
 
 const COLABORADOR: CabecalhoColaborador = {
@@ -140,6 +150,9 @@ beforeEach(() => {
   vi.mocked(criarComentario).mockReset();
   vi.mocked(buscarDemanda).mockReset();
   vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "em_andamento" }));
+  vi.mocked(listarAnexos).mockReset();
+  vi.mocked(listarAnexos).mockResolvedValue([]);
+  vi.mocked(enviarAnexo).mockReset();
 });
 
 function comentario(id: number, texto: string, nome = "Ana Admin"): Comentario {
@@ -443,6 +456,86 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
 
     expect(await screen.findByText("Ocorrências do período")).toBeInTheDocument();
   });
+  describe("anexos da demanda", () => {
+    const AVISO_ANEXOS = "Não anexe atestado ou documento com informação de saúde.";
+    const anexo = (id: number, nome: string): Anexo => ({
+      id,
+      usuario: comentario(id, "", "Carla Coord").usuario,
+      arquivo: `/media/anexos/${nome}`,
+      nome_original: nome,
+      tamanho: 2048,
+      created_at: "2026-10-06T10:00:00-03:00",
+    });
+
+    async function abrirAnexos(user: ReturnType<typeof usuario>, anexos = "0 anexos") {
+      const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+      await user.click(await alerta.findByRole("button", { name: `Anexos da demanda, ${anexos}` }));
+      return within(screen.getByRole("region", { name: "Anexos · Alerta de setembro/2026" }));
+    }
+
+    beforeEach(() => {
+      vi.mocked(buscarDemanda).mockResolvedValue(
+        criarDemanda({ id: 41, status: "em_andamento", origem_aceita_anexos: true }),
+      );
+    });
+
+    it("botão com a contagem abre a lista, a orientação e o envio", async () => {
+      vi.mocked(listarAnexos).mockResolvedValue([anexo(1, "advertencia.pdf")]);
+      vi.mocked(enviarAnexo).mockResolvedValue(anexo(2, "desligamento.pdf"));
+      const user = usuario();
+      renderModal();
+
+      const painel = await abrirAnexos(user, "1 anexo");
+      expect(await painel.findByText("advertencia.pdf")).toBeInTheDocument();
+      expect(listarAnexos).toHaveBeenCalledWith(41);
+      expect(painel.getByText(AVISO_ANEXOS)).toBeInTheDocument();
+      expect(painel.getByRole("heading", { name: "Anexos · Alerta de setembro/2026" })).toHaveFocus();
+
+      const arquivo = new File(["%PDF"], "desligamento.pdf", { type: "application/pdf" });
+      await user.click(await painel.findByRole("button", { name: "Adicionar anexo" }));
+      await user.upload(
+        document.querySelector<HTMLInputElement>('input[type="file"]')!,
+        arquivo,
+      );
+      await waitFor(() => expect(enviarAnexo).toHaveBeenCalledWith(41, arquivo, expect.any(Function)));
+    });
+
+    it("demanda concluída pelo tratamento continua aceitando anexo", async () => {
+      vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(TRATADA);
+      vi.mocked(buscarDemanda).mockResolvedValue(
+        criarDemanda({ id: 41, status: "concluido", origem_aceita_anexos: true }),
+      );
+      const user = usuario();
+      renderModal();
+
+      const painel = await abrirAnexos(user);
+      expect(await painel.findByRole("button", { name: "Adicionar anexo" })).toBeInTheDocument();
+    });
+
+    it("demanda cuja origem não libera anexos: lista só para consulta", async () => {
+      vi.mocked(buscarDemanda).mockResolvedValue(criarDemanda({ id: 41, status: "em_andamento" }));
+      vi.mocked(listarAnexos).mockResolvedValue([anexo(1, "advertencia.pdf")]);
+      const user = usuario();
+      renderModal();
+
+      const painel = await abrirAnexos(user, "1 anexo");
+      expect(await painel.findByText("advertencia.pdf")).toBeInTheDocument();
+      await waitFor(() => expect(buscarDemanda).toHaveBeenCalledWith(41));
+      expect(painel.queryByRole("button", { name: "Adicionar anexo" })).not.toBeInTheDocument();
+      expect(painel.queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
+    });
+
+    it("voltar fecha a lista e mantém a aba", async () => {
+      const user = usuario();
+      renderModal();
+      const painel = await abrirAnexos(user);
+
+      await user.click(painel.getByRole("button", { name: "Voltar" }));
+      expect(screen.queryByRole("region", { name: "Anexos · Alerta de setembro/2026" })).not.toBeInTheDocument();
+      expect(screen.getByText("Ocorrências do período")).toBeInTheDocument();
+    });
+  });
+
   describe("conversa da demanda", () => {
     async function abrirConversa(user: ReturnType<typeof usuario>, comentarios = "0 comentários") {
       const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
