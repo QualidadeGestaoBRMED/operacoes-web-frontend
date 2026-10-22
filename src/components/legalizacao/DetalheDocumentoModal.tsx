@@ -340,6 +340,12 @@ function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
           )}
           .
         </p>
+        {item.justificativa && (
+          <p className="mt-0.5 text-[12.5px] break-words text-foreground">
+            <span className="text-muted-foreground">Justificativa:</span>{" "}
+            {item.justificativa}
+          </p>
+        )}
         <p className="mt-0.5 text-[11.5px] text-muted-foreground">
           {formatarDataHora(item.created_at)}
         </p>
@@ -646,8 +652,13 @@ export function DetalheDocumentoModal({
   // acompanhamento do processo já existente é a STC-381 (ainda não existe).
   // Renovação em curso feita num lote: só anda pelo lote (o PATCH avulso do
   // processo é recusado), então o acompanhamento abre o lote.
-  const loteDaRenovacaoEmCurso =
-    processos.find((processo) => processo.status !== "concluido")?.lote ?? null;
+  const renovacaoEmCurso =
+    processos.find((processo) => processo.status !== "concluido") ?? null;
+  const loteDaRenovacaoEmCurso = renovacaoEmCurso?.lote ?? null;
+  // STC-833: Regular à mão no "Editar" conclui a renovação em curso junto.
+  const renovacaoAberta = renovacaoEmCurso
+    ? { emLote: renovacaoEmCurso.lote !== null }
+    : null;
   const processoJaEmCurso =
     documento?.status === "em_andamento" || documento?.status === "protocolado";
   // Também para os tipos rastreados por movimentação de profissional (CNES,
@@ -937,6 +948,7 @@ export function DetalheDocumentoModal({
                   {mostrandoEdicao ? (
                     <EditarDocumentoSection
                       documento={documento}
+                      renovacaoAberta={renovacaoAberta}
                       ativo
                       aoAbrir={() => {}}
                       aoCancelar={() => setMostrandoEdicao(false)}

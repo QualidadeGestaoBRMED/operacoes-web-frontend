@@ -115,6 +115,13 @@ export interface DocumentoUnidade {
   updated_at: string;
 }
 
+// Resposta do PATCH do documento (STC-833): Regular à mão com a renovação
+// aberta conclui a renovação junto. Opcional: o backend anterior à STC-833
+// não manda o campo (o frontend é publicado antes dele).
+export interface DocumentoUnidadeAtualizado extends DocumentoUnidade {
+  renovacao_concluida_junto?: boolean;
+}
+
 // Espelha HistoricoRegulatorioSerializer -- usuario vem null quando a ação
 // foi automática do sistema (ex.: transição pra Vencido na varredura
 // diária) ou quando a conta de quem agiu foi removida depois (SET_NULL);
@@ -126,6 +133,8 @@ export interface HistoricoRegulatorio {
   acao: string;
   valor_anterior: string;
   valor_novo: string;
+  // STC-833: motivo de uma mudança manual de status; vazio nas demais ações.
+  justificativa: string;
   created_at: string;
 }
 
@@ -234,6 +243,9 @@ export interface DocumentoUnidadePayload {
   // FormCadastrarDocumentosEmLote.tsx) -- backend só pula a máquina de
   // estados de status com este flag explícito, nunca automaticamente.
   definindo_status_inicial?: boolean;
+  // STC-833: obrigatória em toda mudança manual de status (exceto Não
+  // aplicável/Unidade em encerramento, que usam justificativa_excecao).
+  justificativa_status?: string;
   // STC-516/STC-517: obrigatório só na CRIAÇÃO (não em PATCH -- backend
   // ignora o campo em update, ver DocumentoUnidadeWriteSerializer.update())
   // -- por isso opcional aqui, já que este tipo também é usado pra
