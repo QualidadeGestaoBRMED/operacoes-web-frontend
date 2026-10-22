@@ -1402,6 +1402,26 @@ describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", ()
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("texto longo na justificativa não trava o Salvar depois de voltar o status", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await escolherStatus(user, "Protocolado");
+    await user.click(screen.getByLabelText("Justificativa"));
+    await user.paste("x".repeat(2001));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Máximo de 2000 caracteres.")).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+
+    await escolherStatus(user, "Regular");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(atualizarDocumentoLegalizacao).toHaveBeenCalled());
+    expect(vi.mocked(atualizarDocumentoLegalizacao).mock.calls[0][1]).not.toHaveProperty(
+      "justificativa_status",
+    );
+  });
+
   it("os erros são anunciados e ligados aos campos", async () => {
     const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
 
