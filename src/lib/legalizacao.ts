@@ -137,8 +137,12 @@ export async function removerResponsavelLegalizacao(
 // subconjunto dos campos editáveis.
 // STC-702 (backend): apaga o documento com evidências, histórico, processos
 // de renovação, card no Kanban e notificações. 204 sem corpo.
-export async function excluirDocumentoLegalizacao(id: number): Promise<void> {
-  await api.delete(`${DOCUMENTOS_URL}${id}/`);
+// STC-853: no lugar da exclusão; só Admin da rede do documento.
+export async function desativarDocumentoLegalizacao(
+  id: number,
+  justificativa: string,
+): Promise<void> {
+  await api.post(`${DOCUMENTOS_URL}${id}/desativar/`, { justificativa });
 }
 
 export async function atualizarDocumentoLegalizacao(
@@ -154,15 +158,19 @@ export async function atualizarDocumentoLegalizacao(
 
 // Direto ao R2 quando houver (src/lib/uploadDireto.ts): pelo proxy BFF, o
 // corpo tem limite de 4,5 MB na Vercel.
+// `troca` (STC-853, "Editar anexo"): troca o PDF vigente por este, sem
+// renovação; o anterior fica guardado no histórico de evidências.
 export async function enviarEvidenciaLegalizacao(
   documentoId: number,
   arquivo: File,
   aoProgredir?: AoProgredir,
+  troca?: { justificativa: string },
 ): Promise<EvidenciaRegulatoria> {
   return enviarArquivo<EvidenciaRegulatoria>(
     `${DOCUMENTOS_URL}${documentoId}/evidencias/`,
     arquivo,
     aoProgredir,
+    troca ? { substituir: true, justificativa_substituicao: troca.justificativa } : {},
   );
 }
 

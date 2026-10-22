@@ -75,13 +75,20 @@ function enviarAoBucket(
   });
 }
 
+// Campos que acompanham o arquivo no envio (ex.: a troca do PDF da
+// evidência, STC-853): no FormData do multipart e no corpo da confirmação do
+// envio direto.
+export type CamposDoEnvio = Record<string, string | boolean>;
+
 async function enviarMultipart<T>(
   urlBase: string,
   arquivo: File,
   aoProgredir?: AoProgredir,
+  campos: CamposDoEnvio = {},
 ): Promise<T> {
   const formData = new FormData();
   formData.append("arquivo", arquivo);
+  for (const [nome, valor] of Object.entries(campos)) formData.append(nome, String(valor));
   const { data } = await api.post<T>(urlBase, formData, {
     onUploadProgress: aoProgredir
       ? (evento) => {
@@ -121,10 +128,11 @@ export async function enviarArquivo<T>(
   urlBase: string,
   arquivo: File,
   aoProgredir?: AoProgredir,
+  campos: CamposDoEnvio = {},
 ): Promise<T> {
   const preparacao = await preparar(urlBase, arquivo);
   if (preparacao.modo === "multipart") {
-    return enviarMultipart<T>(urlBase, arquivo, aoProgredir);
+    return enviarMultipart<T>(urlBase, arquivo, aoProgredir, campos);
   }
   try {
     await enviarAoBucket(preparacao, arquivo, aoProgredir);
@@ -141,12 +149,13 @@ export async function enviarArquivo<T>(
       console.warn(
         "Envio direto ao R2 bloqueado; enviando pelo proxy. Conferir NEXT_PUBLIC_R2_URL_BUCKET e o CORS do bucket.",
       );
-      return enviarMultipart<T>(urlBase, arquivo, aoProgredir);
+      return enviarMultipart<T>(urlBase, arquivo, aoProgredir, campos);
     }
     throw erro;
   }
   const { data } = await api.post<T>(`${urlBase}confirmar-envio/`, {
     token: preparacao.token,
+    ...campos,
   });
   return data;
 }

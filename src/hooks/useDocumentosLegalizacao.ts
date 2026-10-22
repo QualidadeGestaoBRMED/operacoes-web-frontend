@@ -7,7 +7,7 @@ import {
   adicionarResponsavelLegalizacao,
   atualizarDocumentoLegalizacao,
   comentarNoDocumento,
-  excluirDocumentoLegalizacao,
+  desativarDocumentoLegalizacao,
   buscarDocumentoLegalizacao,
   criarDocumentoLegalizacao,
   criarDocumentosLegalizacaoEmLote,
@@ -219,10 +219,10 @@ export function useReverterDocumentoLegalizacao() {
   };
 }
 
-// Telas que mostram algo apagado junto com o documento (STC-702): Matriz e
+// Telas que mostram algo que sai de cena com o documento desativado (STC-853): Matriz e
 // mapa (lista de documentos), Biblioteca (evidências vigentes), Kanban (card
 // do processo de renovação) e os avisos (alertas e notificações do documento).
-const PREFIXOS_AFETADOS_PELA_EXCLUSAO = new Set([
+const PREFIXOS_AFETADOS_PELA_DESATIVACAO = new Set([
   PREFIXO_CHAVE_LISTA,
   "evidencias-vigentes",
   "demandas",
@@ -233,39 +233,39 @@ const PREFIXOS_AFETADOS_PELA_EXCLUSAO = new Set([
   "notificacoes-nao-lidas",
 ]);
 
-export function ehChaveAfetadaPelaExclusao(chave: unknown) {
+export function ehChaveAfetadaPelaDesativacao(chave: unknown) {
   const prefixo = Array.isArray(chave) ? chave[0] : chave;
-  return typeof prefixo === "string" && PREFIXOS_AFETADOS_PELA_EXCLUSAO.has(prefixo);
+  return typeof prefixo === "string" && PREFIXOS_AFETADOS_PELA_DESATIVACAO.has(prefixo);
 }
 
-export function useExcluirDocumentoLegalizacao() {
+export function useDesativarDocumentoLegalizacao() {
   const { mutate } = useSWRConfig();
   const { trigger, isMutating, error } = useSWRMutation(
-    "excluir-documento-legalizacao",
-    async (_chave, { arg }: { arg: { id: number } }) => {
+    "desativar-documento-legalizacao",
+    async (_chave, { arg }: { arg: { id: number; justificativa: string } }) => {
       try {
-        await excluirDocumentoLegalizacao(arg.id);
-        return { id: arg.id, jaExcluido: false };
+        await desativarDocumentoLegalizacao(arg.id, arg.justificativa);
+        return { id: arg.id, jaDesativado: false };
       } catch (erro) {
-        // 404: outra pessoa excluiu antes. O resultado é o mesmo (o
-        // documento não existe mais), então as telas são atualizadas igual.
+        // 404: outra pessoa desativou antes. O resultado é o mesmo (o
+        // documento sai de cena), então as telas são atualizadas igual.
         if (isAxiosError(erro) && erro.response?.status === 404) {
-          return { id: arg.id, jaExcluido: true };
+          return { id: arg.id, jaDesativado: true };
         }
         throw erro;
       }
     },
     {
       onSuccess: ({ id }) => {
-        // O detalhe do documento apagado não é buscado de novo (daria 404).
+        // O detalhe do documento desativado não é buscado de novo (daria 404).
         void mutate(["documento-legalizacao", id], undefined, { revalidate: false });
-        void mutate(ehChaveAfetadaPelaExclusao);
+        void mutate(ehChaveAfetadaPelaDesativacao);
       },
     },
   );
 
   return {
-    excluir: trigger,
+    desativar: trigger,
     isLoading: isMutating,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
