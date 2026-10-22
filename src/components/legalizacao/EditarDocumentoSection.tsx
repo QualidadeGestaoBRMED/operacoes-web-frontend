@@ -70,7 +70,7 @@ function criarSchema(
       }),
       validade: z.string().optional(),
       profissional: z.string(),
-      justificativa: z.string().max(2000, "Máximo de 2000 caracteres."),
+      justificativa: z.string(),
     })
     // Mesma regra de FormCadastrarDocumento.tsx/DocumentoUnidadeWriteSerializer
     // (backend): "Vencido" sempre exige validade.
@@ -82,8 +82,15 @@ function criarSchema(
       message: "Obrigatório para este tipo de documento.",
       path: ["profissional"],
     })
+    // Só valem com o status mudado (achado no code review): de volta ao
+    // status original, o campo some e o texto guardado não é enviado, e um
+    // erro nele travaria o Salvar sem mensagem visível.
     .refine((v) => v.status === statusAtual || v.justificativa.trim() !== "", {
       message: "Obrigatória para mudar o status.",
+      path: ["justificativa"],
+    })
+    .refine((v) => v.status === statusAtual || v.justificativa.trim().length <= 2000, {
+      message: "Máximo de 2000 caracteres.",
       path: ["justificativa"],
     })
     .refine((v) => !vaiParaRegular(v.status) || !renovacaoAberta?.emLote, {
