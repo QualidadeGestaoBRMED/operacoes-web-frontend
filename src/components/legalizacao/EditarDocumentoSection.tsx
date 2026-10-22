@@ -154,6 +154,7 @@ function separarErrosPorCampo(erro: unknown): {
 export function EditarDocumentoSection({
   documento,
   renovacaoAberta = null,
+  conferenciaDaRenovacao = "pronta",
   ativo,
   aoAbrir,
   aoCancelar,
@@ -161,6 +162,11 @@ export function EditarDocumentoSection({
 }: {
   documento: DocumentoUnidade;
   renovacaoAberta?: RenovacaoAberta | null;
+  // A lista de processos de onde sai `renovacaoAberta` (achado no code
+  // review): enquanto carrega, não dá para saber se há renovação, e o Salvar
+  // espera; se falhou, ir para Regular confirma assim mesmo, porque o
+  // backend concluiria uma renovação que a tela não viu.
+  conferenciaDaRenovacao?: "pronta" | "carregando" | "falhou";
   ativo: boolean;
   aoAbrir: () => void;
   aoCancelar: () => void;
@@ -220,7 +226,7 @@ export function EditarDocumentoSection({
     // Regular à mão com a renovação aberta conclui a renovação (STC-833):
     // confirma antes, porque o card do Kanban vai junto para Concluído.
     if (
-      renovacaoAberta &&
+      (renovacaoAberta || conferenciaDaRenovacao === "falhou") &&
       valores.status === "regular" &&
       documento.status !== "regular"
     ) {
@@ -379,7 +385,12 @@ export function EditarDocumentoSection({
       )}
 
       <div className="flex gap-1.5">
-        <Button type="submit" size="xs" className="flex-1" disabled={isLoading}>
+        <Button
+          type="submit"
+          size="xs"
+          className="flex-1"
+          disabled={isLoading || conferenciaDaRenovacao === "carregando"}
+        >
           {isLoading ? "Salvando..." : "Salvar"}
         </Button>
         <Button type="button" size="xs" variant="ghost" onClick={aoCancelar}>
@@ -393,7 +404,11 @@ export function EditarDocumentoSection({
           if (!aberto) setAConfirmar(null);
         }}
         titulo="Concluir a renovação junto?"
-        descricao="Este documento tem uma renovação em andamento. Ela será concluída junto, e o card no Kanban vai para Concluído."
+        descricao={
+          renovacaoAberta
+            ? "Este documento tem uma renovação em andamento. Ela será concluída junto, e o card no Kanban vai para Concluído."
+            : "Não foi possível conferir se este documento tem uma renovação em andamento. Se tiver, ela será concluída junto, e o card no Kanban vai para Concluído."
+        }
         textoConfirmar="Marcar como Regular"
         onConfirmar={() => {
           const valores = aConfirmar;

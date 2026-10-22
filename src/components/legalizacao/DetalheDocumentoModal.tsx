@@ -949,6 +949,13 @@ export function DetalheDocumentoModal({
                     <EditarDocumentoSection
                       documento={documento}
                       renovacaoAberta={renovacaoAberta}
+                      conferenciaDaRenovacao={
+                        carregandoProcessos
+                          ? "carregando"
+                          : erroProcessos
+                            ? "falhou"
+                            : "pronta"
+                      }
                       ativo
                       aoAbrir={() => {}}
                       aoCancelar={() => setMostrandoEdicao(false)}
