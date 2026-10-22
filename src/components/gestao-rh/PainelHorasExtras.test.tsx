@@ -51,7 +51,7 @@ function linha(
   unidade: typeof NITEROI = NITEROI,
 ): LinhaHorasExtras {
   return {
-    colaborador: { id, nome, matricula_vr: "", cargo: "Técnico", unidade },
+    colaborador: { id, nome, matricula_vr: "", cargo: "Técnico", unidade, ativo: true },
     equipe: `Operações ${unidade.nome}`,
     minutos_por_fator: [
       { fator: "1", minutos: fator1 },
@@ -183,6 +183,24 @@ describe("Painel de Horas Extras", () => {
       "title",
       expect.stringContaining("Nas equipes com turno variável, só o que passou da carga do dia."),
     );
+  });
+
+  it("desligado aparece com a etiqueta; quem está ativo, sem", async () => {
+    const desligado = linha(9, "Bruno Lima", 150, 0, 2, MACAE);
+    vi.mocked(buscarPainelHorasExtras).mockResolvedValue(
+      painel({
+        linhas: [
+          linha(8, "Juliana Ramos", 90, 120, 3),
+          { ...desligado, colaborador: { ...desligado.colaborador, ativo: false } },
+        ],
+      }),
+    );
+    renderPainel();
+
+    const bruno = within((await screen.findByText("Bruno Lima")).closest("tr") as HTMLElement);
+    expect(bruno.getByText("Desligado")).toBeInTheDocument();
+    const juliana = within(screen.getByText("Juliana Ramos").closest("tr") as HTMLElement);
+    expect(juliana.queryByText("Desligado")).not.toBeInTheDocument();
   });
 
   it("nas pontas, a parte do total não arredonda para 0% nem para 100%", async () => {
