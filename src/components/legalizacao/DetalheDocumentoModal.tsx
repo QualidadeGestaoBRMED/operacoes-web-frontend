@@ -1265,22 +1265,25 @@ export function DetalheDocumentoModal({
                             />
                           ))}
                           {podeEscreverDocumento && evidenciaVigente && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setMostrandoEditarAnexo(true)}
-                            >
-                              <FileUp className="size-4" />
-                              Editar anexo
-                            </Button>
+                            <div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMostrandoEditarAnexo(true)}
+                              >
+                                <FileUp className="size-4" />
+                                Editar anexo
+                              </Button>
+                            </div>
                           )}
                           {evidencias.length > 1 && (
                             <button
                               type="button"
+                              // block: em linha própria, abaixo do "Editar anexo".
                               onClick={() =>
                                 setMostrandoHistoricoEvidencias((atual) => !atual)
                               }
-                              className="text-[12.5px] font-medium text-secondary hover:underline"
+                              className="block text-[12.5px] font-medium text-secondary hover:underline"
                             >
                               {mostrandoHistoricoEvidencias
                                 ? "Ver só a vigente"
