@@ -138,6 +138,12 @@ export interface ColaboradorResumoRH {
   unidade: UnidadeResumoRH | null;
 }
 
+/** Nas linhas dos painéis de absenteísmo e de horas extras, que incluem
+ * quem já foi desligado nos períodos em que trabalhou. */
+export interface ColaboradorDoPeriodoRH extends ColaboradorResumoRH {
+  ativo: boolean;
+}
+
 export interface ProgramacaoFerias {
   id: number;
   data_inicio: string;
@@ -303,7 +309,7 @@ export interface FiltrosPainelAbsenteismo {
 }
 
 export interface LinhaPainelAbsenteismo {
-  colaborador: ColaboradorResumoRH;
+  colaborador: ColaboradorDoPeriodoRH;
   /** Equipe do VR, mostrada se o colaborador ainda não tiver unidade. */
   equipe: string;
   percentual: string | null;
@@ -487,7 +493,7 @@ export interface MinutosDoFator {
 }
 
 export interface LinhaHorasExtras {
-  colaborador: ColaboradorResumoRH;
+  colaborador: ColaboradorDoPeriodoRH;
   /** Equipe do VR, mostrada se o colaborador ainda não tiver unidade. */
   equipe: string;
   minutos_por_fator: MinutosDoFator[];

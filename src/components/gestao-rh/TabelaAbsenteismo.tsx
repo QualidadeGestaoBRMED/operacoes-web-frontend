@@ -20,6 +20,7 @@ import {
   CLASSE_CELULA_FIXA,
   CLASSE_ROLAGEM_SEM_FADE_INICIAL,
 } from "./colunaFixa";
+import { EtiquetaDesligado } from "./EtiquetaDesligado";
 
 interface Coluna {
   rotulo: string;
@@ -220,8 +221,12 @@ export function TabelaAbsenteismo({
                             {linha.colaborador.nome}
                           </button>
                           {/* Os relatórios do VR não trazem matrícula: sem ela, só o cargo. */}
-                          <div className="truncate text-[11.5px] text-muted-foreground">
-                            {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
+                          <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                            {/* Sem o campo (backend anterior), ninguém aparece como desligado. */}
+                            {linha.colaborador.ativo === false && <EtiquetaDesligado />}
+                            <span className="truncate">
+                              {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
+                            </span>
                           </div>
                         </div>
                       </div>

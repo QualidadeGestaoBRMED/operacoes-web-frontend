@@ -3,7 +3,7 @@
 // banco local.
 
 import type {
-  ColaboradorResumoRH,
+  ColaboradorDoPeriodoRH,
   FiltrosPainelAbsenteismo,
   LinhaPainelAbsenteismo,
   PainelAbsenteismo,
@@ -19,13 +19,13 @@ function colaborador(
   nome: string,
   matricula_vr: string,
   cargo: string,
-  unidade: ColaboradorResumoRH["unidade"],
-): ColaboradorResumoRH {
-  return { id, nome, matricula_vr, cargo, unidade };
+  unidade: ColaboradorDoPeriodoRH["unidade"],
+): ColaboradorDoPeriodoRH {
+  return { id, nome, matricula_vr, cargo, unidade, ativo: true };
 }
 
 function linha(
-  dados: ColaboradorResumoRH,
+  dados: ColaboradorDoPeriodoRH,
   valores: Partial<LinhaPainelAbsenteismo>,
 ): LinhaPainelAbsenteismo {
   return {

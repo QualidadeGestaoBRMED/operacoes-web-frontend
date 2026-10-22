@@ -165,6 +165,23 @@ describe("Painel de Absenteísmo", () => {
     expect(marcos.getByText("Nenhuma")).toBeInTheDocument();
   });
 
+  it("desligado aparece com a etiqueta; quem está ativo, sem", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue({
+      ...PAINEL,
+      linhas: PAINEL.linhas.map((linha) =>
+        linha.colaborador.nome === "Marcos Lima"
+          ? { ...linha, colaborador: { ...linha.colaborador, ativo: false } }
+          : linha,
+      ),
+    });
+    renderPainel();
+
+    const marcos = within((await screen.findByText("Marcos Lima")).closest("tr") as HTMLElement);
+    expect(marcos.getByText("Desligado")).toBeInTheDocument();
+    const juliana = within(screen.getByText("Juliana Ramos").closest("tr") as HTMLElement);
+    expect(juliana.queryByText("Desligado")).not.toBeInTheDocument();
+  });
+
   it("com faixas cadastradas, abre filtrando crítica e atenção; \"Todas\" mostra todos", async () => {
     const user = usuario();
     renderPainel();

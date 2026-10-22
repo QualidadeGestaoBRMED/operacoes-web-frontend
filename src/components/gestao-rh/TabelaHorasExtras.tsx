@@ -17,6 +17,7 @@ import {
   CLASSE_CELULA_FIXA,
   CLASSE_ROLAGEM_SEM_FADE_INICIAL,
 } from "./colunaFixa";
+import { EtiquetaDesligado } from "./EtiquetaDesligado";
 
 // Moldura com 10 linhas inteiras e o cabeçalho; rolagem por dentro, como nas
 // outras tabelas do Gestão RH. Alturas medidas no navegador: a linha tem
@@ -153,8 +154,12 @@ export function TabelaHorasExtras({
                           >
                             {linha.colaborador.nome}
                           </button>
-                          <div className="truncate text-[11.5px] text-muted-foreground">
-                            {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
+                          <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                            {/* Sem o campo (backend anterior), ninguém aparece como desligado. */}
+                            {linha.colaborador.ativo === false && <EtiquetaDesligado />}
+                            <span className="truncate">
+                              {[linha.colaborador.matricula_vr, linha.colaborador.cargo].filter(Boolean).join(" · ")}
+                            </span>
                           </div>
                         </div>
                         {/* No computador, aparece no hover e no foco (no celular, sempre);

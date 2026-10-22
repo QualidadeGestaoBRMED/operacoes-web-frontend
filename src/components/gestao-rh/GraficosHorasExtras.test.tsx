@@ -19,7 +19,7 @@ vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn(() => false) }));
 
 function linha(id: number, nome: string, minutos: number, minutos100 = 0, cargo = ""): LinhaHorasExtras {
   return {
-    colaborador: { id, nome, matricula_vr: "", cargo, unidade: { id: 2, nome: "Macaé" } },
+    colaborador: { id, nome, matricula_vr: "", cargo, unidade: { id: 2, nome: "Macaé" }, ativo: true },
     equipe: "Operações Macaé",
     minutos_por_fator: [
       { fator: "1", minutos },
