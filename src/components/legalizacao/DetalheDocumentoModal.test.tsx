@@ -200,6 +200,7 @@ function historico(
     acao: "status",
     valor_anterior: "em_andamento",
     valor_novo: "vencido",
+    justificativa: "",
     created_at: "2026-08-15T03:00:00Z",
     ...overrides,
   };
@@ -1092,12 +1093,14 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
     await user.click(screen.getByLabelText("Status"));
     await user.click(await screen.findByRole("option", { name: "Regular" }));
     await user.type(screen.getByLabelText("Validade"), "2027-01-01");
+    await user.type(screen.getByLabelText("Justificativa"), "  Licença emitida.  ");
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
       expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(55, {
         status: "regular",
         validade: "2027-01-01",
+        justificativa_status: "Licença emitida.",
       });
     });
     expect(toast.success).toHaveBeenCalledWith("Documento atualizado.");
@@ -1162,6 +1165,298 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
 
     expect(screen.queryByLabelText(/justificativa/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
+  });
+});
+
+describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", () => {
+  async function abrirEdicao(doc: DocumentoUnidade, processos: ProcessoRenovacao[] = []) {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    vi.mocked(listarProcessosRenovacao).mockResolvedValue(processos);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+    return user;
+  }
+
+  async function escolherStatus(user: ReturnType<typeof userEvent.setup>, nome: string) {
+    await user.click(screen.getByLabelText("Status"));
+    await user.click(await screen.findByRole("option", { name: nome }));
+  }
+
+  it("a justificativa só aparece quando o status muda, e é obrigatória", async () => {
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    expect(screen.queryByLabelText("Justificativa")).not.toBeInTheDocument();
+    await escolherStatus(user, "Protocolado");
+    expect(screen.getByLabelText("Justificativa")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Justificativa"), "   ");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByText("Obrigatória para mudar o status.")).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+
+    await escolherStatus(user, "Regular");
+    expect(screen.queryByLabelText("Justificativa")).not.toBeInTheDocument();
+  });
+
+  it("oferece os cinco status, inclusive fora da antiga sequência", async () => {
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await user.click(screen.getByLabelText("Status"));
+
+    for (const nome of ["Não iniciado", "Em andamento", "Protocolado", "Regular", "Vencido"]) {
+      expect(await screen.findByRole("option", { name: nome })).toBeInTheDocument();
+    }
+  });
+
+  it("edição sem mudar o status não pede nem envia justificativa", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await user.clear(screen.getByLabelText("Validade"));
+    await user.type(screen.getByLabelText("Validade"), "2028-01-01");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(atualizarDocumentoLegalizacao).toHaveBeenCalled());
+    expect(vi.mocked(atualizarDocumentoLegalizacao).mock.calls[0][1]).not.toHaveProperty(
+      "justificativa_status",
+    );
+  });
+
+  it("Regular com validade vencida é recusado antes de chamar a API", async () => {
+    const user = await abrirEdicao(documento({ status: "vencido", validade: diasAtras(10) }));
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Justificativa"), "Renovado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText(
+        "A validade está vencida: atualize a validade para marcar como Regular.",
+      ),
+    ).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("com renovação aberta, Regular pede confirmação; cancelar não envia nada", async () => {
+    const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
+      processo(),
+    ]);
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Validade"), "2027-06-30");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText(
+        "Este documento tem uma renovação em andamento. Ela será concluída junto, e o card no Kanban vai para Concluído.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
+  });
+
+  it("confirmando, envia e avisa que a renovação foi concluída junto", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue({
+      ...documento({ status: "regular", validade: "2027-06-30" }),
+      renovacao_concluida_junto: true,
+    });
+    const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
+      processo(),
+    ]);
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Validade"), "2027-06-30");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await user.click(await screen.findByRole("button", { name: "Marcar como Regular" }));
+
+    await waitFor(() =>
+      expect(atualizarDocumentoLegalizacao).toHaveBeenCalledWith(55, {
+        status: "regular",
+        validade: "2027-06-30",
+        justificativa_status: "Já renovado.",
+      }),
+    );
+    expect(toast.success).toHaveBeenCalledWith(
+      "Documento atualizado. A renovação foi concluída junto, e o card foi para Concluído.",
+    );
+  });
+
+  it("Protocolado sem renovação aberta avisa que a renovação foi aberta junto", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue({
+      ...documento({ status: "protocolado", validade: "2027-12-01" }),
+      renovacao_aberta_junto: true,
+    });
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+    vi.mocked(listarProcessosRenovacao).mockClear();
+
+    await escolherStatus(user, "Protocolado");
+    await user.type(screen.getByLabelText("Justificativa"), "Protocolo já enviado ao órgão.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Documento atualizado. A renovação foi aberta junto: acompanhe em "Acompanhar Renovação".',
+      ),
+    );
+    // A lista de processos é buscada de novo: "Acompanhar Renovação" já
+    // mostra o processo aberto.
+    await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+  });
+
+  it("enquanto a lista de processos carrega, o Salvar espera", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "em_andamento", validade: null }),
+    );
+    vi.mocked(listarProcessosRenovacao).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+  });
+
+  it("se a lista de processos falhou, Regular confirma assim mesmo", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "em_andamento", validade: null }),
+    );
+    vi.mocked(listarProcessosRenovacao).mockRejectedValue(new Error("falhou"));
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Validade"), "2027-06-30");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText(
+        "Não foi possível conferir se este documento tem uma renovação em andamento. Se tiver, ela será concluída junto, e o card no Kanban vai para Concluído.",
+      ),
+    ).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("com renovação aberta, Regular sem validade pede a validade nova", async () => {
+    const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
+      processo(),
+    ]);
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Informe a nova validade para concluir a renovação."),
+    ).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("renovação de lote: Regular é recusado no campo Status, sem confirmação", async () => {
+    const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
+      processo({ lote: 4 }),
+    ]);
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Validade"), "2027-06-30");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByText(/faz parte de um lote/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Marcar como Regular" })).not.toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
+  it("recusa do backend na validade aparece no campo, sem fechar a edição", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Bad Request"), {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: { validade: ["Informe a nova validade para concluir a renovação."] },
+        },
+      }),
+    );
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await escolherStatus(user, "Protocolado");
+    await user.type(screen.getByLabelText("Justificativa"), "Protocolo enviado.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText("Informe a nova validade para concluir a renovação."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("texto longo na justificativa não trava o Salvar depois de voltar o status", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await escolherStatus(user, "Protocolado");
+    await user.click(screen.getByLabelText("Justificativa"));
+    await user.paste("x".repeat(2001));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Máximo de 2000 caracteres.")).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+
+    await escolherStatus(user, "Regular");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(atualizarDocumentoLegalizacao).toHaveBeenCalled());
+    expect(vi.mocked(atualizarDocumentoLegalizacao).mock.calls[0][1]).not.toHaveProperty(
+      "justificativa_status",
+    );
+  });
+
+  it("os erros são anunciados e ligados aos campos", async () => {
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await escolherStatus(user, "Vencido");
+    await user.clear(screen.getByLabelText("Validade"));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    const alertas = await screen.findAllByRole("alert");
+    expect(alertas.map((alerta) => alerta.textContent)).toEqual(
+      expect.arrayContaining([
+        "Obrigatória para status 'Vencido'.",
+        "Obrigatória para mudar o status.",
+      ]),
+    );
+    expect(screen.getByLabelText("Validade")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Validade")).toHaveAccessibleDescription(
+      "Obrigatória para status 'Vencido'.",
+    );
+    expect(screen.getByLabelText("Justificativa")).toHaveAccessibleDescription(
+      "Por que o status mudou. Fica registrada no histórico do documento. Obrigatória para mudar o status.",
+    );
+  });
+
+  it("a justificativa aparece no histórico", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
+      historico({ justificativa: "Status lançado errado." }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+    expect(await screen.findByText("Status lançado errado.")).toBeInTheDocument();
   });
 });
 
@@ -1549,7 +1844,7 @@ describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("erro do identificador junto com o de outro campo: um no campo, o outro no aviso", async () => {
+  it("erro do identificador junto com um erro geral: um no campo, o outro no aviso", async () => {
     vi.mocked(atualizarDocumentoLegalizacao).mockRejectedValue(
       Object.assign(new Error("Bad Request"), {
         isAxiosError: true,
@@ -1557,7 +1852,7 @@ describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
           status: 400,
           data: {
             profissional: ["Já existe um documento deste tipo e unidade para este profissional."],
-            validade: ["Data inválida."],
+            non_field_errors: ["Data inválida."],
           },
         },
       }),

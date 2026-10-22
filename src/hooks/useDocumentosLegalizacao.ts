@@ -154,8 +154,21 @@ export function useCriarDocumentosLegalizacaoEmLote() {
   };
 }
 
-// Usado hoje só pra recolocar `regra_aplicada` depois de uma nova versão de
-// regra (ver FormNovaVersaoRegra.tsx) -- PATCH parcial.
+// Lista de processos de UM documento (aba Protocolo e modal de renovação).
+export function chaveProcessosDoDocumento(documentoId: number) {
+  return ["processos-renovacao", documentoId] as const;
+}
+
+const PREFIXOS_DO_KANBAN = new Set(["demandas", "demanda", "resumo-demandas"]);
+
+function ehChaveDoKanban(chave: unknown) {
+  const prefixo = Array.isArray(chave) ? chave[0] : chave;
+  return typeof prefixo === "string" && PREFIXOS_DO_KANBAN.has(prefixo);
+}
+
+// PATCH parcial do documento: o "Editar" do detalhe (status, validade,
+// identificador) e a `regra_aplicada` depois de uma nova versão de regra
+// (FormNovaVersaoRegra.tsx).
 export function useAtualizarDocumentoLegalizacao() {
   const { mutate } = useSWRConfig();
   const { trigger, isMutating, error } = useSWRMutation(
@@ -166,7 +179,17 @@ export function useAtualizarDocumentoLegalizacao() {
         arg,
       }: { arg: { id: number; payload: Partial<DocumentoUnidadePayload> } },
     ) => atualizarDocumentoLegalizacao(arg.id, arg.payload),
-    { onSuccess: () => mutate(ehChaveDeListaDeDocumentos) },
+    {
+      onSuccess: (documento) => {
+        void mutate(ehChaveDeListaDeDocumentos);
+        // STC-833: Regular à mão concluiu a renovação aberta (card em
+        // Concluído), ou Em andamento/Protocolado abriu uma (card novo).
+        if (documento.renovacao_concluida_junto || documento.renovacao_aberta_junto) {
+          void mutate(chaveProcessosDoDocumento(documento.id));
+          void mutate(ehChaveDoKanban);
+        }
+      },
+    },
   );
 
   return {

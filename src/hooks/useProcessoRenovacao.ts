@@ -9,18 +9,15 @@ import {
   listarProcessosRenovacao,
 } from "@/lib/legalizacao";
 import { extrairMensagemErro } from "@/lib/erros";
-import { ehChaveDeListaDeDocumentos } from "./useDocumentosLegalizacao";
+import {
+  chaveProcessosDoDocumento,
+  ehChaveDeListaDeDocumentos,
+} from "./useDocumentosLegalizacao";
 import type {
   ProcessoRenovacao,
   ProcessoRenovacaoAtualizacaoPayload,
   ProcessoRenovacaoPayload,
 } from "@/types/legalizacao";
-
-// Chave da lista de processos de UM documento -- exportada pro predicate de
-// invalidação abaixo não desalinhar se mudar num lugar só.
-function chaveProcessosDoDocumento(documentoId: number) {
-  return ["processos-renovacao", documentoId] as const;
-}
 
 export function useCriarProcessoRenovacao() {
   const { mutate } = useSWRConfig();

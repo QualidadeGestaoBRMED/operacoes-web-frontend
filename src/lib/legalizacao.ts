@@ -8,6 +8,7 @@ import type {
   LoteRenovacao,
   ProtocoloLotePayload,
   DocumentoUnidade,
+  DocumentoUnidadeAtualizado,
   DocumentoUnidadeFiltros,
   DocumentoUnidadeLotePayload,
   DocumentoUnidadePayload,
@@ -143,8 +144,8 @@ export async function excluirDocumentoLegalizacao(id: number): Promise<void> {
 export async function atualizarDocumentoLegalizacao(
   id: number,
   payload: Partial<DocumentoUnidadePayload>,
-): Promise<DocumentoUnidade> {
-  const { data } = await api.patch<DocumentoUnidade>(
+): Promise<DocumentoUnidadeAtualizado> {
+  const { data } = await api.patch<DocumentoUnidadeAtualizado>(
     `${DOCUMENTOS_URL}${id}/`,
     payload,
   );
