@@ -1402,6 +1402,29 @@ describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", ()
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("os erros são anunciados e ligados aos campos", async () => {
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+
+    await escolherStatus(user, "Vencido");
+    await user.clear(screen.getByLabelText("Validade"));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    const alertas = await screen.findAllByRole("alert");
+    expect(alertas.map((alerta) => alerta.textContent)).toEqual(
+      expect.arrayContaining([
+        "Obrigatória para status 'Vencido'.",
+        "Obrigatória para mudar o status.",
+      ]),
+    );
+    expect(screen.getByLabelText("Validade")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Validade")).toHaveAccessibleDescription(
+      "Obrigatória para status 'Vencido'.",
+    );
+    expect(screen.getByLabelText("Justificativa")).toHaveAccessibleDescription(
+      "Por que o status mudou. Fica registrada no histórico do documento. Obrigatória para mudar o status.",
+    );
+  });
+
   it("a justificativa aparece no histórico", async () => {
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
     vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
