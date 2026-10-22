@@ -44,6 +44,7 @@ import {
   fonteDoDocumento,
   useCandidatosResponsaveis,
   useDocumentoLegalizacao,
+  ehChaveDeListaDeDocumentos,
   useDesativarDocumentoLegalizacao,
   useRemoverResponsavelLegalizacao,
   useReverterDocumentoLegalizacao,
@@ -610,11 +611,13 @@ export function DetalheDocumentoModal({
   }
 
   // STC-854: depois de trocar o PDF, o detalhe, as evidências, o histórico,
-  // a lista e a Biblioteca mostram o novo.
+  // a lista (Matriz e Mapa, com o id da evidência vigente) e a Biblioteca
+  // mostram o novo.
   function aoTrocarAnexo() {
     void mutate().catch(() => {});
     void mutateEvidencias().catch(() => {});
     void mutateHistorico().catch(() => {});
+    void mutateGlobal(ehChaveDeListaDeDocumentos);
     void mutateGlobal(
       (chave) => Array.isArray(chave) && chave[0] === "evidencias-vigentes",
     );

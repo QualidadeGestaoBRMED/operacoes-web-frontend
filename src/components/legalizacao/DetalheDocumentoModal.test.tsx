@@ -1961,6 +1961,25 @@ describe("DetalheDocumentoModal -- desativar documento (STC-854)", () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
+  it("já desativado por outra pessoa (404): avisa e fecha o detalhe", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(desativarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Not Found"), { isAxiosError: true, response: { status: 404 } }),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    await abrir(documento(), onOpenChange);
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.type(screen.getByLabelText("Justificativa"), "Duplicado.");
+    await user.click(screen.getByRole("button", { name: "Desativar" }));
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith("Este documento já tinha sido desativado."),
+    );
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
   it("depois de desativar, o próximo documento abre com a justificativa vazia", async () => {
     sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
