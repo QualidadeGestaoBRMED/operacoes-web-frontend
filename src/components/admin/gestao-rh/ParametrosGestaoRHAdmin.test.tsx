@@ -660,7 +660,7 @@ describe("Janela de avaliação", () => {
     renderTela();
 
     expect(await screen.findByLabelText("Janela de avaliação")).toHaveTextContent("Mês anterior fechado");
-    expect(screen.getByText(/Todo dia 1º, à noite/)).toBeInTheDocument();
+    expect(screen.getByText("No primeiro dia útil do mês, à noite, avalia o mês que acabou.")).toBeInTheDocument();
     await user.click(screen.getByLabelText("Janela de avaliação"));
     await user.click(await screen.findByRole("option", { name: "Desligada" }));
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
