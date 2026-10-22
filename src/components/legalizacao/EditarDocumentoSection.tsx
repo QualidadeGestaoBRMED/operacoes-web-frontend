@@ -300,10 +300,13 @@ export function EditarDocumentoSection({
             id="ed-doc-identificador"
             className={`h-8 text-[13px] ${CLASSE_CAMPO_IDENTIFICADOR}`}
             aria-invalid={!!errors.profissional}
+            aria-describedby={errors.profissional ? "ed-doc-identificador-erro" : undefined}
             {...register("profissional")}
           />
           {errors.profissional && (
-            <p className="text-xs text-destructive">{errors.profissional.message}</p>
+            <p id="ed-doc-identificador-erro" role="alert" className="text-xs text-destructive">
+              {errors.profissional.message}
+            </p>
           )}
         </div>
       )}
@@ -320,7 +323,13 @@ export function EditarDocumentoSection({
           name="status"
           render={({ field }) => (
             <Select value={field.value ?? ""} onValueChange={field.onChange}>
-              <SelectTrigger id="ed-doc-status" size="sm" className="h-8 w-full text-[13px]">
+              <SelectTrigger
+                id="ed-doc-status"
+                size="sm"
+                className="h-8 w-full text-[13px]"
+                aria-invalid={!!errors.status}
+                aria-describedby={errors.status ? "ed-doc-status-erro" : undefined}
+              >
                 <SelectValue />
               </SelectTrigger>
               {/* position="popper": mesmo achado de EditarDemandaSection.tsx
@@ -337,7 +346,9 @@ export function EditarDocumentoSection({
           )}
         />
         {errors.status && (
-          <p className="text-xs text-destructive">{errors.status.message}</p>
+          <p id="ed-doc-status-erro" role="alert" className="text-xs text-destructive">
+            {errors.status.message}
+          </p>
         )}
       </div>
 
@@ -350,12 +361,16 @@ export function EditarDocumentoSection({
         </Label>
         <Input
           id="ed-doc-validade"
+          aria-invalid={!!errors.validade}
+          aria-describedby={errors.validade ? "ed-doc-validade-erro" : undefined}
           type="date"
           className="h-8 text-[13px]"
           {...register("validade")}
         />
         {errors.validade && (
-          <p className="text-xs text-destructive">{errors.validade.message}</p>
+          <p id="ed-doc-validade-erro" role="alert" className="text-xs text-destructive">
+            {errors.validade.message}
+          </p>
         )}
       </div>
 
@@ -372,14 +387,20 @@ export function EditarDocumentoSection({
             rows={2}
             className="text-[13px]"
             aria-invalid={!!errors.justificativa}
-            aria-describedby="ed-doc-justificativa-dica"
+            aria-describedby={
+              errors.justificativa
+                ? "ed-doc-justificativa-dica ed-doc-justificativa-erro"
+                : "ed-doc-justificativa-dica"
+            }
             {...register("justificativa")}
           />
           <p id="ed-doc-justificativa-dica" className="text-[11px] text-muted-foreground">
             Por que o status mudou. Fica registrada no histórico do documento.
           </p>
           {errors.justificativa && (
-            <p className="text-xs text-destructive">{errors.justificativa.message}</p>
+            <p id="ed-doc-justificativa-erro" role="alert" className="text-xs text-destructive">
+              {errors.justificativa.message}
+            </p>
           )}
         </div>
       )}

@@ -1152,9 +1152,12 @@ export function DetalheDocumentoModal({
                     dentro. Antes, a aba aberta decidia a altura: o Histórico
                     longo crescia o modal até o limite de 88vh, com espaço em
                     branco embaixo dos botões, e trocar de aba mudava o
-                    tamanho do modal. Abaixo de sm (colunas empilhadas), nada
-                    muda. */}
-                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                    tamanho do modal. A altura mínima (achado no code review)
+                    segura a aba Comentários, com conversa e campo de envio,
+                    num documento enxuto, sem os botões de ação; o limite de
+                    60vh evita cortar as abas numa tela baixa. Abaixo de sm
+                    (colunas empilhadas), nada muda. */}
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col sm:min-h-[min(440px,60vh)]">
                   <Tabs
                     defaultValue="evidencias"
                     // min-w-0: achado testando com nome de evidência longo --
