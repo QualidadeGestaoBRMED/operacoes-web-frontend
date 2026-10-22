@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ehChaveAfetadaPelaExclusao } from "./useDocumentosLegalizacao";
+import { ehChaveAfetadaPelaDesativacao } from "./useDocumentosLegalizacao";
 
-describe("ehChaveAfetadaPelaExclusao (STC-703)", () => {
+describe("ehChaveAfetadaPelaDesativacao (STC-703, STC-853)", () => {
   it("atualiza Matriz, Biblioteca, Kanban e avisos depois de excluir um documento", () => {
     for (const chave of [
       ["documentos-legalizacao", { unidade: 1 }],
@@ -13,13 +13,13 @@ describe("ehChaveAfetadaPelaExclusao (STC-703)", () => {
       "notificacoes",
       "notificacoes-nao-lidas",
     ]) {
-      expect(ehChaveAfetadaPelaExclusao(chave)).toBe(true);
+      expect(ehChaveAfetadaPelaDesativacao(chave)).toBe(true);
     }
   });
 
   it("não mexe no que não tem relação com o documento", () => {
-    expect(ehChaveAfetadaPelaExclusao(["tipos-documento"])).toBe(false);
-    expect(ehChaveAfetadaPelaExclusao("usuarios")).toBe(false);
-    expect(ehChaveAfetadaPelaExclusao(null)).toBe(false);
+    expect(ehChaveAfetadaPelaDesativacao(["tipos-documento"])).toBe(false);
+    expect(ehChaveAfetadaPelaDesativacao("usuarios")).toBe(false);
+    expect(ehChaveAfetadaPelaDesativacao(null)).toBe(false);
   });
 });

@@ -9,13 +9,17 @@ import {
   MessageSquare,
   Paperclip,
   Pencil,
-  Trash2,
+  Archive,
+  FileUp,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
+import { useSWRConfig } from "swr";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DesativarDocumentoDialog } from "./DesativarDocumentoDialog";
+import { EditarAnexoDialog } from "./EditarAnexoDialog";
 import { DialogNovaVersao } from "@/components/admin/legalizacao/FormNovaVersaoRegra";
 import {
   Dialog,
@@ -40,7 +44,8 @@ import {
   fonteDoDocumento,
   useCandidatosResponsaveis,
   useDocumentoLegalizacao,
-  useExcluirDocumentoLegalizacao,
+  ehChaveDeListaDeDocumentos,
+  useDesativarDocumentoLegalizacao,
   useRemoverResponsavelLegalizacao,
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
@@ -124,6 +129,7 @@ const LABEL_ACAO_HISTORICO: Record<string, string> = {
   regra_aplicada: "Regra de prazo aplicada",
   responsavel: "Responsável",
   evidencia: "Evidência",
+  evidencia_substituida: "PDF da evidência",
   comprovante_protocolo: "Comprovante de protocolo",
   movimentacao_profissional: "Movimentação profissional",
   processo_status: "Status do processo de renovação",
@@ -295,7 +301,9 @@ function ItemHistorico({ item }: { item: HistoricoRegulatorio }) {
   // pelos dados (ver comentário em HistoricoRegulatorio, types/legalizacao.ts).
   const autor = item.usuario ? nomeExibicao(item.usuario) : "Sistema";
   const ehArquivo =
-    item.acao === "evidencia" || item.acao === "comprovante_protocolo";
+    item.acao === "evidencia" ||
+    item.acao === "evidencia_substituida" ||
+    item.acao === "comprovante_protocolo";
   const Icone = ehArquivo ? FileText : HistoryIcon;
   const corDot =
     item.acao === "movimentacao_profissional"
@@ -387,8 +395,8 @@ export function DetalheDocumentoModal({
   ] = useState(false);
   const [mostrandoConfirmarReversao, setMostrandoConfirmarReversao] =
     useState(false);
-  const [mostrandoConfirmarExclusao, setMostrandoConfirmarExclusao] =
-    useState(false);
+  const [mostrandoDesativar, setMostrandoDesativar] = useState(false);
+  const [mostrandoEditarAnexo, setMostrandoEditarAnexo] = useState(false);
   // STC-502 (pedido de cliente): editar status/validade direto no modal,
   // no mesmo padrão de EditarDemandaSection.tsx (Gestão de Demandas).
   // Mutuamente exclusivo com mostrandoJustificativa -- não faz sentido as
@@ -454,7 +462,8 @@ export function DetalheDocumentoModal({
     useAtualizarDocumentoLegalizacao();
   const { reverter, isLoading: revertendo } =
     useReverterDocumentoLegalizacao();
-  const { excluir, isLoading: excluindo } = useExcluirDocumentoLegalizacao();
+  const { desativar, isLoading: desativando } = useDesativarDocumentoLegalizacao();
+  const { mutate: mutateGlobal } = useSWRConfig();
   const { user, isSetorLeg, isCoordenacaoUnidade } = useAuth();
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
@@ -482,7 +491,8 @@ export function DetalheDocumentoModal({
     setMostrandoProcessoRenovacao(false);
     setMostrandoMovimentacaoProfissional(false);
     setMostrandoConfirmarReversao(false);
-    setMostrandoConfirmarExclusao(false);
+    setMostrandoDesativar(false);
+    setMostrandoEditarAnexo(false);
     setMostrandoEdicao(false);
     setMostrandoNovaVersaoRegra(false);
     setMostrandoEdicaoResponsaveis(false);
@@ -583,21 +593,34 @@ export function DetalheDocumentoModal({
     }
   }
 
-  async function excluirDocumento() {
+  async function desativarDocumento(justificativa: string) {
     if (!documento) return;
     try {
-      const { jaExcluido } = await excluir({ id: documento.id });
-      if (jaExcluido) {
-        toast.info("Este documento já tinha sido excluído.");
+      const { jaDesativado } = await desativar({ id: documento.id, justificativa });
+      if (jaDesativado) {
+        toast.info("Este documento já tinha sido desativado.");
       } else {
-        toast.success("Documento excluído.");
+        toast.success("Documento desativado.");
       }
+      setMostrandoDesativar(false);
       fechar();
     } catch (erro) {
+      // Ex.: item em lote aberto. O diálogo fica aberto com o motivo.
       toast.error(extrairMensagemErro(erro));
-    } finally {
-      setMostrandoConfirmarExclusao(false);
     }
+  }
+
+  // STC-854: depois de trocar o PDF, o detalhe, as evidências, o histórico,
+  // a lista (Matriz e Mapa, com o id da evidência vigente) e a Biblioteca
+  // mostram o novo.
+  function aoTrocarAnexo() {
+    void mutate().catch(() => {});
+    void mutateEvidencias().catch(() => {});
+    void mutateHistorico().catch(() => {});
+    void mutateGlobal(ehChaveDeListaDeDocumentos);
+    void mutateGlobal(
+      (chave) => Array.isArray(chave) && chave[0] === "evidencias-vigentes",
+    );
   }
 
   const prazo = documento ? prazoDocumento(documento) : null;
@@ -683,24 +706,19 @@ export function DetalheDocumentoModal({
   // aplicavel OU unidade_encerramento) evita as duas ações opostas
   // aparecerem juntas.
   const podeMarcarNaoAplicavel = documento && !podeReverter;
-  // STC-702/STC-703: excluir só pelo perfil, mesma regra do backend (a
-  // permissão individual de "editar" não libera excluir): Admin, Setor de
-  // Legalização e Coordenação nos documentos da própria unidade.
-  const podeExcluir =
+  // STC-854: "Editar anexo" para quem escreve no documento pelo perfil:
+  // Admin (só na rede que administra, STC-762), Setor de Legalização e
+  // Coordenação nos documentos da própria unidade.
+  const podeEscreverDocumento =
     !!documento &&
-    // Admin, só na rede que administra (STC-762).
     (administra(user, documento.unidade.rede) ||
       isSetorLeg ||
       (isCoordenacaoUnidade && user?.unidade_id === documento.unidade.id));
+  // STC-853/854: desativar (no lugar de excluir) só o Admin da rede.
+  const podeDesativar = !!documento && administra(user, documento.unidade.rede);
   const nomeDocumento = documento
     ? `${documento.tipo_documento.nome}${documento.profissional ? ` — ${documento.profissional}` : ""}`
     : "";
-  // Enquanto as evidências carregam (ou se falharem), sem número: "0
-  // evidências" num documento que tem evidência seria falso.
-  const textoEvidencias =
-    carregandoEvidencias || erroEvidencias
-      ? "as evidências"
-      : `${evidencias.length} ${evidencias.length === 1 ? "evidência" : "evidências"}`;
 
   return (
     <>
@@ -1124,14 +1142,14 @@ export function DetalheDocumentoModal({
                           Reportar Movimentação
                         </Button>
                       )}
-                      {podeExcluir && (
+                      {podeDesativar && (
                         <Button
                           variant="ghost"
                           className="text-destructive hover:bg-destructive/5 hover:text-destructive"
-                          onClick={() => setMostrandoConfirmarExclusao(true)}
+                          onClick={() => setMostrandoDesativar(true)}
                         >
-                          <Trash2 className="size-4" />
-                          Excluir documento
+                          <Archive className="size-4" />
+                          Desativar documento
                         </Button>
                       )}
                     </div>
@@ -1249,13 +1267,26 @@ export function DetalheDocumentoModal({
                               evidencia={evidencia}
                             />
                           ))}
+                          {podeEscreverDocumento && evidenciaVigente && (
+                            <div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setMostrandoEditarAnexo(true)}
+                              >
+                                <FileUp className="size-4" />
+                                Editar anexo
+                              </Button>
+                            </div>
+                          )}
                           {evidencias.length > 1 && (
                             <button
                               type="button"
+                              // block: em linha própria, abaixo do "Editar anexo".
                               onClick={() =>
                                 setMostrandoHistoricoEvidencias((atual) => !atual)
                               }
-                              className="text-[12.5px] font-medium text-secondary hover:underline"
+                              className="block text-[12.5px] font-medium text-secondary hover:underline"
                             >
                               {mostrandoHistoricoEvidencias
                                 ? "Ver só a vigente"
@@ -1391,24 +1422,23 @@ export function DetalheDocumentoModal({
         isLoading={revertendo}
         onConfirmar={() => void reverterParaAplicavel()}
       />
-      <ConfirmDialog
-        open={mostrandoConfirmarExclusao}
-        onOpenChange={setMostrandoConfirmarExclusao}
-        titulo="Excluir documento"
-        descricao={
-          <>
-            O documento <strong className="text-foreground">{nomeDocumento}</strong>{" "}
-            da unidade{" "}
-            <strong className="text-foreground">{documento?.unidade.nome}</strong> será
-            excluído, com {textoEvidencias}, o histórico e, se houver, o processo de renovação e o card no Kanban. Essa ação não pode ser
-            desfeita.
-          </>
-        }
-        textoConfirmar="Excluir"
-        destrutivo
-        isLoading={excluindo}
-        onConfirmar={() => void excluirDocumento()}
+      <DesativarDocumentoDialog
+        aberto={mostrandoDesativar}
+        onOpenChange={setMostrandoDesativar}
+        nomeDocumento={nomeDocumento}
+        nomeUnidade={documento?.unidade.nome ?? ""}
+        isLoading={desativando}
+        onConfirmar={(justificativa) => void desativarDocumento(justificativa)}
       />
+      {documento && evidenciaVigente && (
+        <EditarAnexoDialog
+          aberto={mostrandoEditarAnexo}
+          onOpenChange={setMostrandoEditarAnexo}
+          documentoId={documento.id}
+          nomeArquivoAtual={evidenciaVigente.nome_original}
+          aoTrocar={aoTrocarAnexo}
+        />
+      )}
     </>
   );
 }

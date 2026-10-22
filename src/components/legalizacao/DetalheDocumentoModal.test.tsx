@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,7 +48,8 @@ import {
   buscarDocumentoLegalizacao,
   comentarNoDocumento,
   criarProcessoRenovacao,
-  excluirDocumentoLegalizacao,
+  desativarDocumentoLegalizacao,
+  enviarEvidenciaLegalizacao,
   listarCandidatosResponsaveis,
   listarDocumentosLegalizacao,
   listarEvidenciasLegalizacao,
@@ -1883,8 +1884,8 @@ describe("DetalheDocumentoModal -- editar o identificador (STC-700)", () => {
 });
 
 
-describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
-  const BOTAO = { name: "Excluir documento" };
+describe("DetalheDocumentoModal -- desativar documento (STC-854)", () => {
+  const BOTAO = { name: "Desativar documento" };
 
   async function abrir(
     doc: DocumentoUnidade = documento(),
@@ -1895,157 +1896,134 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
     await screen.findAllByText(new RegExp(doc.tipo_documento.nome));
   }
 
+  it("Admin da rede vê o botão, e ninguém vê mais o Excluir", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    await abrir();
+    expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir documento" })).not.toBeInTheDocument();
+  });
+
   it.each([
-    ["Admin", ADMIN_OPERACOES],
     ["Setor de Legalização", { isSetorLeg: true }],
-  ])("%s vê o botão", async (_perfil, flags) => {
+    [
+      "Coordenação da própria unidade",
+      {
+        isCoordenacaoUnidade: true,
+        user: { usuarioId: 8, unidade_id: UNIDADE.id, redes_administradas: [] },
+      },
+    ],
+    [
+      "Admin de outra rede",
+      {
+        isAdminOps: true,
+        user: { usuarioId: 9, unidade_id: null, redes_administradas: ["opex" as const] },
+      },
+    ],
+  ])("%s não vê o botão", async (_perfil, flags) => {
     sessao.atual = { ...sessao.atual, ...flags };
     await abrir();
-    expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
-  });
-
-  it("Admin de outra rede não vê o botão (STC-747)", async () => {
-    sessao.atual = {
-      ...sessao.atual,
-      isAdminOps: true,
-      user: { ...sessao.atual.user, redes_administradas: ["opex"] },
-    };
-    await abrir();
     expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
   });
 
-  it("Coordenação vê o botão só nos documentos da própria unidade", async () => {
-    sessao.atual = {
-      ...sessao.atual,
-      isCoordenacaoUnidade: true,
-      user: { ...sessao.atual.user, unidade_id: UNIDADE.id },
-    };
-    await abrir();
-    expect(screen.getByRole("button", BOTAO)).toBeInTheDocument();
-  });
-
-  it("Coordenação de outra unidade não vê o botão", async () => {
-    sessao.atual = {
-      ...sessao.atual,
-      isCoordenacaoUnidade: true,
-      user: { ...sessao.atual.user, unidade_id: UNIDADE.id + 100 },
-    };
-    await abrir();
-    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
-  });
-
-  it("quem não pode escrever no documento não vê o botão", async () => {
-    await abrir();
-    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
-  });
-
-  it("a confirmação diz o que vai sair, e cancelar não exclui", async () => {
+  it("justificativa obrigatória; cancelar não desativa", async () => {
     sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([evidencia()]);
     const user = userEvent.setup();
     await abrir(documento({ profissional: "BALANÇA 01" }));
 
     await user.click(screen.getByRole("button", BOTAO));
-    const confirmacao = await screen.findByRole("alertdialog");
-    expect(confirmacao).toHaveTextContent(
-      "O documento Alvará de Funcionamento — BALANÇA 01 da unidade " +
-        `${UNIDADE.nome} será excluído, com 1 evidência, o histórico`,
+    const dialogo = await screen.findByRole("dialog", { name: "Desativar documento" });
+    expect(dialogo).toHaveTextContent("Nada é apagado");
+    await user.click(within(dialogo).getByRole("button", { name: "Desativar" }));
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent(
+      "Obrigatória para desativar.",
     );
-    expect(confirmacao).toHaveTextContent("Essa ação não pode ser desfeita.");
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
 
-    await user.click(screen.getByRole("button", { name: "Cancelar" }));
-
-    expect(excluirDocumentoLegalizacao).not.toHaveBeenCalled();
+    expect(desativarDocumentoLegalizacao).not.toHaveBeenCalled();
   });
 
-  it("confirmar exclui, avisa e fecha o detalhe", async () => {
-    sessao.atual = { ...sessao.atual, isSetorLeg: true };
-    vi.mocked(excluirDocumentoLegalizacao).mockResolvedValue();
+  it("confirmando, desativa com a justificativa e fecha o detalhe", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
     await abrir(documento(), onOpenChange);
 
     await user.click(screen.getByRole("button", BOTAO));
-    await user.click(await screen.findByRole("button", { name: "Excluir" }));
-
-    await waitFor(() => expect(excluirDocumentoLegalizacao).toHaveBeenCalledWith(55));
-    expect(toast.success).toHaveBeenCalledWith("Documento excluído.");
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  it("depois de excluir, a lista da Matriz por trás é atualizada", async () => {
-    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
-    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
-    vi.mocked(excluirDocumentoLegalizacao).mockResolvedValue();
-    const user = userEvent.setup();
-    renderComComListaPorTras(55);
-    await screen.findByText("Alvará de Funcionamento");
-    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole("button", BOTAO));
-    await user.click(await screen.findByRole("button", { name: "Excluir" }));
-
-    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
-  });
-
-  it("documento já excluído por outra pessoa: avisa, fecha e atualiza as listas", async () => {
-    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
-    vi.mocked(listarDocumentosLegalizacao).mockResolvedValue([documento()]);
-    vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
-      Object.assign(new Error("Not Found"), {
-        isAxiosError: true,
-        response: { status: 404, data: { detail: "Não encontrado." } },
-      }),
-    );
-    const user = userEvent.setup();
-    renderComComListaPorTras(55);
-    await screen.findByText("Alvará de Funcionamento");
-    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole("button", BOTAO));
-    await user.click(await screen.findByRole("button", { name: "Excluir" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Desativar documento" });
+    await user.type(within(dialogo).getByLabelText("Justificativa"), "  Cadastrado errado. ");
+    await user.click(within(dialogo).getByRole("button", { name: "Desativar" }));
 
     await waitFor(() =>
-      expect(toast.info).toHaveBeenCalledWith("Este documento já tinha sido excluído."),
+      expect(desativarDocumentoLegalizacao).toHaveBeenCalledWith(55, "Cadastrado errado."),
     );
-    expect(toast.error).not.toHaveBeenCalled();
-    await waitFor(() => expect(listarDocumentosLegalizacao).toHaveBeenCalledTimes(2));
+    expect(toast.success).toHaveBeenCalledWith("Documento desativado.");
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
-  it("enquanto as evidências carregam, a confirmação não mostra número", async () => {
+  it("já desativado por outra pessoa (404): avisa e fecha o detalhe", async () => {
     sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-    vi.mocked(listarEvidenciasLegalizacao).mockReturnValue(new Promise(() => {}));
+    vi.mocked(desativarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Not Found"), { isAxiosError: true, response: { status: 404 } }),
+    );
+    const onOpenChange = vi.fn();
+    const user = userEvent.setup();
+    await abrir(documento(), onOpenChange);
+
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.type(screen.getByLabelText("Justificativa"), "Duplicado.");
+    await user.click(screen.getByRole("button", { name: "Desativar" }));
+
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith("Este documento já tinha sido desativado."),
+    );
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("depois de desativar, o próximo documento abre com a justificativa vazia", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const user = userEvent.setup();
+    const { rerender } = renderComponente(55);
+    await screen.findAllByText(/Alvará de Funcionamento/);
+    await user.click(screen.getByRole("button", BOTAO));
+    await user.type(screen.getByLabelText("Justificativa"), "Motivo do primeiro.");
+    await user.click(screen.getByRole("button", { name: "Desativar" }));
+    await waitFor(() => expect(desativarDocumentoLegalizacao).toHaveBeenCalled());
+
+    rerender(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <DetalheDocumentoModal documentoId={56} onOpenChange={vi.fn()} />
+      </SWRConfig>,
+    );
+    await screen.findAllByText(/Alvará de Funcionamento/);
+    await user.click(screen.getByRole("button", BOTAO));
+
+    expect(screen.getByLabelText("Justificativa")).toHaveValue("");
+  });
+
+  it("recusa do backend (item em lote aberto) avisa e mantém o diálogo", async () => {
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(desativarDocumentoLegalizacao).mockRejectedValue(
+      Object.assign(new Error("Bad Request"), {
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: { documento: ["A renovação deste documento faz parte de um lote."] },
+        },
+      }),
+    );
     const user = userEvent.setup();
     await abrir();
 
     await user.click(screen.getByRole("button", BOTAO));
+    const dialogo = await screen.findByRole("dialog", { name: "Desativar documento" });
+    await user.type(within(dialogo).getByLabelText("Justificativa"), "Duplicado.");
+    await user.click(within(dialogo).getByRole("button", { name: "Desativar" }));
 
-    const confirmacao = await screen.findByRole("alertdialog");
-    expect(confirmacao).toHaveTextContent("será excluído, com as evidências, o histórico");
-    expect(confirmacao).not.toHaveTextContent("0 evidências");
-  });
-
-  it("erro do backend aparece legível e o detalhe continua aberto", async () => {
-    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-    vi.mocked(excluirDocumentoLegalizacao).mockRejectedValue(
-      Object.assign(new Error("Forbidden"), {
-        isAxiosError: true,
-        response: { status: 403, data: { detail: "Você não tem permissão para executar essa ação." } },
-      }),
-    );
-    const onOpenChange = vi.fn();
-    const user = userEvent.setup();
-    await abrir(documento(), onOpenChange);
-
-    await user.click(screen.getByRole("button", BOTAO));
-    await user.click(await screen.findByRole("button", { name: "Excluir" }));
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Você não tem permissão para executar essa ação."),
-    );
-    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.getByRole("dialog", { name: "Desativar documento" })).toBeInTheDocument();
   });
 
   describe("documentos de protocolo (STC-772)", () => {
@@ -2276,5 +2254,78 @@ describe("DetalheDocumentoModal -- excluir documento (STC-703)", () => {
         screen.getByText("Esta renovação faz parte de um lote com outras instâncias."),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("DetalheDocumentoModal -- editar anexo (STC-854)", () => {
+  const BOTAO = { name: "Editar anexo" };
+
+  async function abrir(evidencias = [evidencia()], doc = documento({ evidencia_vigente: 1 })) {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue(evidencias);
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+  }
+
+  it("aparece para quem escreve no documento quando há PDF vigente", async () => {
+    sessao.atual = { ...sessao.atual, isSetorLeg: true };
+    await abrir();
+    expect(await screen.findByRole("button", BOTAO)).toBeInTheDocument();
+  });
+
+  it("sem PDF vigente, ou para quem só lê, não aparece", async () => {
+    sessao.atual = { ...sessao.atual, isSetorLeg: true };
+    await abrir([], documento({ evidencia_vigente: null }));
+    await waitFor(() => expect(listarEvidenciasLegalizacao).toHaveBeenCalled());
+    expect(screen.queryByRole("button", BOTAO)).not.toBeInTheDocument();
+  });
+
+  it("exige PDF e justificativa, e troca enviando a justificativa", async () => {
+    sessao.atual = { ...sessao.atual, isSetorLeg: true };
+    vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue(evidencia({ id: 2 }));
+    const user = userEvent.setup();
+    await abrir();
+
+    await user.click(await screen.findByRole("button", BOTAO));
+    const dialogo = await screen.findByRole("dialog", { name: "Editar anexo" });
+    expect(dialogo).toHaveTextContent("alvara.pdf");
+    await user.click(within(dialogo).getByRole("button", { name: "Trocar PDF" }));
+    expect(await within(dialogo).findAllByRole("alert")).toHaveLength(2);
+    expect(enviarEvidenciaLegalizacao).not.toHaveBeenCalled();
+
+    const pdf = new File(["%PDF"], "certo.pdf", { type: "application/pdf" });
+    await user.upload(within(dialogo).getByLabelText("PDF novo"), pdf);
+    await user.type(within(dialogo).getByLabelText("Justificativa"), " PDF de outra unidade. ");
+    await user.click(within(dialogo).getByRole("button", { name: "Trocar PDF" }));
+
+    await waitFor(() =>
+      expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(55, pdf, undefined, {
+        justificativa: "PDF de outra unidade.",
+      }),
+    );
+    expect(toast.success).toHaveBeenCalledWith(
+      "PDF trocado. O anterior ficou guardado no histórico de evidências.",
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Editar anexo" })).toBeNull());
+  });
+
+  it("a troca aparece no histórico com a justificativa", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([
+      historico({
+        acao: "evidencia_substituida",
+        valor_anterior: "errado.pdf",
+        valor_novo: "certo.pdf",
+        justificativa: "PDF de outra unidade.",
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("tab", { name: /histórico/i }));
+
+    expect(await screen.findByText(/pdf da evidência/i)).toBeInTheDocument();
+    expect(screen.getByText("PDF de outra unidade.")).toBeInTheDocument();
   });
 });
