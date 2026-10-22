@@ -1310,6 +1310,45 @@ describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", ()
     await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
   });
 
+  it("enquanto a lista de processos carrega, o Salvar espera", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "em_andamento", validade: null }),
+    );
+    vi.mocked(listarProcessosRenovacao).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+  });
+
+  it("se a lista de processos falhou, Regular confirma assim mesmo", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(
+      documento({ status: "em_andamento", validade: null }),
+    );
+    vi.mocked(listarProcessosRenovacao).mockRejectedValue(new Error("falhou"));
+    const user = userEvent.setup();
+    renderComponente(55);
+    await screen.findByText("Alvará de Funcionamento");
+    await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "Editar documento" }));
+
+    await escolherStatus(user, "Regular");
+    await user.type(screen.getByLabelText("Validade"), "2027-06-30");
+    await user.type(screen.getByLabelText("Justificativa"), "Já renovado.");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(
+      await screen.findByText(
+        "Não foi possível conferir se este documento tem uma renovação em andamento. Se tiver, ela será concluída junto, e o card no Kanban vai para Concluído.",
+      ),
+    ).toBeInTheDocument();
+    expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
+  });
+
   it("com renovação aberta, Regular sem validade pede a validade nova", async () => {
     const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
       processo(),
