@@ -1288,6 +1288,28 @@ describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", ()
     );
   });
 
+  it("Protocolado sem renovação aberta avisa que a renovação foi aberta junto", async () => {
+    vi.mocked(atualizarDocumentoLegalizacao).mockResolvedValue({
+      ...documento({ status: "protocolado", validade: "2027-12-01" }),
+      renovacao_aberta_junto: true,
+    });
+    const user = await abrirEdicao(documento({ status: "regular", validade: "2027-12-01" }));
+    vi.mocked(listarProcessosRenovacao).mockClear();
+
+    await escolherStatus(user, "Protocolado");
+    await user.type(screen.getByLabelText("Justificativa"), "Protocolo já enviado ao órgão.");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Documento atualizado. A renovação foi aberta junto: acompanhe em "Acompanhar Renovação".',
+      ),
+    );
+    // A lista de processos é buscada de novo: "Acompanhar Renovação" já
+    // mostra o processo aberto.
+    await waitFor(() => expect(listarProcessosRenovacao).toHaveBeenCalled());
+  });
+
   it("com renovação aberta, Regular sem validade pede a validade nova", async () => {
     const user = await abrirEdicao(documento({ status: "em_andamento", validade: null }), [
       processo(),
