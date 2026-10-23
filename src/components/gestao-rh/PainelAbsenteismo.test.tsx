@@ -772,6 +772,18 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
     ],
   };
 
+  it("período de outro ano: o título traz o ano", async () => {
+    vi.setSystemTime(new Date(2027, 1, 10, 9, 0));
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+
+    expect(await screen.findByRole("dialog", { name: "Horas perdidas · setembro/2026" })).toBeInTheDocument();
+  });
+
   function painelCom(horasPerdidas?: typeof HORAS_PERDIDAS) {
     return {
       ...PAINEL,
