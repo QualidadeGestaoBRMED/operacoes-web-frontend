@@ -60,7 +60,7 @@ import {
   formatarDataDeDatetime,
   LABEL_STATUS_PROCESSO,
 } from "@/lib/legalizacaoRenovacao";
-import { administra } from "@/lib/redes";
+import { administra, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   CODIGOS_MOVIMENTACAO_PROFISSIONAL,
   COR_STATUS_BADGE,
@@ -465,6 +465,7 @@ export function DetalheDocumentoModal({
   const { desativar, isLoading: desativando } = useDesativarDocumentoLegalizacao();
   const { mutate: mutateGlobal } = useSWRConfig();
   const { user, isSetorLeg, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
   );
@@ -713,7 +714,7 @@ export function DetalheDocumentoModal({
     !!documento &&
     (administra(user, documento.unidade.rede) ||
       isSetorLeg ||
-      (isCoordenacaoUnidade && user?.unidade_id === documento.unidade.id));
+      (isCoordenacaoUnidade && unidadesDoUsuario.includes(documento.unidade.id)));
   // STC-853/854: desativar (no lugar de excluir) só o Admin da rede.
   const podeDesativar = !!documento && administra(user, documento.unidade.rede);
   const nomeDocumento = documento

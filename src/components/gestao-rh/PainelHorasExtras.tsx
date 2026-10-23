@@ -20,6 +20,7 @@ import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
+import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
 import {
   ordenarLinhasHorasExtras,
@@ -72,9 +73,11 @@ export function PainelHorasExtras() {
   const router = useRouter();
   const pathname = usePathname();
   // O Gestão RH é da rede padrão (STC-762).
-  const { administraRedePadrao } = useAuth();
+  const { user, administraRedePadrao } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
+  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
 
   const {
     periodo,
@@ -197,9 +200,8 @@ export function PainelHorasExtras() {
             <CardsHorasExtras painel={painel} />
           </div>
 
-          {/* Coordenação e OPEX já recebem só a própria unidade da API: o
-              filtro é só do Admin. */}
-          {administraRedePadrao && (
+          {/* Coordenação e OPEX já recebem só as próprias unidades da API. */}
+          {filtroUnidade.mostrar && (
             <div className="flex flex-wrap items-center gap-3 px-4 pt-4 sm:px-7">
               <Select
                 value={unidade ? String(unidade) : "todas"}
@@ -209,8 +211,8 @@ export function PainelHorasExtras() {
                   <SelectValue placeholder="Unidade" />
                 </SelectTrigger>
                 <SelectContent position="popper">
-                  <SelectItem value="todas">Todas as unidades</SelectItem>
-                  {unidades.map((item) => (
+                  <SelectItem value="todas">{filtroUnidade.rotuloTodas}</SelectItem>
+                  {filtroUnidade.opcoes.map((item) => (
                     <SelectItem key={item.id} value={String(item.id)}>
                       {item.nome}
                     </SelectItem>

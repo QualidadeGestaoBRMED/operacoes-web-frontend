@@ -1,4 +1,4 @@
-import type { Perfil, Rede, Unidade } from "@/types";
+import type { Perfil, Rede, Unidade, Usuario } from "@/types";
 
 // Cargos (accounts/permissions.py). Os números só identificam o cargo: quem
 // administra o quê vem de REDES_POR_NIVEL, nunca de comparar maior/menor
@@ -78,6 +78,42 @@ export function administra(usuario: ComCargo | null | undefined, rede: Rede): bo
 }
 
 /** Rede de uma unidade; sem unidade (demanda Operacional), a padrão. */
+/** Unidade principal e adicionais do usuário (STC-862), sem repetir. */
+export function unidadesDoUsuario(
+  usuario: Partial<Pick<Usuario, "unidade_id" | "unidades_adicionais_ids">> | null | undefined,
+): number[] {
+  if (!usuario) return [];
+  const ids = [usuario.unidade_id, ...(usuario.unidades_adicionais_ids ?? [])];
+  return [...new Set(ids.filter((id): id is number => id != null))];
+}
+
+/** Filtro de unidade que a tela da coordenação precisa aplicar, ou null
+ * quando o atual já vale. Com uma unidade, sempre ela; com mais de uma,
+ * qualquer uma delas ou nenhuma ("todas as minhas", `undefined`). */
+export function unidadeForcadaDoCoordenador(
+  ehCoordenacao: boolean,
+  minhas: number[],
+  atual: number | undefined,
+): number | undefined | null {
+  if (!ehCoordenacao || minhas.length === 0) return null;
+  if (minhas.length === 1) return atual === minhas[0] ? null : minhas[0];
+  return atual === undefined || minhas.includes(atual) ? null : undefined;
+}
+
+/** Filtro de unidade dos painéis: o Admin escolhe entre todas; a
+ * coordenação com mais de uma unidade na lista (STC-862), entre as suas.
+ * Com uma só na lista, sem filtro: a API já devolve só as dela (o Ponto
+ * focal tem unidades OPEX, fora da lista da rede própria). */
+export function filtroDeUnidadeDosPaineis<T extends Pick<Unidade, "id">>(
+  unidades: T[],
+  administraARede: boolean,
+  minhas: number[],
+): { mostrar: boolean; opcoes: T[]; rotuloTodas: string } {
+  if (administraARede) return { mostrar: true, opcoes: unidades, rotuloTodas: "Todas as unidades" };
+  const opcoes = unidades.filter((unidade) => minhas.includes(unidade.id));
+  return { mostrar: opcoes.length > 1, opcoes, rotuloTodas: "Todas as minhas unidades" };
+}
+
 export function redeDaUnidade(unidade: Pick<Unidade, "rede"> | null | undefined): Rede {
   return unidade?.rede ?? "padrao";
 }

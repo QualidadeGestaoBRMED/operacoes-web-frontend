@@ -230,6 +230,37 @@ describe("ResponsavelSection -- elegibilidade em demanda Operacional", () => {
   });
 });
 
+describe("ResponsavelSection -- unidades adicionais (STC-862)", () => {
+  it("quem tem a unidade da demanda como adicional aparece como candidato", async () => {
+    const comAdicional: Usuario = {
+      ...COLABORADOR_EXISTENTE,
+      id: 8,
+      first_name: "Coordenadora",
+      last_name: "Duas Unidades",
+      unidade_id: 2,
+      unidades_adicionais_ids: [1],
+    };
+    const deOutraUnidade: Usuario = {
+      ...COLABORADOR_EXISTENTE,
+      id: 9,
+      first_name: "Outra",
+      last_name: "Unidade",
+      unidade_id: 2,
+    };
+    vi.mocked(listarUsuarios).mockResolvedValue([comAdicional, deOutraUnidade]);
+    const user = userEvent.setup();
+    renderSecao([]);
+
+    await user.click(screen.getByRole("button", { name: "Adicionar responsável" }));
+    await user.click(screen.getByLabelText(/usuário responsável/i));
+
+    expect(
+      await screen.findByRole("option", { name: "Coordenadora Duas Unidades" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Outra Unidade" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ResponsavelSection -- elegibilidade pela rede da demanda (STC-747)", () => {
   it("demanda de aeroclínica sugere o Admin Operações Especiais, não o Admin Operações", async () => {
     const semUnidade = { ...NOVO_PRINCIPAL, unidade_id: null };

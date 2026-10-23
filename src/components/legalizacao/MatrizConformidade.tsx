@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
+import { unidadeForcadaDoCoordenador, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { estaEmAtencao, filtroDaSituacao } from "@/lib/legalizacaoMapa";
 import {
   documentoBateNaBusca,
@@ -54,6 +55,7 @@ export function MatrizConformidade() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   // STC-714: clique numa célula do Mapa também traz ?situacao=<bucket> --
   // vira o filtro Status (status real) ou o filtro "Atenção" (só-client).
   const [filtros, setFiltros] = useState<DocumentoUnidadeFiltros>(() => ({
@@ -128,12 +130,17 @@ export function MatrizConformidade() {
   // a sessão resolve (isCoordenacaoUnidade nasce false enquanto carrega,
   // useAuth.ts) -- daí o guard duplo mais abaixo em aguardandoValidacaoDeUnidade,
   // que pausa a busca de documentos até aqui decidir.
+  // Com mais de uma unidade (STC-862), "todas as minhas" (sem filtro) também
+  // vale; só uma unidade que não é dele volta para "todas as minhas".
+  const unidadeForcada = unidadeForcadaDoCoordenador(
+    isCoordenacaoUnidade,
+    unidadesDoUsuario,
+    filtros.unidade,
+  );
   useEffect(() => {
-    const unidadeDoUsuario = user?.unidade_id;
-    if (!isCoordenacaoUnidade || !unidadeDoUsuario) return;
-    if (filtros.unidade === unidadeDoUsuario) return;
-    setFiltros((atual) => ({ ...atual, unidade: unidadeDoUsuario }));
-  }, [isCoordenacaoUnidade, user?.unidade_id, filtros.unidade]);
+    if (unidadeForcada === null) return;
+    setFiltros((atual) => ({ ...atual, unidade: unidadeForcada }));
+  }, [unidadeForcada]);
 
   // Achado no code review: sem pausar, a 1ª busca de /documentos/ já saía
   // com o `unidade` ainda não validado (useEffect acima só roda DEPOIS do
@@ -158,19 +165,10 @@ export function MatrizConformidade() {
   // de carregandoSessao, só que disparado por uma ação do usuário em vez de
   // timing de sessão.
   //
-  // Boolean(user?.unidade_id) (3ª rodada de review, não "!== undefined"):
-  // Usuario.unidade_id é number|null -- um Coordenador sem unidade
-  // vinculada (conta mal configurada, GerenciarUsuarios.tsx não impede)
-  // tem unidade_id null, e null !== undefined também é true. Com a
-  // checagem antiga, essa flag ficava travada em true pra sempre (o efeito
-  // de força acima também nunca seta filtros.unidade pra esse caso, então
-  // a divergência nunca se resolve) -- aguardandoValidacaoDeUnidade abaixo
-  // desabilitava a busca permanentemente, e a tela ficava presa num
-  // skeleton de carregamento sem nenhuma saída, silenciosamente.
-  const aguardandoForcarUnidadeDoCoordenador =
-    isCoordenacaoUnidade &&
-    Boolean(user?.unidade_id) &&
-    filtros.unidade !== user?.unidade_id;
+  // Coordenador sem unidade vinculada (conta mal configurada): nada a forçar
+  // (unidadeForcadaDoCoordenador devolve null), senão a busca ficaria
+  // pausada para sempre; a tela mostra o erro de coordenadorSemUnidade.
+  const aguardandoForcarUnidadeDoCoordenador = unidadeForcada !== null;
   // coordenadorSemUnidade: cobre esse mesmo caso (unidade_id null/undefined
   // com a sessão já resolvida) como um estado de ERRO explícito, não um
   // 3º tipo de "aguardando" -- sem isso, a busca simplesmente seguiria sem
@@ -178,7 +176,7 @@ export function MatrizConformidade() {
   // quebrada (o oposto do que esta issue pede). Mantém a busca pausada
   // (abaixo) e troca o skeleton mudo por uma mensagem acionável.
   const coordenadorSemUnidade =
-    isCoordenacaoUnidade && !carregandoSessao && !user?.unidade_id;
+    isCoordenacaoUnidade && !carregandoSessao && unidadesDoUsuario.length === 0;
   const aguardandoValidacaoDeUnidade =
     (Boolean(filtros.unidade) && carregandoUnidades) ||
     carregandoSessao ||

@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePainelFerias } from "@/hooks/useFeriasGestaoRH";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
+import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   JANELA_PADRAO,
   JANELAS_PAINEL,
@@ -48,9 +49,11 @@ export function PainelFerias() {
   const router = useRouter();
   const pathname = usePathname();
   // O Gestão RH é da rede padrão (STC-762).
-  const { administraRedePadrao } = useAuth();
+  const { user, administraRedePadrao } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
+  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
 
   const [janela, setJanela] = useState<number>(JANELA_PADRAO);
   const [unidade, setUnidade] = useState<number>();
@@ -191,8 +194,8 @@ export function PainelFerias() {
               />
             </div>
 
-            {/* Coordenação e OPEX já recebem só a própria unidade da API. */}
-            {administraRedePadrao && (
+            {/* Coordenação e OPEX já recebem só as próprias unidades da API. */}
+            {filtroUnidade.mostrar && (
               <Select
                 value={unidade ? String(unidade) : "todas"}
                 onValueChange={(valor) =>
@@ -203,8 +206,8 @@ export function PainelFerias() {
                   <SelectValue placeholder="Unidade" />
                 </SelectTrigger>
                 <SelectContent position="popper">
-                  <SelectItem value="todas">Todas as unidades</SelectItem>
-                  {unidades.map((item) => (
+                  <SelectItem value="todas">{filtroUnidade.rotuloTodas}</SelectItem>
+                  {filtroUnidade.opcoes.map((item) => (
                     <SelectItem key={item.id} value={String(item.id)}>
                       {item.nome}
                     </SelectItem>

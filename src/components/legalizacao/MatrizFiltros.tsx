@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -75,6 +76,7 @@ export function MatrizFiltros({
   onLimparUrl,
 }: MatrizFiltrosProps) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { unidades: todasAsUnidades } = useUnidades("padrao");
   // STC-512: mesmo critério de BibliotecaDocumentos.tsx -- Coordenador só
   // pode escolher a própria unidade no filtro. O backend já restringe o
@@ -82,7 +84,7 @@ export function MatrizFiltros({
   // oferecia livremente qualquer unidade da rede, sem indicar que a troca
   // nunca traria resultado de outra unidade.
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
   const { usuarios } = useUsuarios();
   // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
@@ -125,8 +127,10 @@ export function MatrizFiltros({
   // como "filtro ativo" deixava "Limpar filtros" sempre visível mesmo sem
   // nenhuma escolha real, e clicar nele não limpava nada (o próprio efeito
   // de força reescreve o valor de volta no render seguinte).
+  // Com mais de uma unidade (STC-862), a escolha entre elas é filtro de verdade.
+  const unidadeTravada = isCoordenacaoUnidade && unidadesDoUsuario.length <= 1;
   const contagemFiltrosSelect = [
-    isCoordenacaoUnidade ? undefined : filtros.unidade,
+    unidadeTravada ? undefined : filtros.unidade,
     filtros.tipo_documento,
     filtros.status,
     filtros.responsavel,
@@ -170,8 +174,10 @@ export function MatrizFiltros({
                 trocar". MatrizConformidade.tsx força filtros.unidade de
                 volta pra unidade dele mesmo se isso acontecer (URL editada
                 à mão, por exemplo), mas a opção nem devia aparecer. */}
-            {!isCoordenacaoUnidade && (
-              <SelectItem value="todas">Todas as unidades</SelectItem>
+            {!unidadeTravada && (
+              <SelectItem value="todas">
+                {isCoordenacaoUnidade ? "Todas as minhas unidades" : "Todas as unidades"}
+              </SelectItem>
             )}
             {unidades.map((unidade) => (
               <SelectItem key={unidade.id} value={String(unidade.id)}>

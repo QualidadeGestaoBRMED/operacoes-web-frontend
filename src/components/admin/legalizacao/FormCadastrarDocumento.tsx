@@ -28,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   useCriarDocumentoLegalizacao,
   useDocumentosLegalizacao,
@@ -200,11 +201,12 @@ export function FormCadastrarDocumento({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { unidades: todasAsUnidades } = useUnidades("padrao");
   // STC-514: mesmo critério da STC-512 -- Coordenador só pode cadastrar na
   // própria unidade, o seletor abaixo oferece só essa opção.
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
   const { tiposDocumento } = useTiposDocumento();
   const { criar: criarRegra } = useCriarRegraDocumento();
@@ -274,10 +276,13 @@ export function FormCadastrarDocumento({
   // escolher outra (senão ele recebe 403 ao submeter, já que o backend só
   // permite escrever na própria). Depende de `open` pra reaplicar toda vez
   // que o form reabre (fechar reseta `unidade` pra undefined acima).
+  // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe,
+  // para não abrir na unidade errada sem perceber.
+  const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
   useEffect(() => {
-    if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
-    setValue("unidade", user.unidade_id);
-  }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
+    if (!open || !isCoordenacaoUnidade || unidadeUnica === undefined) return;
+    setValue("unidade", unidadeUnica);
+  }, [open, isCoordenacaoUnidade, unidadeUnica, setValue]);
 
   const naoAplicavel = watch("nao_aplicavel");
   const status = watch("status");

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useCriarDemanda } from "@/hooks/useDemandaMutations";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useSetores } from "@/hooks/useSetores";
@@ -115,6 +116,7 @@ export function FormNovaDemanda({
   tipoGestaoInicial?: number;
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
@@ -178,10 +180,13 @@ export function FormNovaDemanda({
   // mesmo commit quando `open` vira true; o reset() de cima limpa `unidade`
   // antes deste preenchê-la, nunca na ordem inversa (que apagaria o valor
   // que este acabou de definir).
+  // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe,
+  // para não abrir na unidade errada sem perceber.
+  const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
   useEffect(() => {
-    if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
-    setValue("unidade", user.unidade_id);
-  }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
+    if (!open || !isCoordenacaoUnidade || unidadeUnica === undefined) return;
+    setValue("unidade", unidadeUnica);
+  }, [open, isCoordenacaoUnidade, unidadeUnica, setValue]);
 
   // Achado no review: SeletorEtiquetas usava tiposGestao[0]?.modulo (sempre
   // o primeiro da lista), não o módulo do tipo_gestao de fato selecionado
@@ -204,7 +209,7 @@ export function FormNovaDemanda({
   // STC-538: Coordenação de Unidade só escolhe a própria unidade -- mesmo
   // critério de Legalização (FormCadastrarDocumento.tsx).
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
 
   async function aoSubmeter(valores: FormValuesSaida) {
@@ -452,8 +457,8 @@ export function FormNovaDemanda({
                         // de erro).
                         setValue(
                           "unidade",
-                          isCoordenacaoUnidade && user?.unidade_id
-                            ? user.unidade_id
+                          isCoordenacaoUnidade && unidadeUnica !== undefined
+                            ? unidadeUnica
                             : null,
                         );
                         setValue("area_responsavel", []);

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   useCriarDocumentosLegalizacaoEmLote,
   useDocumentosLegalizacao,
@@ -155,11 +156,14 @@ export function FormCadastrarDocumentosEmLote({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
+  // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe.
+  const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
   const { unidades: todasAsUnidades } = useUnidades("padrao");
   // STC-514: mesmo critério de FormCadastrarDocumento.tsx -- Coordenador só
   // pode cadastrar em lote na própria unidade.
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
   const { tiposDocumento } = useTiposDocumento();
   const { criar: criarLote, isLoading: salvando } = useCriarDocumentosLegalizacaoEmLote();
@@ -309,9 +313,9 @@ export function FormCadastrarDocumentosEmLote({
   // própria). Depende de `open` pra reaplicar toda vez que o form reabre
   // (fechar() reseta `unidade` pra undefined via reset(criarValoresPadrao())).
   useEffect(() => {
-    if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
-    setValue("unidade", user.unidade_id);
-  }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
+    if (!open || !isCoordenacaoUnidade || unidadeUnica === undefined) return;
+    setValue("unidade", unidadeUnica);
+  }, [open, isCoordenacaoUnidade, unidadeUnica, setValue]);
 
   function fechar() {
     reset(criarValoresPadrao());

@@ -10,8 +10,11 @@ import {
   NIVEL_UNIDADE,
   podeAtribuirCargo,
   podeGerenciar,
+  filtroDeUnidadeDosPaineis,
   redeDoCargoDeUnidade,
   redesAdministradas,
+  unidadeForcadaDoCoordenador,
+  unidadesDoUsuario,
 } from "./redes";
 
 function perfil(nivel: number): Perfil {
@@ -86,5 +89,41 @@ describe("redeDoCargoDeUnidade", () => {
     expect(redeDoCargoDeUnidade(perfil(NIVEL_UNIDADE))).toBe("padrao");
     expect(redeDoCargoDeUnidade(perfil(NIVEL_PONTO_FOCAL))).toBe("opex");
     expect(redeDoCargoDeUnidade(perfil(NIVEL_SETOR))).toBeNull();
+  });
+});
+
+describe("unidades adicionais (STC-862)", () => {
+  it("unidadesDoUsuario junta a principal e as adicionais, sem repetir", () => {
+    expect(unidadesDoUsuario({ unidade_id: 1, unidades_adicionais_ids: [2, 1] })).toEqual([1, 2]);
+    expect(unidadesDoUsuario({ unidade_id: 1 })).toEqual([1]);
+    expect(unidadesDoUsuario({ unidade_id: null })).toEqual([]);
+    expect(unidadesDoUsuario(undefined)).toEqual([]);
+  });
+
+  it("unidadeForcadaDoCoordenador: com uma unidade, sempre ela; com mais, qualquer uma delas ou todas", () => {
+    expect(unidadeForcadaDoCoordenador(true, [1], undefined)).toBe(1);
+    expect(unidadeForcadaDoCoordenador(true, [1], 1)).toBeNull();
+    expect(unidadeForcadaDoCoordenador(true, [1, 2], undefined)).toBeNull();
+    expect(unidadeForcadaDoCoordenador(true, [1, 2], 2)).toBeNull();
+    expect(unidadeForcadaDoCoordenador(true, [1, 2], 9)).toBeUndefined();
+    expect(unidadeForcadaDoCoordenador(true, [], 9)).toBeNull();
+    expect(unidadeForcadaDoCoordenador(false, [1], 9)).toBeNull();
+  });
+
+  it("filtroDeUnidadeDosPaineis: Admin escolhe entre todas; coordenação com mais de uma, entre as suas", () => {
+    const unidades = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    expect(filtroDeUnidadeDosPaineis(unidades, true, [])).toEqual({
+      mostrar: true,
+      opcoes: unidades,
+      rotuloTodas: "Todas as unidades",
+    });
+    expect(filtroDeUnidadeDosPaineis(unidades, false, [1, 2])).toEqual({
+      mostrar: true,
+      opcoes: [{ id: 1 }, { id: 2 }],
+      rotuloTodas: "Todas as minhas unidades",
+    });
+    expect(filtroDeUnidadeDosPaineis(unidades, false, [1]).mostrar).toBe(false);
+    // Ponto focal com duas aeroclínicas: nenhuma na lista da rede própria.
+    expect(filtroDeUnidadeDosPaineis(unidades, false, [7, 8]).mostrar).toBe(false);
   });
 });

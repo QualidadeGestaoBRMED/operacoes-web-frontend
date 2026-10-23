@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao, useEvidenciasVigentes } from "@/hooks/useDocumentosLegalizacao";
 import {
   limparCachePreviewEvidencia,
@@ -90,6 +91,7 @@ export function BibliotecaDocumentos() {
     isLoading: carregandoSessao,
     isCoordenacaoUnidade,
   } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const {
     unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
@@ -103,7 +105,7 @@ export function BibliotecaDocumentos() {
   // Filtrar a lista na origem resolve os dois usos abaixo de uma vez só
   // (fallback de auto-seleção e as opções do Select).
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
 
   // carregandoSessao no guard (achado no review): isCoordenacaoUnidade nasce
@@ -268,7 +270,7 @@ export function BibliotecaDocumentos() {
   // diagnóstico errado (existem unidades na rede, só nenhuma vinculada à
   // conta dele).
   const coordenadorSemUnidade =
-    isCoordenacaoUnidade && !carregandoSessao && !user?.unidade_id;
+    isCoordenacaoUnidade && !carregandoSessao && unidadesDoUsuario.length === 0;
 
   // Achado numa checagem de falhas críticas: sem isto, uma lista de
   // unidades vazia (zero unidades cadastradas) deixava `unidadeId`

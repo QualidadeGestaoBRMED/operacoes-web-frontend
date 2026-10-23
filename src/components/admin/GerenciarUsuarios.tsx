@@ -37,6 +37,7 @@ import {
 import { cn, nomeExibicao } from "@/lib/utils";
 import { guardarVerComo } from "@/lib/verComo";
 import type { Perfil, Unidade, Usuario } from "@/types";
+import { SeletorUnidadesAdicionais } from "./SeletorUnidadesAdicionais";
 
 // Quem cada Admin gerencia e que cargos oferece seguem as regras do backend
 // (STC-745, espelhadas em lib/redes.ts): cada Admin cuida dos usuários da
@@ -153,6 +154,21 @@ export function GerenciarUsuarios({
     return rede
       ? unidadesDasMinhasRedes.filter((unidade) => unidade.rede === rede)
       : unidadesDasMinhasRedes;
+  }
+
+  // Adicionais oferecidas na linha: as da rede do cargo, sem a principal, e
+  // as já marcadas mesmo fora da lista (desativadas), para poder desmarcar.
+  function opcoesDeAdicionais(usuario: Usuario) {
+    const daLinha = unidadesDaLinha(usuario).filter(
+      (unidade) => unidade.id !== usuario.unidade_id,
+    );
+    const foraDaLista = (usuario.unidades_adicionais_ids ?? [])
+      .filter((id) => !daLinha.some((unidade) => unidade.id === id))
+      .map((id) => ({
+        id,
+        nome: unidades.find((unidade) => unidade.id === id)?.nome ?? "Unidade desativada",
+      }));
+    return [...daLinha, ...foraDaLista];
   }
 
   // Filtros -- só do lado do cliente: useUsuarios() já carrega tudo de uma
@@ -284,12 +300,18 @@ export function GerenciarUsuarios({
       redeExigida !== null &&
       usuario.unidade_id != null &&
       unidadeAtual?.rede !== redeExigida;
+    const temAdicionais = (usuario.unidades_adicionais_ids ?? []).length > 0;
     try {
       await atualizar({
         id: usuario.id,
         payload: {
           perfil_id: novo?.id ?? null,
-          ...(tiraUnidade && { unidade_id: null }),
+          // Sem principal não há adicionais, e as da rede antiga não
+          // combinariam com o cargo novo (STC-862): saem junto.
+          ...(tiraUnidade && {
+            unidade_id: null,
+            ...(temAdicionais && { unidades_adicionais_ids: [] }),
+          }),
         },
       });
       toast.success("Perfil atualizado.");
@@ -299,14 +321,41 @@ export function GerenciarUsuarios({
   }
 
   async function aoMudarUnidade(usuario: Usuario, valor: string) {
+    const novaUnidade = valor === SEM_VALOR ? null : Number(valor);
+    const adicionais = usuario.unidades_adicionais_ids ?? [];
+    // Sem principal, as adicionais saem; a promovida a principal sai delas
+    // (STC-862: a principal não se repete nas adicionais).
+    const adicionaisAjustadas =
+      novaUnidade === null ? [] : adicionais.filter((id) => id !== novaUnidade);
     try {
       await atualizar({
         id: usuario.id,
-        payload: { unidade_id: valor === SEM_VALOR ? null : Number(valor) },
+        payload: {
+          unidade_id: novaUnidade,
+          ...(adicionaisAjustadas.length !== adicionais.length && {
+            unidades_adicionais_ids: adicionaisAjustadas,
+          }),
+        },
       });
       toast.success("Unidade atualizada.");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+    }
+  }
+
+  // Cada marcação manda a lista inteira: o seletor fica travado até a
+  // gravação voltar, senão uma segunda marcação partiria da lista antiga.
+  const [salvandoAdicionaisDe, setSalvandoAdicionaisDe] = useState<number | null>(null);
+
+  async function aoMudarUnidadesAdicionais(usuario: Usuario, ids: number[]) {
+    setSalvandoAdicionaisDe(usuario.id);
+    try {
+      await atualizar({ id: usuario.id, payload: { unidades_adicionais_ids: ids } });
+      toast.success("Unidades adicionais atualizadas.");
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    } finally {
+      setSalvandoAdicionaisDe(null);
     }
   }
 
@@ -491,34 +540,47 @@ export function GerenciarUsuarios({
                     </Select>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Select
-                      value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
-                      onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
-                    >
-                      <SelectTrigger
-                        aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
-                        className="w-full min-w-[10rem]"
+                    <div className="flex items-center gap-1.5">
+                      <Select
+                        value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
+                        onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
                       >
-                        <SelectValue placeholder="Sem unidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
-                        {/* A unidade atual entra mesmo fora da lista (desativada,
-                            ou de cargo antigo), para o campo não aparecer vazio. */}
-                        {usuario.unidade_id &&
-                          !unidadesDaLinha(usuario).some((u) => u.id === usuario.unidade_id) && (
-                            <SelectItem value={String(usuario.unidade_id)}>
-                              {unidades.find((u) => u.id === usuario.unidade_id)?.nome ??
-                                "Unidade atual"}
+                        <SelectTrigger
+                          aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
+                          className="w-full min-w-[10rem]"
+                        >
+                          <SelectValue placeholder="Sem unidade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
+                          {/* A unidade atual entra mesmo fora da lista (desativada,
+                              ou de cargo antigo), para o campo não aparecer vazio. */}
+                          {usuario.unidade_id &&
+                            !unidadesDaLinha(usuario).some((u) => u.id === usuario.unidade_id) && (
+                              <SelectItem value={String(usuario.unidade_id)}>
+                                {unidades.find((u) => u.id === usuario.unidade_id)?.nome ??
+                                  "Unidade atual"}
+                              </SelectItem>
+                            )}
+                          {unidadesDaLinha(usuario).map((unidade) => (
+                            <SelectItem key={unidade.id} value={String(unidade.id)}>
+                              {unidade.nome}
                             </SelectItem>
-                          )}
-                        {unidadesDaLinha(usuario).map((unidade) => (
-                          <SelectItem key={unidade.id} value={String(unidade.id)}>
-                            {unidade.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* Adicionais (STC-862): só com uma principal, entre as
+                          unidades da mesma rede, sem repetir a principal. */}
+                      {usuario.unidade_id && (
+                        <SeletorUnidadesAdicionais
+                          value={usuario.unidades_adicionais_ids ?? []}
+                          opcoes={opcoesDeAdicionais(usuario)}
+                          onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
+                          disabled={salvandoAdicionaisDe === usuario.id}
+                          aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5">
                     {/* Setor não tem rede: é da rede padrão (STC-745). */}

@@ -13,6 +13,10 @@ export interface Usuario {
   last_name: string;
   perfil: Perfil | null;
   unidade_id: number | null;
+  // STC-862: unidades além da principal, com o mesmo acesso. Só vem no
+  // usuário da Administração, do login e de /auth/me/ (aninhado em outros
+  // lugares, não vem); ausente equivale a nenhuma.
+  unidades_adicionais_ids?: number[];
   setor_id: number | null;
   // Opcional (não required): campo novo (STC-520), muitos fixtures de teste
   // pelo código constroem Usuario sem ele -- ausência equivale a null pra
@@ -33,6 +37,7 @@ export interface Usuario {
 export interface UsuarioPayload {
   perfil_id?: number | null;
   unidade_id?: number | null;
+  unidades_adicionais_ids?: number[];
   setor_id?: number | null;
 }
 

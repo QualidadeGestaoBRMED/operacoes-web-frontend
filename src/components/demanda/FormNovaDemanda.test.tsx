@@ -322,6 +322,33 @@ describe("FormNovaDemanda -- Coordenação de Unidade só abre demanda pra próp
     ).not.toBeInTheDocument();
   });
 
+  it("com duas unidades (STC-862), nada vem preenchido e as duas são oferecidas", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_UNIDADES]);
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, OUTRA_UNIDADE]);
+    vi.mocked(useAuth).mockReturnValue({
+      user: {
+        usuarioId: 9,
+        unidade_id: OUTRA_UNIDADE.id,
+        unidades_adicionais_ids: [UNIDADE.id],
+        perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderForm();
+
+    const campo = await screen.findByRole("combobox", { name: /^unidade/i });
+    expect(campo).not.toHaveTextContent(OUTRA_UNIDADE.nome);
+    expect(campo).not.toHaveTextContent(UNIDADE.nome);
+    await user.click(campo);
+    expect(await screen.findByRole("option", { name: UNIDADE.nome })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: OUTRA_UNIDADE.nome })).toBeInTheDocument();
+  });
+
   // Achado em code review automático: trocar "Tipo de gestão" no meio do
   // preenchimento tenta limpar "unidade" (mutuamente exclusivo com "Área
   // Responsável", handler do Select de tipo de gestão) -- pra Coordenação
