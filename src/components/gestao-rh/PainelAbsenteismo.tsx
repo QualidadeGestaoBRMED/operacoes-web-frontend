@@ -285,6 +285,7 @@ export function PainelAbsenteismo() {
                       pontos,
                       nomeAnterior: nomeDoPeriodo(anteriorAtual.periodo, periodo),
                       parcial: periodoEmAndamento(periodo, hoje),
+                      minutosAnteriores: anteriorAtual.cards.minutos_ausentes ?? null,
                     }
                   : null
               }

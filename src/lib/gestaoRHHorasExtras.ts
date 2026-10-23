@@ -32,6 +32,14 @@ export function formatarHoras(minutos: number): string {
   return `${horas}:${String(minutos % 60).padStart(2, "0")}:00`;
 }
 
+/** Variação de horas (ex.: horas perdidas, STC-849): "▲ +1:30:00",
+ * "▼ −0:45:00" ou "sem variação". */
+export function formatarDiferencaDeHoras(minutos: number): string {
+  if (minutos === 0) return "sem variação";
+  const valor = formatarHoras(Math.abs(minutos));
+  return minutos > 0 ? `▲ +${valor}` : `▼ −${valor}`;
+}
+
 /** Marca do eixo dos gráficos, em horas inteiras: 1500 → "1.500h". */
 export function formatarHorasDoEixo(horas: number): string {
   return `${FORMATADOR_HORAS.format(horas)}h`;

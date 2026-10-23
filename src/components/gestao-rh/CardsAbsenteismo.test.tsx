@@ -5,39 +5,82 @@ import { CardsAbsenteismo } from "./CardsAbsenteismo";
 
 const FILTROS = { inicio: "2026-09-01", fim: "2026-09-30" };
 
-// STC-791: o jsdom não calcula a grade; o teste confere as classes que a
-// montam. No celular (2 colunas) o Absenteísmo ocupa a largura toda, e no
-// tablet (3 colunas) só quando são 5 cards.
-function cardDeAbsenteismo() {
-  return screen.getByText("Absenteísmo").closest("button, div[class*='rounded-xl']") as HTMLElement;
+// STC-791/849: o jsdom não calcula a grade; o teste confere as classes que
+// a montam. No celular (2 colunas) Absenteísmo e Horas perdidas ocupam a
+// largura toda; do tablet em diante, uma coluna cada.
+function card(rotulo: string) {
+  return screen.getByText(rotulo).closest("button, div[class*='rounded-xl']") as HTMLElement;
 }
 
-describe("CardsAbsenteismo, grade sem buraco (STC-791)", () => {
-  it("com faixas: 2 colunas no celular e no tablet, 1 no computador", () => {
-    render(<CardsAbsenteismo painel={painelAbsenteismoDeExemplo(FILTROS)} />);
+describe("CardsAbsenteismo, grade sem buraco (STC-791/849)", () => {
+  it("com faixas: os dois principais na linha toda só no celular, 6 colunas no computador", () => {
+    const { container } = render(<CardsAbsenteismo painel={painelAbsenteismoDeExemplo(FILTROS)} />);
 
-    expect(cardDeAbsenteismo()).toHaveClass("col-span-2", "xl:col-span-1");
-    expect(cardDeAbsenteismo()).not.toHaveClass("sm:col-span-1");
+    for (const rotulo of ["Absenteísmo", "Horas perdidas"]) {
+      expect(card(rotulo)).toHaveClass("col-span-2", "sm:col-span-1");
+    }
+    expect(card("Faixa crítica")).not.toHaveClass("col-span-2");
+    expect(container.firstChild).toHaveClass("sm:grid-cols-3", "xl:grid-cols-6");
   });
 
-  it("sem faixas: 2 colunas só no celular (os 3 cards fecham a linha do tablet)", () => {
+  it("sem faixas: 4 cards numa linha a partir do tablet", () => {
     const painel = painelAbsenteismoDeExemplo(FILTROS);
-    render(
+    const { container } = render(
       <CardsAbsenteismo
         painel={{ ...painel, parametros: { ...painel.parametros, faixas_cadastradas: false } }}
       />,
     );
 
     expect(screen.queryByText("Faixa crítica")).not.toBeInTheDocument();
-    expect(cardDeAbsenteismo()).toHaveClass("col-span-2", "sm:col-span-1");
+    expect(card("Absenteísmo")).toHaveClass("col-span-2", "sm:col-span-1");
+    expect(container.firstChild).toHaveClass("sm:grid-cols-4");
   });
 
-  it("carregando: o primeiro esqueleto ocupa o lugar do Absenteísmo", () => {
+  it("carregando: os dois primeiros esqueletos ocupam o lugar dos principais", () => {
     const { container } = render(<CardsAbsenteismo painel={undefined} />);
 
     const esqueletos = container.querySelectorAll("[data-slot='skeleton']");
-    expect(esqueletos).toHaveLength(5);
-    expect(esqueletos[0]).toHaveClass("col-span-2", "xl:col-span-1");
-    expect(esqueletos[1]).not.toHaveClass("col-span-2");
+    expect(esqueletos).toHaveLength(6);
+    expect(esqueletos[0]).toHaveClass("col-span-2", "sm:col-span-1");
+    expect(esqueletos[1]).toHaveClass("col-span-2", "sm:col-span-1");
+    expect(esqueletos[2]).not.toHaveClass("col-span-2");
+  });
+});
+
+describe("CardsAbsenteismo, horas perdidas (STC-849)", () => {
+  function painelCom(cards: Record<string, unknown>) {
+    const painel = painelAbsenteismoDeExemplo(FILTROS);
+    return { ...painel, cards: { ...painel.cards, ...cards } };
+  }
+
+  it("mostra as horas no formato do VR, com a dica do que entra", () => {
+    render(<CardsAbsenteismo painel={painelCom({ minutos_ausentes: 5875 })} />);
+
+    expect(screen.getByText("97:55:00")).toBeInTheDocument();
+    expect(card("Horas perdidas")).toHaveAttribute(
+      "title",
+      expect.stringContaining("não valor em reais"),
+    );
+  });
+
+  it("compara com o período anterior, mais horas em vermelho", () => {
+    render(
+      <CardsAbsenteismo
+        painel={painelCom({ minutos_ausentes: 600 })}
+        comparativo={{ pontos: 1, nomeAnterior: "agosto", parcial: false, minutosAnteriores: 510 }}
+      />,
+    );
+
+    const variacao = screen.getByText("▲ +1:30:00 vs. agosto");
+    expect(variacao).toHaveClass("text-red-600");
+  });
+
+  it("sem horas previstas no período, mostra traço em vez de zero", () => {
+    render(
+      <CardsAbsenteismo painel={painelCom({ percentual_periodo: null, minutos_ausentes: 0 })} />,
+    );
+
+    expect(card("Horas perdidas")).toHaveTextContent("—");
+    expect(screen.queryByText("0:00:00")).not.toBeInTheDocument();
   });
 });
