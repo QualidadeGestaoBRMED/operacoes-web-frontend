@@ -343,12 +343,19 @@ export function GerenciarUsuarios({
     }
   }
 
+  // Cada marcação manda a lista inteira: o seletor fica travado até a
+  // gravação voltar, senão uma segunda marcação partiria da lista antiga.
+  const [salvandoAdicionaisDe, setSalvandoAdicionaisDe] = useState<number | null>(null);
+
   async function aoMudarUnidadesAdicionais(usuario: Usuario, ids: number[]) {
+    setSalvandoAdicionaisDe(usuario.id);
     try {
       await atualizar({ id: usuario.id, payload: { unidades_adicionais_ids: ids } });
       toast.success("Unidades adicionais atualizadas.");
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
+    } finally {
+      setSalvandoAdicionaisDe(null);
     }
   }
 
@@ -569,6 +576,7 @@ export function GerenciarUsuarios({
                           value={usuario.unidades_adicionais_ids ?? []}
                           opcoes={opcoesDeAdicionais(usuario)}
                           onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
+                          disabled={salvandoAdicionaisDe === usuario.id}
                           aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
                         />
                       )}

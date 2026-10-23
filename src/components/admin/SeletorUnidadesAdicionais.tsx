@@ -69,6 +69,7 @@ export function SeletorUnidadesAdicionais({
                 <Checkbox
                   checked={value.includes(unidade.id)}
                   onCheckedChange={() => alternar(unidade.id)}
+                  disabled={disabled}
                   className="shrink-0"
                 />
                 <span className="truncate">{unidade.nome}</span>

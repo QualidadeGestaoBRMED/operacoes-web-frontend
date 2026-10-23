@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   useAtualizarDocumentoLegalizacao,
   useDocumentosLegalizacao,
@@ -294,11 +295,14 @@ export function DialogNovaVersao({
 
 export function FormNovaVersaoRegra() {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
+  // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe.
+  const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
   const { unidades: todasAsUnidades } = useUnidades("padrao");
   // STC-514: mesmo critério de FormCadastrarDocumento.tsx -- Coordenador só
   // pode corrigir regra da própria unidade.
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
   const { tiposDocumento } = useTiposDocumento();
   const [unidadeId, setUnidadeId] = useState<number | undefined>();
@@ -311,14 +315,10 @@ export function FormNovaVersaoRegra() {
   // isCoordenacaoUnidade/user resolverem (nascem false/undefined enquanto a
   // sessão carrega, useAuth.ts).
   useEffect(() => {
-    if (
-      !isCoordenacaoUnidade ||
-      !user?.unidade_id ||
-      unidadeId === user.unidade_id
-    )
+    if (!isCoordenacaoUnidade || unidadeUnica === undefined || unidadeId === unidadeUnica)
       return;
-    setUnidadeId(user.unidade_id);
-  }, [isCoordenacaoUnidade, user?.unidade_id, unidadeId]);
+    setUnidadeId(unidadeUnica);
+  }, [isCoordenacaoUnidade, unidadeUnica, unidadeId]);
 
   const { documentos, isLoading, carregandoPrimeiraVez, error, mensagemErro } =
     useDocumentosLegalizacao(

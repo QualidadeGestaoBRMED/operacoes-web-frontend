@@ -165,7 +165,7 @@ export function AbsenteismoMensalModal({
       <DialogContent className="sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Absenteísmo mês a mês</DialogTitle>
-          {/* O Painel só traz quem está ativo hoje: desligados não entram nos meses anteriores. */}
+          {/* Desligados contam nos meses em que trabalharam (STC-859). */}
           <DialogDescription className="text-[15px]" title="Considera quem trabalhou em cada mês, inclusive quem foi desligado depois.">{visao}</DialogDescription>
         </DialogHeader>
 
