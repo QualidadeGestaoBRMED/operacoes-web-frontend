@@ -54,6 +54,12 @@ const AbsenteismoMensalModal = dynamic(
   { ssr: false },
 );
 
+// Também só ao abrir: as barras das horas perdidas por tipo e por unidade.
+const HorasPerdidasModal = dynamic(
+  () => import("./HorasPerdidasModal").then((modulo) => modulo.HorasPerdidasModal),
+  { ssr: false },
+);
+
 // "Crítica e atenção" é a combinação mais usada (quem precisa de olhar) e o
 // filtro com que o painel abre quando há faixas cadastradas.
 const FAIXA_PADRAO = "critica,atencao";
@@ -130,6 +136,7 @@ export function PainelAbsenteismo() {
   // fora porque os cards contam todos; a faixa padrão só enxuga as linhas.
   const [hoje] = useState(hojeISO);
   const [comparativoAberto, setComparativoAberto] = useState(false);
+  const [horasPerdidasAbertas, setHorasPerdidasAbertas] = useState(false);
   const filtrosAnteriores = useMemo<FiltrosPainelAbsenteismo>(
     () => ({
       ...periodoAnterior(periodo),
@@ -295,6 +302,7 @@ export function PainelAbsenteismo() {
                   : null
               }
               onAbrirComparativo={() => setComparativoAberto(true)}
+              onAbrirHorasPerdidas={() => setHorasPerdidasAbertas(true)}
             />
           </div>
 
@@ -436,6 +444,16 @@ export function PainelAbsenteismo() {
           hoje={hoje}
           unidade={unidade}
           visao={visao}
+        />
+      )}
+
+      {horasPerdidasAbertas && painel?.horas_perdidas && (
+        <HorasPerdidasModal
+          horasPerdidas={painel.horas_perdidas}
+          totalMinutos={painel.cards.minutos_ausentes ?? 0}
+          nomeDoPeriodo={nomeDoPeriodo(painel.periodo, painel.periodo)}
+          visao={visao}
+          onFechar={() => setHorasPerdidasAbertas(false)}
         />
       )}
 

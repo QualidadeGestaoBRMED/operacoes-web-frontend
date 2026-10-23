@@ -15,6 +15,7 @@ import type {
   PainelAbsenteismo,
   RegistrarTratamentoPayload,
   TipoOcorrenciaAbsenteismo,
+  TipoDeAusencia,
 } from "@/types/gestaoRH";
 
 const PAINEL_URL = "/modulos/gestao-rh/absenteismo/";
@@ -366,6 +367,28 @@ export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
 }
 
 export type LadoDaAusencia = "injustificado" | "justificado";
+
+/** Nome e lado de cada tipo de ausência que conta nas horas perdidas (STC-868). */
+export const TIPO_DE_AUSENCIA: Record<TipoDeAusencia, { rotulo: string; lado: LadoDaAusencia }> = {
+  falta: { rotulo: "Faltas", lado: "injustificado" },
+  atraso: { rotulo: "Atrasos", lado: "injustificado" },
+  saida_antecipada: { rotulo: "Saídas antecipadas", lado: "injustificado" },
+  jornada_incompleta: { rotulo: "Jornadas incompletas", lado: "injustificado" },
+  atestado: { rotulo: "Atestados", lado: "justificado" },
+  ausencia: { rotulo: "Ausências justificadas", lado: "justificado" },
+};
+
+/**
+ * Parte de um total, em % inteiro: "33%". Nas pontas, "menos de 1%" e
+ * "mais de 99%" quando o arredondamento esconderia o resto.
+ */
+export function percentualDoTotal(minutos: number, total: number): string {
+  if (total <= 0) return "0%";
+  const percentual = Math.round((minutos / total) * 100);
+  if (minutos > 0 && percentual === 0) return "menos de 1%";
+  if (minutos < total && percentual === 100) return "mais de 99%";
+  return `${percentual}%`;
+}
 
 /**
  * Nome e cor de cada lado, na paleta dos gráficos de Horas Extras (teal e

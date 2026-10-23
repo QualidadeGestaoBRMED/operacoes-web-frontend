@@ -394,6 +394,24 @@ export interface FiltrosAbsenteismoMensal {
   unidade?: number;
 }
 
+export type TipoDeAusencia =
+  | "falta"
+  | "atraso"
+  | "saida_antecipada"
+  | "jornada_incompleta"
+  | "atestado"
+  | "ausencia";
+
+/** Composição das horas perdidas do Painel (STC-867); soma `cards.minutos_ausentes`. */
+export interface HorasPerdidasPainel {
+  /** Todos os tipos, na ordem fixa, com zero quando não houve. */
+  por_tipo: { tipo: TipoDeAusencia; minutos: number }[];
+  minutos_justificados: number;
+  minutos_injustificados: number;
+  /** Só unidades com horas, da maior para a menor. */
+  por_unidade: { unidade: { id: number; nome: string } | null; minutos: number }[];
+}
+
 export interface PainelAbsenteismo {
   periodo: { inicio: string; fim: string };
   parametros: {
@@ -405,6 +423,8 @@ export interface PainelAbsenteismo {
   };
   cards: CardsAbsenteismo;
   linhas: LinhaPainelAbsenteismo[];
+  /** Ausente no backend anterior à STC-867. */
+  horas_perdidas?: HorasPerdidasPainel;
 }
 
 // Aba Absenteísmo do modal: contrato de GET .../colaboradores/{id}/absenteismo/

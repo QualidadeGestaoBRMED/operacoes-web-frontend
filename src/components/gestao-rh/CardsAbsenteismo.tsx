@@ -43,6 +43,8 @@ interface CardsAbsenteismoProps {
   } | null;
   /** Clique no card de absenteísmo: abre o comparativo com o período anterior. */
   onAbrirComparativo?: () => void;
+  /** Clique no card de horas perdidas: abre a composição por tipo e por unidade (STC-868). */
+  onAbrirHorasPerdidas?: () => void;
 }
 
 export function CardsAbsenteismo({
@@ -51,6 +53,7 @@ export function CardsAbsenteismo({
   onSelecionarFaixa,
   comparativo,
   onAbrirComparativo,
+  onAbrirHorasPerdidas,
 }: CardsAbsenteismoProps) {
   if (!painel) {
     return (
@@ -128,6 +131,10 @@ export function CardsAbsenteismo({
         Icone={Hourglass}
         rotuloEmDuasLinhas
         dica={DICA_HORAS_PERDIDAS}
+        // Só com horas a abrir e com a composição na resposta (backend da STC-867).
+        onClick={
+          minutos && painel.horas_perdidas ? onAbrirHorasPerdidas : undefined
+        }
         className={LARGURA_DOS_PRINCIPAIS}
       />
       {comFaixas && (
