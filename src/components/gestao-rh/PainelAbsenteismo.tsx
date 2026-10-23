@@ -453,7 +453,8 @@ export function PainelAbsenteismo() {
         <HorasPerdidasModal
           horasPerdidas={painel.horas_perdidas}
           totalMinutos={painel.cards.minutos_ausentes ?? 0}
-          nomeDoPeriodo={nomeDoPeriodo(painel.periodo, painel.periodo)}
+          // Ano no título quando o período não é do ano de hoje.
+          nomeDoPeriodo={nomeDoPeriodo(painel.periodo, { inicio: hoje, fim: hoje })}
           visao={visao}
           onFechar={() => setHorasPerdidasAbertas(false)}
         />

@@ -21,6 +21,7 @@ import { formatarHoras, formatarHorasDoEixo } from "@/lib/gestaoRHHorasExtras";
 import { cn } from "@/lib/utils";
 import type { HorasPerdidasPainel } from "@/types/gestaoRH";
 import { ComposicaoComLegenda } from "./ComposicaoComLegenda";
+import { RotuloDoEixo } from "./RotuloDoEixo";
 
 // Mesmas medidas das barras do Painel de Horas Extras.
 const ALTURA_DA_BARRA = 34;
@@ -37,10 +38,6 @@ interface Barra {
   minutos: number;
   horas: number;
   cor: string;
-}
-
-function cortar(nome: string, limite: number): string {
-  return nome.length > limite ? `${nome.slice(0, limite - 1).trimEnd()}…` : nome;
 }
 
 function GraficoDeBarras({
@@ -105,7 +102,7 @@ function GraficoDeBarras({
               tickLine={false}
               axisLine={false}
               interval={0}
-              tickFormatter={(nome: string) => cortar(nome, rotulo.caracteres)}
+              tick={<RotuloDoEixo caracteres={rotulo.caracteres} />}
             />
             <Bar
               dataKey="horas"
