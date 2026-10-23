@@ -409,6 +409,9 @@ describe("LoteRenovacaoModal (STC-779)", () => {
         expect(toast.error).toHaveBeenCalledWith("Falta o certificado de: BALANÇA 02."),
       );
       expect(screen.getByLabelText("Nova validade (para todos)")).toHaveValue("2027-01-01");
+      expect(screen.getByLabelText("Nova validade (para todos)")).toHaveAccessibleDescription(
+        "Data em que o documento vence.",
+      );
       expect(screen.getByLabelText("Validade de BALANÇA 02")).toHaveValue("2027-06-15");
 
       await user.click(screen.getByRole("button", { name: "Concluir 2 itens" }));

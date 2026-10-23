@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { DICA_VALIDADE } from "@/lib/legalizacao";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -548,9 +549,13 @@ function FormularioDoLote({
               <Input
                 id="lote-validade-comum"
                 type="date"
+                aria-describedby="lote-validade-comum-dica"
                 value={validadeComum}
                 onChange={(evento) => setValidadeComum(evento.target.value)}
               />
+              <p id="lote-validade-comum-dica" className="text-xs text-muted-foreground">
+                {DICA_VALIDADE}
+              </p>
             </div>
             <p className="-mb-1 text-[11.5px] text-muted-foreground">
               Cada item usa a nova validade acima. Preencha a data de um item só se ela for diferente.

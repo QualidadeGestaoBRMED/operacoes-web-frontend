@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DICA_VALIDADE } from "@/lib/legalizacao";
 import { isAxiosError } from "axios";
 import { Pencil } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
@@ -369,11 +370,16 @@ export function EditarDocumentoSection({
         <Input
           id="ed-doc-validade"
           aria-invalid={!!errors.validade}
-          aria-describedby={errors.validade ? "ed-doc-validade-erro" : undefined}
+          aria-describedby={
+            errors.validade ? "ed-doc-validade-dica ed-doc-validade-erro" : "ed-doc-validade-dica"
+          }
           type="date"
           className="h-8 text-[13px]"
           {...register("validade")}
         />
+        <p id="ed-doc-validade-dica" className="text-xs text-muted-foreground">
+          {DICA_VALIDADE}
+        </p>
         {errors.validade && (
           <p id="ed-doc-validade-erro" role="alert" className="text-xs text-destructive">
             {errors.validade.message}

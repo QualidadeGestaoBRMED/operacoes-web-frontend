@@ -431,6 +431,9 @@ describe("ProcessoRenovacaoModal (STC-381)", () => {
       renderComponente(true, onOpenChange, onAtualizado);
       await screen.findByLabelText("Número do protocolo");
 
+      expect(screen.getByLabelText(/nova validade/i)).toHaveAccessibleDescription(
+        "Data em que o documento vence.",
+      );
       await user.type(screen.getByLabelText(/nova validade/i), "2027-06-02");
       const arquivo = new File(["conteudo"], "renovado.pdf", {
         type: "application/pdf",

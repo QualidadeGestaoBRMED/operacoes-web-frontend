@@ -435,6 +435,9 @@ describe("FormCadastrarDocumento (STC-415)", () => {
     await selecionarUnidadeETipo(user);
     await user.click(screen.getByLabelText(/status inicial/i));
     await user.click(await screen.findByRole("option", { name: "Vencido" }));
+    expect(screen.getByLabelText(/validade/i)).toHaveAccessibleDescription(
+      "Data em que o documento vence.",
+    );
     await user.type(screen.getByLabelText(/validade/i), "2026-01-01");
     await user.clear(screen.getByLabelText(/início dos alertas/i));
     await user.type(screen.getByLabelText(/início dos alertas/i), "2026-01-01");

@@ -48,6 +48,7 @@ import {
 import {
   enviarEvidenciaLegalizacao,
   listarDocumentosLegalizacao,
+  DICA_VALIDADE,
 } from "@/lib/legalizacao";
 import { excluirRegraDocumento, listarRegras } from "@/lib/legalizacaoCatalogo";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
@@ -879,8 +880,12 @@ export function FormCadastrarDocumento({
                     <Input
                       id="cd-validade"
                       type="date"
+                      aria-describedby="cd-validade-dica"
                       {...register("validade")}
                     />
+                    <p id="cd-validade-dica" className="text-xs text-muted-foreground">
+                      {DICA_VALIDADE}
+                    </p>
                     {errors.validade && (
                       <p className="text-xs text-destructive">
                         {errors.validade.message}

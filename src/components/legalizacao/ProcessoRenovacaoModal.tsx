@@ -31,7 +31,10 @@ import {
   useProcessosRenovacao,
 } from "@/hooks/useProcessoRenovacao";
 import { extrairMensagemErro } from "@/lib/erros";
-import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
+import {
+  urlAbsolutaDaEvidencia,
+  DICA_VALIDADE,
+} from "@/lib/legalizacao";
 import { cn, formatarDataHora, nomeExibicao } from "@/lib/utils";
 import {
   formatarDataDeDatetime,
@@ -361,10 +364,14 @@ function FormularioProcessoAtivo({
             <Input
               id="rn-nova-validade"
               type="date"
+              aria-describedby="rn-nova-validade-dica"
               value={novaValidade}
               onChange={(evento) => setNovaValidade(evento.target.value)}
               className="max-w-[200px]"
             />
+            <p id="rn-nova-validade-dica" className="text-xs text-muted-foreground">
+              {DICA_VALIDADE}
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs">

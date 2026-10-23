@@ -474,3 +474,7 @@ export async function retirarItemLote(
   });
   return resposta.status === 204 ? null : resposta.data;
 }
+
+// Embaixo de todo campo de validade (STC-835): um PGR foi cadastrado com a
+// data de emissão no lugar da de vencimento e virou Vencido.
+export const DICA_VALIDADE = "Data em que o documento vence.";

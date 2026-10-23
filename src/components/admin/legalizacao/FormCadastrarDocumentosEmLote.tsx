@@ -39,7 +39,11 @@ import {
   CLASSE_CAMPO_IDENTIFICADOR,
   normalizarIdentificador,
 } from "@/lib/identificadorDocumento";
-import { atualizarDocumentoLegalizacao, enviarEvidenciaLegalizacao } from "@/lib/legalizacao";
+import {
+  atualizarDocumentoLegalizacao,
+  enviarEvidenciaLegalizacao,
+  DICA_VALIDADE,
+} from "@/lib/legalizacao";
 import { LABEL_STATUS } from "@/lib/legalizacaoMatriz";
 import { hojeISO } from "@/lib/utils";
 import type { DocumentoUnidade, StatusDocumento } from "@/types/legalizacao";
@@ -998,10 +1002,14 @@ function LinhaStatusValidade({
             id={`lel-validade-${documentoId}`}
             type="date"
             className="h-8 text-xs"
+            aria-describedby={`lel-validade-${documentoId}-dica`}
             value={validade}
             disabled={desabilitado}
             onChange={(evento) => onValidadeChange(evento.target.value)}
           />
+          <p id={`lel-validade-${documentoId}-dica`} className="text-[11px] text-muted-foreground">
+            {DICA_VALIDADE}
+          </p>
         </div>
       </div>
       {erro && <p className="text-xs text-destructive">{erro}</p>}
