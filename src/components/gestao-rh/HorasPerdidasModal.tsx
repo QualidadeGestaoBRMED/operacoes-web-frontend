@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import {
@@ -46,14 +47,25 @@ function GraficoDeBarras({
   titulo,
   barras,
   total,
+  preencher = false,
 }: {
   titulo: string;
   barras: Barra[];
   total: number;
+  /**
+   * Lado a lado (a partir de 1024 px), cresce até a base da coluna, para os
+   * dois lados terminarem na mesma linha. Empilhado, fica na altura natural.
+   */
+  preencher?: boolean;
 }) {
   const rotulo = useMediaQuery("(max-width: 639px)") ? ROTULO_CELULAR : ROTULO;
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4">
+    <section
+      className={cn(
+        "flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4",
+        preencher && "lg:flex-1",
+      )}
+    >
       <h3 className="text-[14px] font-semibold">{titulo}</h3>
       {/* A lista para leitor de tela traz os mesmos números do gráfico. */}
       <ul className="sr-only">
@@ -63,13 +75,14 @@ function GraficoDeBarras({
           </li>
         ))}
       </ul>
-      <div aria-hidden>
+      <div aria-hidden className={cn(preencher && "lg:min-h-0 lg:flex-1")}>
         <ChartContainer
           config={{}}
-          className="aspect-auto w-full text-[12px] [&_[tabindex]:focus]:outline-none"
-          // Altura natural: esticar o gráfico de 4 tipos até a altura das
-          // unidades deixava as barras soltas, com buracos entre elas.
-          style={{ height: barras.length * ALTURA_DA_BARRA + 32 }}
+          className={cn(
+            "aspect-auto h-(--altura-natural) w-full text-[12px] [&_[tabindex]:focus]:outline-none",
+            preencher && "lg:h-full lg:min-h-(--altura-natural)",
+          )}
+          style={{ "--altura-natural": `${barras.length * ALTURA_DA_BARRA + 32}px` } as CSSProperties}
         >
           <BarChart
             data={barras}
@@ -171,8 +184,8 @@ export function HorasPerdidasModal({
         </DialogHeader>
 
         {/* Lado a lado a partir de 1024 px: à esquerda o resumo e os tipos,
-            à direita as unidades, com alturas parecidas sem esticar nada. */}
-        <div className={cn("grid items-start gap-3", comUnidades && "lg:grid-cols-2")}>
+            à direita as unidades. Os tipos crescem até a base das unidades. */}
+        <div className={cn("grid items-start gap-3", comUnidades && "lg:grid-cols-2 lg:items-stretch")}>
           <div className="flex min-w-0 flex-col gap-3">
             {composicao && (
               <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
@@ -180,7 +193,12 @@ export function HorasPerdidasModal({
                 <ComposicaoComLegenda composicao={composicao} />
               </section>
             )}
-            <GraficoDeBarras titulo="Por tipo" barras={porTipo} total={totalMinutos} />
+            <GraficoDeBarras
+              titulo="Por tipo"
+              barras={porTipo}
+              total={totalMinutos}
+              preencher={comUnidades}
+            />
           </div>
           {/* Com uma unidade só, a seção repetiria o total. */}
           {comUnidades && (
