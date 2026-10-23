@@ -3,7 +3,9 @@ import {
   calcularGradeMapa,
   calcularResumoMapa,
   celulaDaGrade,
+  checklistDaCelula,
   estaEmAtencao,
+  indiceDoChecklist,
   filtroDaSituacao,
   situacaoNaUrl,
   type BucketCelula,
@@ -321,5 +323,61 @@ describe("situação da célula na Lista (STC-714)", () => {
       );
       expect(naLista).toHaveLength(celula.contagem);
     }
+  });
+});
+
+describe("checklistDaCelula (STC-866)", () => {
+  const base = documento().tipo_documento;
+  const tipo = (id: number, nome: string, extra: Partial<typeof base> = {}) => ({
+    ...base,
+    id,
+    nome,
+    codigo: `t${id}`,
+    ...extra,
+  });
+  const TIPOS = [
+    tipo(1, "Alvará de Funcionamento"),
+    tipo(2, "Licença Ambiental"),
+    tipo(3, "Bombeiros"),
+    tipo(4, "Habite-se"),
+    tipo(5, "Publicidade"),
+    tipo(6, "Tipo inativo", { ativo: false }),
+    tipo(7, "CNES", { categoria: "registros_tecnicos" }),
+  ];
+  const doc = (tipoId: number, status: DocumentoUnidade["status"], unidadeId = 1) =>
+    documento({
+      tipo_documento: TIPOS.find((t) => t.id === tipoId)!,
+      unidade: unidade(unidadeId, "X"),
+      status,
+    });
+
+  it("marca cadastrado, falta e não se aplica, com os que faltam primeiro", () => {
+    const indice = indiceDoChecklist([
+      doc(1, "regular"),
+      doc(3, "vencido"),
+      doc(3, "regular"),
+      doc(5, "nao_aplicavel"),
+      // Outra unidade não conta.
+      doc(2, "regular", 2),
+    ]);
+    const checklist = checklistDaCelula(indice, TIPOS, 1, "regularizacao");
+
+    expect(checklist.itens.map((i) => [i.nome, i.situacao, i.quantidade])).toEqual([
+      ["Habite-se", "falta", 0],
+      ["Licença Ambiental", "falta", 0],
+      ["Alvará de Funcionamento", "cadastrado", 1],
+      ["Bombeiros", "cadastrado", 2],
+      ["Publicidade", "nao_aplica", 0],
+    ]);
+    // Tipo inativo e de outra categoria ficam fora; o Não aplicável não conta no total.
+    expect([checklist.cadastrados, checklist.aplicaveis]).toEqual([2, 4]);
+  });
+
+  it("documento cadastrado vale mais que um Não aplicável do mesmo tipo", () => {
+    const indice = indiceDoChecklist([doc(1, "nao_aplicavel"), doc(1, "regular")]);
+    const [alvara] = checklistDaCelula(indice, TIPOS, 1, "regularizacao").itens.filter(
+      (i) => i.tipoId === 1,
+    );
+    expect(alvara.situacao).toBe("cadastrado");
   });
 });

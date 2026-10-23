@@ -3,6 +3,7 @@
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
 import {
   COR_BUCKET_CELULA,
@@ -12,7 +13,9 @@ import {
   celulaDaGrade,
   situacaoNaUrl,
   type BucketCelula,
+  type ChecklistDaCelula,
   type GradeMapa,
+  type SituacaoNoChecklist,
 } from "@/lib/legalizacaoMapa";
 import { cn } from "@/lib/utils";
 import { CabecalhoClasseDocumental } from "./CabecalhoClasseDocumental";
@@ -54,12 +57,66 @@ function LegendaMapa() {
   );
 }
 
+const ICONE_DO_CHECKLIST: Record<SituacaoNoChecklist, { icone: string; rotulo: string; cor: string }> = {
+  falta: { icone: "✗", rotulo: "falta cadastrar", cor: "text-red-400" },
+  cadastrado: { icone: "✓", rotulo: "cadastrado", cor: "text-emerald-400" },
+  nao_aplica: { icone: "–", rotulo: "não se aplica", cor: "opacity-60" },
+};
+
+// Dica da célula (STC-866): os tipos do catálogo da categoria, com o que a
+// unidade cadastrou e o que falta. Só o ícone marca a situação, para a dica
+// ficar estreita; o rótulo vai para o leitor de tela.
+function DicaDoChecklist({
+  unidade,
+  categoria,
+  checklist,
+}: {
+  unidade: string;
+  categoria: CategoriaDocumento;
+  checklist: ChecklistDaCelula;
+}) {
+  return (
+    <div className="w-64 space-y-1.5 py-1 text-left text-[11.5px] leading-snug">
+      <div>
+        <p className="font-semibold">
+          {unidade} · {LABEL_CATEGORIA[categoria]}
+        </p>
+        <p className="opacity-80">
+          {checklist.cadastrados} de {checklist.aplicaveis} cadastrados
+        </p>
+      </div>
+      {checklist.itens.length === 0 ? (
+        <p className="opacity-80">Nenhum tipo desta categoria no catálogo.</p>
+      ) : (
+        <ul className="space-y-0.5 border-t border-background/20 pt-1.5">
+          {checklist.itens.map((item) => {
+            const { icone, rotulo, cor } = ICONE_DO_CHECKLIST[item.situacao];
+            return (
+              <li key={item.tipoId} className="flex items-start gap-1.5">
+                <span role="img" aria-label={rotulo} className={cn("w-3 shrink-0 font-bold", cor)}>
+                  {icone}
+                </span>
+                <span className={cn(item.situacao === "nao_aplica" && "opacity-60")}>
+                  {item.nome}
+                  {item.quantidade > 1 && ` · ${item.quantidade}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 interface MatrizMapaGridProps {
   grade: GradeMapa | undefined;
   carregando: boolean;
+  /** Checklist do catálogo por célula, para a dica (STC-866). Sem ele, sem dica. */
+  checklist?: (unidadeId: number, categoria: CategoriaDocumento) => ChecklistDaCelula;
 }
 
-export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
+export function MatrizMapaGrid({ grade, carregando, checklist }: MatrizMapaGridProps) {
   // Achado no code review: era <button onClick={() => router.push(...)}>,
   // navegação de página de verdade (mesma rota da Lista, só com querystring
   // diferente) tratada como ação local -- sem href real, não dava pra abrir
@@ -161,7 +218,23 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                   {ORDEM_CATEGORIA.map((categoria) => {
                     const celula = celulaDaGrade(grade, unidade.id, categoria);
                     const clicavel = celula.bucket !== "pendente";
-                    const aria = `${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}`;
+                    const doCatalogo = checklist?.(unidade.id, categoria);
+                    const aria = `${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}${doCatalogo ? `, ${doCatalogo.cadastrados} de ${doCatalogo.aplicaveis} cadastrados` : ""}`;
+                    const comDica = (elemento: React.ReactElement) =>
+                      doCatalogo ? (
+                        <Tooltip key={categoria}>
+                          <TooltipTrigger asChild>{elemento}</TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-none">
+                            <DicaDoChecklist
+                              unidade={unidade.nome}
+                              categoria={categoria}
+                              checklist={doCatalogo}
+                            />
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        elemento
+                      );
                     const conteudo = (
                       <>
                         <span className="text-base font-extrabold leading-none">
@@ -185,10 +258,12 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                       // "desabilitada" via aria-disabled continua focável e
                       // clicável por padrão -- <div> não-interativa evita
                       // esse anti-padrão de acessibilidade de vez.
-                      return (
+                      return comDica(
                         <div
                           key={categoria}
                           aria-label={aria}
+                          // Focável só com a dica, para ela abrir também pelo teclado.
+                          tabIndex={doCatalogo ? 0 : undefined}
                           className="flex h-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-[repeating-linear-gradient(45deg,var(--muted),var(--muted)_6px,var(--card)_6px,var(--card)_12px)] text-muted-foreground"
                         >
                           {conteudo}
@@ -196,7 +271,7 @@ export function MatrizMapaGrid({ grade, carregando }: MatrizMapaGridProps) {
                       );
                     }
 
-                    return (
+                    return comDica(
                       <Link
                         key={categoria}
                         href={hrefListaFiltrada(unidade.id, categoria, celula.bucket)}

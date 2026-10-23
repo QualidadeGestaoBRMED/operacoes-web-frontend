@@ -1,8 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { calcularGradeMapa } from "@/lib/legalizacaoMapa";
 import type { Unidade } from "@/types";
 import type { DocumentoUnidade } from "@/types/legalizacao";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { MatrizMapaGrid } from "./MatrizMapaGrid";
 
 vi.mock("@/hooks/useTiposDocumento", () => ({
@@ -74,5 +76,58 @@ describe("MatrizMapaGrid -- link da célula leva a situação (STC-714)", () => 
 
   it("célula em dia não filtra status", () => {
     expect(hrefDaCelula("regular")).toBe("/modulos/legalizacao?unidade=1&categoria=regularizacao");
+  });
+});
+
+describe("MatrizMapaGrid -- dica com o checklist do catálogo (STC-866)", () => {
+  const checklist = () => ({
+    itens: [
+      { tipoId: 2, nome: "Licença Ambiental", situacao: "falta" as const, quantidade: 0 },
+      { tipoId: 1, nome: "Alvará de Funcionamento", situacao: "cadastrado" as const, quantidade: 1 },
+      { tipoId: 3, nome: "Calibração", situacao: "cadastrado" as const, quantidade: 8 },
+      { tipoId: 5, nome: "Publicidade", situacao: "nao_aplica" as const, quantidade: 0 },
+    ],
+    cadastrados: 2,
+    aplicaveis: 3,
+  });
+
+  function renderComDica() {
+    const grade = calcularGradeMapa([documento("regular")], [NITEROI]);
+    render(
+      <TooltipProvider>
+        <MatrizMapaGrid grade={grade} carregando={false} checklist={checklist} />
+      </TooltipProvider>,
+    );
+  }
+
+  it("a célula diz quantos foram cadastrados, e a dica lista os tipos com o ícone de cada situação", async () => {
+    const user = userEvent.setup();
+    renderComDica();
+    const celula = screen.getByRole("link", { name: /Niterói, Regulariza.*2 de 3 cadastrados/ });
+
+    await user.hover(celula);
+    const dica = within(await screen.findByRole("tooltip"));
+    expect(dica.getByText("2 de 3 cadastrados")).toBeInTheDocument();
+    expect(dica.getAllByRole("img", { name: "falta cadastrar" })).toHaveLength(1);
+    expect(dica.getAllByRole("img", { name: "cadastrado" })).toHaveLength(2);
+    expect(dica.getAllByRole("img", { name: "não se aplica" })).toHaveLength(1);
+    expect(dica.getByText("Calibração · 8")).toBeInTheDocument();
+    // O clique continua levando à lista filtrada.
+    expect(celula).toHaveAttribute("href", "/modulos/legalizacao?unidade=1&categoria=regularizacao");
+  });
+
+  it("célula sem documento ganha foco pelo teclado para abrir a dica", async () => {
+    const user = userEvent.setup();
+    renderComDica();
+    const vazia = screen.getByLabelText(/Niterói, Registros.*2 de 3 cadastrados/);
+    expect(vazia).toHaveAttribute("tabindex", "0");
+    await user.hover(vazia);
+    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+  });
+
+  it("sem o checklist, sem dica nem foco extra", () => {
+    const grade = calcularGradeMapa([documento("regular")], [NITEROI]);
+    render(<MatrizMapaGrid grade={grade} carregando={false} />);
+    expect(screen.getByLabelText(/Niterói, Registros/)).not.toHaveAttribute("tabindex");
   });
 });
