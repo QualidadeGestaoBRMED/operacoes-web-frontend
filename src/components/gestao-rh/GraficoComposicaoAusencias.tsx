@@ -1,40 +1,79 @@
 "use client";
 
 import { Cell, Pie, PieChart } from "recharts";
-import { ChartContainer } from "@/components/ui/chart";
-import { COR_DO_LADO_DA_AUSENCIA, type ComposicaoDasAusencias } from "@/lib/gestaoRHAbsenteismo";
-import { cn } from "@/lib/utils";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  CONFIG_DO_GRAFICO_DE_AUSENCIAS,
+  textoDoPercentualDoLado,
+  type ComposicaoDasAusencias,
+  type LadoDaAusencia,
+} from "@/lib/gestaoRHAbsenteismo";
+import { formatarHoras } from "@/lib/gestaoRHHorasExtras";
+
+const CONFIG = CONFIG_DO_GRAFICO_DE_AUSENCIAS satisfies ChartConfig;
 
 /**
- * Rosca do justificado × injustificado na aba Absenteísmo (STC-848).
- * Carregada à parte, para o Recharts não pesar na abertura do modal; a
- * legenda ao lado traz os mesmos números para o leitor de tela.
+ * Rosca do justificado × injustificado na aba Absenteísmo (STC-848), no
+ * padrão dos gráficos de Horas Extras: Recharts no `ChartContainer`, cores
+ * da paleta pela config e a dica do shadcn. O total fica no centro.
+ * Carregada à parte, para o Recharts não pesar na abertura do modal.
  */
 export function GraficoComposicaoAusencias({ composicao }: { composicao: ComposicaoDasAusencias }) {
   return (
-    <ChartContainer config={{}} className="aspect-square size-24 shrink-0">
-      <PieChart>
-        <Pie
-          data={composicao.partes}
-          dataKey="minutos"
-          nameKey="lado"
-          innerRadius="58%"
-          outerRadius="100%"
-          strokeWidth={2}
-          startAngle={90}
-          endAngle={-270}
-          isAnimationActive={false}
-        >
-          {composicao.partes.map((parte) => (
-            <Cell
-              key={parte.lado}
-              // Classe e não `fill`: o CSS vence o atributo de cor do Recharts,
-              // e a borda com a cor do card separa as fatias nos dois temas.
-              className={cn(COR_DO_LADO_DA_AUSENCIA[parte.lado].preenchimento, "stroke-card")}
-            />
-          ))}
-        </Pie>
-      </PieChart>
-    </ChartContainer>
+    <div className="relative size-32 shrink-0">
+      <ChartContainer config={CONFIG} className="aspect-square size-32">
+        <PieChart>
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                hideLabel
+                nameKey="lado"
+                formatter={(_valor, _nome, item) => {
+                  const parte = item.payload as ComposicaoDasAusencias["partes"][number];
+                  return (
+                    <span className="flex w-full items-center justify-between gap-3">
+                      <span className="text-muted-foreground">{CONFIG[parte.lado].label}</span>
+                      <span className="font-mono font-medium text-foreground tabular-nums">
+                        {formatarHoras(parte.minutos)} ·{" "}
+                        {textoDoPercentualDoLado(parte, composicao.totalMinutos)}
+                      </span>
+                    </span>
+                  );
+                }}
+              />
+            }
+          />
+          <Pie
+            data={composicao.partes}
+            dataKey="minutos"
+            nameKey="lado"
+            innerRadius="64%"
+            outerRadius="100%"
+            paddingAngle={composicao.partes.every((parte) => parte.minutos > 0) ? 3 : 0}
+            cornerRadius={4}
+            startAngle={90}
+            endAngle={-270}
+            stroke="none"
+            isAnimationActive={false}
+          >
+            {composicao.partes.map((parte) => (
+              <Cell key={parte.lado} fill={`var(--color-${parte.lado satisfies LadoDaAusencia})`} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[13px] font-semibold text-foreground tabular-nums">
+          {formatarHoras(composicao.totalMinutos)}
+        </span>
+        <span className="text-[10.5px] text-muted-foreground">no total</span>
+      </div>
+    </div>
   );
 }

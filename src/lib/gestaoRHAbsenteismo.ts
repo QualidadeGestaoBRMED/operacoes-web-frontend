@@ -367,11 +367,14 @@ export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
 
 export type LadoDaAusencia = "injustificado" | "justificado";
 
-/** Classes de cor de cada lado: fatia do gráfico e marca da legenda. */
-export const COR_DO_LADO_DA_AUSENCIA: Record<LadoDaAusencia, { preenchimento: string; marca: string }> = {
-  injustificado: { preenchimento: "fill-red-600", marca: "bg-red-600" },
-  justificado: { preenchimento: "fill-secondary", marca: "bg-secondary" },
-};
+/**
+ * Nome e cor de cada lado, na paleta dos gráficos de Horas Extras (teal e
+ * âmbar): config do `ChartContainer` e marca da legenda.
+ */
+export const CONFIG_DO_GRAFICO_DE_AUSENCIAS = {
+  injustificado: { label: "Injustificado", color: "var(--chart-4)" },
+  justificado: { label: "Justificado", color: "var(--secondary)" },
+} as const satisfies Record<LadoDaAusencia, { label: string; color: string }>;
 
 export interface ComposicaoDasAusencias {
   totalMinutos: number;

@@ -9,7 +9,7 @@ import { useAbsenteismoColaborador } from "@/hooks/useAbsenteismoGestaoRH";
 import { usePeriodoEditavel, type Periodo } from "@/hooks/usePeriodoEditavel";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
-  COR_DO_LADO_DA_AUSENCIA,
+  CONFIG_DO_GRAFICO_DE_AUSENCIAS,
   COR_FAIXA,
   ROTULO_ACAO_TRATAMENTO,
   ROTULO_FAIXA,
@@ -31,15 +31,12 @@ import { HistoricoRH } from "./HistoricoRH";
 // Carregado à parte: o Recharts não pesa na abertura do modal.
 const GraficoComposicaoAusencias = dynamic(
   () => import("./GraficoComposicaoAusencias").then((modulo) => modulo.GraficoComposicaoAusencias),
-  { ssr: false, loading: () => <Skeleton className="size-24 shrink-0 rounded-full" /> },
+  { ssr: false, loading: () => <Skeleton className="size-32 shrink-0 rounded-full" /> },
 );
 
-const LEGENDA_DO_LADO = {
-  injustificado: {
-    rotulo: "Injustificado",
-    detalhe: "falta, atraso, saída antecipada e jornada incompleta",
-  },
-  justificado: { rotulo: "Justificado", detalhe: "atestado e ausência justificada" },
+const DETALHE_DO_LADO = {
+  injustificado: "falta, atraso, saída antecipada e jornada incompleta",
+  justificado: "atestado e ausência justificada",
 } as const;
 
 /**
@@ -71,11 +68,12 @@ function ComposicaoDasAusencias({
             <li key={parte.lado} className="flex items-start gap-2">
               <span
                 aria-hidden
-                className={cn("mt-1 size-2.5 shrink-0 rounded-sm", COR_DO_LADO_DA_AUSENCIA[parte.lado].marca)}
+                className="mt-1 size-2.5 shrink-0 rounded-[2px]"
+                style={{ backgroundColor: CONFIG_DO_GRAFICO_DE_AUSENCIAS[parte.lado].color }}
               />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span className="font-medium text-foreground">{LEGENDA_DO_LADO[parte.lado].rotulo}</span>
+                  <span className="font-medium text-foreground">{CONFIG_DO_GRAFICO_DE_AUSENCIAS[parte.lado].label}</span>
                   <span className="text-foreground tabular-nums">
                     {formatarHoras(parte.minutos)} ·{" "}
                     <span className="font-semibold">
@@ -84,7 +82,7 @@ function ComposicaoDasAusencias({
                   </span>
                 </span>
                 <span className="block text-[11.5px] text-muted-foreground">
-                  {LEGENDA_DO_LADO[parte.lado].detalhe}
+                  {DETALHE_DO_LADO[parte.lado]}
                 </span>
               </span>
             </li>
