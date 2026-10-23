@@ -766,9 +766,10 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
     ],
     minutos_justificados: 1440,
     minutos_injustificados: 1080,
+    // Fora de ordem: o modal ordena da maior para a menor.
     por_unidade: [
-      { unidade: { id: 1, nome: "Niterói" }, minutos: 2040 },
       { unidade: { id: 2, nome: "Macaé" }, minutos: 480 },
+      { unidade: { id: 1, nome: "Niterói" }, minutos: 2040 },
     ],
   };
 
@@ -822,7 +823,7 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
 
   it("com uma unidade só, a seção por unidade não aparece", async () => {
     vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(
-      painelCom({ ...HORAS_PERDIDAS, por_unidade: [HORAS_PERDIDAS.por_unidade[0]] }),
+      painelCom({ ...HORAS_PERDIDAS, por_unidade: [HORAS_PERDIDAS.por_unidade[1]] }),
     );
     const user = usuario();
     renderPainel();
@@ -832,6 +833,26 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
     const modal = within(await screen.findByRole("dialog", { name: /^Horas perdidas/ }));
     expect(modal.getByRole("heading", { name: "Por tipo" })).toBeInTheDocument();
     expect(modal.queryByRole("heading", { name: "Por unidade" })).not.toBeInTheDocument();
+  });
+
+  it("durante a troca de filtro, abre esmaecido e se atualiza com a resposta", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    let responder: (painel: Painel) => void = () => {};
+    vi.mocked(buscarPainelAbsenteismo).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
+    await waitFor(() => expect(screen.getByRole("table").closest("[aria-busy]")).not.toBeNull());
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = await screen.findByRole("dialog", { name: "Horas perdidas · setembro" });
+    expect(modal.querySelector("[aria-busy='true']")).not.toBeNull();
+
+    responder(painelCom(HORAS_PERDIDAS));
+    await waitFor(() => expect(modal.querySelector("[aria-busy]")).toBeNull());
   });
 
   it("sem a composição (backend anterior), o card não é clicável", async () => {
