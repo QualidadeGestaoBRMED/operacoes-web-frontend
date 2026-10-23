@@ -5,22 +5,23 @@ import { CardsAbsenteismo } from "./CardsAbsenteismo";
 
 const FILTROS = { inicio: "2026-09-01", fim: "2026-09-30" };
 
-// STC-791/849: o jsdom não calcula a grade; o teste confere as classes que
-// a montam. No celular (2 colunas) Absenteísmo e Horas perdidas ocupam a
-// largura toda; do tablet em diante, uma coluna cada.
+// STC-791/873: o jsdom não calcula a grade; o teste confere as classes que
+// a montam. No celular (2 colunas) todos os cards vêm em pares, inclusive
+// Absenteísmo e Horas perdidas; nenhum ocupa a linha toda.
 function card(rotulo: string) {
   return screen.getByText(rotulo).closest("button, div[class*='rounded-xl']") as HTMLElement;
 }
 
-describe("CardsAbsenteismo, grade sem buraco (STC-791/849)", () => {
-  it("com faixas: os dois principais na linha toda só no celular, 6 colunas só em tela bem larga", () => {
+describe("CardsAbsenteismo, grade sem buraco (STC-791/873)", () => {
+  it("com faixas: os dois principais lado a lado no celular, 6 colunas só em tela bem larga", () => {
     const { container } = render(<CardsAbsenteismo painel={painelAbsenteismoDeExemplo(FILTROS)} />);
 
-    for (const rotulo of ["Absenteísmo", "Horas perdidas"]) {
-      expect(card(rotulo)).toHaveClass("col-span-2", "sm:col-span-1");
+    for (const rotulo of ["Absenteísmo", "Horas perdidas", "Faixa crítica"]) {
+      expect(card(rotulo).className).not.toMatch(/col-span/);
     }
-    expect(card("Faixa crítica")).not.toHaveClass("col-span-2");
-    expect(container.firstChild).toHaveClass("sm:grid-cols-3", "2xl:grid-cols-6");
+    expect(container.firstChild).toHaveClass("grid-cols-2", "sm:grid-cols-3", "2xl:grid-cols-6");
+    // Em meia linha a 360 px, o valor menor faz caber "1.355:52:00".
+    expect(card("Horas perdidas").querySelector(".tabular-nums")).toHaveClass("text-xl", "sm:text-2xl");
   });
 
   it("sem faixas: 4 cards numa linha a partir do tablet", () => {
@@ -32,18 +33,18 @@ describe("CardsAbsenteismo, grade sem buraco (STC-791/849)", () => {
     );
 
     expect(screen.queryByText("Faixa crítica")).not.toBeInTheDocument();
-    expect(card("Absenteísmo")).toHaveClass("col-span-2", "sm:col-span-1");
-    expect(container.firstChild).toHaveClass("sm:grid-cols-4");
+    expect(card("Absenteísmo").className).not.toMatch(/col-span/);
+    expect(container.firstChild).toHaveClass("grid-cols-2", "sm:grid-cols-4");
   });
 
-  it("carregando: os dois primeiros esqueletos ocupam o lugar dos principais", () => {
+  it("carregando: seis esqueletos em pares, como os cards", () => {
     const { container } = render(<CardsAbsenteismo painel={undefined} />);
 
     const esqueletos = container.querySelectorAll("[data-slot='skeleton']");
     expect(esqueletos).toHaveLength(6);
-    expect(esqueletos[0]).toHaveClass("col-span-2", "sm:col-span-1");
-    expect(esqueletos[1]).toHaveClass("col-span-2", "sm:col-span-1");
-    expect(esqueletos[2]).not.toHaveClass("col-span-2");
+    for (const esqueleto of esqueletos) {
+      expect(esqueleto.className).not.toMatch(/col-span/);
+    }
   });
 });
 
