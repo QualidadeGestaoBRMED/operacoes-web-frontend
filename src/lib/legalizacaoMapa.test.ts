@@ -393,6 +393,10 @@ describe("checklistDaCelula (STC-866)", () => {
     expect(textoDeCadastrados({ itens: [], cadastrados: 1, aplicaveis: 3 })).toBe(
       "1 de 3 cadastrados",
     );
+    const soNaoAplica = { tipoId: 5, nome: "Publicidade", situacao: "nao_aplica" as const, quantidade: 0 };
+    expect(textoDeCadastrados({ itens: [soNaoAplica], cadastrados: 0, aplicaveis: 0 })).toBe(
+      "Nenhum se aplica a esta unidade",
+    );
   });
 
   it("percentual de cadastrados arredonda e é nulo quando nada se aplica", () => {

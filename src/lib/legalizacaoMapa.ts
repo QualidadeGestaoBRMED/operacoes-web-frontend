@@ -379,8 +379,13 @@ export function checklistDaCelula(
   };
 }
 
-/** "2 de 5 cadastrados"; no singular quando o total é 1 ("1 de 1 cadastrado"). */
-export function textoDeCadastrados({ cadastrados, aplicaveis }: ChecklistDaCelula): string {
+/**
+ * "2 de 5 cadastrados"; no singular quando o total é 1 ("1 de 1 cadastrado").
+ * Categoria com todos os tipos Não aplicável: "Nenhum se aplica a esta unidade".
+ * Mesmo texto na dica e no nome acessível da célula.
+ */
+export function textoDeCadastrados({ itens, cadastrados, aplicaveis }: ChecklistDaCelula): string {
+  if (aplicaveis === 0 && itens.length > 0) return "Nenhum se aplica a esta unidade";
   return `${cadastrados} de ${aplicaveis} ${aplicaveis === 1 ? "cadastrado" : "cadastrados"}`;
 }
 

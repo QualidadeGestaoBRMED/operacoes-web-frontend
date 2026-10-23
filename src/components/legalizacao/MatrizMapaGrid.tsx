@@ -88,11 +88,7 @@ function DicaDoChecklist({
           {unidade} · {LABEL_CATEGORIA[categoria]}
         </p>
         <p className="flex justify-between gap-2 opacity-80">
-          <span>
-            {checklist.aplicaveis === 0 && checklist.itens.length > 0
-              ? "Nenhum se aplica a esta unidade"
-              : textoDeCadastrados(checklist)}
-          </span>
+          <span>{textoDeCadastrados(checklist)}</span>
           {percentual !== null && <span className="font-semibold tabular-nums">{percentual}%</span>}
         </p>
       </div>
@@ -278,7 +274,12 @@ export function MatrizMapaGrid({ grade, carregando, checklist }: MatrizMapaGridP
                           aria-label={aria}
                           // Focável só com a dica, para ela abrir também pelo teclado.
                           tabIndex={doCatalogo ? 0 : undefined}
-                          className="flex h-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-[repeating-linear-gradient(45deg,var(--muted),var(--muted)_6px,var(--card)_6px,var(--card)_12px)] text-muted-foreground"
+                          className={cn(
+                            "flex h-16 flex-col items-center justify-center gap-0.5 rounded-md border border-border bg-[repeating-linear-gradient(45deg,var(--muted),var(--muted)_6px,var(--card)_6px,var(--card)_12px)] text-muted-foreground outline-none",
+                            // Mesmo anel com offset da célula com documentos: o fundo hachurado
+                            // também tira o contraste do anel nativo.
+                            "focus-visible:ring-ring/50 focus-visible:ring-offset-card focus-visible:ring-[3px] focus-visible:ring-offset-2",
+                          )}
                         >
                           {conteudo}
                         </div>

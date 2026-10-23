@@ -142,7 +142,10 @@ describe("MatrizMapaGrid -- dica com o checklist do catálogo (STC-866)", () => 
         />
       </TooltipProvider>,
     );
-    await user.hover(screen.getByRole("link", { name: /Niterói, Regulariza/ }));
+    const celula = screen.getByRole("link", { name: /Niterói, Regulariza/ });
+    // O nome acessível diz o mesmo que a dica.
+    expect(celula).toHaveAccessibleName(/Nenhum se aplica a esta unidade$/);
+    await user.hover(celula);
     const dica = within(await screen.findByRole("tooltip"));
     expect(dica.getByText("Nenhum se aplica a esta unidade")).toBeInTheDocument();
     expect(dica.queryByText("0 de 0 cadastrados")).not.toBeInTheDocument();
