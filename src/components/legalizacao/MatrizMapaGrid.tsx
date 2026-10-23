@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2 } from "lucide-react";
+import { Building2, Check, Minus, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -58,10 +58,13 @@ function LegendaMapa() {
   );
 }
 
-const ICONE_DO_CHECKLIST: Record<SituacaoNoChecklist, { icone: string; rotulo: string; cor: string }> = {
-  falta: { icone: "✗", rotulo: "falta cadastrar", cor: "text-red-400" },
-  cadastrado: { icone: "✓", rotulo: "cadastrado", cor: "text-emerald-400" },
-  nao_aplica: { icone: "–", rotulo: "não se aplica", cor: "opacity-60" },
+const ICONE_DO_CHECKLIST: Record<
+  SituacaoNoChecklist,
+  { Icone: LucideIcon; rotulo: string; cor: string }
+> = {
+  falta: { Icone: X, rotulo: "falta cadastrar", cor: "text-red-400" },
+  cadastrado: { Icone: Check, rotulo: "cadastrado", cor: "text-emerald-400" },
+  nao_aplica: { Icone: Minus, rotulo: "não se aplica", cor: "opacity-60" },
 };
 
 // Dica da célula (STC-866): os tipos do catálogo da categoria, com o que a
@@ -93,12 +96,15 @@ function DicaDoChecklist({
       ) : (
         <ul className="space-y-0.5 border-t border-background/20 pt-1.5">
           {checklist.itens.map((item) => {
-            const { icone, rotulo, cor } = ICONE_DO_CHECKLIST[item.situacao];
+            const { Icone, rotulo, cor } = ICONE_DO_CHECKLIST[item.situacao];
             return (
               <li key={item.tipoId} className="flex items-start gap-1.5">
-                <span role="img" aria-label={rotulo} className={cn("w-3 shrink-0 font-bold", cor)}>
-                  {icone}
-                </span>
+                <Icone
+                  role="img"
+                  aria-label={rotulo}
+                  strokeWidth={3}
+                  className={cn("mt-px size-3 shrink-0", cor)}
+                />
                 <span className={cn(item.situacao === "nao_aplica" && "opacity-60")}>
                   {item.nome}
                   {item.quantidade > 1 && ` · ${item.quantidade}`}
