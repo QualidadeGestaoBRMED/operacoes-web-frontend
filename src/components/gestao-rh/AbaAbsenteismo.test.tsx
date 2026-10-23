@@ -253,6 +253,31 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(screen.getByText("Atestados aparecem só com tipo e período, sem dados clínicos.")).toBeInTheDocument();
   });
 
+  it("STC-848: ausências que contam divididas em injustificado e justificado, em horas e %", async () => {
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+      aba({
+        indicadores: { ...aba().indicadores, minutos_justificados: 480, minutos_injustificados: 960 },
+      }),
+    );
+    renderModal();
+    const secao = (await screen.findByText("Ausências que contam no absenteísmo")).closest(
+      "section",
+    ) as HTMLElement;
+
+    const [injustificado, justificado] = within(secao).getAllByRole("listitem");
+    expect(injustificado).toHaveTextContent("Injustificado16:00:00 · 67%falta, atraso e saída antecipada");
+    expect(justificado).toHaveTextContent("Justificado8:00:00 · 33%atestado");
+  });
+
+  it("STC-848: sem ausência que conte, ou com o backend anterior, a divisão não aparece", async () => {
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+      aba({ indicadores: { ...aba().indicadores, minutos_justificados: 0, minutos_injustificados: 0 } }),
+    );
+    renderModal();
+    await screen.findByText("Ocorrências do período");
+    expect(screen.queryByText("Ausências que contam no absenteísmo")).not.toBeInTheDocument();
+  });
+
   it("STC-767: alerta diz com que limite da crítica foi gerado; sem a versão, não diz", async () => {
     const [alerta] = aba().alertas;
     vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(

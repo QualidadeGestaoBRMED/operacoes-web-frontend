@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import api from "./api";
 import {
   buscarPainelAbsenteismo,
+  composicaoDasAusencias,
   diferencaEmPontos,
   ehMesInteiro,
   formatarDiferenca,
@@ -329,5 +330,22 @@ describe("limite do mês a mês (STC-767)", () => {
 
   it("sem resposta, sem limite", () => {
     expect(limiteDoMensal(undefined)).toBeNull();
+  });
+});
+
+describe("justificado × injustificado (STC-848)", () => {
+  it("divide pelos minutos da API, injustificado primeiro, somando 100%", () => {
+    expect(composicaoDasAusencias({ minutos_justificados: 480, minutos_injustificados: 960 })).toEqual({
+      totalMinutos: 1440,
+      partes: [
+        { lado: "injustificado", minutos: 960, percentual: 67 },
+        { lado: "justificado", minutos: 480, percentual: 33 },
+      ],
+    });
+  });
+
+  it("sem ausência que conte, ou sem os campos (backend anterior), não há composição", () => {
+    expect(composicaoDasAusencias({ minutos_justificados: 0, minutos_injustificados: 0 })).toBeNull();
+    expect(composicaoDasAusencias({})).toBeNull();
   });
 });
