@@ -123,5 +123,7 @@ describe("unidades adicionais (STC-862)", () => {
       rotuloTodas: "Todas as minhas unidades",
     });
     expect(filtroDeUnidadeDosPaineis(unidades, false, [1]).mostrar).toBe(false);
+    // Ponto focal com duas aeroclínicas: nenhuma na lista da rede própria.
+    expect(filtroDeUnidadeDosPaineis(unidades, false, [7, 8]).mostrar).toBe(false);
   });
 });

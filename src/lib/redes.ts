@@ -101,19 +101,17 @@ export function unidadeForcadaDoCoordenador(
 }
 
 /** Filtro de unidade dos painéis: o Admin escolhe entre todas; a
- * coordenação com mais de uma unidade (STC-862), entre as suas. Com uma
- * só, sem filtro: a API já devolve só ela. */
+ * coordenação com mais de uma unidade na lista (STC-862), entre as suas.
+ * Com uma só na lista, sem filtro: a API já devolve só as dela (o Ponto
+ * focal tem unidades OPEX, fora da lista da rede própria). */
 export function filtroDeUnidadeDosPaineis<T extends Pick<Unidade, "id">>(
   unidades: T[],
   administraARede: boolean,
   minhas: number[],
 ): { mostrar: boolean; opcoes: T[]; rotuloTodas: string } {
   if (administraARede) return { mostrar: true, opcoes: unidades, rotuloTodas: "Todas as unidades" };
-  return {
-    mostrar: minhas.length > 1,
-    opcoes: unidades.filter((unidade) => minhas.includes(unidade.id)),
-    rotuloTodas: "Todas as minhas unidades",
-  };
+  const opcoes = unidades.filter((unidade) => minhas.includes(unidade.id));
+  return { mostrar: opcoes.length > 1, opcoes, rotuloTodas: "Todas as minhas unidades" };
 }
 
 export function redeDaUnidade(unidade: Pick<Unidade, "rede"> | null | undefined): Rede {
