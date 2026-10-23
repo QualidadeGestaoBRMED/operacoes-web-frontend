@@ -11,6 +11,7 @@ import {
   LEGENDA_BUCKET_CELULA,
   ORDEM_LEGENDA_BUCKET,
   celulaDaGrade,
+  percentualCadastrado,
   situacaoNaUrl,
   textoDeCadastrados,
   type BucketCelula,
@@ -79,16 +80,20 @@ function DicaDoChecklist({
   categoria: CategoriaDocumento;
   checklist: ChecklistDaCelula;
 }) {
+  const percentual = percentualCadastrado(checklist);
   return (
     <div className="w-64 space-y-1.5 py-1 text-left text-[11.5px] leading-snug">
       <div>
         <p className="font-semibold">
           {unidade} · {LABEL_CATEGORIA[categoria]}
         </p>
-        <p className="opacity-80">
-          {checklist.aplicaveis === 0 && checklist.itens.length > 0
-            ? "Nenhum se aplica a esta unidade"
-            : textoDeCadastrados(checklist)}
+        <p className="flex justify-between gap-2 opacity-80">
+          <span>
+            {checklist.aplicaveis === 0 && checklist.itens.length > 0
+              ? "Nenhum se aplica a esta unidade"
+              : textoDeCadastrados(checklist)}
+          </span>
+          {percentual !== null && <span className="font-semibold tabular-nums">{percentual}%</span>}
         </p>
       </div>
       {checklist.itens.length === 0 ? (

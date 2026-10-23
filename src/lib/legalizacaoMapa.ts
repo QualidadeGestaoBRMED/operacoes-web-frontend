@@ -383,3 +383,8 @@ export function checklistDaCelula(
 export function textoDeCadastrados({ cadastrados, aplicaveis }: ChecklistDaCelula): string {
   return `${cadastrados} de ${aplicaveis} ${aplicaveis === 1 ? "cadastrado" : "cadastrados"}`;
 }
+
+/** Parte dos tipos que se aplicam já cadastrada, em % inteiro; null se nenhum se aplica. */
+export function percentualCadastrado({ cadastrados, aplicaveis }: ChecklistDaCelula): number | null {
+  return aplicaveis === 0 ? null : Math.round((cadastrados / aplicaveis) * 100);
+}

@@ -108,6 +108,7 @@ describe("MatrizMapaGrid -- dica com o checklist do catálogo (STC-866)", () => 
     await user.hover(celula);
     const dica = within(await screen.findByRole("tooltip"));
     expect(dica.getByText("2 de 3 cadastrados")).toBeInTheDocument();
+    expect(dica.getByText("67%")).toBeInTheDocument();
     expect(dica.getAllByRole("img", { name: "falta cadastrar" })).toHaveLength(1);
     expect(dica.getAllByRole("img", { name: "cadastrado" })).toHaveLength(2);
     expect(dica.getAllByRole("img", { name: "não se aplica" })).toHaveLength(1);

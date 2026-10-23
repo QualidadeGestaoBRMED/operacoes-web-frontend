@@ -6,6 +6,7 @@ import {
   checklistDaCelula,
   estaEmAtencao,
   indiceDoChecklist,
+  percentualCadastrado,
   filtroDaSituacao,
   situacaoNaUrl,
   textoDeCadastrados,
@@ -392,5 +393,11 @@ describe("checklistDaCelula (STC-866)", () => {
     expect(textoDeCadastrados({ itens: [], cadastrados: 1, aplicaveis: 3 })).toBe(
       "1 de 3 cadastrados",
     );
+  });
+
+  it("percentual de cadastrados arredonda e é nulo quando nada se aplica", () => {
+    expect(percentualCadastrado({ itens: [], cadastrados: 2, aplicaveis: 3 })).toBe(67);
+    expect(percentualCadastrado({ itens: [], cadastrados: 0, aplicaveis: 4 })).toBe(0);
+    expect(percentualCadastrado({ itens: [], cadastrados: 0, aplicaveis: 0 })).toBeNull();
   });
 });
