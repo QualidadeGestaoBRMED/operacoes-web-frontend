@@ -790,6 +790,11 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
     const modal = within(await screen.findByRole("dialog", { name: "Horas perdidas · setembro" }));
 
     expect(modal.getByText(/42:00:00 no total/)).toBeInTheDocument();
+    const resumo = within(
+      modal.getByRole("heading", { name: "Justificado × injustificado" }).closest("section") as HTMLElement,
+    );
+    expect(resumo.getByText("Injustificado").closest("li")).toHaveTextContent("18:00:00 · 43%");
+    expect(resumo.getByText("Justificado").closest("li")).toHaveTextContent("24:00:00 · 57%");
     const porTipo = within(modal.getByRole("heading", { name: "Por tipo" }).closest("section") as HTMLElement);
     expect(porTipo.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "Atestados: 24:00:00, 57%",

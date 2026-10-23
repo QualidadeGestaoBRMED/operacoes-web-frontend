@@ -13,16 +13,19 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   CONFIG_DO_GRAFICO_DE_AUSENCIAS,
   TIPO_DE_AUSENCIA,
+  composicaoDasAusencias,
   percentualDoTotal,
 } from "@/lib/gestaoRHAbsenteismo";
 import { formatarHoras, formatarHorasDoEixo } from "@/lib/gestaoRHHorasExtras";
 import { cn } from "@/lib/utils";
 import type { HorasPerdidasPainel } from "@/types/gestaoRH";
+import { ComposicaoComLegenda } from "./ComposicaoComLegenda";
 
 // Mesmas medidas das barras do Painel de Horas Extras.
 const ALTURA_DA_BARRA = 34;
 const ESPESSURA_DA_BARRA = 26;
-const ROTULO = { largura: 170, caracteres: 22 };
+// Largo o bastante para "Rio de Janeiro (Centro)" inteiro.
+const ROTULO = { largura: 190, caracteres: 26 };
 const ROTULO_CELULAR = { largura: 96, caracteres: 11 };
 // Espaço à direita da barra para o maior rótulo, "1.355:52:00 · 100%" (com
 // "<1%" e ">99%" nas pontas).
@@ -43,16 +46,10 @@ function GraficoDeBarras({
   titulo,
   barras,
   total,
-  alturaEmBarras,
 }: {
   titulo: string;
   barras: Barra[];
   total: number;
-  /**
-   * Lado a lado, a altura do gráfico com mais barras, para os eixos ficarem
-   * na mesma linha (como nas Horas Extras); as barras a menos se espaçam.
-   */
-  alturaEmBarras: number | null;
 }) {
   const rotulo = useMediaQuery("(max-width: 639px)") ? ROTULO_CELULAR : ROTULO;
   return (
@@ -70,7 +67,9 @@ function GraficoDeBarras({
         <ChartContainer
           config={{}}
           className="aspect-auto w-full text-[12px] [&_[tabindex]:focus]:outline-none"
-          style={{ height: Math.max(barras.length, alturaEmBarras ?? 0) * ALTURA_DA_BARRA + 32 }}
+          // Altura natural: esticar o gráfico de 4 tipos até a altura das
+          // unidades deixava as barras soltas, com buracos entre elas.
+          style={{ height: barras.length * ALTURA_DA_BARRA + 32 }}
         >
           <BarChart
             data={barras}
@@ -155,15 +154,8 @@ export function HorasPerdidasModal({
     horas: item.minutos / 60,
     cor: "var(--secondary)",
   }));
-  // Lado a lado a partir de 1024 px, como os gráficos de Horas Extras: o
-  // modal cabe na tela sem rolar. Empilhados, cada um com a própria altura.
   const comUnidades = porUnidade.length > 1;
-  const ladoALado = useMediaQuery("(min-width: 1024px)") && comUnidades;
-  const alturaEmBarras = ladoALado ? Math.max(porTipo.length, porUnidade.length) : null;
-  const lados = [
-    { lado: "injustificado", minutos: horasPerdidas.minutos_injustificados },
-    { lado: "justificado", minutos: horasPerdidas.minutos_justificados },
-  ] as const;
+  const composicao = composicaoDasAusencias(horasPerdidas);
 
   return (
     <Dialog open onOpenChange={(abrir) => !abrir && onFechar()}>
@@ -178,37 +170,21 @@ export function HorasPerdidasModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="flex flex-wrap gap-x-6 gap-y-1 text-[13px]">
-          {lados.map(({ lado, minutos }) => (
-            <li key={lado} className="flex items-center gap-2">
-              <span
-                aria-hidden
-                className="size-2.5 shrink-0 rounded-[2px]"
-                style={{ backgroundColor: CONFIG_DO_GRAFICO_DE_AUSENCIAS[lado].color }}
-              />
-              <span className="text-muted-foreground">{CONFIG_DO_GRAFICO_DE_AUSENCIAS[lado].label}</span>
-              <span className="font-medium text-foreground tabular-nums">
-                {formatarHoras(minutos)} · {percentualDoTotal(minutos, totalMinutos)}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <div className={cn("grid gap-3", comUnidades && "lg:grid-cols-2")}>
-          <GraficoDeBarras
-            titulo="Por tipo"
-            barras={porTipo}
-            total={totalMinutos}
-            alturaEmBarras={alturaEmBarras}
-          />
+        {/* Lado a lado a partir de 1024 px: à esquerda o resumo e os tipos,
+            à direita as unidades, com alturas parecidas sem esticar nada. */}
+        <div className={cn("grid items-start gap-3", comUnidades && "lg:grid-cols-2")}>
+          <div className="flex min-w-0 flex-col gap-3">
+            {composicao && (
+              <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+                <h3 className="text-[14px] font-semibold">Justificado × injustificado</h3>
+                <ComposicaoComLegenda composicao={composicao} />
+              </section>
+            )}
+            <GraficoDeBarras titulo="Por tipo" barras={porTipo} total={totalMinutos} />
+          </div>
           {/* Com uma unidade só, a seção repetiria o total. */}
           {comUnidades && (
-            <GraficoDeBarras
-              titulo="Por unidade"
-              barras={porUnidade}
-              total={totalMinutos}
-              alturaEmBarras={alturaEmBarras}
-            />
+            <GraficoDeBarras titulo="Por unidade" barras={porUnidade} total={totalMinutos} />
           )}
         </div>
       </DialogContent>
