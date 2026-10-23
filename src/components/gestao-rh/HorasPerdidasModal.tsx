@@ -16,6 +16,7 @@ import {
   percentualDoTotal,
 } from "@/lib/gestaoRHAbsenteismo";
 import { formatarHoras, formatarHorasDoEixo } from "@/lib/gestaoRHHorasExtras";
+import { cn } from "@/lib/utils";
 import type { HorasPerdidasPainel } from "@/types/gestaoRH";
 
 // Mesmas medidas das barras do Painel de Horas Extras.
@@ -42,10 +43,16 @@ function GraficoDeBarras({
   titulo,
   barras,
   total,
+  alturaEmBarras,
 }: {
   titulo: string;
   barras: Barra[];
   total: number;
+  /**
+   * Lado a lado, a altura do gráfico com mais barras, para os eixos ficarem
+   * na mesma linha (como nas Horas Extras); as barras a menos se espaçam.
+   */
+  alturaEmBarras: number | null;
 }) {
   const rotulo = useMediaQuery("(max-width: 639px)") ? ROTULO_CELULAR : ROTULO;
   return (
@@ -63,7 +70,7 @@ function GraficoDeBarras({
         <ChartContainer
           config={{}}
           className="aspect-auto w-full text-[12px] [&_[tabindex]:focus]:outline-none"
-          style={{ height: barras.length * ALTURA_DA_BARRA + 32 }}
+          style={{ height: Math.max(barras.length, alturaEmBarras ?? 0) * ALTURA_DA_BARRA + 32 }}
         >
           <BarChart
             data={barras}
@@ -148,6 +155,11 @@ export function HorasPerdidasModal({
     horas: item.minutos / 60,
     cor: "var(--secondary)",
   }));
+  // Lado a lado a partir de 1024 px, como os gráficos de Horas Extras: o
+  // modal cabe na tela sem rolar. Empilhados, cada um com a própria altura.
+  const comUnidades = porUnidade.length > 1;
+  const ladoALado = useMediaQuery("(min-width: 1024px)") && comUnidades;
+  const alturaEmBarras = ladoALado ? Math.max(porTipo.length, porUnidade.length) : null;
   const lados = [
     { lado: "injustificado", minutos: horasPerdidas.minutos_injustificados },
     { lado: "justificado", minutos: horasPerdidas.minutos_justificados },
@@ -155,7 +167,7 @@ export function HorasPerdidasModal({
 
   return (
     <Dialog open onOpenChange={(abrir) => !abrir && onFechar()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="scrollbar-discreta max-h-[90dvh] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Horas perdidas · {nomeDoPeriodo}</DialogTitle>
           <DialogDescription
@@ -182,11 +194,23 @@ export function HorasPerdidasModal({
           ))}
         </ul>
 
-        <GraficoDeBarras titulo="Por tipo" barras={porTipo} total={totalMinutos} />
-        {/* Com uma unidade só, a seção repetiria o total. */}
-        {porUnidade.length > 1 && (
-          <GraficoDeBarras titulo="Por unidade" barras={porUnidade} total={totalMinutos} />
-        )}
+        <div className={cn("grid gap-3", comUnidades && "lg:grid-cols-2")}>
+          <GraficoDeBarras
+            titulo="Por tipo"
+            barras={porTipo}
+            total={totalMinutos}
+            alturaEmBarras={alturaEmBarras}
+          />
+          {/* Com uma unidade só, a seção repetiria o total. */}
+          {comUnidades && (
+            <GraficoDeBarras
+              titulo="Por unidade"
+              barras={porUnidade}
+              total={totalMinutos}
+              alturaEmBarras={alturaEmBarras}
+            />
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
