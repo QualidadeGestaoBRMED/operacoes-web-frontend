@@ -165,8 +165,14 @@ export function AbsenteismoMensalModal({
       <DialogContent className="sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle className="text-xl">Absenteísmo mês a mês</DialogTitle>
-          {/* Desligados contam nos meses em que trabalharam (STC-859). */}
-          <DialogDescription className="text-[15px]" title="Considera quem trabalhou em cada mês, inclusive quem foi desligado depois.">{visao}</DialogDescription>
+          {/* Desligados contam no absenteísmo dos meses em que trabalharam
+              (STC-859), mas não em crítica e atenção, como nos cards do Painel (STC-871). */}
+          <DialogDescription
+            className="text-[15px]"
+            title="O absenteísmo de cada mês considera quem trabalhou nele, inclusive quem foi desligado depois. Crítica e atenção contam só quem segue ativo, como nos cards do Painel."
+          >
+            {visao}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-end">

@@ -358,6 +358,27 @@ describe("Painel de Absenteísmo", () => {
     expect(within(deUnidade).getByText(unidade).closest("td")).toHaveAttribute("title", unidade);
   });
 
+  it("STC-872: \"Incluir desligados\" vai para a busca, continua ao clicar no card e sai em \"Limpar filtros\"", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(ultimaBusca()?.incluir_desligados).toBeUndefined();
+
+    const caixa = screen.getByRole("checkbox", { name: "Incluir desligados" });
+    await user.click(caixa);
+    await waitFor(() => expect(ultimaBusca()?.incluir_desligados).toBe(true));
+
+    // O card conta os desligados quando a caixa está marcada: ela fica.
+    await user.click(screen.getByRole("button", { name: /^Faixa crítica/ }));
+    await waitFor(() => expect(ultimaBusca()?.faixa).toEqual(["critica"]));
+    expect(ultimaBusca()?.incluir_desligados).toBe(true);
+    expect(caixa).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await waitFor(() => expect(ultimaBusca()?.incluir_desligados).toBeUndefined());
+    expect(caixa).not.toBeChecked();
+  });
+
   it("\"Limpar filtros\" também tira a unidade", async () => {
     const user = usuario();
     renderPainel();

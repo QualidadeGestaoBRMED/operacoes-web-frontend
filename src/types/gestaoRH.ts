@@ -306,6 +306,8 @@ export interface FiltrosPainelAbsenteismo {
   faixa?: FaixaAbsenteismo[];
   ocorrencia?: OcorrenciaFiltro[];
   com_pendencias?: boolean;
+  /** Desligados nas linhas e nos cards de faixa e pendências (STC-871). */
+  incluir_desligados?: boolean;
 }
 
 export interface LinhaPainelAbsenteismo {

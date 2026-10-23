@@ -99,6 +99,9 @@ export function PainelAbsenteismo() {
   const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
+  // Desligados ficam fora da lista de quem tratar (STC-870); marcando, voltam
+  // para consulta. O número da unidade conta-os sempre.
+  const [incluirDesligados, setIncluirDesligados] = useState(false);
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoAbsenteismo | null>(null);
 
@@ -113,8 +116,9 @@ export function PainelAbsenteismo() {
       faixa: OPCOES_FAIXA.find((opcao) => opcao.valor === faixa)?.faixas,
       ocorrencia: ocorrencia ? [ocorrencia] : undefined,
       com_pendencias: comPendencias || undefined,
+      incluir_desligados: incluirDesligados || undefined,
     }),
-    [periodo, unidade, faixa, ocorrencia, comPendencias],
+    [periodo, unidade, faixa, ocorrencia, comPendencias, incluirDesligados],
   );
 
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
@@ -188,7 +192,8 @@ export function PainelAbsenteismo() {
 
   // Atalho dos cards de faixa: a tabela passa a bater com o número do card,
   // que conta a unidade filtrada e ignora os filtros que só
-  // afetam as linhas (ocorrência, justificativa pendente e busca). Clicar no
+  // afetam as linhas (ocorrência, justificativa pendente e busca). "Incluir
+  // desligados" fica como está: ele muda também o número do card. Clicar no
   // card já selecionado volta para o filtro padrão.
   function selecionarFaixa(alvo: FaixaAbsenteismo) {
     setFaixa((atual) => (atual === alvo ? FAIXA_PADRAO : alvo));
@@ -211,7 +216,7 @@ export function PainelAbsenteismo() {
 
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const temFiltros = Boolean(
-    unidade || (comFaixas && faixa) || ocorrencia || comPendencias || busca,
+    unidade || (comFaixas && faixa) || ocorrencia || comPendencias || incluirDesligados || busca,
   );
   const cards = painel?.cards;
 
@@ -377,6 +382,17 @@ export function PainelAbsenteismo() {
               Com justificativa pendente
             </label>
 
+            <label
+              className="flex h-8 items-center gap-2 rounded-md border border-input px-3 text-[13px] shadow-xs"
+              title="Desligados ficam fora da lista e dos cards de faixa. O absenteísmo e as horas perdidas da unidade contam quem trabalhou no período, inclusive desligados."
+            >
+              <Checkbox
+                checked={incluirDesligados}
+                onCheckedChange={(valor) => setIncluirDesligados(valor === true)}
+              />
+              Incluir desligados
+            </label>
+
             {temFiltros && (
               <button
                 type="button"
@@ -386,6 +402,7 @@ export function PainelAbsenteismo() {
                   setFaixa(undefined);
                   setOcorrencia(undefined);
                   setComPendencias(false);
+                  setIncluirDesligados(false);
                 }}
                 className="flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
               >
