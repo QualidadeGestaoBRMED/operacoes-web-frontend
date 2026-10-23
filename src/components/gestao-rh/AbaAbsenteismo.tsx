@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,20 +9,84 @@ import { useAbsenteismoColaborador } from "@/hooks/useAbsenteismoGestaoRH";
 import { usePeriodoEditavel, type Periodo } from "@/hooks/usePeriodoEditavel";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
+  COR_DO_LADO_DA_AUSENCIA,
   COR_FAIXA,
   ROTULO_ACAO_TRATAMENTO,
   ROTULO_FAIXA,
+  composicaoDasAusencias,
   formatarPercentual,
   formatarSaldoHoras,
   textoOcorrencia,
   tituloAlerta,
 } from "@/lib/gestaoRHAbsenteismo";
+import { formatarHoras } from "@/lib/gestaoRHHorasExtras";
 import { cn, formatarDataHora } from "@/lib/utils";
 import type { AcaoTratamento, AlertaAbsenteismo } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { BotaoAnexos, BotaoConversa, type ConversaAberta } from "./ConversaDoAlerta";
 import { FormRegistrarTratamento } from "./FormRegistrarTratamento";
 import { HistoricoRH } from "./HistoricoRH";
+
+// Carregado à parte: o Recharts não pesa na abertura do modal.
+const GraficoComposicaoAusencias = dynamic(
+  () => import("./GraficoComposicaoAusencias").then((modulo) => modulo.GraficoComposicaoAusencias),
+  { ssr: false, loading: () => <Skeleton className="size-24 shrink-0 rounded-full" /> },
+);
+
+const LEGENDA_DO_LADO = {
+  injustificado: { rotulo: "Injustificado", detalhe: "falta, atraso e saída antecipada" },
+  justificado: { rotulo: "Justificado", detalhe: "atestado" },
+} as const;
+
+/**
+ * Justificado × injustificado dos minutos que contam no percentual (STC-848),
+ * pedido da coordenação para ver o peso dos atestados. Sem ausência que
+ * conte, não aparece.
+ */
+function ComposicaoDasAusencias({
+  colaboradorId,
+  indicadores,
+}: {
+  colaboradorId: number;
+  indicadores: Parameters<typeof composicaoDasAusencias>[0];
+}) {
+  const composicao = composicaoDasAusencias(indicadores);
+  if (!composicao) return null;
+  const titulo = `composicao-${colaboradorId}-titulo`;
+  return (
+    <section aria-labelledby={titulo} className="space-y-2">
+      <h3 id={titulo} className="text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
+        Ausências que contam no absenteísmo
+      </h3>
+      <div className="flex items-center gap-4 rounded-lg border border-border bg-card px-3.5 py-3">
+        <div aria-hidden>
+          <GraficoComposicaoAusencias composicao={composicao} />
+        </div>
+        <ul className="min-w-0 flex-1 space-y-2 text-[12.5px]">
+          {composicao.partes.map((parte) => (
+            <li key={parte.lado} className="flex items-start gap-2">
+              <span
+                aria-hidden
+                className={cn("mt-1 size-2.5 shrink-0 rounded-sm", COR_DO_LADO_DA_AUSENCIA[parte.lado].marca)}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="font-medium text-foreground">{LEGENDA_DO_LADO[parte.lado].rotulo}</span>
+                  <span className="text-foreground tabular-nums">
+                    {formatarHoras(parte.minutos)} · <span className="font-semibold">{parte.percentual}%</span>
+                  </span>
+                </span>
+                <span className="block text-[11.5px] text-muted-foreground">
+                  {LEGENDA_DO_LADO[parte.lado].detalhe}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
 
 function Indicador({
   rotulo,
@@ -341,6 +406,8 @@ export function AbaAbsenteismo({
           destaque={indicadores.banco_horas_saldo_minutos < 0 ? "critica" : null}
         />
       </dl>
+
+      <ComposicaoDasAusencias colaboradorId={colaboradorId} indicadores={indicadores} />
 
       <section aria-labelledby={`ocorrencias-${colaboradorId}-titulo`} className="space-y-2">
         <h3

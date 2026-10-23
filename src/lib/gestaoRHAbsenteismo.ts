@@ -365,6 +365,43 @@ export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
   };
 }
 
+export type LadoDaAusencia = "injustificado" | "justificado";
+
+/** Classes de cor de cada lado: fatia do gráfico e marca da legenda. */
+export const COR_DO_LADO_DA_AUSENCIA: Record<LadoDaAusencia, { preenchimento: string; marca: string }> = {
+  injustificado: { preenchimento: "fill-red-600", marca: "bg-red-600" },
+  justificado: { preenchimento: "fill-secondary", marca: "bg-secondary" },
+};
+
+export interface ComposicaoDasAusencias {
+  totalMinutos: number;
+  partes: { lado: LadoDaAusencia; minutos: number; percentual: number }[];
+}
+
+/**
+ * Justificado × injustificado dos minutos que contam no percentual
+ * (STC-840): injustificado primeiro. Os percentuais somam 100. Sem ausência
+ * no período, ou sem os campos (backend anterior), null.
+ */
+export function composicaoDasAusencias(indicadores: {
+  minutos_justificados?: number;
+  minutos_injustificados?: number;
+}): ComposicaoDasAusencias | null {
+  const justificado = indicadores.minutos_justificados;
+  const injustificado = indicadores.minutos_injustificados;
+  if (justificado === undefined || injustificado === undefined) return null;
+  const totalMinutos = justificado + injustificado;
+  if (totalMinutos <= 0) return null;
+  const percentualInjustificado = Math.round((injustificado / totalMinutos) * 100);
+  return {
+    totalMinutos,
+    partes: [
+      { lado: "injustificado", minutos: injustificado, percentual: percentualInjustificado },
+      { lado: "justificado", minutos: justificado, percentual: 100 - percentualInjustificado },
+    ],
+  };
+}
+
 /** Saldo do banco de horas: -220 → "-03:40"; 250 → "+04:10"; 0 → "00:00". */
 export function formatarSaldoHoras(minutos: number): string {
   const sinal = minutos > 0 ? "+" : minutos < 0 ? "-" : "";

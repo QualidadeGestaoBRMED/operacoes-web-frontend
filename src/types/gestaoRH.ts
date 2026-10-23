@@ -467,6 +467,13 @@ export interface AbsenteismoColaborador {
     conformidade_percentual: string | null;
     banco_horas_saldo_minutos: number;
     banco_horas_uso_minutos: number;
+    /**
+     * Minutos que contam no percentual, de atestado e ausência justificada
+     * (STC-844). Ausente no backend anterior.
+     */
+    minutos_justificados?: number;
+    /** De falta, atraso, saída antecipada e jornada incompleta (STC-844). */
+    minutos_injustificados?: number;
   };
   ocorrencias: OcorrenciaAbsenteismo[];
   alertas: AlertaAbsenteismo[];
