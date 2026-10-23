@@ -168,6 +168,9 @@ export function CardsAbsenteismo({
         // Sem "em": é a contagem dos cards, e as linhas, filtradas por faixa,
         // não mostram todas essas unidades.
         legenda={plural(cards.unidades, "unidade", "unidades")}
+        // Número da unidade (STC-870): conta os desligados, que a lista e os
+        // cards de faixa deixam de fora.
+        dica="Quem trabalhou no período, inclusive desligados."
         cor="neutro"
         Icone={Users}
         rotuloEmDuasLinhas
