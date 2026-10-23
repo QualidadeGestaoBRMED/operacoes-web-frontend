@@ -3,6 +3,7 @@ import type {
   CategoriaDocumento,
   DocumentoUnidade,
   StatusDocumento,
+  TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
 import type { Unidade } from "@/types";
 
@@ -303,4 +304,92 @@ export function calcularResumoMapa(
     },
     semPendencia: { unidades: semPendencia, total: grade.unidades.length },
   };
+}
+
+// --- Checklist da célula (STC-866) ---------------------------------------
+// O que existe no catálogo para a categoria e o que a unidade já cadastrou.
+// Regra da Legalização (23/10/2026): na rede própria, todo tipo do catálogo
+// se aplica a todas as unidades; a exceção é o documento Não aplicável.
+
+export type SituacaoNoChecklist = "falta" | "cadastrado" | "nao_aplica";
+
+export interface ItemDoChecklist {
+  tipoId: number;
+  nome: string;
+  situacao: SituacaoNoChecklist;
+  /** Documentos cadastrados do tipo (mais de um nos tipos com instâncias). */
+  quantidade: number;
+}
+
+export interface ChecklistDaCelula {
+  itens: ItemDoChecklist[];
+  cadastrados: number;
+  /** Tipos da categoria que se aplicam à unidade (sem os Não aplicável). */
+  aplicaveis: number;
+}
+
+/** Documentos por unidade e tipo: quantos cadastrados e se há Não aplicável. */
+export type IndiceDoChecklist = Map<string, { cadastrados: number; naoAplicavel: boolean }>;
+
+export function indiceDoChecklist(documentos: DocumentoUnidade[]): IndiceDoChecklist {
+  const indice: IndiceDoChecklist = new Map();
+  for (const documento of documentos) {
+    const chave = `${documento.unidade.id}:${documento.tipo_documento.id}`;
+    const atual = indice.get(chave) ?? { cadastrados: 0, naoAplicavel: false };
+    if (documento.status === "nao_aplicavel") atual.naoAplicavel = true;
+    else atual.cadastrados += 1;
+    indice.set(chave, atual);
+  }
+  return indice;
+}
+
+const ORDEM_SITUACAO: Record<SituacaoNoChecklist, number> = {
+  falta: 0,
+  cadastrado: 1,
+  nao_aplica: 2,
+};
+
+export function checklistDaCelula(
+  indice: IndiceDoChecklist,
+  tipos: TipoDocumentoRegulatorio[],
+  unidadeId: number,
+  categoria: CategoriaDocumento,
+): ChecklistDaCelula {
+  const itens = tipos
+    .filter((tipo) => tipo.ativo && tipo.categoria === categoria)
+    .map((tipo): ItemDoChecklist => {
+      const registro = indice.get(`${unidadeId}:${tipo.id}`);
+      // Um documento cadastrado vale mais que um Não aplicável do mesmo tipo.
+      const situacao: SituacaoNoChecklist = registro?.cadastrados
+        ? "cadastrado"
+        : registro?.naoAplicavel
+          ? "nao_aplica"
+          : "falta";
+      return { tipoId: tipo.id, nome: tipo.nome, situacao, quantidade: registro?.cadastrados ?? 0 };
+    })
+    .sort(
+      (a, b) =>
+        ORDEM_SITUACAO[a.situacao] - ORDEM_SITUACAO[b.situacao] ||
+        a.nome.localeCompare(b.nome, "pt-BR"),
+    );
+  return {
+    itens,
+    cadastrados: itens.filter((item) => item.situacao === "cadastrado").length,
+    aplicaveis: itens.filter((item) => item.situacao !== "nao_aplica").length,
+  };
+}
+
+/**
+ * "2 de 5 cadastrados"; no singular quando o total é 1 ("1 de 1 cadastrado").
+ * Categoria com todos os tipos Não aplicável: "Nenhum se aplica a esta unidade".
+ * Mesmo texto na dica e no nome acessível da célula.
+ */
+export function textoDeCadastrados({ itens, cadastrados, aplicaveis }: ChecklistDaCelula): string {
+  if (aplicaveis === 0 && itens.length > 0) return "Nenhum se aplica a esta unidade";
+  return `${cadastrados} de ${aplicaveis} ${aplicaveis === 1 ? "cadastrado" : "cadastrados"}`;
+}
+
+/** Parte dos tipos que se aplicam já cadastrada, em % inteiro; null se nenhum se aplica. */
+export function percentualCadastrado({ cadastrados, aplicaveis }: ChecklistDaCelula): number | null {
+  return aplicaveis === 0 ? null : Math.round((cadastrados / aplicaveis) * 100);
 }
