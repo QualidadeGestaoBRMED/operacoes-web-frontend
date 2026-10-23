@@ -14,11 +14,12 @@ import { CardIndicador } from "./CardIndicador";
 
 // Absenteísmo e Horas perdidas ocupam a linha inteira no celular (2
 // colunas), onde a variação não caberia em meia linha; os outros cards vêm
-// em pares. Com faixas, 6 cards: 3 por linha no tablet, 6 no computador.
+// em pares. Com faixas, 6 cards: 3 por linha até telas bem largas, onde
+// cabem os 6 (em 6 colunas a 1280 px, horas como "725:30:00" não cabiam).
 // Sem faixas, 4 cards: uma linha a partir do tablet.
 const LARGURA_DOS_PRINCIPAIS = "col-span-2 sm:col-span-1";
 const GRADE = {
-  comFaixas: "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-6",
+  comFaixas: "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 2xl:grid-cols-6",
   semFaixas: "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-4 sm:px-7",
 } as const;
 

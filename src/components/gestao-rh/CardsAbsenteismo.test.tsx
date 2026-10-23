@@ -13,14 +13,14 @@ function card(rotulo: string) {
 }
 
 describe("CardsAbsenteismo, grade sem buraco (STC-791/849)", () => {
-  it("com faixas: os dois principais na linha toda só no celular, 6 colunas no computador", () => {
+  it("com faixas: os dois principais na linha toda só no celular, 6 colunas só em tela bem larga", () => {
     const { container } = render(<CardsAbsenteismo painel={painelAbsenteismoDeExemplo(FILTROS)} />);
 
     for (const rotulo of ["Absenteísmo", "Horas perdidas"]) {
       expect(card(rotulo)).toHaveClass("col-span-2", "sm:col-span-1");
     }
     expect(card("Faixa crítica")).not.toHaveClass("col-span-2");
-    expect(container.firstChild).toHaveClass("sm:grid-cols-3", "xl:grid-cols-6");
+    expect(container.firstChild).toHaveClass("sm:grid-cols-3", "2xl:grid-cols-6");
   });
 
   it("sem faixas: 4 cards numa linha a partir do tablet", () => {
