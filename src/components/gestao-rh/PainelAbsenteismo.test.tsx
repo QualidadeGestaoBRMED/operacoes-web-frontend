@@ -753,3 +753,112 @@ describe("absenteísmo mês a mês", () => {
     expect(await modal.findByRole("table")).toBeInTheDocument();
   });
 });
+
+describe("horas perdidas por tipo e por unidade (STC-868)", () => {
+  const HORAS_PERDIDAS = {
+    por_tipo: [
+      { tipo: "falta" as const, minutos: 960 },
+      { tipo: "atraso" as const, minutos: 120 },
+      { tipo: "saida_antecipada" as const, minutos: 0 },
+      { tipo: "jornada_incompleta" as const, minutos: 0 },
+      { tipo: "atestado" as const, minutos: 1440 },
+      { tipo: "ausencia" as const, minutos: 0 },
+    ],
+    minutos_justificados: 1440,
+    minutos_injustificados: 1080,
+    // Fora de ordem: o modal ordena da maior para a menor.
+    por_unidade: [
+      { unidade: { id: 2, nome: "Macaé" }, minutos: 480 },
+      { unidade: { id: 1, nome: "Niterói" }, minutos: 2040 },
+    ],
+  };
+
+  it("período de outro ano: o título traz o ano", async () => {
+    vi.setSystemTime(new Date(2027, 1, 10, 9, 0));
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+
+    expect(await screen.findByRole("dialog", { name: "Horas perdidas · setembro/2026" })).toBeInTheDocument();
+  });
+
+  function painelCom(horasPerdidas?: typeof HORAS_PERDIDAS) {
+    return {
+      ...PAINEL,
+      cards: { ...PAINEL.cards, minutos_ausentes: 2520 },
+      horas_perdidas: horasPerdidas,
+    };
+  }
+
+  it("o card abre o modal com as horas e o % de cada tipo, do maior para o menor, e por unidade", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = within(await screen.findByRole("dialog", { name: "Horas perdidas · setembro" }));
+
+    expect(modal.getByText(/42:00:00 no total/)).toBeInTheDocument();
+    const resumo = within(
+      modal.getByRole("heading", { name: "Justificado × injustificado" }).closest("section") as HTMLElement,
+    );
+    expect(resumo.getByText("Injustificado").closest("li")).toHaveTextContent("18:00:00 · 43%");
+    expect(resumo.getByText("Justificado").closest("li")).toHaveTextContent("24:00:00 · 57%");
+    const porTipo = within(modal.getByRole("heading", { name: "Por tipo" }).closest("section") as HTMLElement);
+    expect(porTipo.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Atestados: 24:00:00, 57%",
+      "Faltas: 16:00:00, 38%",
+      "Atrasos: 2:00:00, 5%",
+    ]);
+    const porUnidade = within(modal.getByRole("heading", { name: "Por unidade" }).closest("section") as HTMLElement);
+    expect(porUnidade.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Niterói: 34:00:00, 81%",
+      "Macaé: 8:00:00, 19%",
+    ]);
+  });
+
+  it("com uma unidade só, a seção por unidade não aparece", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(
+      painelCom({ ...HORAS_PERDIDAS, por_unidade: [HORAS_PERDIDAS.por_unidade[1]] }),
+    );
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = within(await screen.findByRole("dialog", { name: /^Horas perdidas/ }));
+    expect(modal.getByRole("heading", { name: "Por tipo" })).toBeInTheDocument();
+    expect(modal.queryByRole("heading", { name: "Por unidade" })).not.toBeInTheDocument();
+  });
+
+  it("durante a troca de filtro, abre esmaecido e se atualiza com a resposta", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    let responder: (painel: Painel) => void = () => {};
+    vi.mocked(buscarPainelAbsenteismo).mockImplementationOnce(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+    await user.click(screen.getByRole("checkbox", { name: "Com justificativa pendente" }));
+    await waitFor(() => expect(screen.getByRole("table").closest("[aria-busy]")).not.toBeNull());
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = await screen.findByRole("dialog", { name: "Horas perdidas · setembro" });
+    expect(modal.querySelector("[aria-busy='true']")).not.toBeNull();
+
+    responder(painelCom(HORAS_PERDIDAS));
+    await waitFor(() => expect(modal.querySelector("[aria-busy]")).toBeNull());
+  });
+
+  it("sem a composição (backend anterior), o card não é clicável", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(undefined));
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(screen.queryByRole("button", { name: /^Horas perdidas/ })).not.toBeInTheDocument();
+  });
+});

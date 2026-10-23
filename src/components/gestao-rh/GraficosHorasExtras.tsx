@@ -6,6 +6,7 @@ import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatarHoras, formatarHorasDoEixo, minutosDoFator, rotuloDoFator } from "@/lib/gestaoRHHorasExtras";
 import { cn } from "@/lib/utils";
+import { RotuloDoEixo } from "./RotuloDoEixo";
 import type {
   FatorHoraExtra,
   LinhaHorasExtras,
@@ -51,22 +52,6 @@ function barra(item: Item): Barra {
     linha: item.linha,
     colaboradores: item.colaboradores,
   };
-}
-
-function cortar(nome: string, limite: number): string {
-  return nome.length > limite ? `${nome.slice(0, limite - 1).trimEnd()}…` : nome;
-}
-
-/** Rótulo do eixo cortado com reticências; o nome inteiro fica na dica do navegador. */
-function RotuloDoEixo(props: { x?: number; y?: number; payload?: { value: string }; caracteres: number }) {
-  const { x, y, payload, caracteres } = props;
-  if (x == null || y == null || !payload) return null;
-  return (
-    <text x={x} y={y} dy={4} textAnchor="end" className="fill-muted-foreground">
-      <title>{payload.value}</title>
-      {cortar(payload.value, caracteres)}
-    </text>
-  );
 }
 
 function Dica({

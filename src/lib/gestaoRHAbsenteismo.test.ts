@@ -4,6 +4,7 @@ import api from "./api";
 import {
   buscarPainelAbsenteismo,
   composicaoDasAusencias,
+  percentualDoTotal,
   textoDoPercentualDoLado,
   diferencaEmPontos,
   ehMesInteiro,
@@ -360,5 +361,17 @@ describe("justificado × injustificado (STC-848)", () => {
     const [todo, nada] = soInjustificado!.partes;
     expect(textoDoPercentualDoLado(todo, 60)).toBe("100%");
     expect(textoDoPercentualDoLado(nada, 60)).toBe("0%");
+  });
+});
+
+describe("percentual do total das horas perdidas (STC-868)", () => {
+  it("inteiro, com as pontas que o arredondamento esconderia", () => {
+    expect(percentualDoTotal(840, 2520)).toBe("33%");
+    expect(percentualDoTotal(1, 600)).toBe("menos de 1%");
+    expect(percentualDoTotal(599, 600)).toBe("mais de 99%");
+    expect(percentualDoTotal(600, 600)).toBe("100%");
+    expect(percentualDoTotal(0, 0)).toBe("0%");
+    expect(percentualDoTotal(1, 600, true)).toBe("<1%");
+    expect(percentualDoTotal(599, 600, true)).toBe(">99%");
   });
 });
