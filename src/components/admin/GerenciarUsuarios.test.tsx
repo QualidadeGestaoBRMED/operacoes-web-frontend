@@ -31,6 +31,7 @@ const PERFIL_QG: Perfil = { id: 1, nome: "Admin Q&G", descricao: "", nivel: 1 };
 const PERFIL_OPS: Perfil = { id: 2, nome: "Admin Operações", descricao: "", nivel: 2 };
 const PERFIL_UNIDADE: Perfil = { id: 3, nome: "Unidade", descricao: "", nivel: 3 };
 const PERFIL_SETOR: Perfil = { id: 4, nome: "Setor", descricao: "", nivel: 4 };
+const PERFIL_PONTO_FOCAL: Perfil = { id: 5, nome: "Ponto focal", descricao: "", nivel: 5 };
 
 const UNIDADE: Unidade = {
   id: 1,
@@ -160,6 +161,76 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
 
     await waitFor(() => {
       expect(atualizarUsuario).toHaveBeenCalledWith(5, { unidades_adicionais_ids: [2] });
+    });
+  });
+
+  describe("ajusta as unidades adicionais junto (STC-862)", () => {
+    const BARCELOS: Unidade = { ...UNIDADE, id: 2, nome: "Niterói (Barcelos)", codigo: "NTB" };
+    const coordenadora = () =>
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id, unidades_adicionais_ids: [2] });
+
+    beforeEach(() => {
+      vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, BARCELOS]);
+      vi.mocked(listarUsuarios).mockResolvedValue([coordenadora()]);
+      vi.mocked(atualizarUsuario).mockResolvedValue(coordenadora());
+    });
+
+    it("tirar a unidade principal tira as adicionais", async () => {
+      const user = userEvent.setup();
+      renderTela();
+      await user.click(await screen.findByLabelText(/alterar unidade de fernanda lima/i));
+      await user.click(await screen.findByRole("option", { name: "Sem unidade" }));
+
+      await waitFor(() => {
+        expect(atualizarUsuario).toHaveBeenCalledWith(5, {
+          unidade_id: null,
+          unidades_adicionais_ids: [],
+        });
+      });
+    });
+
+    it("promover uma adicional a principal a tira das adicionais", async () => {
+      const user = userEvent.setup();
+      renderTela();
+      await user.click(await screen.findByLabelText(/alterar unidade de fernanda lima/i));
+      await user.click(await screen.findByRole("option", { name: "Niterói (Barcelos)" }));
+
+      await waitFor(() => {
+        expect(atualizarUsuario).toHaveBeenCalledWith(5, {
+          unidade_id: 2,
+          unidades_adicionais_ids: [],
+        });
+      });
+    });
+
+    it("trocar para um cargo de outra rede tira a principal e as adicionais", async () => {
+      vi.mocked(listarPerfis).mockResolvedValue([
+        PERFIL_QG,
+        PERFIL_OPS,
+        PERFIL_UNIDADE,
+        PERFIL_SETOR,
+        PERFIL_PONTO_FOCAL,
+      ]);
+      // Quem atribui cargo da rede OPEX administra as duas redes.
+      vi.mocked(useAuth).mockReturnValue({
+        user: { usuarioId: 999, perfil: PERFIL_QG, redes_administradas: ["opex", "padrao"] },
+        redesAdministradas: ["opex", "padrao"],
+        administraRedePadrao: true,
+        administraAsDuasRedes: true,
+        isAdminOps: true,
+      } as unknown as ReturnType<typeof useAuth>);
+      const user = userEvent.setup();
+      renderTela();
+      await user.click(await screen.findByLabelText(/alterar perfil de fernanda lima/i));
+      await user.click(await screen.findByRole("option", { name: /Ponto focal/ }));
+
+      await waitFor(() => {
+        expect(atualizarUsuario).toHaveBeenCalledWith(5, {
+          perfil_id: PERFIL_PONTO_FOCAL.id,
+          unidade_id: null,
+          unidades_adicionais_ids: [],
+        });
+      });
     });
   });
 

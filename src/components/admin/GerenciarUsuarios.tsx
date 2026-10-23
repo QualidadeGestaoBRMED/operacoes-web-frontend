@@ -285,12 +285,18 @@ export function GerenciarUsuarios({
       redeExigida !== null &&
       usuario.unidade_id != null &&
       unidadeAtual?.rede !== redeExigida;
+    const temAdicionais = (usuario.unidades_adicionais_ids ?? []).length > 0;
     try {
       await atualizar({
         id: usuario.id,
         payload: {
           perfil_id: novo?.id ?? null,
-          ...(tiraUnidade && { unidade_id: null }),
+          // Sem principal não há adicionais, e as da rede antiga não
+          // combinariam com o cargo novo (STC-862): saem junto.
+          ...(tiraUnidade && {
+            unidade_id: null,
+            ...(temAdicionais && { unidades_adicionais_ids: [] }),
+          }),
         },
       });
       toast.success("Perfil atualizado.");
@@ -300,10 +306,21 @@ export function GerenciarUsuarios({
   }
 
   async function aoMudarUnidade(usuario: Usuario, valor: string) {
+    const novaUnidade = valor === SEM_VALOR ? null : Number(valor);
+    const adicionais = usuario.unidades_adicionais_ids ?? [];
+    // Sem principal, as adicionais saem; a promovida a principal sai delas
+    // (STC-862: a principal não se repete nas adicionais).
+    const adicionaisAjustadas =
+      novaUnidade === null ? [] : adicionais.filter((id) => id !== novaUnidade);
     try {
       await atualizar({
         id: usuario.id,
-        payload: { unidade_id: valor === SEM_VALOR ? null : Number(valor) },
+        payload: {
+          unidade_id: novaUnidade,
+          ...(adicionaisAjustadas.length !== adicionais.length && {
+            unidades_adicionais_ids: adicionaisAjustadas,
+          }),
+        },
       });
       toast.success("Unidade atualizada.");
     } catch (erro) {
