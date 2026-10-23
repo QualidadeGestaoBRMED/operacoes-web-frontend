@@ -175,6 +175,18 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
       vi.mocked(atualizarUsuario).mockResolvedValue(coordenadora());
     });
 
+    it("adicional desativada aparece na lista e pode ser desmarcada", async () => {
+      vi.mocked(listarUnidades).mockResolvedValue([UNIDADE]);
+      const user = userEvent.setup();
+      renderTela();
+      await user.click(await screen.findByLabelText(/unidades adicionais de fernanda lima/i));
+      await user.click(await screen.findByRole("checkbox", { name: "Unidade desativada" }));
+
+      await waitFor(() => {
+        expect(atualizarUsuario).toHaveBeenCalledWith(5, { unidades_adicionais_ids: [] });
+      });
+    });
+
     it("tirar a unidade principal tira as adicionais", async () => {
       const user = userEvent.setup();
       renderTela();

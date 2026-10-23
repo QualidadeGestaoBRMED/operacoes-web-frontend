@@ -276,10 +276,13 @@ export function FormCadastrarDocumento({
   // escolher outra (senão ele recebe 403 ao submeter, já que o backend só
   // permite escrever na própria). Depende de `open` pra reaplicar toda vez
   // que o form reabre (fechar reseta `unidade` pra undefined acima).
+  // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe,
+  // para não abrir na unidade errada sem perceber.
+  const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
   useEffect(() => {
-    if (!open || !isCoordenacaoUnidade || !user?.unidade_id) return;
-    setValue("unidade", user.unidade_id);
-  }, [open, isCoordenacaoUnidade, user?.unidade_id, setValue]);
+    if (!open || !isCoordenacaoUnidade || unidadeUnica === undefined) return;
+    setValue("unidade", unidadeUnica);
+  }, [open, isCoordenacaoUnidade, unidadeUnica, setValue]);
 
   const naoAplicavel = watch("nao_aplicavel");
   const status = watch("status");

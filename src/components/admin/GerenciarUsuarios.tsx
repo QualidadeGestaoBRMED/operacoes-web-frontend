@@ -156,6 +156,21 @@ export function GerenciarUsuarios({
       : unidadesDasMinhasRedes;
   }
 
+  // Adicionais oferecidas na linha: as da rede do cargo, sem a principal, e
+  // as já marcadas mesmo fora da lista (desativadas), para poder desmarcar.
+  function opcoesDeAdicionais(usuario: Usuario) {
+    const daLinha = unidadesDaLinha(usuario).filter(
+      (unidade) => unidade.id !== usuario.unidade_id,
+    );
+    const foraDaLista = (usuario.unidades_adicionais_ids ?? [])
+      .filter((id) => !daLinha.some((unidade) => unidade.id === id))
+      .map((id) => ({
+        id,
+        nome: unidades.find((unidade) => unidade.id === id)?.nome ?? "Unidade desativada",
+      }));
+    return [...daLinha, ...foraDaLista];
+  }
+
   // Filtros -- só do lado do cliente: useUsuarios() já carrega tudo de uma
   // vez (sem paginação), então filtrar em memória é suficiente.
   const [filtroPerfil, setFiltroPerfil] = useState("todos");
@@ -552,9 +567,7 @@ export function GerenciarUsuarios({
                       {usuario.unidade_id && (
                         <SeletorUnidadesAdicionais
                           value={usuario.unidades_adicionais_ids ?? []}
-                          opcoes={unidadesDaLinha(usuario).filter(
-                            (unidade) => unidade.id !== usuario.unidade_id,
-                          )}
+                          opcoes={opcoesDeAdicionais(usuario)}
                           onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
                           aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
                         />
