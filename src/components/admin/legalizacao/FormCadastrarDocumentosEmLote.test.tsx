@@ -683,6 +683,9 @@ describe("FormCadastrarDocumentosEmLote (STC-490)", () => {
     expect(
       await screen.findByText("Validade obrigatória para status 'Vencido'."),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Validade")).toHaveAccessibleDescription(
+      "Data em que o documento vence.",
+    );
     expect(atualizarDocumentoLegalizacao).not.toHaveBeenCalled();
     expect(onOpenChange).not.toHaveBeenCalled();
   });

@@ -1164,3 +1164,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Formulários de nova demanda, de cadastro de documento (um e em lote) e de nova versão de regra:** com uma unidade, ela vem preenchida como antes; com mais de uma, nada vem preenchido e a pessoa escolhe entre as suas, para não abrir na unidade errada sem perceber.
 - **Kanban:** nova demanda oferece as unidades do usuário; o candidato a responsável inclui quem tem a unidade da demanda como adicional. O filtro de unidade do board continua com as unidades da rede (a API já devolve só as do usuário).
 - O título do mês a mês do absenteísmo passou a dizer que considera quem trabalhou em cada mês, inclusive desligados depois (STC-859).
+
+### 7.33 STC-835 — Dica "Data em que o documento vence." no campo Validade
+
+🔄 **Em andamento.** Investigação em produção de 21/10/2026 (STC-832): um PGR foi cadastrado com a data de emissão no campo Validade, virou Vencido e gerou uma renovação órfã. Embaixo de todo campo onde a validade é digitada, o texto `DICA_VALIDADE` (`lib/legalizacao.ts`), ligado ao campo por `aria-describedby`: cadastro de documento, cadastro em lote (em cada documento), edição do documento (junto com a mensagem de erro, quando houver), "Nova validade" da renovação e "Nova validade (para todos)" do lote de renovação. As datas por item do lote seguem sem dica: são exceções da validade comum, que já a mostra.

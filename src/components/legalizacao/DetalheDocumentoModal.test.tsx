@@ -1072,6 +1072,9 @@ describe("DetalheDocumentoModal -- editar status/validade (STC-502)", () => {
 
     expect(screen.getByLabelText("Status")).toHaveTextContent("Regular");
     expect(screen.getByLabelText("Validade")).toHaveValue("2026-12-01");
+    expect(screen.getByLabelText("Validade")).toHaveAccessibleDescription(
+      "Data em que o documento vence.",
+    );
     expect(
       screen.queryByRole("button", { name: "Marcar como Não aplicável" }),
     ).not.toBeInTheDocument();
@@ -1439,7 +1442,7 @@ describe("DetalheDocumentoModal -- status livre com justificativa (STC-834)", ()
     );
     expect(screen.getByLabelText("Validade")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("Validade")).toHaveAccessibleDescription(
-      "Obrigatória para status 'Vencido'.",
+      "Data em que o documento vence. Obrigatória para status 'Vencido'.",
     );
     expect(screen.getByLabelText("Justificativa")).toHaveAccessibleDescription(
       "Por que o status mudou. Fica registrada no histórico do documento. Obrigatória para mudar o status.",
