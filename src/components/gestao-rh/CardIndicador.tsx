@@ -95,7 +95,13 @@ export function CardIndicador({
         >
           {rotulo}
         </div>
-        <div className={cn("mt-1 text-2xl font-bold", COR_TEXTO[cor])}>{valor}</div>
+        {/* Valor longo (ex.: horas da rede) corta em vez de sair do card. */}
+        <div
+          className={cn("mt-1 truncate text-2xl font-bold tabular-nums", COR_TEXTO[cor])}
+          title={String(valor)}
+        >
+          {valor}
+        </div>
         <div className="mt-0.5 line-clamp-2 text-[11px] font-medium text-muted-foreground">
           {legenda}
         </div>

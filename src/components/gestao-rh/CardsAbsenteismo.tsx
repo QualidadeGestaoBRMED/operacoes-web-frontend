@@ -1,22 +1,26 @@
-import { AlertOctagon, AlertTriangle, ClipboardClock, Percent, Users } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ClipboardClock, Hourglass, Percent, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  DICA_HORAS_PERDIDAS,
   DICA_PONTOS_PERCENTUAIS,
   corDaDiferenca,
   formatarDiferenca,
   formatarPercentual,
 } from "@/lib/gestaoRHAbsenteismo";
+import { formatarDiferencaDeHoras, formatarHoras } from "@/lib/gestaoRHHorasExtras";
 import type { FaixaAbsenteismo, PainelAbsenteismo } from "@/types/gestaoRH";
 import { cn } from "@/lib/utils";
 import { CardIndicador } from "./CardIndicador";
 
-// O card de Absenteísmo ocupa 2 colunas onde a grade não fecharia: no
-// celular (2 colunas) sempre, e no tablet (3 colunas) com os 5 cards. Sem
-// faixas, os 3 cards já fecham numa linha do tablet. No computador (5
-// colunas), uma coluna só.
-export const LARGURA_DO_ABSENTEISMO = {
-  comFaixas: "col-span-2 xl:col-span-1",
-  semFaixas: "col-span-2 sm:col-span-1",
+// Absenteísmo e Horas perdidas ocupam a linha inteira no celular (2
+// colunas), onde a variação não caberia em meia linha; os outros cards vêm
+// em pares. Com faixas, 6 cards: 3 por linha até telas bem largas, onde
+// cabem os 6 (em 6 colunas a 1280 px, horas como "725:30:00" não cabiam).
+// Sem faixas, 4 cards: uma linha a partir do tablet.
+const LARGURA_DOS_PRINCIPAIS = "col-span-2 sm:col-span-1";
+const GRADE = {
+  comFaixas: "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 2xl:grid-cols-6",
+  semFaixas: "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-4 sm:px-7",
 } as const;
 
 function plural(quantidade: number, singular: string, plural: string) {
@@ -30,7 +34,13 @@ interface CardsAbsenteismoProps {
   /** Clique no card de faixa: atalho para listar só aquela faixa. */
   onSelecionarFaixa?: (faixa: FaixaAbsenteismo) => void;
   /** Diferença para o período anterior; nula enquanto carrega ou sem dado para comparar. */
-  comparativo?: { pontos: number; nomeAnterior: string; parcial: boolean } | null;
+  comparativo?: {
+    pontos: number;
+    nomeAnterior: string;
+    parcial: boolean;
+    /** Horas perdidas do período anterior; nula se o backend não as devolve. */
+    minutosAnteriores?: number | null;
+  } | null;
   /** Clique no card de absenteísmo: abre o comparativo com o período anterior. */
   onAbrirComparativo?: () => void;
 }
@@ -44,11 +54,11 @@ export function CardsAbsenteismo({
 }: CardsAbsenteismoProps) {
   if (!painel) {
     return (
-      <div className="grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5">
-        {Array.from({ length: 5 }, (_, indice) => (
+      <div className={GRADE.comFaixas}>
+        {Array.from({ length: 6 }, (_, indice) => (
           <Skeleton
             key={indice}
-            className={cn("h-[76px] rounded-xl", indice === 0 && LARGURA_DO_ABSENTEISMO.comFaixas)}
+            className={cn("h-[76px] rounded-xl", indice < 2 && LARGURA_DOS_PRINCIPAIS)}
           />
         ))}
       </div>
@@ -58,15 +68,16 @@ export function CardsAbsenteismo({
   // Sem faixas cadastradas ninguém é classificado: os cards de faixa somem.
   const comFaixas = parametros.faixas_cadastradas;
   const meta = parametros.meta_percentual;
+  // Sem horas previstas (percentual vazio) não há horas perdidas a mostrar:
+  // "0" daria a entender que ninguém faltou.
+  const minutos = cards.percentual_periodo === null ? undefined : cards.minutos_ausentes;
+  const variacaoDeHoras =
+    comparativo && minutos !== undefined && comparativo.minutosAnteriores != null
+      ? minutos - comparativo.minutosAnteriores
+      : null;
 
   return (
-    <div
-      className={
-        comFaixas
-          ? "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7 xl:grid-cols-5"
-          : "grid grid-cols-2 gap-3 px-4 pt-4 sm:grid-cols-3 sm:px-7"
-      }
-    >
+    <div className={comFaixas ? GRADE.comFaixas : GRADE.semFaixas}>
       <CardIndicador
         rotulo="Absenteísmo"
         valor={formatarPercentual(cards.percentual_periodo)}
@@ -96,7 +107,28 @@ export function CardsAbsenteismo({
         Icone={Percent}
         rotuloEmDuasLinhas
         onClick={onAbrirComparativo}
-        className={comFaixas ? LARGURA_DO_ABSENTEISMO.comFaixas : LARGURA_DO_ABSENTEISMO.semFaixas}
+        className={LARGURA_DOS_PRINCIPAIS}
+      />
+      <CardIndicador
+        rotulo="Horas perdidas"
+        valor={minutos === undefined ? "—" : formatarHoras(minutos)}
+        legenda={
+          variacaoDeHoras !== null && comparativo ? (
+            <>
+              <span className={cn("font-semibold", corDaDiferenca(variacaoDeHoras))}>
+                {formatarDiferencaDeHoras(variacaoDeHoras)} vs. {comparativo.nomeAnterior}
+              </span>
+              {comparativo.parcial && " (parcial)"}
+            </>
+          ) : (
+            "soma das ausências do período"
+          )
+        }
+        cor="andamento"
+        Icone={Hourglass}
+        rotuloEmDuasLinhas
+        dica={DICA_HORAS_PERDIDAS}
+        className={LARGURA_DOS_PRINCIPAIS}
       />
       {comFaixas && (
         <CardIndicador

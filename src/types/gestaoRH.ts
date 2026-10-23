@@ -337,6 +337,9 @@ export interface LinhaPainelAbsenteismo {
 
 export interface CardsAbsenteismo {
   percentual_periodo: string | null;
+  /** Horas perdidas (STC-845), em minutos: o numerador do percentual.
+   * Ausente em backend anterior. */
+  minutos_ausentes?: number;
   faixa_critica: number;
   faixa_atencao: number;
   pendencias: number;

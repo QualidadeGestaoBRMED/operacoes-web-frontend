@@ -414,3 +414,7 @@ export function ordenarLinhasAbsenteismo(
 ): LinhaPainelAbsenteismo[] {
   return ordenarPor(linhas, ordenacao, CHAVES_ABSENTEISMO);
 }
+
+/** Dica do card de horas perdidas: o que entra e o que não é. */
+export const DICA_HORAS_PERDIDAS =
+  "Ausências que contam no absenteísmo: faltas e atestados (conforme os parâmetros), atrasos e saídas acima do limite. São horas, não valor em reais.";
