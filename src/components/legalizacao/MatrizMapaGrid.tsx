@@ -82,7 +82,9 @@ function DicaDoChecklist({
           {unidade} · {LABEL_CATEGORIA[categoria]}
         </p>
         <p className="opacity-80">
-          {checklist.cadastrados} de {checklist.aplicaveis} cadastrados
+          {checklist.aplicaveis === 0 && checklist.itens.length > 0
+            ? "Nenhum se aplica a esta unidade"
+            : `${checklist.cadastrados} de ${checklist.aplicaveis} cadastrados`}
         </p>
       </div>
       {checklist.itens.length === 0 ? (

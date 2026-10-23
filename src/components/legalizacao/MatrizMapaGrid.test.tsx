@@ -125,6 +125,28 @@ describe("MatrizMapaGrid -- dica com o checklist do catálogo (STC-866)", () => 
     expect(await screen.findByRole("tooltip")).toBeInTheDocument();
   });
 
+  it("categoria toda Não aplicável diz que nenhum se aplica, em vez de 0 de 0", async () => {
+    const user = userEvent.setup();
+    const grade = calcularGradeMapa([documento("regular")], [NITEROI]);
+    render(
+      <TooltipProvider>
+        <MatrizMapaGrid
+          grade={grade}
+          carregando={false}
+          checklist={() => ({
+            itens: [{ tipoId: 5, nome: "Publicidade", situacao: "nao_aplica", quantidade: 0 }],
+            cadastrados: 0,
+            aplicaveis: 0,
+          })}
+        />
+      </TooltipProvider>,
+    );
+    await user.hover(screen.getByRole("link", { name: /Niterói, Regulariza/ }));
+    const dica = within(await screen.findByRole("tooltip"));
+    expect(dica.getByText("Nenhum se aplica a esta unidade")).toBeInTheDocument();
+    expect(dica.queryByText("0 de 0 cadastrados")).not.toBeInTheDocument();
+  });
+
   it("sem o checklist, sem dica nem foco extra", () => {
     const grade = calcularGradeMapa([documento("regular")], [NITEROI]);
     render(<MatrizMapaGrid grade={grade} carregando={false} />);
