@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -29,12 +29,6 @@ export function SeletorUnidadesAdicionais({
   }
 
   const nomes = opcoes.filter((unidade) => value.includes(unidade.id)).map((u) => u.nome);
-  const rotulo =
-    value.length === 0
-      ? null
-      : value.length > 1
-        ? `+${value.length} unidades`
-        : `+ ${nomes[0] ?? "1 unidade"}`;
 
   return (
     <Popover>
@@ -42,14 +36,21 @@ export function SeletorUnidadesAdicionais({
         <button
           type="button"
           aria-label={ariaLabel}
-          title={nomes.length > 0 ? nomes.join(", ") : undefined}
+          title={
+            nomes.length > 0 ? `Unidades adicionais: ${nomes.join(", ")}` : "Unidades adicionais"
+          }
           disabled={disabled}
           className={cn(
-            "mt-1 flex h-7 w-full max-w-64 items-center justify-between gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+            // Mesma altura e borda dos Selects da linha, ao lado do de unidade.
+            "flex h-9 shrink-0 items-center justify-center gap-1 rounded-md border border-input bg-transparent px-2.5 text-sm shadow-xs transition-[color,box-shadow] outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:bg-input/30",
+            value.length === 0 ? "text-muted-foreground" : "font-medium text-foreground",
           )}
         >
-          <span className="truncate text-left">{rotulo ?? "Unidades adicionais"}</span>
-          <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
+          {value.length === 0 ? (
+            <Plus aria-hidden className="size-4" />
+          ) : (
+            <span className="tabular-nums">+{value.length}</span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1.5">

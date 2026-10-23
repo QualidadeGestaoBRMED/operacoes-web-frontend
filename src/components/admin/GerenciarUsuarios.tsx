@@ -518,46 +518,48 @@ export function GerenciarUsuarios({
                     </Select>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Select
-                      value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
-                      onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
-                    >
-                      <SelectTrigger
-                        aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
-                        className="w-full min-w-[10rem]"
+                    <div className="flex items-center gap-1.5">
+                      <Select
+                        value={usuario.unidade_id ? String(usuario.unidade_id) : SEM_VALOR}
+                        onValueChange={(valor) => void aoMudarUnidade(usuario, valor)}
                       >
-                        <SelectValue placeholder="Sem unidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
-                        {/* A unidade atual entra mesmo fora da lista (desativada,
-                            ou de cargo antigo), para o campo não aparecer vazio. */}
-                        {usuario.unidade_id &&
-                          !unidadesDaLinha(usuario).some((u) => u.id === usuario.unidade_id) && (
-                            <SelectItem value={String(usuario.unidade_id)}>
-                              {unidades.find((u) => u.id === usuario.unidade_id)?.nome ??
-                                "Unidade atual"}
+                        <SelectTrigger
+                          aria-label={`Alterar unidade de ${nomeExibicao(usuario)}`}
+                          className="w-full min-w-[10rem]"
+                        >
+                          <SelectValue placeholder="Sem unidade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SEM_VALOR}>Sem unidade</SelectItem>
+                          {/* A unidade atual entra mesmo fora da lista (desativada,
+                              ou de cargo antigo), para o campo não aparecer vazio. */}
+                          {usuario.unidade_id &&
+                            !unidadesDaLinha(usuario).some((u) => u.id === usuario.unidade_id) && (
+                              <SelectItem value={String(usuario.unidade_id)}>
+                                {unidades.find((u) => u.id === usuario.unidade_id)?.nome ??
+                                  "Unidade atual"}
+                              </SelectItem>
+                            )}
+                          {unidadesDaLinha(usuario).map((unidade) => (
+                            <SelectItem key={unidade.id} value={String(unidade.id)}>
+                              {unidade.nome}
                             </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* Adicionais (STC-862): só com uma principal, entre as
+                          unidades da mesma rede, sem repetir a principal. */}
+                      {usuario.unidade_id && (
+                        <SeletorUnidadesAdicionais
+                          value={usuario.unidades_adicionais_ids ?? []}
+                          opcoes={unidadesDaLinha(usuario).filter(
+                            (unidade) => unidade.id !== usuario.unidade_id,
                           )}
-                        {unidadesDaLinha(usuario).map((unidade) => (
-                          <SelectItem key={unidade.id} value={String(unidade.id)}>
-                            {unidade.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {/* Adicionais (STC-862): só com uma principal, entre as
-                        unidades da mesma rede, sem repetir a principal. */}
-                    {usuario.unidade_id && (
-                      <SeletorUnidadesAdicionais
-                        value={usuario.unidades_adicionais_ids ?? []}
-                        opcoes={unidadesDaLinha(usuario).filter(
-                          (unidade) => unidade.id !== usuario.unidade_id,
-                        )}
-                        onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
-                        aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
-                      />
-                    )}
+                          onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
+                          aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5">
                     {/* Setor não tem rede: é da rede padrão (STC-745). */}
