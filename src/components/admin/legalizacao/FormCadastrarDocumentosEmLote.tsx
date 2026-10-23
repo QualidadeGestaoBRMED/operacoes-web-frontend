@@ -972,7 +972,8 @@ function LinhaStatusValidade({
 }) {
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap items-end gap-2">
+      {/* Pelo topo: a dica embaixo da Validade deixa a coluna dela mais alta. */}
+      <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-[8rem] flex-1 space-y-1">
           <Label htmlFor={`lel-status-${documentoId}`} className="text-xs">
             Status inicial
