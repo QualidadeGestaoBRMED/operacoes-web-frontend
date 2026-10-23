@@ -365,6 +365,60 @@ export function textoOcorrencias(linha: LinhaPainelAbsenteismo): {
   };
 }
 
+export type LadoDaAusencia = "injustificado" | "justificado";
+
+/**
+ * Nome e cor de cada lado, na paleta dos gráficos de Horas Extras (teal e
+ * âmbar): config do `ChartContainer` e marca da legenda.
+ */
+export const CONFIG_DO_GRAFICO_DE_AUSENCIAS = {
+  injustificado: { label: "Injustificado", color: "var(--chart-4)" },
+  justificado: { label: "Justificado", color: "var(--secondary)" },
+} as const satisfies Record<LadoDaAusencia, { label: string; color: string }>;
+
+export interface ComposicaoDasAusencias {
+  totalMinutos: number;
+  partes: { lado: LadoDaAusencia; minutos: number; percentual: number }[];
+}
+
+/**
+ * Justificado × injustificado dos minutos que contam no percentual
+ * (STC-840): injustificado primeiro. Os percentuais somam 100. Sem ausência
+ * no período, ou sem os campos (backend anterior), null.
+ */
+export function composicaoDasAusencias(indicadores: {
+  minutos_justificados?: number;
+  minutos_injustificados?: number;
+}): ComposicaoDasAusencias | null {
+  const justificado = indicadores.minutos_justificados;
+  const injustificado = indicadores.minutos_injustificados;
+  if (justificado === undefined || injustificado === undefined) return null;
+  const totalMinutos = justificado + injustificado;
+  if (totalMinutos <= 0) return null;
+  const percentualInjustificado = Math.round((injustificado / totalMinutos) * 100);
+  return {
+    totalMinutos,
+    partes: [
+      { lado: "injustificado", minutos: injustificado, percentual: percentualInjustificado },
+      { lado: "justificado", minutos: justificado, percentual: 100 - percentualInjustificado },
+    ],
+  };
+}
+
+/**
+ * Percentual de um lado da composição. Nas pontas não arredonda para 0% nem
+ * para 100% quando o outro lado também tem minutos, como as horas extras
+ * por fator.
+ */
+export function textoDoPercentualDoLado(
+  parte: ComposicaoDasAusencias["partes"][number],
+  totalMinutos: number,
+): string {
+  if (parte.minutos > 0 && parte.percentual === 0) return "menos de 1%";
+  if (parte.minutos < totalMinutos && parte.percentual === 100) return "mais de 99%";
+  return `${parte.percentual}%`;
+}
+
 /** Saldo do banco de horas: -220 → "-03:40"; 250 → "+04:10"; 0 → "00:00". */
 export function formatarSaldoHoras(minutos: number): string {
   const sinal = minutos > 0 ? "+" : minutos < 0 ? "-" : "";
