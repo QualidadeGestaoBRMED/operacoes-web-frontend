@@ -113,6 +113,33 @@ describe("MatrizFiltros -- filtro de Unidade respeita isCoordenacaoUnidade (STC-
   });
 });
 
+describe("MatrizFiltros -- coordenação com unidades adicionais (STC-862)", () => {
+  it("escolhe entre as suas unidades, com 'Todas as minhas unidades', e não as outras da rede", async () => {
+    vi.mocked(useUnidades).mockReturnValue({
+      unidades: [NITEROI, VITORIA, { ...VITORIA, id: 99, nome: "Outra" }],
+      isLoading: false,
+      error: undefined,
+    });
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: NITEROI.id, unidades_adicionais_ids: [VITORIA.id] },
+      perfil: { id: 3, nome: "Unidade", nivel: 3 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
+    } as never);
+    const user = userEvent.setup();
+    renderFiltros();
+
+    await user.click(screen.getByLabelText("Unidade"));
+
+    expect(await screen.findByRole("option", { name: "Niterói" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Vitória" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Todas as minhas unidades" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Outra" })).not.toBeInTheDocument();
+  });
+});
+
 describe("MatrizFiltros -- unidades da rede padrão (STC-747)", () => {
   // A Legalização é só da rede padrão: o filtro pede as unidades dela para
   // qualquer cargo, sem olhar as redes administradas. O Admin Operações

@@ -37,6 +37,7 @@ import {
 import { cn, nomeExibicao } from "@/lib/utils";
 import { guardarVerComo } from "@/lib/verComo";
 import type { Perfil, Unidade, Usuario } from "@/types";
+import { SeletorUnidadesAdicionais } from "./SeletorUnidadesAdicionais";
 
 // Quem cada Admin gerencia e que cargos oferece seguem as regras do backend
 // (STC-745, espelhadas em lib/redes.ts): cada Admin cuida dos usuários da
@@ -310,6 +311,15 @@ export function GerenciarUsuarios({
     }
   }
 
+  async function aoMudarUnidadesAdicionais(usuario: Usuario, ids: number[]) {
+    try {
+      await atualizar({ id: usuario.id, payload: { unidades_adicionais_ids: ids } });
+      toast.success("Unidades adicionais atualizadas.");
+    } catch (erro) {
+      toast.error(extrairMensagemErro(erro));
+    }
+  }
+
   async function aoMudarSetor(usuario: Usuario, valor: string) {
     try {
       await atualizar({
@@ -519,6 +529,18 @@ export function GerenciarUsuarios({
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* Adicionais (STC-862): só com uma principal, entre as
+                        unidades da mesma rede, sem repetir a principal. */}
+                    {usuario.unidade_id && (
+                      <SeletorUnidadesAdicionais
+                        value={usuario.unidades_adicionais_ids ?? []}
+                        opcoes={unidadesDaLinha(usuario).filter(
+                          (unidade) => unidade.id !== usuario.unidade_id,
+                        )}
+                        onChange={(ids) => void aoMudarUnidadesAdicionais(usuario, ids)}
+                        aria-label={`Unidades adicionais de ${nomeExibicao(usuario)}`}
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     {/* Setor não tem rede: é da rede padrão (STC-745). */}

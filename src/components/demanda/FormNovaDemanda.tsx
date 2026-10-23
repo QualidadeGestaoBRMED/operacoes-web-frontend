@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useCriarDemanda } from "@/hooks/useDemandaMutations";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useSetores } from "@/hooks/useSetores";
@@ -115,6 +116,7 @@ export function FormNovaDemanda({
   tipoGestaoInicial?: number;
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { categorias } = useCategorias();
   const { tiposGestao } = useTiposGestao();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
@@ -204,7 +206,7 @@ export function FormNovaDemanda({
   // STC-538: Coordenação de Unidade só escolhe a própria unidade -- mesmo
   // critério de Legalização (FormCadastrarDocumento.tsx).
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
 
   async function aoSubmeter(valores: FormValuesSaida) {

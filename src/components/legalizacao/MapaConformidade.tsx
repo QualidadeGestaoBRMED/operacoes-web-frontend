@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
@@ -22,6 +23,7 @@ export function MapaConformidade() {
   // um link salvo/compartilhado em mobile.
   const ehMobile = useMediaQuery("(max-width: 639px)");
   const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const redireciona = ehMobile;
   useEffect(() => {
     if (redireciona) router.replace("/modulos/legalizacao");
@@ -51,7 +53,7 @@ export function MapaConformidade() {
   // derivam genericamente da grade (mesmo padrão da STC-512 em
   // BibliotecaDocumentos.tsx/MatrizFiltros.tsx).
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
 
   // carregandoSessao entra aqui (não só carregandoPrimeiraVez/carregandoUnidades):

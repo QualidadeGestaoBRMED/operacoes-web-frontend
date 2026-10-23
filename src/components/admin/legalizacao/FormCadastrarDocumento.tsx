@@ -28,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
   useCriarDocumentoLegalizacao,
   useDocumentosLegalizacao,
@@ -200,11 +201,12 @@ export function FormCadastrarDocumento({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   const { unidades: todasAsUnidades } = useUnidades("padrao");
   // STC-514: mesmo critério da STC-512 -- Coordenador só pode cadastrar na
   // própria unidade, o seletor abaixo oferece só essa opção.
   const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidade.id === user?.unidade_id)
+    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
   const { tiposDocumento } = useTiposDocumento();
   const { criar: criarRegra } = useCriarRegraDocumento();

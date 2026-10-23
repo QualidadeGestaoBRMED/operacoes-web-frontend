@@ -21,7 +21,7 @@ import {
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { iniciaisDe, nomeExibicao } from "@/lib/utils";
-import { administra, NIVEL_ADMIN_QG, redeDaUnidade } from "@/lib/redes";
+import { administra, NIVEL_ADMIN_QG, redeDaUnidade, unidadesDoUsuario } from "@/lib/redes";
 import type { Demanda, DemandaResponsavel, Usuario } from "@/types";
 
 
@@ -143,7 +143,7 @@ export function ResponsavelSection({
     if (!demanda.unidade) return administra(usuario, "padrao");
     // Com unidade: quem é dela ou administra a rede dela (STC-747).
     return (
-      usuario.unidade_id === demanda.unidade.id ||
+      unidadesDoUsuario(usuario).includes(demanda.unidade.id) ||
       administra(usuario, redeDaUnidade(demanda.unidade))
     );
   }

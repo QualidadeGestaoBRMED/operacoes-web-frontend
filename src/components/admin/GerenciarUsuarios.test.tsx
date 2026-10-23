@@ -142,6 +142,27 @@ describe("GerenciarUsuarios (STC-266 -- extensão)", () => {
     });
   });
 
+  it("marca uma unidade adicional (STC-862), sem oferecer a principal", async () => {
+    const barcelos: Unidade = { ...UNIDADE, id: 2, nome: "Niterói (Barcelos)", codigo: "NTB" };
+    vi.mocked(listarUnidades).mockResolvedValue([UNIDADE, barcelos]);
+    vi.mocked(listarUsuarios).mockResolvedValue([
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id }),
+    ]);
+    vi.mocked(atualizarUsuario).mockResolvedValue(
+      usuario({ perfil: PERFIL_UNIDADE, unidade_id: UNIDADE.id, unidades_adicionais_ids: [2] }),
+    );
+    const user = userEvent.setup();
+
+    renderTela();
+    await user.click(await screen.findByLabelText(/unidades adicionais de fernanda lima/i));
+    expect(screen.queryByRole("checkbox", { name: "Niterói" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("checkbox", { name: "Niterói (Barcelos)" }));
+
+    await waitFor(() => {
+      expect(atualizarUsuario).toHaveBeenCalledWith(5, { unidades_adicionais_ids: [2] });
+    });
+  });
+
   it("desvincula o setor de um usuário (opção 'Sem setor')", async () => {
     vi.mocked(listarUsuarios).mockResolvedValue([usuario({ setor_id: SETOR.id })]);
     vi.mocked(atualizarUsuario).mockResolvedValue(usuario({ setor_id: null }));

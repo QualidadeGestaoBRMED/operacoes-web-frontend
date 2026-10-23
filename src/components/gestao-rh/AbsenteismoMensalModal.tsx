@@ -49,7 +49,8 @@ interface AbsenteismoMensalModalProps {
   anoInicial: number;
   hoje: string;
   unidade: number | undefined;
-  /** "Todas as unidades", o nome da unidade filtrada ou "Sua unidade". */
+  /** "Todas as unidades", "Todas as minhas unidades", o nome da unidade
+   * filtrada ou "Sua unidade". */
   visao: string;
 }
 
@@ -165,7 +166,7 @@ export function AbsenteismoMensalModal({
         <DialogHeader>
           <DialogTitle className="text-xl">Absenteísmo mês a mês</DialogTitle>
           {/* O Painel só traz quem está ativo hoje: desligados não entram nos meses anteriores. */}
-          <DialogDescription className="text-[15px]" title="Considera os colaboradores ativos hoje.">{visao}</DialogDescription>
+          <DialogDescription className="text-[15px]" title="Considera quem trabalhou em cada mês, inclusive quem foi desligado depois.">{visao}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-end">

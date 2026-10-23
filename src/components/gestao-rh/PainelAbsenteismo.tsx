@@ -21,6 +21,7 @@ import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useUnidades } from "@/hooks/useUnidades";
+import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { formatarDataISO } from "@/lib/gestaoRH";
 import {
   OCORRENCIAS_FILTRO,
@@ -82,9 +83,11 @@ export function PainelAbsenteismo() {
   const router = useRouter();
   const pathname = usePathname();
   // O Gestão RH é da rede padrão (STC-762).
-  const { administraRedePadrao } = useAuth();
+  const { user, administraRedePadrao } = useAuth();
+  const unidadesDoUsuario = unidadesDe(user);
   // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
   const { unidades } = useUnidades("padrao");
+  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
 
   const {
     periodo,
@@ -150,7 +153,9 @@ export function PainelAbsenteismo() {
       ? diferencaEmPontos(painel.cards.percentual_periodo, anteriorAtual.cards.percentual_periodo)
       : null;
   const nomeUnidade = unidades.find((item) => item.id === unidade)?.nome;
-  const visao = administraRedePadrao ? (nomeUnidade ?? "Todas as unidades") : "Sua unidade";
+  const visao = filtroUnidade.mostrar
+    ? (nomeUnidade ?? filtroUnidade.rotuloTodas)
+    : "Sua unidade";
 
   const colaboradorAberto = numeroDaUrl(searchParams.get("colaborador"));
   // Card do Kanban (STC-592): origem_url = ?colaborador=&inicio=&fim= do alerta.
@@ -305,8 +310,8 @@ export function PainelAbsenteismo() {
               />
             </div>
 
-            {/* Coordenação e OPEX já recebem só a própria unidade da API. */}
-            {administraRedePadrao && (
+            {/* Coordenação e OPEX já recebem só as próprias unidades da API. */}
+            {filtroUnidade.mostrar && (
               <Select
                 value={unidade ? String(unidade) : "todas"}
                 onValueChange={(valor) => setUnidade(valor === "todas" ? undefined : Number(valor))}
@@ -315,8 +320,8 @@ export function PainelAbsenteismo() {
                   <SelectValue placeholder="Unidade" />
                 </SelectTrigger>
                 <SelectContent position="popper">
-                  <SelectItem value="todas">Todas as unidades</SelectItem>
-                  {unidades.map((item) => (
+                  <SelectItem value="todas">{filtroUnidade.rotuloTodas}</SelectItem>
+                  {filtroUnidade.opcoes.map((item) => (
                     <SelectItem key={item.id} value={String(item.id)}>
                       {item.nome}
                     </SelectItem>
