@@ -20,6 +20,8 @@ describe("CardsAbsenteismo, grade sem buraco (STC-791/873)", () => {
       expect(card(rotulo).className).not.toMatch(/col-span/);
     }
     expect(container.firstChild).toHaveClass("grid-cols-2", "sm:grid-cols-3", "2xl:grid-cols-6");
+    // Em meia linha a 360 px, o valor menor faz caber "1.355:52:00".
+    expect(card("Horas perdidas").querySelector(".tabular-nums")).toHaveClass("text-xl", "sm:text-2xl");
   });
 
   it("sem faixas: 4 cards numa linha a partir do tablet", () => {

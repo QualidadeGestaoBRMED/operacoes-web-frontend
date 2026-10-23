@@ -95,9 +95,11 @@ export function CardIndicador({
         >
           {rotulo}
         </div>
-        {/* Valor longo (ex.: horas da rede) corta em vez de sair do card. */}
+        {/* Menor no celular, onde os cards vêm em pares: "1.355:52:00" (horas
+            da rede) cabe em meia linha a 360 px. Se ainda não couber, corta
+            em vez de sair do card. */}
         <div
-          className={cn("mt-1 truncate text-2xl font-bold tabular-nums", COR_TEXTO[cor])}
+          className={cn("mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl", COR_TEXTO[cor])}
           title={String(valor)}
         >
           {valor}
