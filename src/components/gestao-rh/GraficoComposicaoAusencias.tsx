@@ -1,15 +1,9 @@
 "use client";
 
 import { Cell, Pie, PieChart } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import {
   CONFIG_DO_GRAFICO_DE_AUSENCIAS,
-  textoDoPercentualDoLado,
   type ComposicaoDasAusencias,
   type LadoDaAusencia,
 } from "@/lib/gestaoRHAbsenteismo";
@@ -19,36 +13,17 @@ const CONFIG = CONFIG_DO_GRAFICO_DE_AUSENCIAS satisfies ChartConfig;
 
 /**
  * Rosca do justificado × injustificado na aba Absenteísmo (STC-848), no
- * padrão dos gráficos de Horas Extras: Recharts no `ChartContainer`, cores
- * da paleta pela config e a dica do shadcn. O total fica no centro.
- * Carregada à parte, para o Recharts não pesar na abertura do modal.
+ * padrão dos gráficos de Horas Extras: Recharts no `ChartContainer` e cores
+ * da paleta pela config. O total fica no centro. Sem dica ao passar o mouse:
+ * numa rosca deste tamanho ela cobria o total, e a legenda ao lado já traz
+ * as horas e o percentual de cada lado. Carregada à parte, para o Recharts
+ * não pesar na abertura do modal.
  */
 export function GraficoComposicaoAusencias({ composicao }: { composicao: ComposicaoDasAusencias }) {
   return (
     <div className="relative size-32 shrink-0">
       <ChartContainer config={CONFIG} className="aspect-square size-32">
         <PieChart>
-          <ChartTooltip
-            cursor={false}
-            content={
-              <ChartTooltipContent
-                hideLabel
-                nameKey="lado"
-                formatter={(_valor, _nome, item) => {
-                  const parte = item.payload as ComposicaoDasAusencias["partes"][number];
-                  return (
-                    <span className="flex w-full items-center justify-between gap-3">
-                      <span className="text-muted-foreground">{CONFIG[parte.lado].label}</span>
-                      <span className="font-mono font-medium text-foreground tabular-nums">
-                        {formatarHoras(parte.minutos)} ·{" "}
-                        {textoDoPercentualDoLado(parte, composicao.totalMinutos)}
-                      </span>
-                    </span>
-                  );
-                }}
-              />
-            }
-          />
           <Pie
             data={composicao.partes}
             dataKey="minutos"
