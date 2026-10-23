@@ -12,6 +12,7 @@ import {
   ORDEM_LEGENDA_BUCKET,
   celulaDaGrade,
   situacaoNaUrl,
+  textoDeCadastrados,
   type BucketCelula,
   type ChecklistDaCelula,
   type GradeMapa,
@@ -84,7 +85,7 @@ function DicaDoChecklist({
         <p className="opacity-80">
           {checklist.aplicaveis === 0 && checklist.itens.length > 0
             ? "Nenhum se aplica a esta unidade"
-            : `${checklist.cadastrados} de ${checklist.aplicaveis} cadastrados`}
+            : textoDeCadastrados(checklist)}
         </p>
       </div>
       {checklist.itens.length === 0 ? (
@@ -221,7 +222,7 @@ export function MatrizMapaGrid({ grade, carregando, checklist }: MatrizMapaGridP
                     const celula = celulaDaGrade(grade, unidade.id, categoria);
                     const clicavel = celula.bucket !== "pendente";
                     const doCatalogo = checklist?.(unidade.id, categoria);
-                    const aria = `${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}${doCatalogo ? `, ${doCatalogo.cadastrados} de ${doCatalogo.aplicaveis} cadastrados` : ""}`;
+                    const aria = `${unidade.nome}, ${LABEL_CATEGORIA[categoria]}: ${LABEL_BUCKET_CELULA[celula.bucket]}${celula.contagem > 0 ? `, ${celula.contagem}` : ""}${doCatalogo ? `, ${textoDeCadastrados(doCatalogo)}` : ""}`;
                     const comDica = (elemento: React.ReactElement) =>
                       doCatalogo ? (
                         <Tooltip key={categoria}>

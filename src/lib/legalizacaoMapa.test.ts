@@ -8,6 +8,7 @@ import {
   indiceDoChecklist,
   filtroDaSituacao,
   situacaoNaUrl,
+  textoDeCadastrados,
   type BucketCelula,
 } from "./legalizacaoMapa";
 import type { DocumentoUnidade } from "@/types/legalizacao";
@@ -379,5 +380,17 @@ describe("checklistDaCelula (STC-866)", () => {
       (i) => i.tipoId === 1,
     );
     expect(alvara.situacao).toBe("cadastrado");
+  });
+
+  it("concorda o texto com o total: singular só quando é 1", () => {
+    expect(textoDeCadastrados({ itens: [], cadastrados: 1, aplicaveis: 1 })).toBe(
+      "1 de 1 cadastrado",
+    );
+    expect(textoDeCadastrados({ itens: [], cadastrados: 0, aplicaveis: 1 })).toBe(
+      "0 de 1 cadastrado",
+    );
+    expect(textoDeCadastrados({ itens: [], cadastrados: 1, aplicaveis: 3 })).toBe(
+      "1 de 3 cadastrados",
+    );
   });
 });

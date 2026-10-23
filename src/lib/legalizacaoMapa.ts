@@ -378,3 +378,8 @@ export function checklistDaCelula(
     aplicaveis: itens.filter((item) => item.situacao !== "nao_aplica").length,
   };
 }
+
+/** "2 de 5 cadastrados"; no singular quando o total é 1 ("1 de 1 cadastrado"). */
+export function textoDeCadastrados({ cadastrados, aplicaveis }: ChecklistDaCelula): string {
+  return `${cadastrados} de ${aplicaveis} ${aplicaveis === 1 ? "cadastrado" : "cadastrados"}`;
+}
