@@ -402,6 +402,20 @@ export function composicaoDasAusencias(indicadores: {
   };
 }
 
+/**
+ * Percentual de um lado da composição. Nas pontas não arredonda para 0% nem
+ * para 100% quando o outro lado também tem minutos, como as horas extras
+ * por fator.
+ */
+export function textoDoPercentualDoLado(
+  parte: ComposicaoDasAusencias["partes"][number],
+  totalMinutos: number,
+): string {
+  if (parte.minutos > 0 && parte.percentual === 0) return "menos de 1%";
+  if (parte.minutos < totalMinutos && parte.percentual === 100) return "mais de 99%";
+  return `${parte.percentual}%`;
+}
+
 /** Saldo do banco de horas: -220 → "-03:40"; 250 → "+04:10"; 0 → "00:00". */
 export function formatarSaldoHoras(minutos: number): string {
   const sinal = minutos > 0 ? "+" : minutos < 0 ? "-" : "";

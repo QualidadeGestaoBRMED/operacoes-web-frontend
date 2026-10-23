@@ -15,6 +15,7 @@ import {
   ROTULO_FAIXA,
   composicaoDasAusencias,
   formatarPercentual,
+  textoDoPercentualDoLado,
   formatarSaldoHoras,
   textoOcorrencia,
   tituloAlerta,
@@ -34,8 +35,11 @@ const GraficoComposicaoAusencias = dynamic(
 );
 
 const LEGENDA_DO_LADO = {
-  injustificado: { rotulo: "Injustificado", detalhe: "falta, atraso e saída antecipada" },
-  justificado: { rotulo: "Justificado", detalhe: "atestado" },
+  injustificado: {
+    rotulo: "Injustificado",
+    detalhe: "falta, atraso, saída antecipada e jornada incompleta",
+  },
+  justificado: { rotulo: "Justificado", detalhe: "atestado e ausência justificada" },
 } as const;
 
 /**
@@ -73,7 +77,10 @@ function ComposicaoDasAusencias({
                 <span className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <span className="font-medium text-foreground">{LEGENDA_DO_LADO[parte.lado].rotulo}</span>
                   <span className="text-foreground tabular-nums">
-                    {formatarHoras(parte.minutos)} · <span className="font-semibold">{parte.percentual}%</span>
+                    {formatarHoras(parte.minutos)} ·{" "}
+                    <span className="font-semibold">
+                      {textoDoPercentualDoLado(parte, composicao.totalMinutos)}
+                    </span>
                   </span>
                 </span>
                 <span className="block text-[11.5px] text-muted-foreground">

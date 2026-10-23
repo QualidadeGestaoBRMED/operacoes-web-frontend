@@ -265,8 +265,10 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     ) as HTMLElement;
 
     const [injustificado, justificado] = within(secao).getAllByRole("listitem");
-    expect(injustificado).toHaveTextContent("Injustificado16:00:00 · 67%falta, atraso e saída antecipada");
-    expect(justificado).toHaveTextContent("Justificado8:00:00 · 33%atestado");
+    expect(injustificado).toHaveTextContent(
+      "Injustificado16:00:00 · 67%falta, atraso, saída antecipada e jornada incompleta",
+    );
+    expect(justificado).toHaveTextContent("Justificado8:00:00 · 33%atestado e ausência justificada");
   });
 
   it("STC-848: sem ausência que conte, ou com o backend anterior, a divisão não aparece", async () => {
