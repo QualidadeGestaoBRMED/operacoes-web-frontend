@@ -302,7 +302,9 @@ export function PainelAbsenteismo() {
                   : null
               }
               onAbrirComparativo={() => setComparativoAberto(true)}
-              onAbrirHorasPerdidas={() => setHorasPerdidasAbertas(true)}
+              // Durante a troca de filtro os cards ainda são do filtro anterior:
+              // o modal misturaria esses números com o recorte novo no título.
+              onAbrirHorasPerdidas={() => !trocandoFiltro && setHorasPerdidasAbertas(true)}
             />
           </div>
 

@@ -22,9 +22,10 @@ import type { HorasPerdidasPainel } from "@/types/gestaoRH";
 const ALTURA_DA_BARRA = 34;
 const ESPESSURA_DA_BARRA = 26;
 const ROTULO = { largura: 170, caracteres: 22 };
-const ROTULO_CELULAR = { largura: 104, caracteres: 12 };
-// Espaço à direita da barra para "47:46:00 · 86%".
-const MARGEM_DO_VALOR = 118;
+const ROTULO_CELULAR = { largura: 96, caracteres: 11 };
+// Espaço à direita da barra para o maior rótulo, "1.355:52:00 · 100%" (com
+// "<1%" e ">99%" nas pontas).
+const MARGEM_DO_VALOR = 140;
 
 interface Barra {
   nome: string;
@@ -101,7 +102,7 @@ function GraficoDeBarras({
                 position="right"
                 className="fill-foreground tabular-nums"
                 formatter={(minutos) =>
-                  `${formatarHoras(Number(minutos))} · ${percentualDoTotal(Number(minutos), total)}`
+                  `${formatarHoras(Number(minutos))} · ${percentualDoTotal(Number(minutos), total, true)}`
                 }
               />
             </Bar>

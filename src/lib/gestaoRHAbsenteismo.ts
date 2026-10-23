@@ -380,13 +380,14 @@ export const TIPO_DE_AUSENCIA: Record<TipoDeAusencia, { rotulo: string; lado: La
 
 /**
  * Parte de um total, em % inteiro: "33%". Nas pontas, "menos de 1%" e
- * "mais de 99%" quando o arredondamento esconderia o resto.
+ * "mais de 99%" quando o arredondamento esconderia o resto; `curto` dá
+ * "<1%" e ">99%", para o rótulo na ponta da barra caber.
  */
-export function percentualDoTotal(minutos: number, total: number): string {
+export function percentualDoTotal(minutos: number, total: number, curto = false): string {
   if (total <= 0) return "0%";
   const percentual = Math.round((minutos / total) * 100);
-  if (minutos > 0 && percentual === 0) return "menos de 1%";
-  if (minutos < total && percentual === 100) return "mais de 99%";
+  if (minutos > 0 && percentual === 0) return curto ? "<1%" : "menos de 1%";
+  if (minutos < total && percentual === 100) return curto ? ">99%" : "mais de 99%";
   return `${percentual}%`;
 }
 

@@ -371,5 +371,7 @@ describe("percentual do total das horas perdidas (STC-868)", () => {
     expect(percentualDoTotal(599, 600)).toBe("mais de 99%");
     expect(percentualDoTotal(600, 600)).toBe("100%");
     expect(percentualDoTotal(0, 0)).toBe("0%");
+    expect(percentualDoTotal(1, 600, true)).toBe("<1%");
+    expect(percentualDoTotal(599, 600, true)).toBe(">99%");
   });
 });
