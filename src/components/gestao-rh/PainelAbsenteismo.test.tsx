@@ -753,3 +753,74 @@ describe("absenteísmo mês a mês", () => {
     expect(await modal.findByRole("table")).toBeInTheDocument();
   });
 });
+
+describe("horas perdidas por tipo e por unidade (STC-868)", () => {
+  const HORAS_PERDIDAS = {
+    por_tipo: [
+      { tipo: "falta" as const, minutos: 960 },
+      { tipo: "atraso" as const, minutos: 120 },
+      { tipo: "saida_antecipada" as const, minutos: 0 },
+      { tipo: "jornada_incompleta" as const, minutos: 0 },
+      { tipo: "atestado" as const, minutos: 1440 },
+      { tipo: "ausencia" as const, minutos: 0 },
+    ],
+    minutos_justificados: 1440,
+    minutos_injustificados: 1080,
+    por_unidade: [
+      { unidade: { id: 1, nome: "Niterói" }, minutos: 2040 },
+      { unidade: { id: 2, nome: "Macaé" }, minutos: 480 },
+    ],
+  };
+
+  function painelCom(horasPerdidas?: typeof HORAS_PERDIDAS) {
+    return {
+      ...PAINEL,
+      cards: { ...PAINEL.cards, minutos_ausentes: 2520 },
+      horas_perdidas: horasPerdidas,
+    };
+  }
+
+  it("o card abre o modal com as horas e o % de cada tipo, do maior para o menor, e por unidade", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(HORAS_PERDIDAS));
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = within(await screen.findByRole("dialog", { name: "Horas perdidas · setembro" }));
+
+    expect(modal.getByText(/42:00:00 no total/)).toBeInTheDocument();
+    const porTipo = within(modal.getByRole("heading", { name: "Por tipo" }).closest("section") as HTMLElement);
+    expect(porTipo.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Atestados: 24:00:00, 57%",
+      "Faltas: 16:00:00, 38%",
+      "Atrasos: 2:00:00, 5%",
+    ]);
+    const porUnidade = within(modal.getByRole("heading", { name: "Por unidade" }).closest("section") as HTMLElement);
+    expect(porUnidade.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Niterói: 34:00:00, 81%",
+      "Macaé: 8:00:00, 19%",
+    ]);
+  });
+
+  it("com uma unidade só, a seção por unidade não aparece", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(
+      painelCom({ ...HORAS_PERDIDAS, por_unidade: [HORAS_PERDIDAS.por_unidade[0]] }),
+    );
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    await user.click(screen.getByRole("button", { name: /^Horas perdidas/ }));
+    const modal = within(await screen.findByRole("dialog", { name: /^Horas perdidas/ }));
+    expect(modal.getByRole("heading", { name: "Por tipo" })).toBeInTheDocument();
+    expect(modal.queryByRole("heading", { name: "Por unidade" })).not.toBeInTheDocument();
+  });
+
+  it("sem a composição (backend anterior), o card não é clicável", async () => {
+    vi.mocked(buscarPainelAbsenteismo).mockResolvedValue(painelCom(undefined));
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(screen.queryByRole("button", { name: /^Horas perdidas/ })).not.toBeInTheDocument();
+  });
+});
