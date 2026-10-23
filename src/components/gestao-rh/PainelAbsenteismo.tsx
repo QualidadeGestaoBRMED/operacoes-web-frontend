@@ -302,9 +302,7 @@ export function PainelAbsenteismo() {
                   : null
               }
               onAbrirComparativo={() => setComparativoAberto(true)}
-              // Durante a troca de filtro os cards ainda são do filtro anterior:
-              // o modal misturaria esses números com o recorte novo no título.
-              onAbrirHorasPerdidas={() => !trocandoFiltro && setHorasPerdidasAbertas(true)}
+              onAbrirHorasPerdidas={() => setHorasPerdidasAbertas(true)}
             />
           </div>
 
@@ -449,13 +447,16 @@ export function PainelAbsenteismo() {
         />
       )}
 
-      {horasPerdidasAbertas && painel?.horas_perdidas && (
+      {/* Aberto durante a troca de filtro, mostra os números anteriores
+          esmaecidos, como os cards, e se atualiza com a resposta. */}
+      {horasPerdidasAbertas && painel?.horas_perdidas && (painel.cards.minutos_ausentes ?? 0) > 0 && (
         <HorasPerdidasModal
           horasPerdidas={painel.horas_perdidas}
           totalMinutos={painel.cards.minutos_ausentes ?? 0}
           // Ano no título quando o período não é do ano de hoje.
           nomeDoPeriodo={nomeDoPeriodo(painel.periodo, { inicio: hoje, fim: hoje })}
           visao={visao}
+          atualizando={trocandoFiltro}
           onFechar={() => setHorasPerdidasAbertas(false)}
         />
       )}

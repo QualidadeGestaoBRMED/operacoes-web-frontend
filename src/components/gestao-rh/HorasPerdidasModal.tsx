@@ -140,6 +140,7 @@ export function HorasPerdidasModal({
   totalMinutos,
   nomeDoPeriodo,
   visao,
+  atualizando = false,
   onFechar,
 }: {
   horasPerdidas: HorasPerdidasPainel;
@@ -147,6 +148,8 @@ export function HorasPerdidasModal({
   nomeDoPeriodo: string;
   /** "Todas as unidades", o nome da unidade filtrada ou "Sua unidade". */
   visao: string;
+  /** Troca de filtro em andamento: números ainda do filtro anterior, esmaecidos. */
+  atualizando?: boolean;
   onFechar: () => void;
 }) {
   const porTipo: Barra[] = horasPerdidas.por_tipo
@@ -158,12 +161,14 @@ export function HorasPerdidasModal({
       horas: item.minutos / 60,
       cor: CONFIG_DO_GRAFICO_DE_AUSENCIAS[TIPO_DE_AUSENCIA[item.tipo].lado].color,
     }));
-  const porUnidade: Barra[] = horasPerdidas.por_unidade.map((item) => ({
-    nome: item.unidade?.nome ?? "Sem unidade",
-    minutos: item.minutos,
-    horas: item.minutos / 60,
-    cor: "var(--secondary)",
-  }));
+  const porUnidade: Barra[] = horasPerdidas.por_unidade
+    .toSorted((a, b) => b.minutos - a.minutos)
+    .map((item) => ({
+      nome: item.unidade?.nome ?? "Sem unidade",
+      minutos: item.minutos,
+      horas: item.minutos / 60,
+      cor: "var(--secondary)",
+    }));
   const comUnidades = porUnidade.length > 1;
   const composicao = composicaoDasAusencias(horasPerdidas);
 
@@ -182,7 +187,14 @@ export function HorasPerdidasModal({
 
         {/* Lado a lado a partir de 1024 px: à esquerda o resumo e os tipos,
             à direita as unidades. Os tipos crescem até a base das unidades. */}
-        <div className={cn("grid items-start gap-3", comUnidades && "lg:grid-cols-2 lg:items-stretch")}>
+        <div
+          aria-busy={atualizando || undefined}
+          className={cn(
+            "grid items-start gap-3 transition-opacity",
+            comUnidades && "lg:grid-cols-2 lg:items-stretch",
+            atualizando && "opacity-60",
+          )}
+        >
           <div className="flex min-w-0 flex-col gap-3">
             {composicao && (
               <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
