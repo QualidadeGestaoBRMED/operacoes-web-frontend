@@ -57,13 +57,13 @@ describe("JanelaDeDestaque (STC-877)", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("Ver novidade: leva à entrada na página de Novidades", async () => {
+  it("Ver novidade: leva à página da novidade", async () => {
     comDestaque(DESTAQUE);
     render(<JanelaDeDestaque />);
 
     await userEvent.click(screen.getByRole("button", { name: "Ver novidade" }));
 
-    expect(push).toHaveBeenCalledWith(`/novidades#${DESTAQUE.id}`);
+    expect(push).toHaveBeenCalledWith(`/novidades/${DESTAQUE.id}`);
   });
 
   it("não abre na própria página de Novidades nem sem destaque", () => {

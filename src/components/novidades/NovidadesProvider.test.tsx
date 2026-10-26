@@ -106,6 +106,15 @@ describe("useNovidades (STC-877)", () => {
     expect(recarregarUsuario).toHaveBeenCalled();
   });
 
+  it("marcar uma novidade pelo id: só ela, e só se for mais nova que a vista", async () => {
+    usuario("");
+    const resultado = montar();
+
+    await act(() => resultado.current.marcarComoVistas("2026-10-20-01-horas-perdidas"));
+
+    expect(marcarNovidadesComoVistas).toHaveBeenCalledWith("2026-10-20-01-horas-perdidas");
+  });
+
   it("já vista ou no ver como: não envia", async () => {
     usuario("2026-10-26-01-celular");
     const jaVista = montar();

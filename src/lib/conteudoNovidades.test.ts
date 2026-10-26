@@ -63,3 +63,16 @@ describe("lerNovidades", () => {
     expect(erro).not.toHaveBeenCalled();
   });
 });
+
+describe("imagens e animações das Novidades", () => {
+  const PASTA_DAS_IMAGENS = path.join(process.cwd(), "public", "novidades");
+  const LIMITE = 1024 * 1024;
+
+  it("nenhum arquivo passa de 1 MB (meta: até 500 KB)", () => {
+    const arquivos = fs.existsSync(PASTA_DAS_IMAGENS) ? fs.readdirSync(PASTA_DAS_IMAGENS) : [];
+    const pesados = arquivos.filter(
+      (arquivo) => fs.statSync(path.join(PASTA_DAS_IMAGENS, arquivo)).size > LIMITE,
+    );
+    expect(pesados).toEqual([]);
+  });
+});
