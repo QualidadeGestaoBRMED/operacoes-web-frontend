@@ -1,4 +1,5 @@
 import api from "./api";
+import { sessaoVerComo } from "./verComo";
 
 /**
  * Notificações no celular (web push, STC-851). O service worker (public/sw.js)
@@ -50,6 +51,31 @@ export function chaveParaBytes(chave: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+/** A inscrição foi feita com esta chave? Trocar as chaves no servidor
+ * invalida as inscrições antigas: o serviço de push recusa os envios. */
+function feitaComAChave(inscricao: PushSubscription, chave: string): boolean {
+  const daInscricao = inscricao.options?.applicationServerKey;
+  if (!daInscricao) return false;
+  const atual = chaveParaBytes(chave);
+  const anterior = new Uint8Array(daInscricao);
+  return anterior.length === atual.length && anterior.every((byte, i) => byte === atual[i]);
+}
+
+/** A inscrição do navegador com a chave atual: reaproveita a que já existe,
+ * ou refaz se ela foi feita com outra chave. */
+async function inscricaoComAChave(
+  registro: ServiceWorkerRegistration,
+  chave: string,
+): Promise<PushSubscription> {
+  const existente = await registro.pushManager.getSubscription();
+  if (existente && feitaComAChave(existente, chave)) return existente;
+  if (existente) await existente.unsubscribe();
+  return registro.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: chaveParaBytes(chave),
+  });
+}
+
 async function inscricaoAtual(): Promise<PushSubscription | null> {
   const registro = await navigator.serviceWorker.getRegistration(CAMINHO_DO_SERVICE_WORKER);
   return registro ? registro.pushManager.getSubscription() : null;
@@ -77,14 +103,40 @@ export async function ativarPush(): Promise<EstadoPush> {
   if (!chave) return "indisponivel";
   const registro = await navigator.serviceWorker.register(CAMINHO_DO_SERVICE_WORKER);
   await navigator.serviceWorker.ready;
-  const inscricao =
-    (await registro.pushManager.getSubscription()) ??
-    (await registro.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: chaveParaBytes(chave),
-    }));
-  await api.post("/plataforma/push/inscricoes/", inscricao.toJSON());
+  const inscricao = await inscricaoComAChave(registro, chave);
+  try {
+    await api.post("/plataforma/push/inscricoes/", inscricao.toJSON());
+  } catch (erro) {
+    // Sem o backend, nada chegaria: desfaz no navegador para o aparelho não
+    // aparecer como ativado.
+    await inscricao.unsubscribe().catch(() => undefined);
+    throw erro;
+  }
   return "ativado";
+}
+
+/**
+ * Ao abrir o Atlas logado: o aparelho que já tem notificações ativadas
+ * reenvia a inscrição ao backend, que a passa para quem está logado. Se a
+ * sessão caiu e outra pessoa entrou sem passar pelo "Sair", os avisos de
+ * quem saiu param de chegar aqui. Refaz a inscrição se a chave mudou. Sem
+ * permissão, sem inscrição ou no "ver como" (só leitura), não faz nada; erro
+ * nunca chega à tela.
+ */
+export async function sincronizarPush(): Promise<void> {
+  if (!navegadorSuportaPush() || Notification.permission !== "granted" || sessaoVerComo()) {
+    return;
+  }
+  try {
+    const registro = await navigator.serviceWorker.getRegistration(CAMINHO_DO_SERVICE_WORKER);
+    if (!registro || !(await registro.pushManager.getSubscription())) return;
+    const chave = await obterChavePublicaPush();
+    if (!chave) return;
+    const inscricao = await inscricaoComAChave(registro, chave);
+    await api.post("/plataforma/push/inscricoes/", inscricao.toJSON());
+  } catch {
+    // Tenta de novo na próxima abertura.
+  }
 }
 
 /** Cancela no backend e no navegador. Sem inscrição, não faz nada. */

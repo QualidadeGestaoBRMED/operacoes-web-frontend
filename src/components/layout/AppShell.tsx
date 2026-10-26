@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { QUERY_MOBILE, useMediaQuery } from "@/hooks/useMediaQuery";
 import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
+import { sincronizarPush } from "@/lib/pushNotificacoes";
 import { cn, iniciaisDe } from "@/lib/utils";
 import { AbasDoModulo } from "./AbasDoModulo";
 import { BarraInferior } from "./BarraInferior";
@@ -21,6 +22,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ehMobile) setSidebarAberta(true);
   }, [ehMobile]);
+
+  // Notificações no celular (STC-851): a inscrição do aparelho passa para
+  // quem está logado, uma vez por usuário.
+  const idDoUsuario = user?.id;
+  useEffect(() => {
+    if (idDoUsuario) void sincronizarPush();
+  }, [idDoUsuario]);
 
   const nome = user
     ? [user.first_name, user.last_name].filter(Boolean).join(" ").trim() ||

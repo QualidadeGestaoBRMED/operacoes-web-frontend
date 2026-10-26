@@ -17,6 +17,7 @@ import {
   estadoDoPush,
   type EstadoPush,
 } from "@/lib/pushNotificacoes";
+import { sessaoVerComo } from "@/lib/verComo";
 import { useAppInstalado } from "./InstalarAppDialog";
 
 const O_QUE_CHEGA = [
@@ -42,6 +43,8 @@ const MENSAGEM: Partial<Record<EstadoPush, string>> = {
  */
 function Conteudo({ onInstalar }: { onInstalar: () => void }) {
   const appInstalado = useAppInstalado();
+  // "Ver como" é só leitura: o aparelho é do Admin, não da pessoa vista.
+  const [emVerComo] = useState(() => sessaoVerComo() !== null);
   const [estado, setEstado] = useState<EstadoPush | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -100,7 +103,12 @@ function Conteudo({ onInstalar }: { onInstalar: () => void }) {
             Ver como instalar
           </Button>
         )}
-        {(estado === "desativado" || estado === "ativado") && (
+        {emVerComo && (estado === "desativado" || estado === "ativado") && (
+          <p className="text-muted-foreground">
+            No &quot;ver como&quot;, as notificações não podem ser ativadas nem desativadas.
+          </p>
+        )}
+        {!emVerComo && (estado === "desativado" || estado === "ativado") && (
           <Button
             type="button"
             variant={estado === "ativado" ? "outline" : "default"}
