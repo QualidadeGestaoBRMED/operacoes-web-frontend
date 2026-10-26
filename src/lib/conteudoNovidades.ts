@@ -24,6 +24,12 @@ function texto(valor: unknown): string | null {
   return typeof valor === "string" && valor.trim() ? valor.trim() : null;
 }
 
+/** Só caminhos do próprio Atlas ("/modulos/..."), nunca outro endereço. */
+function caminhoInterno(valor: unknown): string | null {
+  const caminho = texto(valor);
+  return caminho && caminho.startsWith("/") && !caminho.startsWith("//") ? caminho : null;
+}
+
 /** Uma entrada a partir do arquivo, ou o motivo de não valer. */
 export function lerNovidade(arquivo: string, conteudo: string): Novidade | string {
   const id = arquivo.replace(/\.md$/, "");
@@ -48,6 +54,7 @@ export function lerNovidade(arquivo: string, conteudo: string): Novidade | strin
     destaque: data.destaque === true,
     imagem: texto(data.imagem),
     ajuda: texto(data.ajuda),
+    abrir: caminhoInterno(data.abrir),
     corpo: content.trim(),
   };
 }

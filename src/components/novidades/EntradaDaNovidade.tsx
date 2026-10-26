@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Link2, Sparkles } from "lucide-react";
+import { ArrowRight, ExternalLink, Share2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { useNavegacao } from "@/hooks/useNavegacao";
 import { dataPorExtenso, type NovidadeResumida } from "@/lib/novidades";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +15,23 @@ export type NovidadeComTexto = NovidadeResumida & {
   busca: string;
 };
 
-async function copiarLink(id: string) {
+/**
+ * Compartilhar, como o "Share" do Linear: no celular, a folha de
+ * compartilhamento do sistema (WhatsApp, e-mail...); no computador, copia o
+ * link da página da novidade.
+ */
+async function compartilhar(novidade: NovidadeResumida) {
+  const url = `${window.location.origin}/novidades/${novidade.id}`;
+  if (typeof navigator.share === "function" && window.matchMedia("(pointer: coarse)").matches) {
+    try {
+      await navigator.share({ title: novidade.titulo, text: novidade.resumo, url });
+      return;
+    } catch (erro) {
+      if ((erro as Error).name === "AbortError") return;
+    }
+  }
   try {
-    await navigator.clipboard.writeText(`${window.location.origin}/novidades/${id}`);
+    await navigator.clipboard.writeText(url);
     toast.success("Link da novidade copiado.");
   } catch {
     toast.error("Não foi possível copiar o link.");
@@ -34,6 +50,13 @@ export function EntradaDaNovidade({
   novidade: NovidadeComTexto;
   comLinkNoTitulo: boolean;
 }) {
+  const { modulos } = useNavegacao();
+  const categorias = [
+    ...novidade.modulos.map(
+      (codigo) => modulos.find((modulo) => modulo.codigo === codigo)?.nome ?? codigo,
+    ),
+    ...(novidade.admin ? ["Administração"] : []),
+  ];
   return (
     <li
       id={novidade.id}
@@ -46,64 +69,98 @@ export function EntradaDaNovidade({
           novidade.destaque ? "bg-amber-400" : "bg-primary",
         )}
       />
-      <div className="space-y-2 sm:pt-0.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:flex-col sm:items-start sm:pt-0.5">
         <time dateTime={novidade.data} className="block text-sm font-medium text-foreground">
           {dataPorExtenso(novidade.data)}
         </time>
-        {novidade.destaque && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-            <Sparkles className="size-3" aria-hidden />
-            Destaque
-          </span>
+        {(novidade.destaque || categorias.length > 0) && (
+          <div className="flex flex-wrap gap-1.5">
+            {novidade.destaque && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                <Sparkles className="size-3" aria-hidden />
+                Destaque
+              </span>
+            )}
+            {categorias.map((categoria) => (
+              <span
+                key={categoria}
+                className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+              >
+                {categoria}
+              </span>
+            ))}
+          </div>
         )}
+        <button
+          type="button"
+          onClick={() => void compartilhar(novidade)}
+          aria-label={`Compartilhar "${novidade.titulo}"`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Share2 className="size-3.5" aria-hidden />
+          Compartilhar
+        </button>
       </div>
 
       <article className="max-w-[42.5rem] min-w-0 space-y-5">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-2xl leading-tight font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
-            {comLinkNoTitulo ? (
-              <Link href={`/novidades/${novidade.id}`} className="hover:underline">
-                {novidade.titulo}
-              </Link>
-            ) : (
-              novidade.titulo
-            )}
-          </h2>
-          <button
-            type="button"
-            onClick={() => void copiarLink(novidade.id)}
-            aria-label={`Copiar link de "${novidade.titulo}"`}
-            title="Copiar link"
-            className="mt-1 shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Link2 className="size-4" aria-hidden />
-          </button>
-        </div>
-        {novidade.imagem && (
-          // GIF ou WebP animado também (tutorial do recurso em uso).
-          // eslint-disable-next-line @next/next/no-img-element -- imagem de conteúdo, tamanho livre
-          <img
-            src={novidade.imagem}
-            alt=""
-            className="w-full rounded-xl border border-border shadow-sm"
-            loading="lazy"
-          />
-        )}
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+          {comLinkNoTitulo ? (
+            <Link href={`/novidades/${novidade.id}`} className="hover:underline">
+              {novidade.titulo}
+            </Link>
+          ) : (
+            novidade.titulo
+          )}
+        </h2>
+        {novidade.imagem && <MidiaDaNovidade src={novidade.imagem} />}
         <p className="text-base leading-7 text-foreground">{novidade.resumo}</p>
         {novidade.texto && (
           <div className="space-y-4 text-[15px] leading-7 text-muted-foreground">{novidade.texto}</div>
         )}
-        {novidade.ajuda && (
-          <Link
-            href={`/ajuda/${novidade.ajuda}`}
-            className="inline-flex items-center gap-1.5 text-[15px] font-medium text-primary hover:underline"
-          >
-            Ver como usar
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
+        {(novidade.abrir || novidade.ajuda) && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+            {novidade.abrir && (
+              <Button asChild>
+                <Link href={novidade.abrir}>
+                  Abrir no Atlas
+                  <ExternalLink className="size-4" aria-hidden />
+                </Link>
+              </Button>
+            )}
+            {novidade.ajuda && (
+              <Link
+                href={`/ajuda/${novidade.ajuda}`}
+                className="inline-flex items-center gap-1.5 text-[15px] font-medium text-primary hover:underline"
+              >
+                Ver como usar
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            )}
+          </div>
         )}
       </article>
     </li>
+  );
+}
+
+/**
+ * Print ou animação (WebP/GIF) da novidade. As imagens são gravadas em 2x
+ * (`srcSet ... 2x`): aparecem na metade dos pixels, nítidas, e nunca são
+ * esticadas. Uma tela de celular fica estreita e centralizada sobre um fundo
+ * suave; um print de computador ocupa a largura da coluna.
+ */
+export function MidiaDaNovidade({ src, alturaMaxima = "max-h-[36rem]" }: { src: string; alturaMaxima?: string }) {
+  return (
+    <figure className="flex justify-center rounded-xl bg-muted/60 p-3 sm:p-5">
+      {/* eslint-disable-next-line @next/next/no-img-element -- imagem de conteúdo, tamanho livre */}
+      <img
+        src={src}
+        srcSet={`${src} 2x`}
+        alt=""
+        loading="lazy"
+        className={cn("block h-auto w-auto max-w-full rounded-lg border border-border shadow-sm", alturaMaxima)}
+      />
+    </figure>
   );
 }
 

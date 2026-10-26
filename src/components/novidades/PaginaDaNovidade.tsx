@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { visiveisPara } from "@/lib/novidades";
 import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
@@ -17,7 +17,11 @@ import { useNovidades } from "./NovidadesProvider";
 export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
   const { modulos, temAdministracao } = useNavegacao();
   const { isLoading: carregandoModulos } = useModulos();
-  const { marcarComoVistas } = useNovidades();
+  const { visiveis: todasVisiveis, marcarComoVistas } = useNovidades();
+  // Da mais nova para a mais antiga: "anterior" é a mais antiga ao lado.
+  const posicao = todasVisiveis.findIndex((outra) => outra.id === novidade.id);
+  const anterior = posicao >= 0 ? todasVisiveis[posicao + 1] : undefined;
+  const proxima = posicao > 0 ? todasVisiveis[posicao - 1] : undefined;
   const visivel =
     visiveisPara([novidade], modulos.map((modulo) => modulo.codigo), temAdministracao).length > 0;
 
@@ -45,6 +49,43 @@ export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
           </p>
         )}
       </div>
+      {visivel && (anterior || proxima) && (
+        <nav
+          aria-label="Outras novidades"
+          className="mt-4 grid gap-3 border-t border-border pt-6 sm:grid-cols-2"
+        >
+          {anterior ? (
+            <Link
+              href={`/novidades/${anterior.id}`}
+              className="group rounded-xl border border-border p-4 transition-colors hover:bg-muted/60"
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <ArrowLeft className="size-3.5" aria-hidden />
+                Novidade anterior
+              </span>
+              <span className="mt-1 block font-medium text-foreground group-hover:underline">
+                {anterior.titulo}
+              </span>
+            </Link>
+          ) : (
+            <span />
+          )}
+          {proxima && (
+            <Link
+              href={`/novidades/${proxima.id}`}
+              className="group rounded-xl border border-border p-4 text-right transition-colors hover:bg-muted/60"
+            >
+              <span className="flex items-center justify-end gap-1.5 text-xs font-medium text-muted-foreground">
+                Próxima novidade
+                <ArrowRight className="size-3.5" aria-hidden />
+              </span>
+              <span className="mt-1 block font-medium text-foreground group-hover:underline">
+                {proxima.titulo}
+              </span>
+            </Link>
+          )}
+        </nav>
+      )}
     </div>
   );
 }

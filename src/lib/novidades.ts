@@ -21,6 +21,8 @@ export interface NovidadeResumida {
   imagem: string | null;
   /** Artigo da Ajuda em "Ver como usar" (STC-878). */
   ajuda: string | null;
+  /** Tela do recurso, para o botão "Abrir no Atlas" ("/modulos/..."). */
+  abrir: string | null;
 }
 
 export const FORMATO_DO_IDENTIFICADOR = /^\d{4}-\d{2}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
