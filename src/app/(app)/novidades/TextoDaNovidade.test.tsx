@@ -18,15 +18,24 @@ Texto da seção, com [o Painel](/modulos/gestao-rh).
 `;
 
 describe("TextoDaNovidade (STC-877)", () => {
-  it("subtítulos com link próprio para a seção", () => {
-    render(<TextoDaNovidade markdown={MARKDOWN} idDaNovidade="2026-10-23-01-horas" />);
+  it("na página da novidade: subtítulos com link próprio para a seção", () => {
+    render(
+      <TextoDaNovidade markdown={MARKDOWN} idDaNovidade="2026-10-23-01-horas" comLinksDasSecoes />,
+    );
 
     const secao = screen.getByRole("heading", { level: 2, name: /Horas por unidade/ });
     expect(secao).toHaveAttribute("id", "2026-10-23-01-horas--horas-por-unidade");
     expect(screen.getByRole("link", { name: 'Link para "Horas por unidade"' })).toHaveAttribute(
       "href",
-      "/novidades/2026-10-23-01-horas#2026-10-23-01-horas--horas-por-unidade",
+      "#2026-10-23-01-horas--horas-por-unidade",
     );
+  });
+
+  it("na lista: subtítulos sem o link da seção", () => {
+    render(<TextoDaNovidade markdown={MARKDOWN} idDaNovidade="2026-10-23-01-horas" />);
+
+    expect(screen.getByRole("heading", { level: 2, name: /Horas por unidade/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Link para/ })).not.toBeInTheDocument();
   });
 
   it("imagem da seção como mídia da novidade, sem parágrafo em volta", () => {
