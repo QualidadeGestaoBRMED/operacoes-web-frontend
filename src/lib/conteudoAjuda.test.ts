@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { artigosResumidos, lerArtigo, lerArtigos, PASTA_DA_AJUDA } from "./conteudoAjuda";
+import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 import { lerNovidades } from "./conteudoNovidades";
 
 const VALIDO = `---
@@ -66,6 +67,18 @@ describe("lerArtigos", () => {
     const erro = vi.spyOn(console, "error").mockImplementation(() => {});
     lerArtigos(PASTA_DA_AJUDA);
     expect(erro).not.toHaveBeenCalled();
+  });
+
+  it("todo módulo citado na Ajuda e nas Novidades existe: um código errado esconderia a entrada de todos", () => {
+    const codigos = new Set([
+      "gestao-demandas",
+      ...MODULOS_FUTUROS.flatMap((modulo) => (modulo.codigo ? [modulo.codigo] : [])),
+    ]);
+    const citados = [
+      ...lerArtigos(PASTA_DA_AJUDA).flatMap((artigo) => (artigo.modulo ? [artigo.modulo] : [])),
+      ...lerNovidades().flatMap((novidade) => novidade.modulos),
+    ];
+    expect(citados.filter((codigo) => !codigos.has(codigo))).toEqual([]);
   });
 
   it('todo "Ver como usar" das Novidades leva a um artigo que existe', () => {

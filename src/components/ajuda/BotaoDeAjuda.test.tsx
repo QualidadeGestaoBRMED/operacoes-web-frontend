@@ -44,6 +44,21 @@ describe("BotaoDeAjuda (STC-878)", () => {
     expect(screen.getByRole("link", { name: /Ver tudo na Ajuda/ })).toHaveAttribute("href", "/ajuda");
   });
 
+  it("trocar de tela fecha o painel, e voltar a ela não o reabre", async () => {
+    pathname = "/modulos/legalizacao/mapa";
+    visiveis = [artigo("mapa", { telas: ["/modulos/legalizacao/mapa", "/modulos/legalizacao/biblioteca"] })];
+    const { rerender } = render(<BotaoDeAjuda />);
+    await userEvent.click(screen.getByRole("button", { name: "Ajuda desta tela" }));
+
+    pathname = "/modulos/legalizacao/biblioteca";
+    rerender(<BotaoDeAjuda />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    pathname = "/modulos/legalizacao/mapa";
+    rerender(<BotaoDeAjuda />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("mais de um artigo na tela: primeiro a lista, depois o escolhido", async () => {
     pathname = "/modulos/legalizacao/mapa";
     visiveis = [
