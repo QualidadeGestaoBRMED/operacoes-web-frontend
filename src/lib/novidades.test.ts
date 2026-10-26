@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dataPorExtenso,
   destaquePendente,
+  ehCaminhoInterno,
   maisNovaQue,
   ordenar,
   visiveisPara,
@@ -82,4 +83,16 @@ describe("destaquePendente", () => {
 
 it("data por extenso", () => {
   expect(dataPorExtenso("2026-10-26")).toBe("26 de outubro de 2026");
+});
+
+describe("ehCaminhoInterno", () => {
+  it.each([
+    ["/modulos/gestao-rh", true],
+    ["/", true],
+    ["https://exemplo.com", false],
+    ["//exemplo.com", false],
+    ["/\\exemplo.com", false],
+  ])("%s → %s", (caminho, esperado) => {
+    expect(ehCaminhoInterno(caminho)).toBe(esperado);
+  });
 });
