@@ -20,7 +20,8 @@ self.addEventListener("push", (evento) => {
   try {
     dados = evento.data ? evento.data.json() : {};
   } catch {
-    dados = {};
+    // Texto simples (ex.: o botão Push do DevTools): vira o texto do aviso.
+    dados = { texto: evento.data ? evento.data.text() : "" };
   }
   const link = destinoSeguro(dados.link);
   evento.waitUntil(
