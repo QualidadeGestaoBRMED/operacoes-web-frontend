@@ -1193,3 +1193,14 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Achados do code review:**
   - Sem resposta do Atlas ao verificar o aparelho (sem rede), a janela mostra um erro próprio com "Tentar de novo", em vez de dizer que o navegador não suporta.
   - No "Sair", a inscrição é desfeita primeiro no navegador e só depois o backend é avisado. Se o aviso não chegar, o próximo envio para ela volta 410 e o backend a apaga (STC-847); e quem abrir o Atlas logado no aparelho depois recebe a inscrição pela sincronização.
+
+### 7.36 STC-877 — Página Novidades, ponto no menu e janela dos destaques (STC-875)
+
+🔄 **Em andamento.** O que mudou no Atlas, por data, para quem usa. O "como usar" fica nos artigos da Ajuda (STC-878); a novidade aponta para eles em "Ver como usar".
+
+- **Conteúdo em `conteudo/novidades/`**, um arquivo Markdown por entrada (formato em `conteudo/novidades/LEIAME.md`). O nome do arquivo é o identificador "AAAA-MM-DD-NN-assunto" (STC-876), que dá a ordem. Cabeçalho: `titulo` e `resumo` (obrigatórios), `modulos` (vazio: todos), `admin`, `destaque`, `imagem` (em `public/novidades/`) e `ajuda`.
+- **Leitura no servidor** (`src/lib/conteudoNovidades.ts`, com `gray-matter`): o layout das páginas logadas lê as entradas e passa ao navegador só o cabeçalho (`NovidadesProvider`); a página `/novidades` monta o texto com o `react-markdown` no servidor (sem HTML do conteúdo). As duas bibliotecas não vão para o navegador. Arquivo inválido fica de fora e vai para o log, sem derrubar o Atlas; um teste confere todos os arquivos da pasta. Em produção, lidas uma vez por processo. O `next.config` leva a pasta no pacote publicado (`outputFileTracingIncludes`).
+- **Regras** (`src/lib/novidades.ts`, `useNovidades`): cada pessoa vê as entradas dos módulos que acessa (a mesma regra do menu) e, as de Administração, só quem administra. O ponto e a janela usam `ultima_novidade_vista` de `/auth/me/`: até ela chegar, nada aparece (sem piscar).
+- **Item "Novidades"** na base da barra lateral (para todos, acima da Administração) e no "Mais" do celular, com um ponto quando há novidade não vista. Abrir a página envia a mais nova visível como vista.
+- **Janela de destaque** (`JanelaDeDestaque`, no `AppShell`): só para entrada marcada como destaque e não vista, a mais nova, uma de cada vez. "Agora não" marca como vista; "Ver novidade" leva à entrada na página. Não abre na própria página nem no "ver como" (que também não marca nada).
+- **Diálogos que abrem sozinhos não se sobrepõem:** a detecção de "outro diálogo aberto" do alerta persistente da Legalização virou o hook `useOutroDialogoAberto`, usado também pela janela de destaque: uma espera a outra fechar.
