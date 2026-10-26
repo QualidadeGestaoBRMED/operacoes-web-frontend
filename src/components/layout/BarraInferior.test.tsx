@@ -114,6 +114,7 @@ describe("BarraInferior (STC-787)", () => {
       "Administração",
       "Admin Q&G",
       "Instalar o Atlas no celular",
+      "Notificações no celular",
       "Recarregar",
       "Sair",
     ]);
@@ -122,7 +123,12 @@ describe("BarraInferior (STC-787)", () => {
   it("coordenação: o Mais tem só as instruções de instalação, Recarregar e Sair", async () => {
     comoCargo("coordenacao");
     render(<BarraInferior />);
-    expect(await abrirMais()).toEqual(["Instalar o Atlas no celular", "Recarregar", "Sair"]);
+    expect(await abrirMais()).toEqual([
+      "Instalar o Atlas no celular",
+      "Notificações no celular",
+      "Recarregar",
+      "Sair",
+    ]);
   });
 
   it("Recarregar recarrega a página e Sair encerra a sessão", async () => {
@@ -195,6 +201,7 @@ describe("BarraInferior (STC-787)", () => {
       expect(await abrirMais()).toEqual([
         "Calibração",
         "Instalar o Atlas no celular",
+        "Notificações no celular",
         "Recarregar",
         "Sair",
       ]);
