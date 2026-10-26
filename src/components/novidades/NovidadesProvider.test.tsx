@@ -36,7 +36,7 @@ const NOVIDADES = [
   novidade("2026-10-20-01-horas-perdidas", { modulos: ["gestao-rh"] }),
 ];
 
-function usuario(ultima: string | undefined) {
+function usuario(ultima: string | null | undefined) {
   vi.mocked(useAuth).mockReturnValue({
     user: ultima === undefined ? {} : { ultima_novidade_vista: ultima },
     recarregarUsuario,
@@ -84,8 +84,8 @@ describe("useNovidades (STC-877)", () => {
     expect(marcarNovidadesComoVistas).not.toHaveBeenCalled();
   });
 
-  it("quem nunca abriu: ponto e o destaque", () => {
-    usuario("");
+  it.each([[""], [null]])("quem nunca abriu (%j): ponto e o destaque", (vazia) => {
+    usuario(vazia);
     const resultado = montar();
     expect(resultado.current.temNovidade).toBe(true);
     expect(resultado.current.destaque?.id).toBe("2026-10-26-01-celular");
