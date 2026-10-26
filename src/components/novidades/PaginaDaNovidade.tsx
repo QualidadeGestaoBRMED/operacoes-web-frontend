@@ -3,11 +3,15 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { visiveisPara } from "@/lib/novidades";
 import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
-import { EntradaDaNovidade, LinhaDoTempo, type NovidadeComTexto } from "./EntradaDaNovidade";
+import {
+  EntradaDaNovidade,
+  FalhaNosModulos,
+  LinhaDoTempo,
+  type NovidadeComTexto,
+} from "./EntradaDaNovidade";
 import { useNovidades } from "./NovidadesProvider";
 
 /**
@@ -47,12 +51,10 @@ export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
       </Link>
       <div className="mt-8">
         {carregandoModulos ? null : falhaNosModulos ? (
-          <div className="flex flex-col items-center gap-4 py-16 text-center">
-            <p className="text-[15px] text-muted-foreground">Não foi possível carregar esta novidade.</p>
-            <Button variant="outline" onClick={() => void recarregarModulos()}>
-              Tentar de novo
-            </Button>
-          </div>
+          <FalhaNosModulos
+            texto="Não foi possível carregar esta novidade."
+            onTentarDeNovo={() => void recarregarModulos()}
+          />
         ) : visivel ? (
           <LinhaDoTempo>
             <EntradaDaNovidade novidade={novidade} comLinkNoTitulo={false} />

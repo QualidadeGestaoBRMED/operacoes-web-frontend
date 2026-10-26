@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { visiveisPara } from "@/lib/novidades";
+import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
 import { cn } from "@/lib/utils";
-import { EntradaDaNovidade, LinhaDoTempo, type NovidadeComTexto } from "./EntradaDaNovidade";
+import {
+  EntradaDaNovidade,
+  FalhaNosModulos,
+  LinhaDoTempo,
+  type NovidadeComTexto,
+} from "./EntradaDaNovidade";
 import { useNovidades } from "./NovidadesProvider";
 
 const TODAS = "todas";
@@ -19,11 +25,17 @@ function normalizar(texto: string): string {
 /**
  * Página de Novidades (STC-877), em linha do tempo, como o changelog do
  * Linear: abas por módulo (quando mais de um tem novidade) e busca no título,
- * no resumo e no texto. Só as entradas que a pessoa vê. Abrir a página marca
- * a mais nova como vista (some o ponto).
+ * no resumo e no texto. Só as entradas que a pessoa vê: até chegar a lista
+ * de módulos, nem lista nem "nenhuma novidade". Abrir a página marca a mais
+ * nova como vista (some o ponto).
  */
 export function ListaDeNovidades({ novidades }: { novidades: NovidadeComTexto[] }) {
   const { modulos, temAdministracao } = useNavegacao();
+  const {
+    isLoading: carregandoModulos,
+    error: falhaNosModulos,
+    recarregar: recarregarModulos,
+  } = useModulos();
   const { marcarComoVistas } = useNovidades();
   const [aba, setAba] = useState(TODAS);
   const [busca, setBusca] = useState("");
@@ -94,7 +106,12 @@ export function ListaDeNovidades({ novidades }: { novidades: NovidadeComTexto[] 
         </div>
       </header>
 
-      {filtradas.length === 0 ? (
+      {carregandoModulos ? null : falhaNosModulos ? (
+        <FalhaNosModulos
+          texto="Não foi possível carregar as novidades."
+          onTentarDeNovo={() => void recarregarModulos()}
+        />
+      ) : filtradas.length === 0 ? (
         <p className="py-16 text-center text-[15px] text-muted-foreground">
           {termo ? `Nenhuma novidade encontrada para "${busca.trim()}".` : "Nenhuma novidade por enquanto."}
         </p>
