@@ -80,6 +80,17 @@ describe("imagens e animações das Novidades", () => {
   const PASTA_DAS_IMAGENS = path.join(process.cwd(), "public", "novidades");
   const LIMITE = 1024 * 1024;
 
+  it("toda imagem citada numa novidade existe (no cabeçalho ou no texto)", () => {
+    const citadas = lerNovidades(PASTA_DAS_NOVIDADES).flatMap((novidade) => [
+      ...(novidade.imagem ? [novidade.imagem] : []),
+      ...[...novidade.corpo.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)].map((achado) => achado[1]),
+    ]);
+    const faltando = citadas.filter(
+      (caminho) => !caminho.startsWith("/") || !fs.existsSync(path.join(process.cwd(), "public", caminho)),
+    );
+    expect(faltando).toEqual([]);
+  });
+
   it("nenhum arquivo passa de 1 MB (meta: até 500 KB)", () => {
     const arquivos = fs.existsSync(PASTA_DAS_IMAGENS) ? fs.readdirSync(PASTA_DAS_IMAGENS) : [];
     const pesados = arquivos.filter(
