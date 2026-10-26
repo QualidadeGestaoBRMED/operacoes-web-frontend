@@ -1,0 +1,172 @@
+import api from "./api";
+import { sessaoVerComo } from "./verComo";
+
+/**
+ * Notificações no celular (web push, STC-851). O service worker (public/sw.js)
+ * só recebe o push; a inscrição do navegador vai para o backend (STC-847),
+ * que manda os avisos que pedem ação, fora do horário silencioso (STC-874).
+ */
+
+export type EstadoPush =
+  /** Navegador sem service worker, push ou notificações. */
+  | "nao-suportado"
+  /** iPhone e iPad: só recebem push com o Atlas instalado na tela de início. */
+  | "precisa-instalar"
+  /** Servidor sem as chaves configuradas. */
+  | "indisponivel"
+  /** O usuário recusou a permissão: só ele libera, nas configurações. */
+  | "bloqueado"
+  | "desativado"
+  | "ativado";
+
+const CAMINHO_DO_SERVICE_WORKER = "/sw.js";
+
+export function navegadorSuportaPush(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window
+  );
+}
+
+/** iPhone e iPad (o iPadOS se apresenta como Mac; o toque o distingue). */
+export function ehAparelhoApple(userAgent: string, pontosDeToque = 0): boolean {
+  return /iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && pontosDeToque > 1);
+}
+
+export async function obterChavePublicaPush(): Promise<string | null> {
+  const { data } = await api.get<{ chave_publica: string | null }>("/plataforma/push/chave-publica/");
+  return data.chave_publica;
+}
+
+/** A chave VAPID vem em base64url; o navegador quer os bytes. */
+export function chaveParaBytes(chave: string): Uint8Array<ArrayBuffer> {
+  const base64 = (chave + "=".repeat((4 - (chave.length % 4)) % 4))
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const binario = atob(base64);
+  const bytes = new Uint8Array(new ArrayBuffer(binario.length));
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
+/** A inscrição foi feita com esta chave? Trocar as chaves no servidor
+ * invalida as inscrições antigas: o serviço de push recusa os envios. */
+function feitaComAChave(inscricao: PushSubscription, chave: string): boolean {
+  const daInscricao = inscricao.options?.applicationServerKey;
+  if (!daInscricao) return false;
+  const atual = chaveParaBytes(chave);
+  const anterior = new Uint8Array(daInscricao);
+  return anterior.length === atual.length && anterior.every((byte, i) => byte === atual[i]);
+}
+
+/** A inscrição do navegador com a chave atual: reaproveita a que já existe,
+ * ou refaz se ela foi feita com outra chave. */
+async function inscricaoComAChave(
+  registro: ServiceWorkerRegistration,
+  chave: string,
+): Promise<PushSubscription> {
+  const existente = await registro.pushManager.getSubscription();
+  if (existente && feitaComAChave(existente, chave)) return existente;
+  if (existente) await existente.unsubscribe();
+  return registro.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: chaveParaBytes(chave),
+  });
+}
+
+async function inscricaoAtual(): Promise<PushSubscription | null> {
+  const registro = await navigator.serviceWorker.getRegistration(CAMINHO_DO_SERVICE_WORKER);
+  return registro ? registro.pushManager.getSubscription() : null;
+}
+
+export async function estadoDoPush(appInstalado: boolean): Promise<EstadoPush> {
+  if (ehAparelhoApple(navigator.userAgent, navigator.maxTouchPoints) && !appInstalado) {
+    return "precisa-instalar";
+  }
+  if (!navegadorSuportaPush()) return "nao-suportado";
+  if (Notification.permission === "denied") return "bloqueado";
+  if (!(await obterChavePublicaPush())) return "indisponivel";
+  return (await inscricaoAtual()) ? "ativado" : "desativado";
+}
+
+/**
+ * Pede a permissão e inscreve o navegador. Precisa vir de um clique: o
+ * navegador recusa o pedido de permissão fora de um gesto do usuário.
+ * Devolve o estado final ("ativado", "bloqueado" se a pessoa recusou).
+ */
+export async function ativarPush(): Promise<EstadoPush> {
+  const permissao = await Notification.requestPermission();
+  if (permissao !== "granted") return permissao === "denied" ? "bloqueado" : "desativado";
+  const chave = await obterChavePublicaPush();
+  if (!chave) return "indisponivel";
+  const registro = await navigator.serviceWorker.register(CAMINHO_DO_SERVICE_WORKER);
+  await navigator.serviceWorker.ready;
+  const inscricao = await inscricaoComAChave(registro, chave);
+  try {
+    await api.post("/plataforma/push/inscricoes/", inscricao.toJSON());
+  } catch (erro) {
+    // Sem o backend, nada chegaria: desfaz no navegador para o aparelho não
+    // aparecer como ativado.
+    await inscricao.unsubscribe().catch(() => undefined);
+    throw erro;
+  }
+  return "ativado";
+}
+
+/**
+ * Ao abrir o Atlas logado: o aparelho que já tem notificações ativadas
+ * reenvia a inscrição ao backend, que a passa para quem está logado. Se a
+ * sessão caiu e outra pessoa entrou sem passar pelo "Sair", os avisos de
+ * quem saiu param de chegar aqui. Refaz a inscrição se a chave mudou. Sem
+ * permissão, sem inscrição ou no "ver como" (só leitura), não faz nada; erro
+ * nunca chega à tela.
+ */
+export async function sincronizarPush(): Promise<void> {
+  if (!navegadorSuportaPush() || Notification.permission !== "granted" || sessaoVerComo()) {
+    return;
+  }
+  try {
+    const registro = await navigator.serviceWorker.getRegistration(CAMINHO_DO_SERVICE_WORKER);
+    if (!registro || !(await registro.pushManager.getSubscription())) return;
+    const chave = await obterChavePublicaPush();
+    if (!chave) return;
+    const inscricao = await inscricaoComAChave(registro, chave);
+    await api.post("/plataforma/push/inscricoes/", inscricao.toJSON());
+  } catch {
+    // Tenta de novo na próxima abertura.
+  }
+}
+
+/** Cancela no backend e no navegador. Sem inscrição, não faz nada. */
+export async function desativarPush(): Promise<void> {
+  const inscricao = await inscricaoAtual();
+  if (!inscricao) return;
+  await api.post("/plataforma/push/inscricoes/cancelar/", { endpoint: inscricao.endpoint });
+  await inscricao.unsubscribe();
+}
+
+const LIMITE_NO_LOGOUT_MS = 3000;
+
+/**
+ * Ao sair do Atlas: num celular compartilhado, quem entra depois não pode
+ * receber os avisos de quem saiu. Desfaz primeiro no navegador, que não
+ * depende do backend: mesmo se o aviso ao backend não chegar, o próximo
+ * envio para essa inscrição volta 410 e o backend a apaga (STC-847). Nunca
+ * impede o logout: sem rede, ou se demorar, segue em frente.
+ */
+export async function cancelarPushAoSair(): Promise<void> {
+  if (!navegadorSuportaPush()) return;
+  const cancelar = (async () => {
+    const inscricao = await inscricaoAtual();
+    if (!inscricao) return;
+    const { endpoint } = inscricao;
+    await inscricao.unsubscribe().catch(() => undefined);
+    await api.post("/plataforma/push/inscricoes/cancelar/", { endpoint });
+  })().catch(() => undefined);
+  await Promise.race([
+    cancelar,
+    new Promise((resolver) => setTimeout(resolver, LIMITE_NO_LOGOUT_MS)),
+  ]);
+}

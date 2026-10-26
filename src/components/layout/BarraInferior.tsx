@@ -3,7 +3,15 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, MoreHorizontal, RotateCw, Settings, ShieldCheck, Smartphone } from "lucide-react";
+import {
+  BellRing,
+  LogOut,
+  MoreHorizontal,
+  RotateCw,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +23,7 @@ import { moduloAtivo, useNavegacao } from "@/hooks/useNavegacao";
 import { sairDaConta } from "@/lib/sairDaConta";
 import { cn } from "@/lib/utils";
 import { InstalarAppDialog, useAppInstalado } from "./InstalarAppDialog";
+import { NotificacoesCelularDialog } from "./NotificacoesCelularDialog";
 
 // Módulos na barra; os seguintes vão para o "Mais". Com 4 módulos e o
 // "Mais", cada item fica com cerca de 75px numa tela de 375px.
@@ -64,6 +73,7 @@ export function BarraInferior() {
   const maisAtivo = atual ? noMais.includes(atual) : pathname.startsWith("/admin");
   const appInstalado = useAppInstalado();
   const [instalarAberto, setInstalarAberto] = useState(false);
+  const [notificacoesAbertas, setNotificacoesAbertas] = useState(false);
   const botaoMais = useRef<HTMLButtonElement>(null);
 
   return (
@@ -137,6 +147,10 @@ export function BarraInferior() {
                   Instalar o Atlas no celular
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onSelect={() => setNotificacoesAbertas(true)}>
+                <BellRing className="size-4" />
+                Notificações no celular
+              </DropdownMenuItem>
               {/* No app instalado não há a barra do navegador nem o botão
                   de recarregar (STC-786), e o puxar para atualizar não
                   funciona no iPhone. */}
@@ -156,6 +170,15 @@ export function BarraInferior() {
         aberto={instalarAberto}
         onOpenChange={setInstalarAberto}
         focoAoFechar={botaoMais}
+      />
+      <NotificacoesCelularDialog
+        aberto={notificacoesAbertas}
+        onOpenChange={setNotificacoesAbertas}
+        focoAoFechar={botaoMais}
+        onInstalar={() => {
+          setNotificacoesAbertas(false);
+          setInstalarAberto(true);
+        }}
       />
     </nav>
   );
