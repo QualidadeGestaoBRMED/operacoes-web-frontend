@@ -5,9 +5,11 @@ import { NovidadesProvider, useNovidades } from "./NovidadesProvider";
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useNavegacao", () => ({ useNavegacao: vi.fn() }));
+vi.mock("@/hooks/useModulos", () => ({ useModulos: vi.fn() }));
 vi.mock("@/lib/plataforma", () => ({ marcarNovidadesComoVistas: vi.fn() }));
 
 import { useAuth } from "@/hooks/useAuth";
+import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
 import { marcarNovidadesComoVistas } from "@/lib/plataforma";
 
@@ -50,6 +52,9 @@ beforeEach(() => {
   sessionStorage.clear();
   recarregarUsuario.mockReset();
   vi.mocked(marcarNovidadesComoVistas).mockReset().mockResolvedValue("2026-10-26-01-celular");
+  vi.mocked(useModulos).mockReturnValue({
+    isLoading: false,
+  } as unknown as ReturnType<typeof useModulos>);
   vi.mocked(useNavegacao).mockReturnValue({
     modulos: [{ codigo: "gestao-rh" }],
     temAdministracao: false,
@@ -62,6 +67,19 @@ describe("useNovidades (STC-877)", () => {
     const resultado = montar();
     expect(resultado.current.temNovidade).toBe(false);
     expect(resultado.current.destaque).toBeNull();
+  });
+
+  it("com os módulos ainda carregando: sem ponto, sem destaque e sem marcar", async () => {
+    usuario("");
+    vi.mocked(useModulos).mockReturnValue({
+      isLoading: true,
+    } as unknown as ReturnType<typeof useModulos>);
+    const resultado = montar();
+
+    expect(resultado.current.temNovidade).toBe(false);
+    expect(resultado.current.destaque).toBeNull();
+    await act(() => resultado.current.marcarComoVistas());
+    expect(marcarNovidadesComoVistas).not.toHaveBeenCalled();
   });
 
   it("quem nunca abriu: ponto e o destaque", () => {
