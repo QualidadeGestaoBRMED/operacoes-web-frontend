@@ -26,6 +26,7 @@ function abrir(estado: EstadoPush, onInstalar = vi.fn()) {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   vi.mocked(ativarPush).mockReset();
   vi.mocked(desativarPush).mockReset().mockResolvedValue(undefined);
 });
@@ -86,6 +87,23 @@ describe("NotificacoesCelularDialog (STC-851)", () => {
     abrir(estado);
 
     expect(await screen.findByText(texto)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ativar notificações" })).not.toBeInTheDocument();
+  });
+
+  it("no ver como: explica, sem ativar nem desativar", async () => {
+    sessionStorage.setItem(
+      "atlas.verComo",
+      JSON.stringify({
+        id: "6f1c2a7e-0000-4000-8000-000000000001",
+        usuario: { id: 7, nome: "Coordenação" },
+        admin: { id: 1, nome: "Admin" },
+        iniciada_em: "2026-10-19T15:00:00Z",
+        expira_em: "2099-10-19T16:00:00Z",
+      }),
+    );
+    abrir("desativado");
+
+    expect(await screen.findByText(/não podem ser ativadas nem desativadas/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ativar notificações" })).not.toBeInTheDocument();
   });
 });

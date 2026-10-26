@@ -7,6 +7,7 @@ import {
   desativarPush,
   ehAparelhoApple,
   estadoDoPush,
+  sincronizarPush,
 } from "./pushNotificacoes";
 
 vi.mock("./api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
@@ -18,9 +19,11 @@ const INSCRICAO_JSON = {
   keys: { p256dh: "chave", auth: "segredo" },
 };
 
-function inscricaoFalsa() {
+/** Inscrição do navegador, feita com a chave atual ("BAEC") ou outra. */
+function inscricaoFalsa(chave = "BAEC") {
   return {
     endpoint: INSCRICAO_JSON.endpoint,
+    options: { applicationServerKey: chaveParaBytes(chave).buffer },
     toJSON: () => INSCRICAO_JSON,
     unsubscribe: vi.fn().mockResolvedValue(true),
   };
@@ -63,7 +66,16 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  sessionStorage.clear();
 });
+
+const SESSAO_VER_COMO = {
+  id: "6f1c2a7e-0000-4000-8000-000000000001",
+  usuario: { id: 7, nome: "Coordenação" },
+  admin: { id: 1, nome: "Admin" },
+  iniciada_em: "2026-10-19T15:00:00Z",
+  expira_em: "2099-10-19T16:00:00Z",
+};
 
 describe("chaveParaBytes", () => {
   it("decodifica a chave em base64url", () => {
@@ -130,6 +142,38 @@ describe("ativarPush", () => {
     expect(api.post).toHaveBeenCalledWith("/plataforma/push/inscricoes/", INSCRICAO_JSON);
   });
 
+  it("backend falhou: desfaz a inscrição do navegador, para não parecer ativado", async () => {
+    const { pushManager } = simularNavegador();
+    const nova = inscricaoFalsa();
+    pushManager.subscribe.mockResolvedValue(nova);
+    vi.mocked(api.post).mockRejectedValue(new Error("rede"));
+
+    await expect(ativarPush()).rejects.toThrow("rede");
+
+    expect(nova.unsubscribe).toHaveBeenCalled();
+  });
+
+  it("inscrição antiga com outra chave: refaz com a atual", async () => {
+    const antiga = inscricaoFalsa("AQID");
+    const { pushManager } = simularNavegador({ inscricao: antiga });
+
+    await ativarPush();
+
+    expect(antiga.unsubscribe).toHaveBeenCalled();
+    expect(pushManager.subscribe).toHaveBeenCalled();
+  });
+
+  it("inscrição com a chave atual: reaproveita", async () => {
+    const atual = inscricaoFalsa();
+    const { pushManager } = simularNavegador({ inscricao: atual });
+
+    await ativarPush();
+
+    expect(atual.unsubscribe).not.toHaveBeenCalled();
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledWith("/plataforma/push/inscricoes/", INSCRICAO_JSON);
+  });
+
   it("permissão recusada: bloqueado, sem inscrever", async () => {
     const { pushManager } = simularNavegador({ respostaDaPermissao: "denied" });
 
@@ -185,5 +229,47 @@ describe("cancelarPushAoSair", () => {
     await vi.advanceTimersByTimeAsync(3000);
 
     await expect(saida).resolves.toBeUndefined();
+  });
+});
+
+describe("sincronizarPush", () => {
+  it("aparelho com notificações ativadas: reenvia a inscrição para quem está logado", async () => {
+    simularNavegador({ permissao: "granted", inscricao: inscricaoFalsa() });
+
+    await sincronizarPush();
+
+    expect(api.post).toHaveBeenCalledWith("/plataforma/push/inscricoes/", INSCRICAO_JSON);
+  });
+
+  it("chave trocada no servidor: refaz a inscrição antes de reenviar", async () => {
+    const antiga = inscricaoFalsa("AQID");
+    const { pushManager } = simularNavegador({ permissao: "granted", inscricao: antiga });
+
+    await sincronizarPush();
+
+    expect(antiga.unsubscribe).toHaveBeenCalled();
+    expect(pushManager.subscribe).toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalled();
+  });
+
+  it("sem inscrição, sem permissão ou no ver como: não faz nada", async () => {
+    simularNavegador({ permissao: "granted" });
+    await sincronizarPush();
+
+    simularNavegador({ permissao: "default", inscricao: inscricaoFalsa() });
+    await sincronizarPush();
+
+    simularNavegador({ permissao: "granted", inscricao: inscricaoFalsa() });
+    sessionStorage.setItem("atlas.verComo", JSON.stringify(SESSAO_VER_COMO));
+    await sincronizarPush();
+
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("erro não chega à tela", async () => {
+    simularNavegador({ permissao: "granted", inscricao: inscricaoFalsa() });
+    vi.mocked(api.post).mockRejectedValue(new Error("rede"));
+
+    await expect(sincronizarPush()).resolves.toBeUndefined();
   });
 });
