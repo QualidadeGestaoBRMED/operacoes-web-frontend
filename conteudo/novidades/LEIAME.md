@@ -22,6 +22,11 @@ abrir: /modulos/gestao-rh        # opcional; tela do recurso, no botão "Abrir n
 ---
 ```
 
+`modulos` e `admin` escolhem quem vê a novidade na tela, não guardam
+segredo: o texto de todas chega ao navegador de quem está logado. Nada
+interno ou ainda não lançado entra aqui; a novidade só entra no
+repositório quando o recurso for lançado.
+
 Imagem ou animação: um print, ou o recurso em uso numa animação curta,
 gravada fora do Atlas, com dados fictícios. O mais leve possível:
 
