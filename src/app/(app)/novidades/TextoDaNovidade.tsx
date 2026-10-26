@@ -2,6 +2,7 @@ import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { Link2 } from "lucide-react";
 import { MidiaDaNovidade } from "@/components/novidades/EntradaDaNovidade";
+import { ehCaminhoInterno } from "@/lib/novidades";
 
 interface No {
   type: string;
@@ -91,7 +92,7 @@ export function TextoDaNovidade({
     ul: ({ children }) => <ul className="list-disc space-y-1.5 pl-5 marker:text-border">{children}</ul>,
     ol: ({ children }) => <ol className="list-decimal space-y-1.5 pl-5">{children}</ol>,
     a: ({ href, children }) =>
-      href?.startsWith("/") && !href.startsWith("//") ? (
+      href && ehCaminhoInterno(href) ? (
         <Link href={href} className="font-medium text-primary hover:underline">
           {children}
         </Link>

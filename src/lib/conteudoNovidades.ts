@@ -3,6 +3,7 @@ import path from "node:path";
 import matter from "gray-matter";
 import {
   FORMATO_DO_IDENTIFICADOR,
+  ehCaminhoInterno,
   ordenar,
   type NovidadeResumida,
 } from "./novidades";
@@ -24,10 +25,9 @@ function texto(valor: unknown): string | null {
   return typeof valor === "string" && valor.trim() ? valor.trim() : null;
 }
 
-/** Só caminhos do próprio Atlas ("/modulos/..."), nunca outro endereço. */
 function caminhoInterno(valor: unknown): string | null {
   const caminho = texto(valor);
-  return caminho && caminho.startsWith("/") && !caminho.startsWith("//") ? caminho : null;
+  return caminho && ehCaminhoInterno(caminho) ? caminho : null;
 }
 
 /** Uma entrada a partir do arquivo, ou o motivo de não valer. */

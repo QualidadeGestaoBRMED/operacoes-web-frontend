@@ -25,6 +25,14 @@ export interface NovidadeResumida {
   abrir: string | null;
 }
 
+/**
+ * Só caminhos do próprio Atlas ("/modulos/..."). "//" e "/\" começam com
+ * barra, mas o navegador os lê como outro endereço.
+ */
+export function ehCaminhoInterno(caminho: string): boolean {
+  return /^\/(?![/\\])/.test(caminho);
+}
+
 export const FORMATO_DO_IDENTIFICADOR = /^\d{4}-\d{2}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TAMANHO_DA_ORDEM = "AAAA-MM-DD-NN".length;
 
