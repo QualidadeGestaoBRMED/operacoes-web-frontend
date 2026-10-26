@@ -54,7 +54,7 @@ export function lerNovidades(pasta = PASTA_DAS_NOVIDADES): Novidade[] {
   if (emMemoria && pasta === PASTA_DAS_NOVIDADES && process.env.NODE_ENV === "production") {
     return emMemoria;
   }
-  const ordenadas = ordenar(lerPasta(pasta, lerNovidade, "Novidade"));
+  const ordenadas = ordenar(lerPasta(pasta, lerNovidade, "Novidade ignorada"));
   if (pasta === PASTA_DAS_NOVIDADES) emMemoria = ordenadas;
   return ordenadas;
 }

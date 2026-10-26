@@ -50,7 +50,7 @@ export function lerArtigos(pasta = PASTA_DA_AJUDA): Artigo[] {
   if (emMemoria && pasta === PASTA_DA_AJUDA && process.env.NODE_ENV === "production") {
     return emMemoria;
   }
-  const ordenados = ordenarArtigos(lerPasta(pasta, lerArtigo, "Artigo da Ajuda"));
+  const ordenados = ordenarArtigos(lerPasta(pasta, lerArtigo, "Artigo da Ajuda ignorado"));
   if (pasta === PASTA_DA_AJUDA) emMemoria = ordenados;
   return ordenados;
 }

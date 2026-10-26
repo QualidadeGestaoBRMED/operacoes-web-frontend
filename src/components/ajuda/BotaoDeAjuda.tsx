@@ -19,8 +19,14 @@ const CLASSE = "text-sidebar-foreground hover:text-accent-foreground";
 export function BotaoDeAjuda() {
   const pathname = usePathname();
   const { visiveis, modulos } = useAjuda();
-  // Aberto na tela em que foi clicado: trocar de tela fecha o painel.
+  // Aberto na tela em que foi clicado. Trocar de tela fecha o painel de vez:
+  // voltar a ela depois (pelo Voltar do navegador, por exemplo) não o reabre.
   const [abertoEm, setAbertoEm] = useState<string | null>(null);
+  const [telaAnterior, setTelaAnterior] = useState(pathname);
+  if (telaAnterior !== pathname) {
+    setTelaAnterior(pathname);
+    setAbertoEm(null);
+  }
   const daTela = artigosDaTela(visiveis, pathname);
   const modulo = moduloAtivo(modulos, pathname);
 

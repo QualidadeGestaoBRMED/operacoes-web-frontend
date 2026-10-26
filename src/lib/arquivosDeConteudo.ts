@@ -28,7 +28,8 @@ export function caminhoInterno(valor: unknown): string | null {
 export function lerPasta<T>(
   pasta: string,
   ler: (arquivo: string, conteudo: string) => T | string,
-  rotulo: string,
+  /** Começo do aviso no log: "Novidade ignorada", "Artigo da Ajuda ignorado". */
+  aviso: string,
 ): T[] {
   const arquivos = fs.existsSync(pasta)
     ? fs.readdirSync(pasta).filter((nome) => nome.endsWith(".md") && nome !== "LEIAME.md")
@@ -37,7 +38,7 @@ export function lerPasta<T>(
   for (const arquivo of arquivos) {
     const lido = ler(arquivo, fs.readFileSync(path.join(pasta, arquivo), "utf-8"));
     if (typeof lido === "string") {
-      console.error(`${rotulo} ignorado (${arquivo}): ${lido}.`);
+      console.error(`${aviso} (${arquivo}): ${lido}.`);
     } else {
       validos.push(lido);
     }

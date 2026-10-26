@@ -104,7 +104,9 @@ export function PainelDeAjuda({
             <div className="space-y-4 text-[15px] leading-7 text-muted-foreground">{texto.texto}</div>
           ) : texto?.estado === "falha" ? (
             <div className="flex flex-col items-center gap-4 py-10 text-center">
-              <p className="text-[15px] text-muted-foreground">Não foi possível carregar este artigo.</p>
+              <p className="text-[15px] text-muted-foreground">
+                Não foi possível carregar este artigo. Tente de novo ou abra em página própria.
+              </p>
               <Button variant="outline" onClick={() => carregar(artigo.slug)}>
                 Tentar de novo
               </Button>
