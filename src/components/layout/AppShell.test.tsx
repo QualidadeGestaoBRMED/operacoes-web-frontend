@@ -21,6 +21,9 @@ vi.mock("@/lib/pushNotificacoes", async (original) => ({
   ...(await original<typeof import("@/lib/pushNotificacoes")>()),
   sincronizarPush: vi.fn(),
 }));
+vi.mock("@/components/novidades/NovidadesProvider", () => ({
+  useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
+}));
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
