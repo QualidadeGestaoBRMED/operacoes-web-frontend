@@ -106,4 +106,18 @@ describe("NotificacoesCelularDialog (STC-851)", () => {
     expect(await screen.findByText(/não podem ser ativadas nem desativadas/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ativar notificações" })).not.toBeInTheDocument();
   });
+
+  it("sem resposta do Atlas: avisa e deixa tentar de novo, sem dizer que o navegador não suporta", async () => {
+    vi.mocked(estadoDoPush).mockRejectedValueOnce(new Error("rede")).mockResolvedValue("desativado");
+    render(
+      <NotificacoesCelularDialog aberto onOpenChange={vi.fn()} focoAoFechar={createRef()} onInstalar={vi.fn()} />,
+    );
+
+    expect(await screen.findByText(/Não foi possível verificar as notificações agora/)).toBeInTheDocument();
+    expect(screen.queryByText(/Este navegador não recebe/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+
+    expect(await screen.findByRole("button", { name: "Ativar notificações" })).toBeInTheDocument();
+  });
 });

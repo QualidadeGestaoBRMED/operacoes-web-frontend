@@ -211,6 +211,24 @@ describe("cancelarPushAoSair", () => {
     expect(inscricao.unsubscribe).toHaveBeenCalled();
   });
 
+  it("desfaz no navegador antes de avisar o backend", async () => {
+    const inscricao = inscricaoFalsa();
+    simularNavegador({ inscricao });
+    const ordem: string[] = [];
+    inscricao.unsubscribe.mockImplementation(async () => {
+      ordem.push("navegador");
+      return true;
+    });
+    vi.mocked(api.post).mockImplementation(async () => {
+      ordem.push("backend");
+      return { data: undefined };
+    });
+
+    await cancelarPushAoSair();
+
+    expect(ordem).toEqual(["navegador", "backend"]);
+  });
+
   it("sem rede: cancela no navegador e não trava o logout", async () => {
     const inscricao = inscricaoFalsa();
     simularNavegador({ inscricao });
