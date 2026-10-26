@@ -53,7 +53,11 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
 // Dados atuais de quem está logado (cargo, redes, unidade, setor). A sessão
 // só os grava no login; ver useAuth.
 /** /auth/me/: em "ver como" (STC-789), a pessoa simulada e a sessão. */
-export type UsuarioLogado = Usuario & { ver_como?: SessaoVerComo | null };
+export type UsuarioLogado = Usuario & {
+  ver_como?: SessaoVerComo | null;
+  /** A Novidade mais nova já vista (STC-876); vazia para quem nunca abriu. */
+  ultima_novidade_vista?: string;
+};
 
 export async function obterUsuarioLogado(): Promise<UsuarioLogado> {
   const { data } = await api.get<UsuarioLogado>("/auth/me/");
@@ -169,3 +173,11 @@ export async function encerrarVerComo(sessaoId: string): Promise<void> {
   });
 }
 
+/** Marca até qual Novidade a pessoa já viu (STC-876). O backend só avança. */
+export async function marcarNovidadesComoVistas(ultimaNovidadeVista: string): Promise<string> {
+  const { data } = await api.post<{ ultima_novidade_vista: string }>(
+    "/auth/me/novidades-vistas/",
+    { ultima_novidade_vista: ultimaNovidadeVista },
+  );
+  return data.ultima_novidade_vista;
+}

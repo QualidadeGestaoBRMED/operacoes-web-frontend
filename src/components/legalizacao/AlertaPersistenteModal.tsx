@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAlertasPendentes } from "@/hooks/useAlertasPendentes";
+import { useOutroDialogoAberto } from "@/hooks/useOutroDialogoAberto";
 import { agruparAlertasPorDocumento, numeroDaUrl } from "@/lib/legalizacaoMatriz";
 import { formatarTempoRelativo } from "@/lib/utils";
 
@@ -34,16 +35,6 @@ const ROTA_MATRIZ = "/modulos/legalizacao";
 // Marca o próprio DialogContent (abaixo) pra distinguir "outro diálogo
 // aberto" do diálogo do próprio alerta persistente na varredura do DOM.
 const ATRIBUTO_PROPRIO = "data-alerta-persistente-modal";
-const SELETOR_QUALQUER_DIALOGO_ABERTO =
-  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
-
-// useLayoutEffect (não useEffect): roda antes do navegador pintar -- sem
-// isso, o estado inicial otimista (useState(false), "nenhum outro diálogo
-// aberto") deixaria o 1º frame abrir por cima de um diálogo que já estava
-// lá antes de checar de verdade. Isomorfo só pra evitar o warning do React
-// em SSR (mesmo padrão de useMediaQuery.ts/useAlturaSemLinhaCortada.ts).
-const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
 // Achado em code review: a supressão existente (temDocumentoAtivoNaUrl,
 // abaixo) só cobre a colisão com DetalheDocumentoModal (via ?documento= na
 // URL) -- mas o alerta persistente é montado fora de qualquer rota
@@ -57,25 +48,7 @@ const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffec
 // sem isso, o alerta só voltaria a aparecer no próximo poll (até 60s
 // depois do outro diálogo já ter fechado).
 function useExisteOutroDialogoAberto(): boolean {
-  const [existeOutro, setExisteOutro] = useState(false);
-
-  useIsomorphicLayoutEffect(() => {
-    function checar() {
-      const abertos = document.querySelectorAll(SELETOR_QUALQUER_DIALOGO_ABERTO);
-      setExisteOutro(Array.from(abertos).some((el) => !el.hasAttribute(ATRIBUTO_PROPRIO)));
-    }
-    checar();
-    const observer = new MutationObserver(checar);
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ["data-state", "role"],
-      childList: true,
-      subtree: true,
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  return existeOutro;
+  return useOutroDialogoAberto(ATRIBUTO_PROPRIO);
 }
 
 export function AlertaPersistenteModal() {

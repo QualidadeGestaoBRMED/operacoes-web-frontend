@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { QUERY_MOBILE, useMediaQuery } from "@/hooks/useMediaQuery";
 import { AlertaPersistenteModal } from "@/components/legalizacao/AlertaPersistenteModal";
+import { JanelaDeDestaque } from "@/components/novidades/JanelaDeDestaque";
 import { sincronizarPush } from "@/lib/pushNotificacoes";
 import { cn, iniciaisDe } from "@/lib/utils";
 import { AbasDoModulo } from "./AbasDoModulo";
@@ -127,6 +128,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <AlertaPersistenteModal />
         </Suspense>
       )}
+      {/* Destaque das Novidades (STC-877): abre sozinho, uma vez, e espera
+          o alerta persistente acima fechar. */}
+      {user && <JanelaDeDestaque />}
     </div>
   );
 }

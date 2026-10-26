@@ -11,7 +11,10 @@ import {
   Settings,
   ShieldCheck,
   Smartphone,
+  Sparkles,
 } from "lucide-react";
+import { PontoDeNovidade } from "@/components/novidades/PontoDeNovidade";
+import { useNovidades } from "@/components/novidades/NovidadesProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +77,7 @@ export function BarraInferior() {
   const appInstalado = useAppInstalado();
   const [instalarAberto, setInstalarAberto] = useState(false);
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false);
+  const { temNovidade } = useNovidades();
   const botaoMais = useRef<HTMLButtonElement>(null);
 
   return (
@@ -141,6 +145,16 @@ export function BarraInferior() {
               {(noMais.length > 0 || temAdministracao || linkDjangoAdmin) && (
                 <DropdownMenuSeparator />
               )}
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/novidades"
+                  aria-current={pathname.startsWith("/novidades") ? "page" : undefined}
+                >
+                  <Sparkles className="size-4" />
+                  Novidades
+                  {temNovidade && <PontoDeNovidade />}
+                </Link>
+              </DropdownMenuItem>
               {!appInstalado && (
                 <DropdownMenuItem onSelect={() => setInstalarAberto(true)}>
                   <Smartphone className="size-4" />

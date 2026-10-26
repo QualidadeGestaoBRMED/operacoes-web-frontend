@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Lock, Settings, ShieldCheck } from "lucide-react";
+import { ChevronDown, Lock, Settings, ShieldCheck, Sparkles } from "lucide-react";
+import { PontoDeNovidade } from "@/components/novidades/PontoDeNovidade";
+import { useNovidades } from "@/components/novidades/NovidadesProvider";
 import {
   subitemAtivo as acharSubitemAtivo,
   useNavegacao,
@@ -17,6 +19,7 @@ export function Sidebar() {
   // Módulos, subitens e links de Administração pelo cargo: a mesma regra
   // da barra inferior do celular (useNavegacao, STC-787).
   const { modulos, bloqueados, temAdministracao, linkDjangoAdmin } = useNavegacao();
+  const { temNovidade } = useNovidades();
 
   return (
     // h-full: achado no dogfooding do overlay mobile -- sem altura própria,
@@ -78,6 +81,25 @@ export function Sidebar() {
         ))}
       </nav>
 
+      {/* Novidades do Atlas (STC-877), para todos: o ponto avisa o que a
+          pessoa ainda não viu. */}
+      <div className="flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
+        <Link
+          href="/novidades"
+          aria-current={pathname.startsWith("/novidades") ? "page" : undefined}
+          className={cn(
+            "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
+            pathname.startsWith("/novidades")
+              ? "bg-sidebar-accent text-sidebar-primary-foreground"
+              : "text-sidebar-foreground/75",
+          )}
+        >
+          <Sparkles className="size-4 shrink-0" />
+          Novidades
+          {temNovidade && <PontoDeNovidade />}
+        </Link>
+      </div>
+
       {/* isAdminOps (Admin de alguma rede) cobre os perfis que têm algum
           link aqui -- Admin Q&G é um caso particular dele,
           então o wrapper (borda/espaçamento) usa só essa condição, e cada
@@ -88,7 +110,7 @@ export function Sidebar() {
           "Administração"/"Admin Operações" abaixo continua existindo (leva
           pra tela inteira, não só o Catálogo). */}
       {temAdministracao && (
-        <div className="mt-2 flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
+        <div className="flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
           {/* STC-262: era texto fixo, sem função nenhuma e visível pra
               qualquer perfil -- achado no dogfooding. isAdminQG (não
               isLoading nem nenhum estado de transição): antes do
