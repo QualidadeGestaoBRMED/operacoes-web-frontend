@@ -33,7 +33,7 @@ export function ancora(texto: string): string {
  * quiser, sua imagem ou animação (`![](/novidades/arquivo.webp)`). Na página
  * da novidade (`comLinksDasSecoes`), cada subtítulo ganha um link próprio
  * (ícone ao passar o mouse); na lista, não: lá se entra primeiro na novidade. Links internos ("/modulos/...")
- * navegam dentro do Atlas.
+ * navegam dentro do Atlas; "//outro-endereco" conta como externo.
  */
 export function TextoDaNovidade({
   markdown,
@@ -77,7 +77,7 @@ export function TextoDaNovidade({
       if (filhos.length === 1 && filhos[0].tagName === "img") return <>{children}</>;
       return <p>{children}</p>;
     },
-    img: ({ src }) => (typeof src === "string" ? <MidiaDaNovidade src={src} /> : null),
+    img: ({ src, alt }) => (typeof src === "string" ? <MidiaDaNovidade src={src} alt={alt ?? ""} /> : null),
     h2: ({ node, children }) => (
       <Subtitulo nivel={2} node={node as No}>
         {children}
@@ -91,7 +91,7 @@ export function TextoDaNovidade({
     ul: ({ children }) => <ul className="list-disc space-y-1.5 pl-5 marker:text-border">{children}</ul>,
     ol: ({ children }) => <ol className="list-decimal space-y-1.5 pl-5">{children}</ol>,
     a: ({ href, children }) =>
-      href?.startsWith("/") ? (
+      href?.startsWith("/") && !href.startsWith("//") ? (
         <Link href={href} className="font-medium text-primary hover:underline">
           {children}
         </Link>

@@ -40,8 +40,10 @@ usar" fica no artigo da Ajuda, não aqui. Prints com dados fictícios, sem
 nomes reais.
 
 - Lançamento com vários recursos: uma seção por recurso (`## Título`), cada
-  uma com seu texto e, se quiser, sua imagem ou animação numa linha só:
-  `![](/novidades/arquivo.webp)`. Cada subtítulo ganha um link próprio.
+  uma com seu texto e, se quiser, sua imagem ou animação numa linha só,
+  com uma frase do que ela mostra (lida pelo leitor de tela):
+  `![O que a imagem mostra](/novidades/arquivo.webp)`. Cada subtítulo ganha
+  um link próprio.
 - Links no texto: para telas do Atlas, o caminho (`[Painel](/modulos/gestao-rh)`).
 - No fim, se houver, `### Melhorias` e `### Correções`, um item por linha
   com a área em negrito: `- **Gestão RH:** cards lado a lado no celular.`

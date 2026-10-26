@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { visiveisPara } from "@/lib/novidades";
 import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
@@ -12,11 +13,17 @@ import { useNovidades } from "./NovidadesProvider";
 /**
  * Página própria de uma novidade (STC-877), com endereço para compartilhar,
  * como no Linear (/novidades/AAAA-MM-DD-NN-assunto). Marca só ela como vista.
- * De um módulo que a pessoa não acessa: avisa, sem mostrar o conteúdo.
+ * De um módulo que a pessoa não acessa: avisa, sem mostrar o conteúdo. Sem
+ * a lista de módulos (falha na busca), não dá para saber: oferece tentar de
+ * novo.
  */
 export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
   const { modulos, temAdministracao } = useNavegacao();
-  const { isLoading: carregandoModulos } = useModulos();
+  const {
+    isLoading: carregandoModulos,
+    error: falhaNosModulos,
+    recarregar: recarregarModulos,
+  } = useModulos();
   const { visiveis: todasVisiveis, marcarComoVistas } = useNovidades();
   // Da mais nova para a mais antiga: "anterior" é a mais antiga ao lado.
   const posicao = todasVisiveis.findIndex((outra) => outra.id === novidade.id);
@@ -39,7 +46,14 @@ export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
         Todas as novidades
       </Link>
       <div className="mt-8">
-        {carregandoModulos ? null : visivel ? (
+        {carregandoModulos ? null : falhaNosModulos ? (
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-[15px] text-muted-foreground">Não foi possível carregar esta novidade.</p>
+            <Button variant="outline" onClick={() => void recarregarModulos()}>
+              Tentar de novo
+            </Button>
+          </div>
+        ) : visivel ? (
           <LinhaDoTempo>
             <EntradaDaNovidade novidade={novidade} comLinkNoTitulo={false} />
           </LinhaDoTempo>
@@ -49,7 +63,7 @@ export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
           </p>
         )}
       </div>
-      {visivel && (anterior || proxima) && (
+      {!falhaNosModulos && visivel && (anterior || proxima) && (
         <nav
           aria-label="Outras novidades"
           className="mt-4 grid gap-3 border-t border-border pt-6 sm:grid-cols-2"

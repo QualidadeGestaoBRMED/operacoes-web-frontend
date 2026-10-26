@@ -6,13 +6,13 @@ abrir: /modulos/gestao-rh
 ---
 ## Novo card: Horas perdidas
 
-![](/novidades/2026-10-26-02-horas-perdidas-no-painel-card.webp)
+![Card Horas perdidas ao lado do Absenteísmo no Painel](/novidades/2026-10-26-02-horas-perdidas-no-painel-card.webp)
 
 Ao lado do Absenteísmo, a soma das horas das ausências que contam no indicador, no formato do VR (ex.: 97:55:00), com a variação em relação ao período anterior.
 
 ## De onde vêm as horas
 
-![](/novidades/2026-10-26-02-horas-perdidas-no-painel-modal.webp)
+![Clique no card abre as horas perdidas por tipo e por unidade](/novidades/2026-10-26-02-horas-perdidas-no-painel-modal.webp)
 
 Clique no card para ver:
 

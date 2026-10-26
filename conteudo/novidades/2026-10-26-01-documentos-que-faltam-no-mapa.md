@@ -6,7 +6,7 @@ abrir: /modulos/legalizacao/mapa
 ---
 ## O que cada célula mostra
 
-![](/novidades/2026-10-26-01-documentos-que-faltam-no-mapa.webp)
+![Dica de uma célula do Mapa com os documentos cadastrados e os que faltam](/novidades/2026-10-26-01-documentos-que-faltam-no-mapa.webp)
 
 Ao passar o mouse sobre uma unidade em uma categoria, aparece quantos documentos foram cadastrados do total que se aplica, com o percentual, e uma linha por tipo de documento do catálogo:
 

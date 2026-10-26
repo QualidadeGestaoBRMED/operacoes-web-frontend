@@ -60,7 +60,7 @@ export function JanelaDeDestaque() {
           <DialogTitle>{destaque.titulo}</DialogTitle>
           <DialogDescription>{destaque.resumo}</DialogDescription>
         </DialogHeader>
-        {destaque.imagem && <MidiaDaNovidade src={destaque.imagem} alturaMaxima="max-h-[22rem]" />}
+        {destaque.imagem && <MidiaDaNovidade src={destaque.imagem} alt={destaque.titulo} alturaMaxima="max-h-[22rem]" />}
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={fechar}>
             Agora não

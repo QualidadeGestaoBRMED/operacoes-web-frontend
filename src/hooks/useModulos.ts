@@ -6,12 +6,13 @@ import { listarModulos } from "@/lib/plataforma";
 import type { Modulo, RecursoPermissao } from "@/types";
 
 export function useModulos() {
-  const { data, error, isLoading } = useSWR<Modulo[]>("modulos", listarModulos);
+  const { data, error, isLoading, mutate } = useSWR<Modulo[]>("modulos", listarModulos);
 
   return {
     modulos: data ?? [],
     isLoading,
     error,
+    recarregar: mutate,
   };
 }
 

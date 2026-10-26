@@ -56,13 +56,12 @@ export function ListaDeNovidades({ novidades }: { novidades: NovidadeComTexto[] 
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {abas.length > 1 ? (
-            <div role="tablist" aria-label="Módulo" className="flex flex-wrap gap-1.5">
+            <div role="group" aria-label="Módulo" className="flex flex-wrap gap-1.5">
               {[{ codigo: TODAS, nome: "Todas" }, ...abas].map((opcao) => (
                 <button
                   key={opcao.codigo}
                   type="button"
-                  role="tab"
-                  aria-selected={aba === opcao.codigo}
+                  aria-pressed={aba === opcao.codigo}
                   onClick={() => setAba(opcao.codigo)}
                   className={cn(
                     "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",

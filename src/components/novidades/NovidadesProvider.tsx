@@ -29,8 +29,8 @@ export function NovidadesProvider({
 /**
  * O que a pessoa vê das Novidades e o que ainda não viu (STC-877). Até
  * chegarem /auth/me/ (o que ela já viu) e a lista de módulos (o que ela vê),
- * sem ponto, sem janela e sem marcar nada: com os módulos a caminho, só as
- * gerais contariam, e marcar uma delas deixaria para trás um destaque de
+ * sem ponto, sem janela e sem marcar nada: sem os módulos (a caminho ou com
+ * falha), só as gerais contariam, e marcar uma delas deixaria para trás um destaque de
  * módulo publicado antes.
  */
 export function useNovidades() {
@@ -38,7 +38,7 @@ export function useNovidades() {
   const { modulos, temAdministracao } = useNavegacao();
   const { user, recarregarUsuario } = useAuth();
   // Mesma busca (SWR "modulos") do menu: nenhuma requisição a mais.
-  const { isLoading: carregandoModulos } = useModulos();
+  const { isLoading: carregandoModulos, error: falhaNosModulos } = useModulos();
   const ultimaVista = (user as { ultima_novidade_vista?: string } | undefined)
     ?.ultima_novidade_vista;
   const codigos = modulos.map((modulo) => modulo.codigo);
@@ -47,7 +47,7 @@ export function useNovidades() {
     () => visiveisPara(todas, chaveDosCodigos ? chaveDosCodigos.split(",") : [], temAdministracao),
     [todas, chaveDosCodigos, temAdministracao],
   );
-  const conhecida = ultimaVista !== undefined && !carregandoModulos;
+  const conhecida = ultimaVista !== undefined && !carregandoModulos && !falhaNosModulos;
   const maisNova = visiveis[0];
   const enviando = useRef<string | null>(null);
 
