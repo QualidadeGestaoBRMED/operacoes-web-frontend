@@ -61,6 +61,18 @@ describe("TextoDaNovidade (STC-877)", () => {
     expect(screen.getByRole("link", { name: "fora" })).toHaveAttribute("target", "_blank");
   });
 
+  it("subtítulos repetidos ou só com símbolos: links diferentes e nunca vazios", () => {
+    render(
+      <TextoDaNovidade markdown={"## Melhorias\n\n## Melhorias\n\n## !!!"} idDaNovidade="x" comLinksDasSecoes />,
+    );
+
+    expect(screen.getAllByRole("heading", { level: 2 }).map((titulo) => titulo.id)).toEqual([
+      "x--melhorias",
+      "x--melhorias-2",
+      "x--secao",
+    ]);
+  });
+
   it("âncora sem acento e com hífens", () => {
     expect(ancora("Correções e Melhorias!")).toBe("correcoes-e-melhorias");
   });

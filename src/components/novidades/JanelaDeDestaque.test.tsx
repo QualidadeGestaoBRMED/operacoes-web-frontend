@@ -48,13 +48,13 @@ describe("JanelaDeDestaque (STC-877)", () => {
     expect(screen.getByText("Agora o Atlas avisa no celular.")).toBeInTheDocument();
   });
 
-  it("Agora não: fecha e marca como vista", async () => {
+  it("Agora não: fecha e marca só o destaque como visto", async () => {
     comDestaque(DESTAQUE);
     render(<JanelaDeDestaque />);
 
     await userEvent.click(screen.getByRole("button", { name: "Agora não" }));
 
-    expect(marcarComoVistas).toHaveBeenCalled();
+    expect(marcarComoVistas).toHaveBeenCalledWith(DESTAQUE.id);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
