@@ -1204,6 +1204,14 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Item "Novidades"** na base da barra lateral (para todos, acima da Administração) e no "Mais" do celular, com um ponto quando há novidade não vista. Abrir a página envia a mais nova visível como vista.
 - **Janela de destaque** (`JanelaDeDestaque`, no `AppShell`): só para entrada marcada como destaque e não vista, a mais nova, uma de cada vez. "Agora não" marca como vista; "Ver novidade" leva à entrada na página. Não abre na própria página nem no "ver como" (que também não marca nada).
 - **Página no formato do changelog do Linear** (pedido do Felipe, comparando com linear.app/changelog): linha do tempo, com a data e o ponto (âmbar nos destaques) numa coluna à esquerda e o conteúdo numa coluna larga (no celular, a data em cima do título), sem caixas; título grande, resumo em 16 px e texto em 15 px. Abas por módulo (só os da pessoa com novidade, quando mais de um) e busca no título, no resumo e no texto, sem acento e sem diferença de maiúscula.
-- **Página própria de cada novidade** (`/novidades/<identificador>`, `PaginaDaNovidade`), como no Linear: o título na lista leva a ela, o botão de link copia o endereço completo e o "Ver novidade" da janela de destaque abre nela. Abrir marca só aquela como vista (se houver mais novas, o ponto continua). De um módulo que a pessoa não acessa, avisa que não está disponível.
+- **Página própria de cada novidade** (`/novidades/<identificador>`, `PaginaDaNovidade`), como no Linear: o título na lista leva a ela e o "Ver novidade" da janela de destaque abre nela. Abrir marca só aquela como vista (se houver mais novas, o ponto continua). De um módulo que a pessoa não acessa, avisa que não está disponível.
+- **Página de cada novidade no formato do Linear** (linear.app/changelog/<entrada>):
+  - vários recursos numa novidade: seções `##`/`###`, cada uma com link próprio (ícone ao passar o mouse, `#<id>--<seção>`) e, se quiser, sua imagem ou animação no texto (`![](...)`, exibida como a mídia da entrada, sem o parágrafo em volta) (`TextoDaNovidade`);
+  - links no texto para telas do Atlas navegam dentro dele; botão "Abrir no Atlas" com o campo `abrir` do cabeçalho (só caminhos do próprio Atlas);
+  - "Compartilhar" ao lado da data: no celular, a folha de compartilhamento do sistema; no computador, copia o link;
+  - etiquetas do módulo (e "Administração") ao lado da data;
+  - "Melhorias" e "Correções" com a área em negrito (padrão no LEIAME);
+  - "Novidade anterior" e "Próxima" no fim da página, entre as que a pessoa vê;
+  - título da aba: "<título> · Novidades · Atlas" (e "Novidades · Atlas" na lista).
 - **Imagens e animações** em `public/novidades/`: print, ou o recurso em uso numa animação curta (WebP animado, de preferência), gravada fora do Atlas com dados fictícios. Meta de até 500 KB; o teste do conteúdo falha acima de 1 MB.
 - **Diálogos que abrem sozinhos não se sobrepõem:** a detecção de "outro diálogo aberto" do alerta persistente da Legalização virou o hook `useOutroDialogoAberto`, usado também pela janela de destaque: uma espera a outra fechar.
