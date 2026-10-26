@@ -55,8 +55,11 @@ export async function listarSetores(moduloId?: number): Promise<Setor[]> {
 /** /auth/me/: em "ver como" (STC-789), a pessoa simulada e a sessão. */
 export type UsuarioLogado = Usuario & {
   ver_como?: SessaoVerComo | null;
-  /** A Novidade mais nova já vista (STC-876); vazia para quem nunca abriu. */
-  ultima_novidade_vista?: string;
+  /**
+   * A Novidade mais nova já vista (STC-876); vazia para quem nunca abriu.
+   * `null` conta como vazia.
+   */
+  ultima_novidade_vista?: string | null;
 };
 
 export async function obterUsuarioLogado(): Promise<UsuarioLogado> {

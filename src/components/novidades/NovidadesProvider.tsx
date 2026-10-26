@@ -39,8 +39,9 @@ export function useNovidades() {
   const { user, recarregarUsuario } = useAuth();
   // Mesma busca (SWR "modulos") do menu: nenhuma requisição a mais.
   const { isLoading: carregandoModulos, error: falhaNosModulos } = useModulos();
-  const ultimaVista = (user as { ultima_novidade_vista?: string } | undefined)
+  const vistaNoUsuario = (user as { ultima_novidade_vista?: string | null } | undefined)
     ?.ultima_novidade_vista;
+  const ultimaVista = vistaNoUsuario === null ? "" : vistaNoUsuario;
   const codigos = modulos.map((modulo) => modulo.codigo);
   const chaveDosCodigos = codigos.join(",");
   const visiveis = useMemo(
