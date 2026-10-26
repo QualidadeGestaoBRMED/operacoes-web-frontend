@@ -1190,3 +1190,6 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
   - Se o envio da inscrição ao backend falha (sem rede, ou no "ver como", que só lê), a inscrição do navegador é desfeita: senão o aparelho aparecia como ativado sem receber nada. No "ver como", a janela explica que não dá para ativar nem desativar, sem o botão.
   - **Sincronização ao abrir** (`sincronizarPush`, chamada pelo `AppShell` uma vez por usuário logado): o aparelho que já tem notificações ativadas reenvia a inscrição, e o backend a passa para quem está logado. Cobre a sessão que expira sem o "Sair": se outra pessoa entra no mesmo celular, os avisos de quem saiu param de chegar. Sem permissão, sem inscrição ou no "ver como", não faz nada.
   - Inscrição feita com outra chave (as chaves VAPID trocadas no servidor) é refeita com a atual, na ativação e na sincronização.
+- **Achados do code review:**
+  - Sem resposta do Atlas ao verificar o aparelho (sem rede), a janela mostra um erro próprio com "Tentar de novo", em vez de dizer que o navegador não suporta.
+  - No "Sair", a inscrição é desfeita primeiro no navegador e só depois o backend é avisado. Se o aviso não chegar, o próximo envio para ela volta 410 e o backend a apaga (STC-847); e quem abrir o Atlas logado no aparelho depois recebe a inscrição pela sincronização.
