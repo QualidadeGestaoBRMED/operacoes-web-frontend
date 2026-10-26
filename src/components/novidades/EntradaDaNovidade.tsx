@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { ArrowRight, ExternalLink, Share2, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { MidiaDoConteudo } from "@/components/conteudo/MidiaDoConteudo";
 import { Button } from "@/components/ui/button";
 import { useNavegacao } from "@/hooks/useNavegacao";
+import { compartilhar } from "@/lib/compartilhar";
 import { dataPorExtenso, type NovidadeResumida } from "@/lib/novidades";
 import { cn } from "@/lib/utils";
 
@@ -14,29 +15,6 @@ export type NovidadeComTexto = NovidadeResumida & {
   /** Texto cru, para a busca. */
   busca: string;
 };
-
-/**
- * Compartilhar, como o "Share" do Linear: no celular, a folha de
- * compartilhamento do sistema (WhatsApp, e-mail...); no computador, copia o
- * link da página da novidade.
- */
-async function compartilhar(novidade: NovidadeResumida) {
-  const url = `${window.location.origin}/novidades/${novidade.id}`;
-  if (typeof navigator.share === "function" && window.matchMedia("(pointer: coarse)").matches) {
-    try {
-      await navigator.share({ title: novidade.titulo, text: novidade.resumo, url });
-      return;
-    } catch (erro) {
-      if ((erro as Error).name === "AbortError") return;
-    }
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    toast.success("Link da novidade copiado.");
-  } catch {
-    toast.error("Não foi possível copiar o link.");
-  }
-}
 
 /**
  * Uma novidade na linha do tempo (STC-877): a data na coluna da esquerda,
@@ -93,7 +71,14 @@ export function EntradaDaNovidade({
         )}
         <button
           type="button"
-          onClick={() => void compartilhar(novidade)}
+          onClick={() =>
+            void compartilhar({
+              titulo: novidade.titulo,
+              texto: novidade.resumo,
+              caminho: `/novidades/${novidade.id}`,
+              copiado: "Link da novidade copiado.",
+            })
+          }
           aria-label={`Compartilhar "${novidade.titulo}"`}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -112,7 +97,7 @@ export function EntradaDaNovidade({
             novidade.titulo
           )}
         </h2>
-        {novidade.imagem && <MidiaDaNovidade src={novidade.imagem} alt={novidade.titulo} />}
+        {novidade.imagem && <MidiaDoConteudo src={novidade.imagem} alt={novidade.titulo} />}
         <p className="text-base leading-7 text-foreground">{novidade.resumo}</p>
         {novidade.texto && (
           <div className="space-y-4 text-[15px] leading-7 text-muted-foreground">{novidade.texto}</div>
@@ -143,53 +128,11 @@ export function EntradaDaNovidade({
   );
 }
 
-/**
- * Print ou animação (WebP/GIF) da novidade. As imagens são gravadas em 2x
- * (`srcSet ... 2x`): aparecem na metade dos pixels, nítidas, e nunca são
- * esticadas. Uma tela de celular fica estreita e centralizada sobre um fundo
- * suave; um print de computador ocupa a largura da coluna. `alt` descreve o
- * que a imagem mostra, para leitor de tela.
- */
-export function MidiaDaNovidade({
-  src,
-  alt,
-  alturaMaxima = "max-h-[36rem]",
-}: {
-  src: string;
-  alt: string;
-  alturaMaxima?: string;
-}) {
-  return (
-    <figure className="flex justify-center rounded-xl bg-muted/60 p-3 sm:p-5">
-      {/* eslint-disable-next-line @next/next/no-img-element -- imagem de conteúdo, tamanho livre */}
-      <img
-        src={src}
-        srcSet={`${src} 2x`}
-        alt={alt}
-        loading="lazy"
-        className={cn("block h-auto w-auto max-w-full rounded-lg border border-border shadow-sm", alturaMaxima)}
-      />
-    </figure>
-  );
-}
-
 /** A linha do tempo: um traço vertical que liga os pontos de cada data. */
 export function LinhaDoTempo({ children }: { children: React.ReactNode }) {
   return (
     <ol className="relative before:absolute before:top-2 before:bottom-0 before:left-[4.5px] before:w-px before:bg-border">
       {children}
     </ol>
-  );
-}
-
-/** Sem a lista de módulos (falha na busca), não dá para saber o que a pessoa vê. */
-export function FalhaNosModulos({ onTentarDeNovo, texto }: { onTentarDeNovo: () => void; texto: string }) {
-  return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <p className="text-[15px] text-muted-foreground">{texto}</p>
-      <Button variant="outline" onClick={onTentarDeNovo}>
-        Tentar de novo
-      </Button>
-    </div>
   );
 }

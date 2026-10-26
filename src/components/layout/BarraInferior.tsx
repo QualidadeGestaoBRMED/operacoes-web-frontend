@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellRing,
+  CircleHelp,
   LogOut,
   MoreHorizontal,
   RotateCw,
@@ -153,6 +154,12 @@ export function BarraInferior() {
                   <Sparkles className="size-4" />
                   Novidades
                   {temNovidade && <PontoDeNovidade />}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/ajuda" aria-current={pathname.startsWith("/ajuda") ? "page" : undefined}>
+                  <CircleHelp className="size-4" />
+                  Ajuda
                 </Link>
               </DropdownMenuItem>
               {!appInstalado && (

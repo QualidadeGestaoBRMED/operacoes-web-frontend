@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Lock, Settings, ShieldCheck, Sparkles } from "lucide-react";
+import { ChevronDown, CircleHelp, Lock, Settings, ShieldCheck, Sparkles } from "lucide-react";
 import { PontoDeNovidade } from "@/components/novidades/PontoDeNovidade";
 import { useNovidades } from "@/components/novidades/NovidadesProvider";
 import {
@@ -82,7 +82,7 @@ export function Sidebar() {
       </nav>
 
       {/* Novidades do Atlas (STC-877), para todos: o ponto avisa o que a
-          pessoa ainda não viu. */}
+          pessoa ainda não viu. Ajuda (STC-878), para todos. */}
       <div className="flex flex-col gap-0.5 border-t border-sidebar-border p-3 pt-2.5">
         <Link
           href="/novidades"
@@ -97,6 +97,19 @@ export function Sidebar() {
           <Sparkles className="size-4 shrink-0" />
           Novidades
           {temNovidade && <PontoDeNovidade />}
+        </Link>
+        <Link
+          href="/ajuda"
+          aria-current={pathname.startsWith("/ajuda") ? "page" : undefined}
+          className={cn(
+            "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary-foreground",
+            pathname.startsWith("/ajuda")
+              ? "bg-sidebar-accent text-sidebar-primary-foreground"
+              : "text-sidebar-foreground/75",
+          )}
+        >
+          <CircleHelp className="size-4 shrink-0" />
+          Ajuda
         </Link>
       </div>
 

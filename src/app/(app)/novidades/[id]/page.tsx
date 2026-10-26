@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PaginaDaNovidade } from "@/components/novidades/PaginaDaNovidade";
 import { lerNovidades } from "@/lib/conteudoNovidades";
-import { TextoDaNovidade } from "../TextoDaNovidade";
+import { TextoEmMarkdown } from "@/components/conteudo/TextoEmMarkdown";
 
 export async function generateMetadata({
   params,
@@ -25,7 +25,7 @@ export default async function NovidadePage({ params }: { params: Promise<{ id: s
       novidade={{
         ...resumida,
         texto: corpo ? (
-          <TextoDaNovidade markdown={corpo} idDaNovidade={resumida.id} comLinksDasSecoes />
+          <TextoEmMarkdown markdown={corpo} prefixoDasAncoras={resumida.id} comLinksDasSecoes />
         ) : null,
         busca: corpo,
       }}

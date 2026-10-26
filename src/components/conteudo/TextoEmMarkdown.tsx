@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { Link2 } from "lucide-react";
-import { MidiaDaNovidade } from "@/components/novidades/EntradaDaNovidade";
+import { MidiaDoConteudo } from "@/components/conteudo/MidiaDoConteudo";
 import { ehCaminhoInterno } from "@/lib/novidades";
 
 interface No {
@@ -28,21 +28,23 @@ export function ancora(texto: string): string {
 }
 
 /**
- * Texto de uma novidade, montado no servidor (o leitor de Markdown não vai
- * para o navegador; sem HTML no conteúdo, o padrão do react-markdown).
- * Como no changelog do Linear: seções com subtítulo (## e ###) e, se
- * quiser, sua imagem ou animação (`![](/novidades/arquivo.webp)`). Na página
- * da novidade (`comLinksDasSecoes`), cada subtítulo ganha um link próprio
- * (ícone ao passar o mouse); na lista, não: lá se entra primeiro na novidade. Links internos ("/modulos/...")
- * navegam dentro do Atlas; "//outro-endereco" conta como externo.
+ * Texto de uma novidade ou de um artigo da Ajuda, montado no servidor (o
+ * leitor de Markdown não vai para o navegador; sem HTML no conteúdo, o
+ * padrão do react-markdown). Como no Linear: seções com subtítulo (## e ###)
+ * e, se quiser, sua imagem ou animação (`![O que mostra](/pasta/arquivo.webp)`).
+ * Na página própria (`comLinksDasSecoes`), cada subtítulo ganha um link
+ * próprio (ícone ao passar o mouse); na lista das Novidades, não. Lista
+ * numerada vira passos, com o número em destaque. Links internos
+ * ("/modulos/...") navegam dentro do Atlas; "//outro-endereco" conta como
+ * externo.
  */
-export function TextoDaNovidade({
+export function TextoEmMarkdown({
   markdown,
-  idDaNovidade,
+  prefixoDasAncoras,
   comLinksDasSecoes = false,
 }: {
   markdown: string;
-  idDaNovidade: string;
+  prefixoDasAncoras: string;
   comLinksDasSecoes?: boolean;
 }) {
   // Subtítulos repetidos (dois "Melhorias") ganham "-2", "-3"; só símbolos, "secao".
@@ -51,7 +53,7 @@ export function TextoDaNovidade({
     const base = ancora(texto) || "secao";
     const vezes = (usadas.get(base) ?? 0) + 1;
     usadas.set(base, vezes);
-    return `${idDaNovidade}--${vezes === 1 ? base : `${base}-${vezes}`}`;
+    return `${prefixoDasAncoras}--${vezes === 1 ? base : `${base}-${vezes}`}`;
   }
 
   function Subtitulo({ nivel, node, children }: { nivel: 2 | 3; node?: No; children?: React.ReactNode }) {
@@ -87,7 +89,7 @@ export function TextoDaNovidade({
       if (filhos.length === 1 && filhos[0].tagName === "img") return <>{children}</>;
       return <p>{children}</p>;
     },
-    img: ({ src, alt }) => (typeof src === "string" ? <MidiaDaNovidade src={src} alt={alt ?? ""} /> : null),
+    img: ({ src, alt }) => (typeof src === "string" ? <MidiaDoConteudo src={src} alt={alt ?? ""} /> : null),
     h2: ({ node, children }) => (
       <Subtitulo nivel={2} node={node as No}>
         {children}
@@ -99,7 +101,11 @@ export function TextoDaNovidade({
       </Subtitulo>
     ),
     ul: ({ children }) => <ul className="list-disc space-y-1.5 pl-5 marker:text-border">{children}</ul>,
-    ol: ({ children }) => <ol className="list-decimal space-y-1.5 pl-5">{children}</ol>,
+    ol: ({ children }) => (
+      <ol className="space-y-4 [counter-reset:passo] [&>li]:relative [&>li]:min-h-6 [&>li]:pl-9 [&>li]:[counter-increment:passo] [&>li]:before:absolute [&>li]:before:top-0.5 [&>li]:before:left-0 [&>li]:before:flex [&>li]:before:size-6 [&>li]:before:items-center [&>li]:before:justify-center [&>li]:before:rounded-full [&>li]:before:bg-primary/10 [&>li]:before:text-xs [&>li]:before:font-semibold [&>li]:before:text-primary [&>li]:before:content-[counter(passo)]">
+        {children}
+      </ol>
+    ),
     a: ({ href, children }) =>
       href && ehCaminhoInterno(href) ? (
         <Link href={href} className="font-medium text-primary hover:underline">

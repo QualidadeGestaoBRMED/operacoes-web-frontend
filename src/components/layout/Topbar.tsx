@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut, PanelLeft, Smartphone } from "lucide-react";
+import { BotaoDeAjuda } from "@/components/ajuda/BotaoDeAjuda";
 import { AvatarUsuario } from "@/components/AvatarUsuario";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,7 +66,10 @@ export function Topbar({ usuario, carregando, sidebarAberta, onToggleSidebar }: 
       {pagina && <h1 className="text-lg font-semibold">{pagina.titulo}</h1>}
 
       <div className="ml-auto flex shrink-0 items-center gap-4">
-        <NotificacoesMenu />
+        <div className="flex items-center gap-1">
+          <BotaoDeAjuda />
+          <NotificacoesMenu />
+        </div>
 
         {carregando ? (
           <div className="flex items-center gap-2" role="status" aria-label="Carregando sessão">
