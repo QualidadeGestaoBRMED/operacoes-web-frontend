@@ -14,6 +14,9 @@ vi.mock("@/hooks/useAuth", () => ({
 }));
 
 vi.mock("@/lib/plataforma");
+vi.mock("@/components/novidades/NovidadesProvider", () => ({
+  useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
+}));
 
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";

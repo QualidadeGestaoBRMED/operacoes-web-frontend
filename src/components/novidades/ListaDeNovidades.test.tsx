@@ -1,0 +1,142 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NovidadeComTexto } from "./EntradaDaNovidade";
+import { ListaDeNovidades } from "./ListaDeNovidades";
+
+const marcarComoVistas = vi.fn();
+vi.mock("@/hooks/useNavegacao", () => ({ useNavegacao: vi.fn() }));
+vi.mock("./NovidadesProvider", () => ({ useNovidades: () => ({ marcarComoVistas }) }));
+const recarregarModulos = vi.fn();
+let estadoDosModulos: { isLoading: boolean; error?: Error } = { isLoading: false };
+vi.mock("@/hooks/useModulos", () => ({
+  useModulos: () => ({ ...estadoDosModulos, recarregar: recarregarModulos }),
+}));
+
+import { useNavegacao } from "@/hooks/useNavegacao";
+
+function novidade(id: string, extra: Partial<NovidadeComTexto> = {}): NovidadeComTexto {
+  return {
+    id,
+    data: id.slice(0, 10),
+    titulo: id,
+    resumo: "",
+    modulos: [],
+    admin: false,
+    destaque: false,
+    imagem: null,
+    ajuda: null,
+    abrir: null,
+    texto: null,
+    busca: "",
+    ...extra,
+  };
+}
+
+const NOVIDADES = [
+  novidade("2026-10-26-01-celular", { titulo: "Notificações no celular", busca: "resumo das 7h" }),
+  novidade("2026-10-23-01-horas", { titulo: "Horas perdidas", modulos: ["gestao-rh"] }),
+  novidade("2026-10-22-01-mapa", { titulo: "Mapa de Conformidade", modulos: ["legalizacao"] }),
+];
+
+function titulos() {
+  return screen.queryAllByRole("heading", { level: 2 }).map((titulo) => titulo.textContent);
+}
+
+beforeEach(() => {
+  marcarComoVistas.mockReset();
+  recarregarModulos.mockReset();
+  estadoDosModulos = { isLoading: false };
+  vi.mocked(useNavegacao).mockReturnValue({
+    modulos: [
+      { codigo: "legalizacao", nome: "Legalização" },
+      { codigo: "gestao-rh", nome: "Gestão RH" },
+    ],
+    temAdministracao: false,
+  } as unknown as ReturnType<typeof useNavegacao>);
+});
+
+describe("ListaDeNovidades (STC-877)", () => {
+  it("da mais nova para a mais antiga, com o título levando à página da novidade", () => {
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    expect(titulos()).toEqual(["Notificações no celular", "Horas perdidas", "Mapa de Conformidade"]);
+    expect(screen.getByRole("link", { name: "Horas perdidas" })).toHaveAttribute(
+      "href",
+      "/novidades/2026-10-23-01-horas",
+    );
+    expect(marcarComoVistas).toHaveBeenCalled();
+  });
+
+  it("abas por módulo: as gerais só em Todas", async () => {
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Gestão RH", pressed: false }));
+
+    expect(titulos()).toEqual(["Horas perdidas"]);
+  });
+
+  it("busca no título e no texto, sem acento e sem maiúscula", async () => {
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+    const busca = screen.getByRole("searchbox", { name: "Buscar novidades" });
+
+    await userEvent.type(busca, "NOTIFICACOES");
+    expect(titulos()).toEqual(["Notificações no celular"]);
+
+    await userEvent.clear(busca);
+    await userEvent.type(busca, "resumo das 7h");
+    expect(titulos()).toEqual(["Notificações no celular"]);
+
+    await userEvent.clear(busca);
+    await userEvent.type(busca, "férias");
+    expect(screen.getByText('Nenhuma novidade encontrada para "férias".')).toBeInTheDocument();
+  });
+
+  it("etiqueta do módulo ao lado da data e botão para abrir a tela no Atlas", () => {
+    render(
+      <ListaDeNovidades
+        novidades={[novidade("2026-10-23-01-horas", { titulo: "Horas perdidas", modulos: ["gestao-rh"], abrir: "/modulos/gestao-rh" })]}
+      />,
+    );
+
+    const entrada = screen.getByRole("heading", { name: "Horas perdidas" }).closest("li")!;
+    expect(within(entrada).getByText("Gestão RH")).toBeInTheDocument();
+    expect(within(entrada).getByRole("link", { name: /Abrir no Atlas/ })).toHaveAttribute(
+      "href",
+      "/modulos/gestao-rh",
+    );
+  });
+
+  it("com os módulos carregando: nem lista nem \"nenhuma novidade\"", () => {
+    estadoDosModulos = { isLoading: true };
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    expect(titulos()).toEqual([]);
+    expect(screen.queryByText("Nenhuma novidade por enquanto.")).not.toBeInTheDocument();
+  });
+
+  it("com falha na busca dos módulos: avisa e deixa tentar de novo", async () => {
+    estadoDosModulos = { isLoading: false, error: new Error("rede") };
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    expect(screen.queryByText("Nenhuma novidade por enquanto.")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(recarregarModulos).toHaveBeenCalled();
+  });
+
+  it("um módulo só com novidade: sem abas", () => {
+    render(<ListaDeNovidades novidades={NOVIDADES.slice(0, 2)} />);
+    expect(screen.queryByRole("group", { name: "Módulo" })).not.toBeInTheDocument();
+  });
+
+  it("compartilhar no computador: copia o endereço da página da novidade", async () => {
+    const escrever = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: escrever }, configurable: true });
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    const entrada = screen.getByRole("heading", { name: "Mapa de Conformidade" }).closest("li")!;
+    await userEvent.click(within(entrada).getByRole("button", { name: /Compartilhar/ }));
+
+    expect(escrever).toHaveBeenCalledWith(`${window.location.origin}/novidades/2026-10-22-01-mapa`);
+  });
+});

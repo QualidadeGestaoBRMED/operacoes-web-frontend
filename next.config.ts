@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   // Turbopack (bug já visto várias vezes nesta sessão em outro contexto: 2
   // instâncias de `next dev` na mesma pasta).
   distDir: process.env.PLAYWRIGHT_E2E === "1" ? ".next-e2e" : ".next",
+  // STC-877: as Novidades são lidas de conteudo/ no servidor (fs), a cada
+  // requisição das páginas logadas; sem isto a pasta não vai no pacote
+  // publicado na Vercel.
+  outputFileTracingIncludes: { "/**": ["./conteudo/**/*"] },
   async headers() {
     return [
       {

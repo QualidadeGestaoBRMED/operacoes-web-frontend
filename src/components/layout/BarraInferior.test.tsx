@@ -10,6 +10,9 @@ vi.mock("next/navigation", () => ({ usePathname: vi.fn() }));
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useModulosNavegacao", () => ({ useModulosNavegacao: vi.fn() }));
+vi.mock("@/components/novidades/NovidadesProvider", () => ({
+  useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
+}));
 
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -113,6 +116,7 @@ describe("BarraInferior (STC-787)", () => {
     expect(await abrirMais()).toEqual([
       "Administração",
       "Admin Q&G",
+      "Novidades",
       "Instalar o Atlas no celular",
       "Notificações no celular",
       "Recarregar",
@@ -124,6 +128,7 @@ describe("BarraInferior (STC-787)", () => {
     comoCargo("coordenacao");
     render(<BarraInferior />);
     expect(await abrirMais()).toEqual([
+      "Novidades",
       "Instalar o Atlas no celular",
       "Notificações no celular",
       "Recarregar",
@@ -200,6 +205,7 @@ describe("BarraInferior (STC-787)", () => {
       expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH", "Arquitetura"]);
       expect(await abrirMais()).toEqual([
         "Calibração",
+        "Novidades",
         "Instalar o Atlas no celular",
         "Notificações no celular",
         "Recarregar",

@@ -12,6 +12,9 @@ vi.mock("@/hooks/useNavegacao", () => ({
   moduloAtivo: () => undefined,
 }));
 vi.mock("./NotificacoesMenu", () => ({ NotificacoesMenu: () => null }));
+vi.mock("@/components/novidades/NovidadesProvider", () => ({
+  useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
+}));
 
 const USUARIO = { nome: "Felipe", iniciais: "FC" };
 
