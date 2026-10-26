@@ -43,7 +43,8 @@ export function JanelaDeDestaque() {
 
   function fechar() {
     setFechadaAgora(destaque!.id);
-    void marcarComoVistas();
+    // Só o destaque: uma novidade comum publicada depois continua com o ponto.
+    void marcarComoVistas(destaque!.id);
   }
 
   return (

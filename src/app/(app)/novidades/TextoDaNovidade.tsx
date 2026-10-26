@@ -45,8 +45,17 @@ export function TextoDaNovidade({
   idDaNovidade: string;
   comLinksDasSecoes?: boolean;
 }) {
+  // Subtítulos repetidos (dois "Melhorias") ganham "-2", "-3"; só símbolos, "secao".
+  const usadas = new Map<string, number>();
+  function idDaSecao(texto: string): string {
+    const base = ancora(texto) || "secao";
+    const vezes = (usadas.get(base) ?? 0) + 1;
+    usadas.set(base, vezes);
+    return `${idDaNovidade}--${vezes === 1 ? base : `${base}-${vezes}`}`;
+  }
+
   function Subtitulo({ nivel, node, children }: { nivel: 2 | 3; node?: No; children?: React.ReactNode }) {
-    const id = `${idDaNovidade}--${ancora(textoDoNo(node))}`;
+    const id = idDaSecao(textoDoNo(node));
     const Tag = nivel === 2 ? "h2" : "h3";
     return (
       <Tag
