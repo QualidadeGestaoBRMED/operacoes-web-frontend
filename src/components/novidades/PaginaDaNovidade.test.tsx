@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NovidadeComTexto } from "./EntradaDaNovidade";
 import { PaginaDaNovidade } from "./PaginaDaNovidade";
@@ -6,7 +7,11 @@ import { PaginaDaNovidade } from "./PaginaDaNovidade";
 const marcarComoVistas = vi.fn();
 let visiveis: { id: string; titulo: string }[] = [];
 vi.mock("@/hooks/useNavegacao", () => ({ useNavegacao: vi.fn() }));
-vi.mock("@/hooks/useModulos", () => ({ useModulos: () => ({ isLoading: false }) }));
+const recarregarModulos = vi.fn();
+let falhaNosModulos: Error | undefined;
+vi.mock("@/hooks/useModulos", () => ({
+  useModulos: () => ({ isLoading: false, error: falhaNosModulos, recarregar: recarregarModulos }),
+}));
 vi.mock("./NovidadesProvider", () => ({ useNovidades: () => ({ visiveis, marcarComoVistas }) }));
 
 import { useNavegacao } from "@/hooks/useNavegacao";
@@ -35,6 +40,8 @@ function comModulos(codigos: string[]) {
 
 beforeEach(() => {
   marcarComoVistas.mockReset();
+  recarregarModulos.mockReset();
+  falhaNosModulos = undefined;
   visiveis = [];
 });
 
@@ -54,6 +61,16 @@ describe("PaginaDaNovidade (STC-877)", () => {
 
     expect(screen.getByText("Esta novidade não está disponível para você.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Horas perdidas" })).not.toBeInTheDocument();
+  });
+
+  it("sem a lista de módulos (falha na busca): não diz que é indisponível e deixa tentar de novo", async () => {
+    comModulos([]);
+    falhaNosModulos = new Error("rede");
+    render(<PaginaDaNovidade novidade={HORAS} />);
+
+    expect(screen.queryByText("Esta novidade não está disponível para você.")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(recarregarModulos).toHaveBeenCalled();
   });
 
   it("anterior e próxima: as vizinhas, da mais nova para a mais antiga", () => {

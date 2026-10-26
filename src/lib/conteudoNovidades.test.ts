@@ -91,6 +91,13 @@ describe("imagens e animações das Novidades", () => {
     expect(faltando).toEqual([]);
   });
 
+  it("toda imagem no texto descreve o que mostra (texto alternativo)", () => {
+    const semDescricao = lerNovidades(PASTA_DAS_NOVIDADES).flatMap((novidade) =>
+      [...novidade.corpo.matchAll(/!\[\s*\]\(([^)\s]+)/g)].map((achado) => achado[1]),
+    );
+    expect(semDescricao).toEqual([]);
+  });
+
   it("nenhum arquivo passa de 1 MB (meta: até 500 KB)", () => {
     const arquivos = fs.existsSync(PASTA_DAS_IMAGENS) ? fs.readdirSync(PASTA_DAS_IMAGENS) : [];
     const pesados = arquivos.filter(

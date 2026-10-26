@@ -8,7 +8,7 @@ const MARKDOWN = `Introdução.
 
 ## Horas por unidade
 
-![](/novidades/horas.webp)
+![Horas por unidade no gráfico](/novidades/horas.webp)
 
 Texto da seção, com [o Painel](/modulos/gestao-rh).
 
@@ -38,11 +38,12 @@ describe("TextoDaNovidade (STC-877)", () => {
     expect(screen.queryByRole("link", { name: /Link para/ })).not.toBeInTheDocument();
   });
 
-  it("imagem da seção como mídia da novidade, sem parágrafo em volta", () => {
+  it("imagem da seção como mídia da novidade, com o texto alternativo e sem parágrafo em volta", () => {
     const { container } = render(<TextoDaNovidade markdown={MARKDOWN} idDaNovidade="x" />);
 
     const figura = container.querySelector("figure");
     expect(figura?.querySelector("img")).toHaveAttribute("src", "/novidades/horas.webp");
+    expect(screen.getByRole("img", { name: "Horas por unidade no gráfico" })).toBeInTheDocument();
     expect(figura?.closest("p")).toBeNull();
   });
 
@@ -52,6 +53,12 @@ describe("TextoDaNovidade (STC-877)", () => {
     expect(screen.getByRole("link", { name: "o Painel" })).toHaveAttribute("href", "/modulos/gestao-rh");
     expect(screen.getByRole("link", { name: "o Painel" })).not.toHaveAttribute("target");
     expect(screen.getByText("Gestão RH:").tagName).toBe("STRONG");
+  });
+
+  it("endereço começando com // conta como externo", () => {
+    render(<TextoDaNovidade markdown="[fora](//exemplo.com)" idDaNovidade="x" />);
+
+    expect(screen.getByRole("link", { name: "fora" })).toHaveAttribute("target", "_blank");
   });
 
   it("âncora sem acento e com hífens", () => {

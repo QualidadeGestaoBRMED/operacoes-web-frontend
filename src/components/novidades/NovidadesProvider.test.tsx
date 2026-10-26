@@ -70,11 +70,12 @@ describe("useNovidades (STC-877)", () => {
     expect(resultado.current.destaque).toBeNull();
   });
 
-  it("com os módulos ainda carregando: sem ponto, sem destaque e sem marcar", async () => {
+  it.each([
+    ["ainda carregando", { isLoading: true }],
+    ["com falha na busca", { isLoading: false, error: new Error("rede") }],
+  ])("com os módulos %s: sem ponto, sem destaque e sem marcar", async (_, estado) => {
     usuario("");
-    vi.mocked(useModulos).mockReturnValue({
-      isLoading: true,
-    } as unknown as ReturnType<typeof useModulos>);
+    vi.mocked(useModulos).mockReturnValue(estado as unknown as ReturnType<typeof useModulos>);
     const resultado = montar();
 
     expect(resultado.current.temNovidade).toBe(false);

@@ -64,7 +64,7 @@ describe("ListaDeNovidades (STC-877)", () => {
   it("abas por módulo: as gerais só em Todas", async () => {
     render(<ListaDeNovidades novidades={NOVIDADES} />);
 
-    await userEvent.click(screen.getByRole("tab", { name: "Gestão RH" }));
+    await userEvent.click(screen.getByRole("button", { name: "Gestão RH", pressed: false }));
 
     expect(titulos()).toEqual(["Horas perdidas"]);
   });
@@ -102,7 +102,7 @@ describe("ListaDeNovidades (STC-877)", () => {
 
   it("um módulo só com novidade: sem abas", () => {
     render(<ListaDeNovidades novidades={NOVIDADES.slice(0, 2)} />);
-    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Módulo" })).not.toBeInTheDocument();
   });
 
   it("compartilhar no computador: copia o endereço da página da novidade", async () => {
