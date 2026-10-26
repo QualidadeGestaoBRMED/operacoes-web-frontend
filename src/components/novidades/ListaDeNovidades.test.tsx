@@ -7,6 +7,11 @@ import { ListaDeNovidades } from "./ListaDeNovidades";
 const marcarComoVistas = vi.fn();
 vi.mock("@/hooks/useNavegacao", () => ({ useNavegacao: vi.fn() }));
 vi.mock("./NovidadesProvider", () => ({ useNovidades: () => ({ marcarComoVistas }) }));
+const recarregarModulos = vi.fn();
+let estadoDosModulos: { isLoading: boolean; error?: Error } = { isLoading: false };
+vi.mock("@/hooks/useModulos", () => ({
+  useModulos: () => ({ ...estadoDosModulos, recarregar: recarregarModulos }),
+}));
 
 import { useNavegacao } from "@/hooks/useNavegacao";
 
@@ -40,6 +45,8 @@ function titulos() {
 
 beforeEach(() => {
   marcarComoVistas.mockReset();
+  recarregarModulos.mockReset();
+  estadoDosModulos = { isLoading: false };
   vi.mocked(useNavegacao).mockReturnValue({
     modulos: [
       { codigo: "legalizacao", nome: "Legalização" },
@@ -98,6 +105,23 @@ describe("ListaDeNovidades (STC-877)", () => {
       "href",
       "/modulos/gestao-rh",
     );
+  });
+
+  it("com os módulos carregando: nem lista nem \"nenhuma novidade\"", () => {
+    estadoDosModulos = { isLoading: true };
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    expect(titulos()).toEqual([]);
+    expect(screen.queryByText("Nenhuma novidade por enquanto.")).not.toBeInTheDocument();
+  });
+
+  it("com falha na busca dos módulos: avisa e deixa tentar de novo", async () => {
+    estadoDosModulos = { isLoading: false, error: new Error("rede") };
+    render(<ListaDeNovidades novidades={NOVIDADES} />);
+
+    expect(screen.queryByText("Nenhuma novidade por enquanto.")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(recarregarModulos).toHaveBeenCalled();
   });
 
   it("um módulo só com novidade: sem abas", () => {
