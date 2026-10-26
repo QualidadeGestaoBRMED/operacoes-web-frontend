@@ -117,6 +117,7 @@ describe("BarraInferior (STC-787)", () => {
       "Administração",
       "Admin Q&G",
       "Novidades",
+      "Ajuda",
       "Instalar o Atlas no celular",
       "Notificações no celular",
       "Recarregar",
@@ -129,6 +130,7 @@ describe("BarraInferior (STC-787)", () => {
     render(<BarraInferior />);
     expect(await abrirMais()).toEqual([
       "Novidades",
+      "Ajuda",
       "Instalar o Atlas no celular",
       "Notificações no celular",
       "Recarregar",
@@ -206,6 +208,7 @@ describe("BarraInferior (STC-787)", () => {
       expect(await abrirMais()).toEqual([
         "Calibração",
         "Novidades",
+        "Ajuda",
         "Instalar o Atlas no celular",
         "Notificações no celular",
         "Recarregar",
