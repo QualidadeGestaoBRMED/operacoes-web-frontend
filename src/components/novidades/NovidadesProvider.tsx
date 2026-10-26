@@ -51,20 +51,25 @@ export function useNovidades() {
   const maisNova = visiveis[0];
   const enviando = useRef<string | null>(null);
 
-  /** Marca a mais nova visível como vista. No "ver como" (só leitura), não. */
-  const marcarComoVistas = useCallback(async () => {
-    if (!conhecida || !maisNova || sessaoVerComo()) return;
-    if (!maisNovaQue(maisNova.id, ultimaVista) || enviando.current === maisNova.id) return;
-    enviando.current = maisNova.id;
+  /**
+   * Marca como vista a mais nova visível, ou `id` (a página de uma novidade
+   * marca só ela: se houver outras mais novas, o ponto continua). Só avança.
+   * No "ver como" (só leitura), não marca.
+   */
+  const marcarComoVistas = useCallback(async (id?: string) => {
+    const alvo = id ? visiveis.find((novidade) => novidade.id === id) : maisNova;
+    if (!conhecida || !alvo || sessaoVerComo()) return;
+    if (!maisNovaQue(alvo.id, ultimaVista) || enviando.current === alvo.id) return;
+    enviando.current = alvo.id;
     try {
-      await marcarNovidadesComoVistas(maisNova.id);
+      await marcarNovidadesComoVistas(alvo.id);
       recarregarUsuario();
     } catch {
       // Fica para a próxima abertura.
     } finally {
       enviando.current = null;
     }
-  }, [conhecida, maisNova, ultimaVista, recarregarUsuario]);
+  }, [conhecida, visiveis, maisNova, ultimaVista, recarregarUsuario]);
 
   return {
     visiveis,

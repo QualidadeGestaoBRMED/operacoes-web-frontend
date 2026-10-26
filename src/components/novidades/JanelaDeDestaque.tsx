@@ -21,8 +21,9 @@ const ATRIBUTO_PROPRIO = "data-novidade-destaque";
 
 /**
  * Grande lançamento (destaque) ainda não visto: abre sozinho, uma vez
- * (STC-877). "Ver novidade" leva à página, que marca como vista; "Agora não"
- * marca na hora. Não abre na própria página de Novidades nem no "ver como".
+ * (STC-877). "Ver novidade" leva à página dela, que a marca como vista;
+ * "Agora não" marca na hora. Não abre nas páginas de Novidades nem no "ver
+ * como".
  */
 export function JanelaDeDestaque() {
   const pathname = usePathname();
@@ -70,7 +71,7 @@ export function JanelaDeDestaque() {
             type="button"
             onClick={() => {
               setFechadaAgora(destaque.id);
-              router.push(`/novidades#${destaque.id}`);
+              router.push(`/novidades/${destaque.id}`);
             }}
           >
             Ver novidade
