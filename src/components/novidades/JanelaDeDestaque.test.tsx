@@ -21,6 +21,7 @@ const DESTAQUE = {
   destaque: true,
   imagem: null,
   ajuda: null,
+  abrir: null,
 };
 
 function comDestaque(destaque: typeof DESTAQUE | null) {

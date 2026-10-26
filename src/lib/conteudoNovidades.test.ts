@@ -28,6 +28,7 @@ describe("lerNovidade (STC-877)", () => {
       destaque: true,
       imagem: null,
       ajuda: "notificacoes-no-celular",
+      abrir: null,
       corpo: "Texto **em Markdown**.",
     });
   });
@@ -38,6 +39,17 @@ describe("lerNovidade (STC-877)", () => {
     ["2026-10-26-01-celular.md", "---\ntitulo: T\nresumo: R\nmodulos: gestao-rh\n---\n", /lista/],
   ])("recusa %s com o motivo", (arquivo, conteudo, motivo) => {
     expect(lerNovidade(arquivo, conteudo)).toMatch(motivo);
+  });
+});
+
+describe("abrir no Atlas", () => {
+  it.each([
+    ["/modulos/gestao-rh", "/modulos/gestao-rh"],
+    ["https://exemplo.com", null],
+    ["//exemplo.com", null],
+  ])("%s → %s: só caminhos do próprio Atlas", (abrir, esperado) => {
+    const lida = lerNovidade("2026-10-26-01-x.md", `---\ntitulo: T\nresumo: R\nabrir: "${abrir}"\n---\n`);
+    expect(typeof lida === "string" ? lida : lida.abrir).toBe(esperado);
   });
 });
 

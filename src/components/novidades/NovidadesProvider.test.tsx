@@ -26,6 +26,7 @@ function novidade(id: string, extra: Partial<NovidadeResumida> = {}): NovidadeRe
     destaque: false,
     imagem: null,
     ajuda: null,
+    abrir: null,
     ...extra,
   };
 }

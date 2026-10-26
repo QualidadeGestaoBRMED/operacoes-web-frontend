@@ -21,6 +21,7 @@ function novidade(id: string, extra: Partial<NovidadeComTexto> = {}): NovidadeCo
     destaque: false,
     imagem: null,
     ajuda: null,
+    abrir: null,
     texto: null,
     busca: "",
     ...extra,
@@ -84,18 +85,33 @@ describe("ListaDeNovidades (STC-877)", () => {
     expect(screen.getByText('Nenhuma novidade encontrada para "férias".')).toBeInTheDocument();
   });
 
+  it("etiqueta do módulo ao lado da data e botão para abrir a tela no Atlas", () => {
+    render(
+      <ListaDeNovidades
+        novidades={[novidade("2026-10-23-01-horas", { titulo: "Horas perdidas", modulos: ["gestao-rh"], abrir: "/modulos/gestao-rh" })]}
+      />,
+    );
+
+    const entrada = screen.getByRole("heading", { name: "Horas perdidas" }).closest("li")!;
+    expect(within(entrada).getByText("Gestão RH")).toBeInTheDocument();
+    expect(within(entrada).getByRole("link", { name: /Abrir no Atlas/ })).toHaveAttribute(
+      "href",
+      "/modulos/gestao-rh",
+    );
+  });
+
   it("um módulo só com novidade: sem abas", () => {
     render(<ListaDeNovidades novidades={NOVIDADES.slice(0, 2)} />);
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("copiar link: o endereço da página da novidade", async () => {
+  it("compartilhar no computador: copia o endereço da página da novidade", async () => {
     const escrever = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText: escrever }, configurable: true });
     render(<ListaDeNovidades novidades={NOVIDADES} />);
 
     const entrada = screen.getByRole("heading", { name: "Mapa de Conformidade" }).closest("li")!;
-    await userEvent.click(within(entrada).getByRole("button", { name: /Copiar link/ }));
+    await userEvent.click(within(entrada).getByRole("button", { name: /Compartilhar/ }));
 
     expect(escrever).toHaveBeenCalledWith(`${window.location.origin}/novidades/2026-10-22-01-mapa`);
   });
