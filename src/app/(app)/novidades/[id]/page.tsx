@@ -24,7 +24,9 @@ export default async function NovidadePage({ params }: { params: Promise<{ id: s
     <PaginaDaNovidade
       novidade={{
         ...resumida,
-        texto: corpo ? <TextoDaNovidade markdown={corpo} idDaNovidade={resumida.id} /> : null,
+        texto: corpo ? (
+          <TextoDaNovidade markdown={corpo} idDaNovidade={resumida.id} comLinksDasSecoes />
+        ) : null,
         busca: corpo,
       }}
     />

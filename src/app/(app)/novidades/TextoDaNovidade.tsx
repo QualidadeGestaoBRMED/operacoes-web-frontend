@@ -29,12 +29,21 @@ export function ancora(texto: string): string {
 /**
  * Texto de uma novidade, montado no servidor (o leitor de Markdown não vai
  * para o navegador; sem HTML no conteúdo, o padrão do react-markdown).
- * Como no changelog do Linear: seções com subtítulo (## e ###), cada uma
- * com link próprio (ícone ao passar o mouse) e, se quiser, sua imagem ou
- * animação (`![](/novidades/arquivo.webp)`). Links internos ("/modulos/...")
+ * Como no changelog do Linear: seções com subtítulo (## e ###) e, se
+ * quiser, sua imagem ou animação (`![](/novidades/arquivo.webp)`). Na página
+ * da novidade (`comLinksDasSecoes`), cada subtítulo ganha um link próprio
+ * (ícone ao passar o mouse); na lista, não: lá se entra primeiro na novidade. Links internos ("/modulos/...")
  * navegam dentro do Atlas.
  */
-export function TextoDaNovidade({ markdown, idDaNovidade }: { markdown: string; idDaNovidade: string }) {
+export function TextoDaNovidade({
+  markdown,
+  idDaNovidade,
+  comLinksDasSecoes = false,
+}: {
+  markdown: string;
+  idDaNovidade: string;
+  comLinksDasSecoes?: boolean;
+}) {
   function Subtitulo({ nivel, node, children }: { nivel: 2 | 3; node?: No; children?: React.ReactNode }) {
     const id = `${idDaNovidade}--${ancora(textoDoNo(node))}`;
     const Tag = nivel === 2 ? "h2" : "h3";
@@ -48,13 +57,15 @@ export function TextoDaNovidade({ markdown, idDaNovidade }: { markdown: string; 
         }
       >
         {children}
-        <a
-          href={`/novidades/${idDaNovidade}#${id}`}
-          aria-label={`Link para "${textoDoNo(node)}"`}
-          className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-        >
-          <Link2 className="size-4" aria-hidden />
-        </a>
+        {comLinksDasSecoes && (
+          <a
+            href={`#${id}`}
+            aria-label={`Link para "${textoDoNo(node)}"`}
+            className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Link2 className="size-4" aria-hidden />
+          </a>
+        )}
       </Tag>
     );
   }
