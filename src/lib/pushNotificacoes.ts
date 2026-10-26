@@ -151,19 +151,19 @@ const LIMITE_NO_LOGOUT_MS = 3000;
 
 /**
  * Ao sair do Atlas: num celular compartilhado, quem entra depois não pode
- * receber os avisos de quem saiu. Nunca impede o logout: sem rede, ou se
- * demorar, segue em frente (o navegador ainda tenta cancelar a inscrição).
+ * receber os avisos de quem saiu. Desfaz primeiro no navegador, que não
+ * depende do backend: mesmo se o aviso ao backend não chegar, o próximo
+ * envio para essa inscrição volta 410 e o backend a apaga (STC-847). Nunca
+ * impede o logout: sem rede, ou se demorar, segue em frente.
  */
 export async function cancelarPushAoSair(): Promise<void> {
   if (!navegadorSuportaPush()) return;
   const cancelar = (async () => {
     const inscricao = await inscricaoAtual();
     if (!inscricao) return;
-    try {
-      await api.post("/plataforma/push/inscricoes/cancelar/", { endpoint: inscricao.endpoint });
-    } finally {
-      await inscricao.unsubscribe();
-    }
+    const { endpoint } = inscricao;
+    await inscricao.unsubscribe().catch(() => undefined);
+    await api.post("/plataforma/push/inscricoes/cancelar/", { endpoint });
   })().catch(() => undefined);
   await Promise.race([
     cancelar,

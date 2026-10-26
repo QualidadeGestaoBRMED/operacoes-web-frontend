@@ -37,6 +37,9 @@ const MENSAGEM: Partial<Record<EstadoPush, string>> = {
   ativado: "Ativadas neste aparelho.",
 };
 
+/** Sem resposta do Atlas ao verificar o aparelho (sem rede, por exemplo). */
+type EstadoDaJanela = EstadoPush | "erro";
+
 /**
  * Só monta com a janela aberta: o estado é lido do aparelho a cada abertura
  * (a pessoa pode ter liberado a permissão nas configurações nesse meio-tempo).
@@ -45,18 +48,19 @@ function Conteudo({ onInstalar }: { onInstalar: () => void }) {
   const appInstalado = useAppInstalado();
   // "Ver como" é só leitura: o aparelho é do Admin, não da pessoa vista.
   const [emVerComo] = useState(() => sessaoVerComo() !== null);
-  const [estado, setEstado] = useState<EstadoPush | null>(null);
+  const [estado, setEstado] = useState<EstadoDaJanela | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
     let ativo = true;
     estadoDoPush(appInstalado)
       .then((lido) => ativo && setEstado(lido))
-      .catch(() => ativo && setEstado("nao-suportado"));
+      .catch(() => ativo && setEstado("erro"));
     return () => {
       ativo = false;
     };
-  }, [appInstalado]);
+  }, [appInstalado, tentativa]);
 
   async function alternar() {
     setEnviando(true);
@@ -93,10 +97,22 @@ function Conteudo({ onInstalar }: { onInstalar: () => void }) {
       </div>
 
       <div className="space-y-3 border-t pt-3" aria-live="polite">
-        {estado === null ? (
-          <p className="text-muted-foreground">Verificando este aparelho...</p>
-        ) : (
-          MENSAGEM[estado] && <p>{MENSAGEM[estado]}</p>
+        {estado === null && <p className="text-muted-foreground">Verificando este aparelho...</p>}
+        {estado !== null && estado !== "erro" && MENSAGEM[estado] && <p>{MENSAGEM[estado]}</p>}
+        {estado === "erro" && (
+          <>
+            <p>Não foi possível verificar as notificações agora. Confira a conexão.</p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEstado(null);
+                setTentativa((anterior) => anterior + 1);
+              }}
+            >
+              Tentar de novo
+            </Button>
+          </>
         )}
         {estado === "precisa-instalar" && (
           <Button type="button" variant="outline" onClick={onInstalar}>
