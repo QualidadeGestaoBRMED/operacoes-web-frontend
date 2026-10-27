@@ -19,6 +19,7 @@ import {
   SquarePlus,
   TriangleAlert,
   UserMinus,
+  UserSearch,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +37,7 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   automatico: Bot,
   celular: Smartphone,
   desligado: UserMinus,
+  colaborador: UserSearch,
   documento: FileSearch,
   "detalhe-demanda": FileSearch,
   "novo-documento": FileUp,

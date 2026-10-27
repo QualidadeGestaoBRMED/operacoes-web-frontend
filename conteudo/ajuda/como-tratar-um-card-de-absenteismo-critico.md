@@ -3,7 +3,7 @@ titulo: Como tratar um card de absenteísmo crítico
 resumo: Quando um colaborador entra na faixa crítica, o Atlas abre uma demanda para a coordenação. Veja como registrar o tratamento e concluir.
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
-ordem: 2
+ordem: 3
 icone: alerta
 ---
 ## Quando o card aparece
