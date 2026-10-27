@@ -1,6 +1,11 @@
 import {
+  BellRing,
   ChartColumn,
+  FileSearch,
   LayoutGrid,
+  Library,
+  ListFilter,
+  RefreshCw,
   Smartphone,
   SquarePlus,
   TriangleAlert,
@@ -16,9 +21,14 @@ import {
  */
 export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   alerta: TriangleAlert,
+  aviso: BellRing,
+  biblioteca: Library,
   celular: Smartphone,
   desligado: UserMinus,
+  documento: FileSearch,
   grade: LayoutGrid,
   grafico: ChartColumn,
+  lista: ListFilter,
   "nova-demanda": SquarePlus,
+  renovacao: RefreshCw,
 };
