@@ -33,6 +33,7 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   celular: Smartphone,
   desligado: UserMinus,
   documento: FileSearch,
+  "detalhe-demanda": FileSearch,
   "novo-documento": FileUp,
   "novo-tipo": FilePlus2,
   grade: LayoutGrid,
