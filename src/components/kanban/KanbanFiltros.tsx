@@ -20,7 +20,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL, tipoGestaoAtivo as tipoGestaoAtivoDe } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
 import { MENSAGEM_SOMENTE_LEITURA, useVerComo } from "@/lib/verComo";
 
@@ -66,7 +66,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // coincidência (hoje todo TipoGestao desse módulo compartilha o mesmo
   // modulo) -- deriva do tipo_gestao realmente ativo, com o primeiro item
   // como fallback só pro instante antes da aba padrão ser aplicada na URL.
-  const tipoGestaoAtivo = tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao);
+  const tipoGestaoAtivo = tipoGestaoAtivoDe(tiposGestao, filtros.tipo_gestao);
   const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
   // STC-510 (achado testando ao vivo): o filtro de Unidade tem que
   // acompanhar a rede da aba de Tipo Gestão ativa -- sem isso, a aba
