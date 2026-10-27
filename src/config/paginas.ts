@@ -11,4 +11,5 @@ export const PAGINAS: PaginaConfig[] = [
   { prefixo: "/modulos/legalizacao", titulo: "Legalização" },
   { prefixo: "/modulos/gestao-rh", titulo: "Gestão RH" },
   { prefixo: "/novidades", titulo: "Novidades" },
+  { prefixo: "/ajuda", titulo: "Ajuda" },
 ];

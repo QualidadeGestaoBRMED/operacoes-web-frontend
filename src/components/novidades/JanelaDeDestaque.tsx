@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useOutroDialogoAberto } from "@/hooks/useOutroDialogoAberto";
 import { sessaoVerComo } from "@/lib/verComo";
-import { MidiaDaNovidade } from "./EntradaDaNovidade";
+import { MidiaDoConteudo } from "@/components/conteudo/MidiaDoConteudo";
 import { useNovidades } from "./NovidadesProvider";
 
 // Marca o próprio DialogContent: a janela espera outro diálogo aberto (ex.: o
@@ -61,7 +61,7 @@ export function JanelaDeDestaque() {
           <DialogTitle>{destaque.titulo}</DialogTitle>
           <DialogDescription>{destaque.resumo}</DialogDescription>
         </DialogHeader>
-        {destaque.imagem && <MidiaDaNovidade src={destaque.imagem} alt={destaque.titulo} alturaMaxima="max-h-[22rem]" />}
+        {destaque.imagem && <MidiaDoConteudo src={destaque.imagem} alt={destaque.titulo} alturaMaxima="max-h-[22rem]" />}
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={fechar}>
             Agora não

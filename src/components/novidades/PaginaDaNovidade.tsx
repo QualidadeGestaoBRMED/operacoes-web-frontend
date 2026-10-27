@@ -4,11 +4,11 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { visiveisPara } from "@/lib/novidades";
+import { FalhaNosModulos } from "@/components/conteudo/FalhaNosModulos";
 import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
 import {
   EntradaDaNovidade,
-  FalhaNosModulos,
   LinhaDoTempo,
   type NovidadeComTexto,
 } from "./EntradaDaNovidade";

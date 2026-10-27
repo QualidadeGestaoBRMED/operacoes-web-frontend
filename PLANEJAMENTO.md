@@ -1180,7 +1180,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.35 STC-851 — Service worker e ativação das notificações no celular (STC-843)
 
-🔄 **Em andamento.** Frontend do push. O backend inscreve os navegadores e envia os avisos que pedem ação (STC-847), fora do horário silencioso das 20h às 7h, com resumo às 7h (STC-874).
+✅ **Implementado e mergeado em `main` (PR #142).** Frontend do push. O backend inscreve os navegadores e envia os avisos que pedem ação (STC-847), fora do horário silencioso das 20h às 7h, com resumo às 7h (STC-874).
 
 - **Service worker** (`public/sw.js`, escopo `/`): só push. Mostra a notificação (título, texto, ícone do Atlas) e, ao tocar, foca uma janela do Atlas aberta e a leva ao link, ou abre uma nova. Só aceita caminhos do próprio Atlas: um link de outro endereço vira a página inicial. A notificação usa o link como `tag`: a nova da mesma demanda substitui a anterior (com `renotify`, ainda avisa). Não tem handler de `fetch`, então não guarda páginas nem dados em cache. A CSP já permite o service worker do próprio Atlas (`script-src 'self'`, sem `strict-dynamic`).
 - **`src/lib/pushNotificacoes.ts`:** `estadoDoPush` (iPhone fora do app instalado, sem suporte, bloqueado, servidor sem chave, ativado ou desativado), `ativarPush` (permissão num clique, registro do service worker, inscrição com a chave pública de `GET /plataforma/push/chave-publica/` e envio a `POST /plataforma/push/inscricoes/`), `desativarPush` e `cancelarPushAoSair`.
@@ -1196,7 +1196,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.36 STC-877 — Página Novidades, ponto no menu e janela dos destaques (STC-875)
 
-🔄 **Em andamento.** O que mudou no Atlas, por data, para quem usa. O "como usar" fica nos artigos da Ajuda (STC-878); a novidade aponta para eles em "Ver como usar".
+✅ **Implementado e mergeado em `main` (PR #143).** O que mudou no Atlas, por data, para quem usa. O "como usar" fica nos artigos da Ajuda (STC-878); a novidade aponta para eles em "Ver como usar".
 
 - **Conteúdo em `conteudo/novidades/`**, um arquivo Markdown por entrada (formato em `conteudo/novidades/LEIAME.md`). O nome do arquivo é o identificador "AAAA-MM-DD-NN-assunto" (STC-876), que dá a ordem. Cabeçalho: `titulo` e `resumo` (obrigatórios), `modulos` (vazio: todos), `admin`, `destaque`, `imagem` (em `public/novidades/`) e `ajuda`.
 - **Leitura no servidor** (`src/lib/conteudoNovidades.ts`, com `gray-matter`): o layout das páginas logadas lê as entradas e passa ao navegador só o cabeçalho (`NovidadesProvider`); a página `/novidades` monta o texto com o `react-markdown` no servidor (sem HTML do conteúdo). As duas bibliotecas não vão para o navegador. Arquivo inválido fica de fora e vai para o log, sem derrubar o Atlas; um teste confere todos os arquivos da pasta. Em produção, lidas uma vez por processo. O `next.config` leva a pasta no pacote publicado (`outputFileTracingIncludes`).
@@ -1206,7 +1206,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Página no formato do changelog do Linear** (pedido do Felipe, comparando com linear.app/changelog): linha do tempo, com a data e o ponto (âmbar nos destaques) numa coluna à esquerda e o conteúdo numa coluna larga (no celular, a data em cima do título), sem caixas; título grande, resumo em 16 px e texto em 15 px. Abas por módulo (só os da pessoa com novidade, quando mais de um) e busca no título, no resumo e no texto, sem acento e sem diferença de maiúscula.
 - **Página própria de cada novidade** (`/novidades/<identificador>`, `PaginaDaNovidade`), como no Linear: o título na lista leva a ela e o "Ver novidade" da janela de destaque abre nela. Abrir marca só aquela como vista (se houver mais novas, o ponto continua). De um módulo que a pessoa não acessa, avisa que não está disponível.
 - **Página de cada novidade no formato do Linear** (linear.app/changelog/<entrada>):
-  - vários recursos numa novidade: seções `##`/`###`, com link próprio para cada uma só na página da novidade (ícone ao passar o mouse, `#<id>--<seção>`; na lista, não, porque lá se entra primeiro na novidade) e, se quiser, sua imagem ou animação no texto (`![](...)`, exibida como a mídia da entrada, sem o parágrafo em volta) (`TextoDaNovidade`);
+  - vários recursos numa novidade: seções `##`/`###`, com link próprio para cada uma só na página da novidade (ícone ao passar o mouse, `#<id>--<seção>`; na lista, não, porque lá se entra primeiro na novidade) e, se quiser, sua imagem ou animação no texto (`![](...)`, exibida como a mídia da entrada, sem o parágrafo em volta) (`TextoEmMarkdown`, em `src/components/conteudo/`, usado também pela Ajuda, 7.37);
   - links no texto para telas do Atlas navegam dentro dele; botão "Abrir no Atlas" com o campo `abrir` do cabeçalho (só caminhos do próprio Atlas);
   - "Compartilhar" ao lado da data: no celular, a folha de compartilhamento do sistema; no computador, copia o link;
   - etiquetas do módulo (e "Administração") ao lado da data;
@@ -1215,3 +1215,20 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
   - título da aba: "<título> · Novidades · Atlas" (e "Novidades · Atlas" na lista).
 - **Imagens e animações** em `public/novidades/`: print, ou o recurso em uso numa animação curta (WebP animado, de preferência), gravada fora do Atlas com dados fictícios. Meta de até 500 KB; o teste do conteúdo falha acima de 1 MB.
 - **Diálogos que abrem sozinhos não se sobrepõem:** a detecção de "outro diálogo aberto" do alerta persistente da Legalização virou o hook `useOutroDialogoAberto`, usado também pela janela de destaque: uma espera a outra fechar.
+
+### 7.37 STC-878 — Ajuda: artigos por módulo e botão (?) nas telas (STC-875)
+
+🔄 **Em andamento.** O "como usar" do Atlas, um artigo por tarefa, no formato do linear.app/docs. As Novidades (7.36) apontam para cá em "Ver como usar".
+
+- **Conteúdo em `conteudo/ajuda/`**, um arquivo Markdown por artigo (formato em `conteudo/ajuda/LEIAME.md`). O nome do arquivo é o endereço (`/ajuda/<assunto>`). Cabeçalho: `titulo` e `resumo` (obrigatórios), `modulo` (ausente: geral), `admin`, `telas` (onde o botão (?) abre o artigo), `ordem` e `popular`. Imagens em `public/ajuda/`, com as regras das Novidades; uma animação das Novidades pode ser citada sem copiar o arquivo.
+- **Leitura no servidor** (`src/lib/conteudoAjuda.ts`), com o que é comum às Novidades em `src/lib/arquivosDeConteudo.ts` (ler a pasta, ignorar o LEIAME e os inválidos com log, caminhos só do Atlas). O layout passa ao navegador só o cabeçalho dos artigos (`AjudaProvider`).
+- **Regras** (`src/lib/ajuda.ts`): cada pessoa vê os gerais, os dos módulos que acessa e, os de Administração, só quem administra (a regra das Novidades). Grupos: "Primeiros passos", um por módulo na ordem do menu e "Administração". Na tela aberta vale o artigo da tela mais específica (`/modulos/legalizacao/mapa` ganha de `/modulos/legalizacao`).
+- **Página `/ajuda`** (`ListaDaAjuda`), como a home do Linear Docs: título "Ajuda do Atlas", busca (sem acento, no título, no resumo e no texto), "Mais usados" (artigos com `popular: true`; some na busca e quando teria todos os artigos, para não repetir a página) e os artigos por grupo, em cards com o ícone do módulo em cima, 4 por linha no computador. Sem o menu de categorias do Linear: o Atlas já tem a barra lateral.
+- **Página do artigo** (`/ajuda/<assunto>`, `PaginaDoArtigo`): trilha "Ajuda › módulo", título, resumo, "Compartilhar", seções com link próprio, "Abrir no Atlas" (a primeira tela do artigo) e "Anterior"/"Próximo" do mesmo grupo. De um módulo que a pessoa não acessa, avisa que não está disponível.
+- **Passos numerados:** lista numerada no Markdown vira passos com o número em destaque, nas Novidades e na Ajuda. Diferença do Linear (texto corrido), pensando em quem não é da área técnica.
+- **Botão (?) na Topbar** (`BotaoDeAjuda`), ao lado do sino, em todas as telas: com artigo, abre o artigo inteiro num painel lateral (`PainelDeAjuda`; no celular, sobe de baixo), com "Abrir em página própria" e "Ver tudo na Ajuda"; com mais de um, primeiro a lista. Tela sem artigo: leva à Ajuda, no grupo do módulo (`#grupo-<módulo>`) quando ele tem artigo. Trocar de tela fecha o painel.
+- **Texto do painel montado no servidor:** a função de servidor `textoDoArtigo` devolve o artigo já montado, só quando aberto (uma vez por artigo), sem levar o leitor de Markdown para o navegador. Falha ao carregar: aviso e "Tentar de novo".
+- **Item "Ajuda"** na base da barra lateral, abaixo de "Novidades", e no "Mais" do celular. Título "Ajuda" na Topbar.
+- **Peças compartilhadas com as Novidades** (`src/components/conteudo/`): `TextoEmMarkdown`, `MidiaDoConteudo` e `FalhaNosModulos`; `compartilhar` em `src/lib/compartilhar.ts`. Painel lateral novo em `src/components/ui/sheet.tsx`.
+- **Primeiros artigos:** "Como abrir uma demanda" (com print do formulário, dados fictícios) e "Como ler o Mapa de Conformidade" (com a animação da novidade do Mapa). Os demais, na STC-879.
+- **Testes:** grupos, filtro por módulo e Admin, artigo da tela mais específica, botão (?) abrindo o artigo e caindo na Ajuda sem artigo, painel com lista, falha e carga única, página do artigo, leitura do conteúdo, imagens citadas com texto alternativo, tamanho e todo "Ver como usar" das Novidades levando a um artigo que existe.

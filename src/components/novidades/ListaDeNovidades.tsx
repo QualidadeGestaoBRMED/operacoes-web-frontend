@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { visiveisPara } from "@/lib/novidades";
+import { FalhaNosModulos } from "@/components/conteudo/FalhaNosModulos";
 import { useModulos } from "@/hooks/useModulos";
 import { useNavegacao } from "@/hooks/useNavegacao";
 import { cn } from "@/lib/utils";
 import {
   EntradaDaNovidade,
-  FalhaNosModulos,
   LinhaDoTempo,
   type NovidadeComTexto,
 } from "./EntradaDaNovidade";
