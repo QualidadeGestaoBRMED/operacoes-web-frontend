@@ -326,7 +326,9 @@ export function FormNovaPermissao({
           ?.id ??
         null;
 
-      await criar({
+      const tiposEnviados =
+        valores.recurso === RECURSO_KANBAN ? (valores.tipos_gestao ?? []) : [];
+      const criada = await criar({
         usuario: valores.usuario,
         modulo: moduloId,
         recurso: valores.recurso,
@@ -338,10 +340,20 @@ export function FormNovaPermissao({
           administraAsDuasRedes && {
             rede: valores.rede === "padrao" || valores.rede === "opex" ? valores.rede : null,
           }),
-        ...(valores.recurso === RECURSO_KANBAN && { tipos_gestao: valores.tipos_gestao ?? [] }),
+        ...(valores.recurso === RECURSO_KANBAN && { tipos_gestao: tiposEnviados }),
         data_inicio: valores.data_inicio,
         data_fim: valores.data_fim || null,
       });
+      // Servidor sem os tipos de gestão (STC-886) ignora o campo e grava a
+      // permissão para todos os tipos: avisa em vez de dar como concedida.
+      if (tiposEnviados.length > 0 && !criada?.tipos_gestao?.length) {
+        toast.error(
+          "A permissão foi criada sem os tipos de gestão: o servidor ainda não tem essa versão. " +
+            "Revogue-a e tente de novo depois da atualização.",
+        );
+        onOpenChange(false);
+        return;
+      }
       toast.success(valoresIniciais ? "Permissão renovada." : "Permissão concedida.");
       onOpenChange(false);
     } catch (erro) {
