@@ -34,6 +34,7 @@ import {
   mensagemBloqueioConhecido,
   passaNoFoco,
   secaoDoBloqueio,
+  tipoGestaoAtivo,
 } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
 import type { Demanda, DemandaFiltros, StatusDemanda } from "@/types";
@@ -556,7 +557,7 @@ export function KanbanBoard() {
       <FormNovaDemanda
         open={formNovaDemandaAberto}
         onOpenChange={setFormNovaDemandaAberto}
-        tipoGestaoInicial={filtros.tipo_gestao}
+        tipoGestaoInicial={tipoGestaoAtivo(tiposGestao, filtros.tipo_gestao)?.id}
       />
     </div>
   );

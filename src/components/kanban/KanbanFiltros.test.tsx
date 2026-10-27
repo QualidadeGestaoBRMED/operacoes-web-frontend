@@ -192,6 +192,92 @@ describe("KanbanFiltros -- filtro Área Responsável", () => {
   });
 });
 
+describe("KanbanFiltros -- um tipo de gestão só, sem abas (STC-884)", () => {
+  const TIPO_GESTAO_OPEX: TipoGestao = {
+    ...TIPO_GESTAO_OPERACIONAL,
+    id: 3,
+    nome: "OPEX",
+    codigo: "opex",
+    visibilidade_padrao: "opex",
+  };
+
+  it("Admin Operações Especiais: o filtro de Unidade traz as unidades de OPEX", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+    vi.mocked(listarUnidades).mockImplementation(async (rede) =>
+      rede === "opex"
+        ? [{ id: 30, nome: "Aeroclínica Macaé", codigo: "AEM", cidade: "Macaé", ativa: true, rede: "opex" }]
+        : [{ id: 10, nome: "Cabo Frio", codigo: "CBF", cidade: "Cabo Frio", ativa: true, rede: "padrao" }],
+    );
+    const user = userEvent.setup();
+    renderFiltros({});
+
+    await waitFor(() => expect(listarUnidades).toHaveBeenCalledWith("opex"));
+    await user.click(await screen.findByLabelText("Unidade"));
+
+    expect(await screen.findByRole("option", { name: "Aeroclínica Macaé" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Cabo Frio" })).not.toBeInTheDocument();
+  });
+
+  describe("unidade da URL fora da rede do tipo ativo", () => {
+    const AEROCLINICA = {
+      id: 30,
+      nome: "Aeroclínica Macaé",
+      codigo: "AEM",
+      cidade: "Macaé",
+      ativa: true,
+      rede: "opex" as const,
+    };
+
+    it("sai do filtro sozinha", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() =>
+        expect(onMudarFiltros).toHaveBeenCalledWith(expect.objectContaining({ unidade: undefined })),
+      );
+    });
+
+    it("a unidade da rede certa fica", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: AEROCLINICA.id });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalledWith("opex"));
+      await screen.findByText("Aeroclínica Macaé");
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+
+    it("com erro ao carregar as unidades, não mexe no filtro", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockRejectedValue(new Error("falhou"));
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalledWith("opex"));
+      await new Promise((resolver) => setTimeout(resolver, 50));
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+
+    it("com vários tipos e nenhuma aba escolhida, não mexe no filtro", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL, TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+      await new Promise((resolver) => setTimeout(resolver, 50));
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+  });
+
+  it("só o tipo Operacional: mostra o filtro de Área, não o de Unidade", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
+    renderFiltros({});
+
+    expect(await screen.findByLabelText("Área Responsável")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Unidade")).not.toBeInTheDocument();
+  });
+});
+
 describe("KanbanFiltros -- filtro de Unidade (STC-510)", () => {
   it("pede unidades da rede padrão, não misturando com as de Operações Especiais", async () => {
     renderFiltros({});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StatusDemanda } from "@/types";
+import type { StatusDemanda, TipoGestao } from "@/types";
 import { criarDemanda, responsavelPrincipal } from "@/test-utils/fixtures";
 import {
   compararDemandas,
@@ -8,6 +8,7 @@ import {
   passaNoFoco,
   rotuloUnidadeOuResponsavel,
   secaoDoBloqueio,
+  tipoGestaoAtivo,
 } from "./kanban";
 
 describe("rotuloUnidadeOuResponsavel", () => {
@@ -260,5 +261,35 @@ describe("filtrosDaUrl", () => {
   it("lê várias áreas responsáveis separadas por vírgula na URL", () => {
     const params = new URLSearchParams("area_responsavel=gerencia,processo");
     expect(filtrosDaUrl(params)).toEqual({ area_responsavel: ["gerencia", "processo"] });
+  });
+});
+
+describe("tipoGestaoAtivo (STC-884)", () => {
+  const OPERACIONAL: TipoGestao = {
+    id: 1,
+    modulo: 1,
+    nome: "Operacional",
+    codigo: "operacional",
+    descricao: "",
+    visibilidade_padrao: "todos",
+    ativo: true,
+    ordem: 0,
+  };
+  const OPEX: TipoGestao = { ...OPERACIONAL, id: 3, nome: "OPEX", codigo: "opex", visibilidade_padrao: "opex" };
+
+  it("é o tipo da URL quando ele está entre os visíveis", () => {
+    expect(tipoGestaoAtivo([OPERACIONAL, OPEX], OPEX.id)).toBe(OPEX);
+  });
+
+  it("com um tipo só, é esse tipo, mesmo sem tipo_gestao na URL", () => {
+    expect(tipoGestaoAtivo([OPEX], undefined)).toBe(OPEX);
+  });
+
+  it("com vários tipos e sem tipo_gestao na URL, não há ativo", () => {
+    expect(tipoGestaoAtivo([OPERACIONAL, OPEX], undefined)).toBeUndefined();
+  });
+
+  it("sem tipos carregados, não há ativo", () => {
+    expect(tipoGestaoAtivo([], undefined)).toBeUndefined();
   });
 });
