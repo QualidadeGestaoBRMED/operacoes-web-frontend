@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
+import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -58,6 +60,9 @@ const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   restaurar: "Restaurar",
   configurar: "Configurar",
 };
+
+/** Recurso do quadro da Gestão de Demandas: o único com tipos de gestão (STC-886). */
+export const RECURSO_KANBAN = "gestao-demandas.kanban";
 
 const COBERTURA_DO_GLOBAL: Record<Rede, string> = {
   padrao: "Cobre as unidades da rede própria.",
@@ -92,6 +97,7 @@ const schema = z
     // Escopo global (STC-745): a rede que ele cobre ("ambas" = as duas, só
     // para quem administra as duas).
     rede: z.enum(["padrao", "opex", "ambas"]).optional(),
+    tipos_gestao: z.array(z.number().int().positive()).optional(),
     data_inicio: z.string().min(1, "Data de início é obrigatória."),
     data_fim: z.string().optional(),
   })
@@ -159,6 +165,8 @@ export function FormNovaPermissao({
       : usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
   const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
+  // Os tipos das redes de quem concede: o mesmo que o backend aceita (STC-886).
+  const { tiposGestao } = useTiposGestao();
   const { recursos } = useRecursosPermissao();
   // catalogoCarregando/catalogoComErro: mesma chave SWR de
   // useRecursosPermissao() por baixo -- ver achado de code review abaixo,
@@ -330,6 +338,7 @@ export function FormNovaPermissao({
           administraAsDuasRedes && {
             rede: valores.rede === "padrao" || valores.rede === "opex" ? valores.rede : null,
           }),
+        ...(valores.recurso === RECURSO_KANBAN && { tipos_gestao: valores.tipos_gestao ?? [] }),
         data_inicio: valores.data_inicio,
         data_fim: valores.data_fim || null,
       });
@@ -463,6 +472,47 @@ export function FormNovaPermissao({
                 </p>
               )}
             </div>
+
+            {/* Tipos de gestão (STC-886): só no Kanban. */}
+            {recursoSelecionado === RECURSO_KANBAN && tiposGestao.length > 0 && (
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-foreground">Tipos de gestão</legend>
+                <Controller
+                  control={control}
+                  name="tipos_gestao"
+                  render={({ field }) => (
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {tiposGestao.map((tipo) => {
+                        const marcado = field.value?.includes(tipo.id) ?? false;
+                        return (
+                          <label
+                            key={tipo.id}
+                            className="flex items-center gap-2 text-sm text-foreground"
+                          >
+                            <Checkbox
+                              checked={marcado}
+                              onCheckedChange={(valor) =>
+                                field.onChange(
+                                  valor === true
+                                    ? [...(field.value ?? []), tipo.id]
+                                    : (field.value ?? []).filter((id) => id !== tipo.id),
+                                )
+                              }
+                            />
+                            {tipo.nome}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Os tipos marcados viram abas no quadro da pessoa, e ela vê só as demandas deles.
+                  Com Editar, também pode abrir demanda neles. Sem nenhum marcado, a permissão vale
+                  para todos os tipos e não acrescenta abas.
+                </p>
+              </fieldset>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="p-escopo">
