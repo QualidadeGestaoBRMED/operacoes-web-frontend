@@ -1218,7 +1218,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ### 7.37 STC-878 — Ajuda: artigos por módulo e botão (?) nas telas (STC-875)
 
-🔄 **Em andamento.** O "como usar" do Atlas, um artigo por tarefa, no formato do linear.app/docs. As Novidades (7.36) apontam para cá em "Ver como usar".
+✅ **Implementado e mergeado em `main` (PR #144).** O "como usar" do Atlas, um artigo por tarefa, no formato do linear.app/docs. As Novidades (7.36) apontam para cá em "Ver como usar".
 
 - **Conteúdo em `conteudo/ajuda/`**, um arquivo Markdown por artigo (formato em `conteudo/ajuda/LEIAME.md`). O nome do arquivo é o endereço (`/ajuda/<assunto>`). Cabeçalho: `titulo` e `resumo` (obrigatórios), `modulo` (ausente: geral), `admin`, `telas` (onde o botão (?) abre o artigo), `ordem` e `popular`. Imagens em `public/ajuda/`, com as regras das Novidades; uma animação das Novidades pode ser citada sem copiar o arquivo.
 - **Leitura no servidor** (`src/lib/conteudoAjuda.ts`), com o que é comum às Novidades em `src/lib/arquivosDeConteudo.ts` (ler a pasta, ignorar o LEIAME e os inválidos com log, caminhos só do Atlas). O layout passa ao navegador só o cabeçalho dos artigos (`AjudaProvider`).
@@ -1232,3 +1232,13 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Peças compartilhadas com as Novidades** (`src/components/conteudo/`): `TextoEmMarkdown`, `MidiaDoConteudo` e `FalhaNosModulos`; `compartilhar` em `src/lib/compartilhar.ts`. Painel lateral novo em `src/components/ui/sheet.tsx`.
 - **Primeiros artigos:** "Como abrir uma demanda" (com print do formulário, dados fictícios) e "Como ler o Mapa de Conformidade" (com a animação da novidade do Mapa). Os demais, na STC-879.
 - **Testes:** grupos, filtro por módulo e Admin, artigo da tela mais específica, botão (?) abrindo o artigo e caindo na Ajuda sem artigo, painel com lista, falha e carga única, página do artigo, leitura do conteúdo, imagens citadas com texto alternativo, tamanho e todo "Ver como usar" das Novidades levando a um artigo que existe.
+
+### 7.38 STC-879 — Primeiros conteúdos da Ajuda e das Novidades (STC-875)
+
+🔄 **Em andamento.** Os artigos que faltavam e o "Ver como usar" das novidades já publicadas.
+
+- **Artigos novos** em `conteudo/ajuda/`: "Como ler o Painel de Absenteísmo", "Como tratar um card de absenteísmo crítico", "Desligados no Painel de Absenteísmo" (os três no botão (?) do Painel) e "Como instalar o Atlas no celular" (geral, em "Primeiros passos").
+- **"Ver como usar"** nas novidades do Mapa e das Horas perdidas, apontando para os artigos (o teste do conteúdo confere que todo "Ver como usar" leva a um artigo que existe).
+- **Telas do (?) passam a valer só para a tela listada** (`src/lib/ajuda.ts`): `/modulos/gestao-rh` não vale para `/modulos/gestao-rh/horas-extras`. Com `/*` no fim, vale para as telas de baixo; a exata ganha da com `/*`.
+- **Imagens com dados fictícios:** o banco local tem nomes reais do VR. Nos prints da lista, nome, iniciais e matrícula de cada linha viram fictícios; no card do Kanban e no alerta, o nome do colaborador e o da responsável também. O formulário de tratamento é só aberto, nunca enviado. Roteiros locais em `ferramentas/animacoes/` (fora do repositório).
+- **Fica para depois das chaves VAPID em produção e do teste num celular:** a novidade "Notificações no celular" (destaque) e o artigo dela.
