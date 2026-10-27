@@ -21,7 +21,7 @@ vi.mock("@/app/(app)/ajuda/textoDoArtigo", () => ({
 }));
 
 function artigo(slug: string, extra: Partial<ArtigoResumido> = {}): ArtigoResumido {
-  return { slug, titulo: `Título ${slug}`, resumo: `Resumo ${slug}`, modulo: "legalizacao", admin: false, telas: [], ordem: 100, ...extra };
+  return { slug, titulo: `Título ${slug}`, resumo: `Resumo ${slug}`, modulo: "legalizacao", admin: false, telas: [], ordem: 100, popular: false, ...extra };
 }
 
 beforeEach(() => {

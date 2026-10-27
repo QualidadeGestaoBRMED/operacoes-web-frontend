@@ -28,13 +28,14 @@ describe("lerArtigo (STC-878)", () => {
       admin: false,
       telas: ["/modulos/gestao-demandas"],
       ordem: 1,
+      popular: false,
       corpo: "1. Clique em **Nova Demanda**.",
     });
   });
 
   it("sem módulo, telas e ordem: geral, sem tela e no fim do grupo", () => {
     const lido = lerArtigo("primeiro-acesso.md", "---\ntitulo: T\nresumo: R\n---\n");
-    expect(lido).toMatchObject({ modulo: null, telas: [], ordem: 100 });
+    expect(lido).toMatchObject({ modulo: null, telas: [], ordem: 100, popular: false });
   });
 
   it.each([

@@ -15,6 +15,7 @@ const MAPA: ArtigoResumido = {
   admin: false,
   telas: [],
   ordem: 1,
+  popular: false,
 };
 
 describe("PainelDeAjuda (STC-878)", () => {

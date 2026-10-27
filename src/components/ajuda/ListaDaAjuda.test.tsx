@@ -15,7 +15,7 @@ vi.mock("./AjudaProvider", () => ({
 }));
 
 function artigo(slug: string, extra: Partial<ArtigoComBusca> = {}): ArtigoComBusca {
-  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, busca: "", ...extra };
+  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, popular: false, busca: "", ...extra };
 }
 
 const ARTIGOS = [
@@ -40,6 +40,26 @@ describe("ListaDaAjuda (STC-878)", () => {
     ]);
     expect(screen.getByRole("link", { name: /Como ler o Mapa/ })).toHaveAttribute("href", "/ajuda/mapa");
     expect(screen.queryByText("Férias")).not.toBeInTheDocument();
+  });
+
+  it("todos populares: sem Mais usados, que repetiria a página inteira", () => {
+    estado = { ...estado, visiveis: [{ ...ARTIGOS[1], popular: true }] };
+    render(<ListaDaAjuda artigos={[{ ...ARTIGOS[1], popular: true }]} />);
+
+    expect(screen.queryByRole("heading", { name: "Mais usados" })).not.toBeInTheDocument();
+  });
+
+  it("Mais usados no topo, com os populares; na busca, some para não repetir o artigo", async () => {
+    estado = { ...estado, visiveis: [ARTIGOS[0], { ...ARTIGOS[1], popular: true }] };
+    render(<ListaDaAjuda artigos={[ARTIGOS[0], { ...ARTIGOS[1], popular: true }, ARTIGOS[2]]} />);
+
+    const [maisUsados] = screen.getAllByRole("region");
+    expect(within(maisUsados).getByRole("heading").textContent).toBe("Mais usados");
+    expect(within(maisUsados).getAllByRole("link").map((link) => link.textContent)).toEqual(["Como ler o Mapa"]);
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar na Ajuda" }), "mapa");
+    expect(screen.queryByRole("heading", { name: "Mais usados" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 
   it("busca no texto, sem acento", async () => {
