@@ -16,6 +16,7 @@ import {
   SquarePlus,
   TriangleAlert,
   UserMinus,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,4 +44,5 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   movimentacao: ArrowLeftRight,
   "nova-demanda": SquarePlus,
   renovacao: RefreshCw,
+  responsaveis: UsersRound,
 };
