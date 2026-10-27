@@ -39,6 +39,7 @@ export function lerArtigo(arquivo: string, conteudo: string): Artigo | string {
     admin: data.admin === true,
     telas: telas.map((tela: string) => tela.trim()),
     ordem: data.ordem ?? 100,
+    popular: data.popular === true,
     corpo: content.trim(),
   };
 }

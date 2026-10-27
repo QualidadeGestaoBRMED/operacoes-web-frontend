@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { BookOpen, Compass, Search, ShieldCheck, type LucideIcon } from "lucide-react";
 import { FalhaNosModulos } from "@/components/conteudo/FalhaNosModulos";
 import { Input } from "@/components/ui/input";
-import { agruparArtigos, type ArtigoResumido } from "@/lib/ajuda";
+import { agruparArtigos, ordenarArtigos, type ArtigoResumido } from "@/lib/ajuda";
 import { useAjuda } from "./AjudaProvider";
 
 export type ArtigoComBusca = ArtigoResumido & {
@@ -18,10 +18,62 @@ function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
+/** O ícone do card: o do módulo (o mesmo do menu); geral e Administração têm o seu. */
+function iconeDoArtigo(artigo: ArtigoResumido, modulos: { codigo: string; icon: LucideIcon }[]): LucideIcon {
+  if (artigo.modulo) return modulos.find((modulo) => modulo.codigo === artigo.modulo)?.icon ?? BookOpen;
+  return artigo.admin ? ShieldCheck : Compass;
+}
+
+/** Card de um artigo, como os do Linear Docs: o ícone em cima, título e resumo embaixo. */
+function CardDoArtigo({ artigo, icone: Icone }: { artigo: ArtigoResumido; icone: LucideIcon }) {
+  return (
+    <Link
+      href={`/ajuda/${artigo.slug}`}
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
+    >
+      <span className="flex h-14 items-start border-b border-border bg-muted/40 p-4 sm:h-20 transition-colors group-hover:bg-muted/70">
+        <Icone className="size-5 text-primary" aria-hidden />
+      </span>
+      <span className="flex flex-1 flex-col gap-1.5 p-4">
+        <span className="font-medium text-foreground">{artigo.titulo}</span>
+        <span className="text-sm leading-6 text-muted-foreground">{artigo.resumo}</span>
+      </span>
+    </Link>
+  );
+}
+
+function Grupo({
+  chave,
+  titulo,
+  artigos,
+  modulos,
+}: {
+  chave: string;
+  titulo: string;
+  artigos: ArtigoResumido[];
+  modulos: { codigo: string; icon: LucideIcon }[];
+}) {
+  return (
+    <section id={`grupo-${chave}`} aria-labelledby={`titulo-${chave}`} className="scroll-mt-6">
+      <h3 id={`titulo-${chave}`} className="text-lg font-semibold tracking-tight text-foreground">
+        {titulo}
+      </h3>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {artigos.map((artigo) => (
+          <li key={artigo.slug}>
+            <CardDoArtigo artigo={artigo} icone={iconeDoArtigo(artigo, modulos)} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /**
- * Página da Ajuda (STC-878), como a do Linear: busca e os artigos em cards,
- * agrupados ("Primeiros passos", um grupo por módulo, "Administração"). Só
- * os artigos que a pessoa vê: até chegar a lista de módulos, nada.
+ * Página da Ajuda (STC-878), como a do Linear Docs: título, busca, "Mais
+ * usados" (os artigos `popular`) e os artigos em cards, agrupados
+ * ("Primeiros passos", um grupo por módulo, "Administração"). Só os artigos
+ * que a pessoa vê: até chegar a lista de módulos, nada.
  */
 export function ListaDaAjuda({ artigos }: { artigos: ArtigoComBusca[] }) {
   const { visiveis, modulos, carregando, falha, recarregar } = useAjuda();
@@ -33,6 +85,10 @@ export function ListaDaAjuda({ artigos }: { artigos: ArtigoComBusca[] }) {
       slugsVisiveis.has(artigo.slug) &&
       (!termo || normalizar(`${artigo.titulo} ${artigo.resumo} ${artigo.busca}`).includes(termo)),
   );
+  // Na busca, só os grupos: o mesmo artigo não aparece duas vezes. Também
+  // some quando teria todos os artigos: repetiria a página inteira.
+  const marcados = encontrados.filter((artigo) => artigo.popular);
+  const populares = termo || marcados.length === encontrados.length ? [] : ordenarArtigos(marcados);
   const grupos = agruparArtigos(encontrados, modulos);
   const pronta = !carregando && !falha;
 
@@ -44,9 +100,12 @@ export function ListaDaAjuda({ artigos }: { artigos: ArtigoComBusca[] }) {
   }, [pronta]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8 sm:py-10">
-      <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-[15px] text-muted-foreground">Como usar o Atlas, passo a passo.</p>
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-12">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-2">
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Ajuda do Atlas</h2>
+          <p className="text-[15px] text-muted-foreground">Como usar o Atlas, passo a passo.</p>
+        </div>
         <div className="relative sm:w-72">
           <Search
             aria-hidden
@@ -71,25 +130,11 @@ export function ListaDaAjuda({ artigos }: { artigos: ArtigoComBusca[] }) {
         </p>
       ) : (
         <div className="mt-10 space-y-12">
+          {populares.length > 0 && (
+            <Grupo chave="mais-usados" titulo="Mais usados" artigos={populares} modulos={modulos} />
+          )}
           {grupos.map((grupo) => (
-            <section key={grupo.chave} id={`grupo-${grupo.chave}`} aria-labelledby={`titulo-${grupo.chave}`} className="scroll-mt-6">
-              <h2 id={`titulo-${grupo.chave}`} className="text-xl font-semibold tracking-tight text-foreground">
-                {grupo.titulo}
-              </h2>
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {grupo.artigos.map((artigo) => (
-                  <li key={artigo.slug}>
-                    <Link
-                      href={`/ajuda/${artigo.slug}`}
-                      className="flex h-full flex-col gap-1.5 rounded-xl border border-border bg-card p-5 transition-colors hover:bg-muted/60"
-                    >
-                      <span className="font-medium text-foreground">{artigo.titulo}</span>
-                      <span className="text-sm leading-6 text-muted-foreground">{artigo.resumo}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <Grupo key={grupo.chave} chave={grupo.chave} titulo={grupo.titulo} artigos={grupo.artigos} modulos={modulos} />
           ))}
         </div>
       )}

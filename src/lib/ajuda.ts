@@ -18,6 +18,8 @@ export interface ArtigoResumido {
   telas: string[];
   /** Posição dentro do grupo (menor primeiro). */
   ordem: number;
+  /** Aparece também em "Mais usados", no topo da página da Ajuda. */
+  popular: boolean;
 }
 
 export const FORMATO_DO_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
