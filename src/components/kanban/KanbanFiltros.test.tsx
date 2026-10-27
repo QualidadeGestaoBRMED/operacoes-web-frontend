@@ -218,6 +218,57 @@ describe("KanbanFiltros -- um tipo de gestão só, sem abas (STC-884)", () => {
     expect(screen.queryByRole("option", { name: "Cabo Frio" })).not.toBeInTheDocument();
   });
 
+  describe("unidade da URL fora da rede do tipo ativo", () => {
+    const AEROCLINICA = {
+      id: 30,
+      nome: "Aeroclínica Macaé",
+      codigo: "AEM",
+      cidade: "Macaé",
+      ativa: true,
+      rede: "opex" as const,
+    };
+
+    it("sai do filtro sozinha", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() =>
+        expect(onMudarFiltros).toHaveBeenCalledWith(expect.objectContaining({ unidade: undefined })),
+      );
+    });
+
+    it("a unidade da rede certa fica", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: AEROCLINICA.id });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalledWith("opex"));
+      await screen.findByText("Aeroclínica Macaé");
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+
+    it("com erro ao carregar as unidades, não mexe no filtro", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockRejectedValue(new Error("falhou"));
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalledWith("opex"));
+      await new Promise((resolver) => setTimeout(resolver, 50));
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+
+    it("com vários tipos e nenhuma aba escolhida, não mexe no filtro", async () => {
+      vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL, TIPO_GESTAO_OPEX]);
+      vi.mocked(listarUnidades).mockResolvedValue([AEROCLINICA]);
+      const { onMudarFiltros } = renderFiltros({ unidade: 10 });
+
+      await waitFor(() => expect(listarUnidades).toHaveBeenCalled());
+      await new Promise((resolver) => setTimeout(resolver, 50));
+      expect(onMudarFiltros).not.toHaveBeenCalled();
+    });
+  });
+
   it("só o tipo Operacional: mostra o filtro de Área, não o de Unidade", async () => {
     vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_GESTAO_OPERACIONAL]);
     renderFiltros({});
