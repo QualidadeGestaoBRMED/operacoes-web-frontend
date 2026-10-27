@@ -46,17 +46,40 @@ Se o tipo não se aplica àquela unidade, marque **Não aplicável a esta unidad
 
 ## Cadastrar em lote
 
-Para tipos com várias instâncias por unidade (ex.: a calibração de cada equipamento), cadastre todas de uma vez:
+Para tipos com várias instâncias por unidade, como a calibração de cada equipamento, dá para cadastrar todos de uma vez. O cadastro em lote tem duas janelas: na primeira, você diz a unidade, o tipo e a lista de itens; na segunda, completa cada item com o PDF, o status e a validade.
 
-![Janela Cadastrar documentos em lote, com unidade, tipo, responsáveis e a regra da unidade](/ajuda/como-cadastrar-um-documento-lote.webp)
+Só aparecem os tipos marcados com **Permite múltiplas instâncias** no catálogo (veja "Como cadastrar um tipo de documento").
 
-1. Em **Cadastrar documento na unidade**, clique em **Cadastrar em lote**.
-2. Escolha a **Unidade** e o **Tipo de documento**. Só aparecem os tipos que permitem várias instâncias.
-3. Escolha os **Responsável(is)**: valem para todos os documentos do lote.
-4. Confira a **Regra desta unidade**: ela vale para todos os itens.
-5. Em **Identificadores**, escreva um por linha (ex.: Balança 01, Balança 02, Balança 03). Cada linha vira um documento.
-6. Clique em **Cadastrar documentos**. Os documentos são criados como **Não iniciado**.
-7. Na janela **Anexar evidências** que abre em seguida, para cada item, clique em **Anexar** para enviar o PDF, escolha o **Status inicial** e informe a **Validade**.
-8. Clique em **Concluir**.
+### 1. Dizer a unidade, o tipo e os itens
 
-Dá para cadastrar até 200 identificadores de uma vez. Se preferir, complete as evidências depois, um por um, na lista da Matriz de Conformidade.
+![Janela Cadastrar documentos em lote: escolha da unidade, do tipo e do responsável, um identificador por linha e clique em Cadastrar documentos](/ajuda/como-cadastrar-um-documento-lote-cadastrar.webp)
+
+1. No menu, abra **Legalização** e, dentro dela, **Catálogo de Legalização**.
+2. Em **Cadastrar documento na unidade**, clique em **Cadastrar em lote**.
+3. Escolha a **Unidade**.
+4. Escolha o **Tipo de documento**.
+5. Em **Responsável(is)**, marque quem vai cuidar dos documentos. Os responsáveis valem para todos os itens do lote.
+6. Confira a **Regra desta unidade**. Ela vale para todos os itens. Se a unidade já tem uma regra para este tipo (de um cadastro anterior), os campos aparecem travados com os valores em vigor: o lote reaproveita essa regra. Para mudar, use **Corrigir regra**, mais abaixo na página.
+7. Em **Identificadores**, escreva um item por linha, do jeito que ele é conhecido na unidade (ex.: Autoclave 01, Estufa 02, Centrífuga 03). Cada linha vira um documento. Os nomes aparecem em letras maiúsculas.
+8. Deixe marcado **Gerar card em Gestão de Demandas quando o processo de renovação começar** se cada renovação deve abrir um card no quadro.
+9. Clique em **Cadastrar documentos**. Os documentos são criados na hora, como **Não iniciado**, e a janela **Anexar evidências** abre.
+
+Dá para cadastrar até 200 itens de uma vez. Cada linha precisa ser diferente das outras e de um item que já exista na unidade: o Atlas avisa em "Identificadores duplicados".
+
+### 2. Anexar as evidências e concluir
+
+![Janela Anexar evidências: para cada item, envio do PDF, status Regular e validade, e clique em Concluir](/ajuda/como-cadastrar-um-documento-lote-evidencias.webp)
+
+Status e validade são por item: cada equipamento pode ter a própria data de calibração. Para cada item:
+
+1. Clique em **Anexar** e escolha o PDF do certificado daquele item. O item mostra **Enviando...** e depois **Enviado**. Se o envio falhar, aparece **Falhou** e o botão **Tentar de novo**.
+2. Em **Status inicial**, escolha o status do item: **Regular**, **Protocolado**, **Em andamento**, **Vencido** ou **Não iniciado**.
+3. Em **Validade**, informe a data em que o documento daquele item vence. Ela é obrigatória para **Vencido**.
+
+Depois de completar todos, clique em **Concluir**. Ele salva o status de todos os itens de uma vez.
+
+- **Concluir** só libera quando todos os itens têm um status, e os que estão como **Regular** ou **Protocolado** têm o PDF enviado.
+- Para os status **Não iniciado**, **Em andamento** e **Vencido**, o PDF é opcional: dá para completar depois, um por um, no detalhe do documento, na Matriz de Conformidade.
+- Se algum item não puder ser salvo, a janela avisa embaixo dele. Corrija e clique em **Concluir** de novo.
+
+Os documentos passam a aparecer na lista e no Mapa da Matriz de Conformidade, um por item, com o identificador junto do nome do tipo (ex.: "Calibração de Equipamentos — AUTOCLAVE 01"). Na hora de renovar, eles podem ser renovados juntos (veja "Como renovar um documento").
