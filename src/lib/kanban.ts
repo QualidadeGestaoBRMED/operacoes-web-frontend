@@ -1,4 +1,11 @@
-import type { AreaResponsavel, Demanda, DemandaFiltros, Prioridade, StatusDemanda } from "@/types";
+import type {
+  AreaResponsavel,
+  Demanda,
+  DemandaFiltros,
+  Prioridade,
+  StatusDemanda,
+  TipoGestao,
+} from "@/types";
 
 // Semáforo de severidade -- cores reais de status, não os tokens de marca
 // (o próprio ProntuAI faz o mesmo: usa red-600/green-600/yellow-600 do
@@ -23,6 +30,20 @@ export const LABEL_PRIORIDADE: Record<Prioridade, string> = {
 // espelha CODIGO_TIPO_GESTAO_OPERACIONAL de backend/demandas/serializers.py.
 // Nunca comparar pelo "nome" (rótulo pt-BR livre, editável sem constraint).
 export const CODIGO_TIPO_GESTAO_OPERACIONAL = "operacional";
+
+/**
+ * Tipo de gestão ativo no quadro (STC-884): o da aba (`tipo_gestao` da URL).
+ * Quem enxerga um tipo só não tem abas e fica sem `tipo_gestao` na URL; o
+ * ativo é esse tipo, para o filtro pedir as unidades da rede dele e mostrar
+ * Unidade ou Área conforme o tipo.
+ */
+export function tipoGestaoAtivo(
+  tiposGestao: TipoGestao[],
+  tipoGestaoDaUrl: number | undefined,
+): TipoGestao | undefined {
+  const daUrl = tiposGestao.find((tipo) => tipo.id === tipoGestaoDaUrl);
+  return daUrl ?? (tiposGestao.length === 1 ? tiposGestao[0] : undefined);
+}
 
 export const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavel, string> = {
   gerencia: "Gerência",

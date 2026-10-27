@@ -20,7 +20,7 @@ import { useSetores } from "@/hooks/useSetores";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
-import { CODIGO_TIPO_GESTAO_OPERACIONAL } from "@/lib/kanban";
+import { CODIGO_TIPO_GESTAO_OPERACIONAL, tipoGestaoAtivo as tipoGestaoAtivoDe } from "@/lib/kanban";
 import { nomeExibicao } from "@/lib/utils";
 import { MENSAGEM_SOMENTE_LEITURA, useVerComo } from "@/lib/verComo";
 
@@ -57,7 +57,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     </span>
   ) : null;
   const { categorias } = useCategorias();
-  const { tiposGestao } = useTiposGestao();
+  const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
   const { usuarios } = useUsuarios();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
   // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
@@ -66,15 +66,37 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // coincidência (hoje todo TipoGestao desse módulo compartilha o mesmo
   // modulo) -- deriva do tipo_gestao realmente ativo, com o primeiro item
   // como fallback só pro instante antes da aba padrão ser aplicada na URL.
-  const tipoGestaoAtivo = tiposGestao.find((tipo) => tipo.id === filtros.tipo_gestao);
+  const tipoGestaoAtivo = tipoGestaoAtivoDe(tiposGestao, filtros.tipo_gestao);
   const moduloAtivo = tipoGestaoAtivo?.modulo ?? tiposGestao[0]?.modulo;
   // STC-510 (achado testando ao vivo): o filtro de Unidade tem que
   // acompanhar a rede da aba de Tipo Gestão ativa -- sem isso, a aba
   // "OPEX" mostrava as filiais normais no filtro (rede errada, fixa em
   // "padrao" incondicional), mesmo elas nunca aparecendo de verdade nas
   // demandas daquela aba.
-  const { unidades } = useUnidades(tipoGestaoAtivo?.visibilidade_padrao === "opex" ? "opex" : "padrao");
+  const {
+    unidades,
+    isLoading: carregandoUnidades,
+    error: erroUnidades,
+  } = useUnidades(tipoGestaoAtivo?.visibilidade_padrao === "opex" ? "opex" : "padrao");
   const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
+  // Unidade da URL que não é da rede do tipo ativo (link salvo de outra
+  // rede, por exemplo): o Select ficaria em branco e o quadro, vazio. Sai do
+  // filtro sozinha, como o tipo_gestao inválido no KanbanBoard (STC-884).
+  // Só depois de saber o tipo ativo e com a lista da rede dele carregada:
+  // durante o carregamento a lista é outra, e uma unidade válida pareceria
+  // fora dela.
+  const unidadeForaDaRede =
+    filtros.unidade !== undefined &&
+    tipoGestaoAtivo !== undefined &&
+    !ehOperacional &&
+    !carregandoTipos &&
+    !carregandoUnidades &&
+    !erroUnidades &&
+    !unidades.some((unidade) => unidade.id === filtros.unidade);
+  useEffect(() => {
+    if (unidadeForaDaRede) onMudarFiltros({ ...filtros, unidade: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadeForaDaRede]);
   const { setores } = useSetores(moduloAtivo);
   // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de
   // ResponsavelSection.tsx) -- fora isso, Operacional só aceita quem
