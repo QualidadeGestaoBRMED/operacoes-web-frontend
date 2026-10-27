@@ -86,7 +86,7 @@ describe("lerArtigos", () => {
 
   it("todo ícone escolhido num artigo existe na lista", () => {
     const desconhecidos = lerArtigos(PASTA_DA_AJUDA)
-      .filter((artigo) => artigo.icone && !(artigo.icone in ICONES_DA_AJUDA))
+      .filter((artigo) => artigo.icone && !Object.hasOwn(ICONES_DA_AJUDA, artigo.icone))
       .map((artigo) => `${artigo.slug}: ${artigo.icone}`);
     expect(desconhecidos).toEqual([]);
   });

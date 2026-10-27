@@ -27,7 +27,8 @@ const MAIS_USADOS = 4;
  * menu). Geral e Administração têm o seu.
  */
 function iconeDoArtigo(artigo: ArtigoResumido, modulos: { codigo: string; icon: LucideIcon }[]): LucideIcon {
-  const escolhido = artigo.icone ? ICONES_DA_AJUDA[artigo.icone] : undefined;
+  const escolhido =
+    artigo.icone && Object.hasOwn(ICONES_DA_AJUDA, artigo.icone) ? ICONES_DA_AJUDA[artigo.icone] : undefined;
   if (escolhido) return escolhido;
   if (artigo.modulo) return modulos.find((modulo) => modulo.codigo === artigo.modulo)?.icon ?? BookOpen;
   return artigo.admin ? ShieldCheck : Compass;
