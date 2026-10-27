@@ -2,6 +2,7 @@
 titulo: Notificações no celular
 resumo: O Atlas agora avisa no seu celular o que precisa da sua ação, mesmo com ele fechado.
 destaque: true
+ajuda: as-notificacoes-do-atlas
 ---
 Ao tocar no aviso, o Atlas abre direto na tela certa.
 
