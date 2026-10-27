@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useCriarPermissao } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
+import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -58,6 +60,9 @@ const ROTULO_ACAO: Record<AcaoPermissao, string> = {
   restaurar: "Restaurar",
   configurar: "Configurar",
 };
+
+/** Recurso do quadro da Gestão de Demandas: o único com tipos de gestão (STC-886). */
+export const RECURSO_KANBAN = "gestao-demandas.kanban";
 
 const COBERTURA_DO_GLOBAL: Record<Rede, string> = {
   padrao: "Cobre as unidades da rede própria.",
@@ -92,6 +97,7 @@ const schema = z
     // Escopo global (STC-745): a rede que ele cobre ("ambas" = as duas, só
     // para quem administra as duas).
     rede: z.enum(["padrao", "opex", "ambas"]).optional(),
+    tipos_gestao: z.array(z.number().int().positive()).optional(),
     data_inicio: z.string().min(1, "Data de início é obrigatória."),
     data_fim: z.string().optional(),
   })
@@ -159,6 +165,8 @@ export function FormNovaPermissao({
       : usuariosGerenciaveis(todosOsUsuarios, ator, todasAsUnidades);
   const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
+  // Os tipos das redes de quem concede: o mesmo que o backend aceita (STC-886).
+  const { tiposGestao, isLoading: carregandoTipos, error: erroTipos } = useTiposGestao();
   const { recursos } = useRecursosPermissao();
   // catalogoCarregando/catalogoComErro: mesma chave SWR de
   // useRecursosPermissao() por baixo -- ver achado de code review abaixo,
@@ -203,7 +211,12 @@ export function FormNovaPermissao({
   const escopoSelecionado = watch("escopo_tipo");
   const recursoSelecionado = watch("recurso");
   const acaoSelecionada = watch("acao");
+  const tiposMarcados = watch("tipos_gestao");
   const recursoAtual = encontrarRecursoPorChave(recursos, recursoSelecionado);
+  const ehKanban = recursoSelecionado === RECURSO_KANBAN;
+  // Sem os tipos carregados, o campo não aparece e o envio iria sem tipos,
+  // valendo para todos (inclusive o Operacional): bloqueia, como o catálogo.
+  const tiposIndisponiveis = ehKanban && (carregandoTipos || Boolean(erroTipos));
   // Teto ACOES_KANBAN ∩ o que o recurso escolhido realmente suporta -- sem
   // recurso escolhido ainda, mostra o teto inteiro (mesmo comportamento de
   // antes, quando a lista era só um array fixo).
@@ -294,6 +307,14 @@ export function FormNovaPermissao({
     // pro submit como se o recurso suportasse essa ação. Segunda camada
     // (o botão já fica desabilitado, ver disabled abaixo), mesmo motivo do
     // catalogoCarregando acima.
+    if (tiposIndisponiveis) {
+      toast.error(
+        erroTipos
+          ? "Não foi possível carregar os tipos de gestão -- tente novamente."
+          : "Tipos de gestão ainda carregando -- tente de novo em instantes.",
+      );
+      return;
+    }
     if (acaoIndisponivel) {
       toast.error(
         "Este recurso não suporta nenhuma ação que este formulário pode conceder.",
@@ -318,7 +339,9 @@ export function FormNovaPermissao({
           ?.id ??
         null;
 
-      await criar({
+      const tiposEnviados =
+        valores.recurso === RECURSO_KANBAN ? (valores.tipos_gestao ?? []) : [];
+      const criada = await criar({
         usuario: valores.usuario,
         modulo: moduloId,
         recurso: valores.recurso,
@@ -330,9 +353,20 @@ export function FormNovaPermissao({
           administraAsDuasRedes && {
             rede: valores.rede === "padrao" || valores.rede === "opex" ? valores.rede : null,
           }),
+        ...(valores.recurso === RECURSO_KANBAN && { tipos_gestao: tiposEnviados }),
         data_inicio: valores.data_inicio,
         data_fim: valores.data_fim || null,
       });
+      // Servidor sem os tipos de gestão (STC-886) ignora o campo e grava a
+      // permissão para todos os tipos: avisa em vez de dar como concedida.
+      if (tiposEnviados.length > 0 && !criada?.tipos_gestao?.length) {
+        toast.error(
+          "A permissão foi criada sem os tipos de gestão: o servidor ainda não tem essa versão. " +
+            "Revogue-a e tente de novo depois da atualização.",
+        );
+        onOpenChange(false);
+        return;
+      }
       toast.success(valoresIniciais ? "Permissão renovada." : "Permissão concedida.");
       onOpenChange(false);
     } catch (erro) {
@@ -463,6 +497,65 @@ export function FormNovaPermissao({
                 </p>
               )}
             </div>
+
+            {/* Tipos de gestão (STC-886): só no Kanban. */}
+            {ehKanban &&
+              (tiposIndisponiveis || tiposGestao.length > 0 || (tiposMarcados?.length ?? 0) > 0) && (
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-foreground">Tipos de gestão</legend>
+                {carregandoTipos && (
+                  <p className="text-xs text-muted-foreground">Carregando os tipos de gestão...</p>
+                )}
+                {erroTipos && !carregandoTipos && (
+                  <p className="text-xs text-destructive">
+                    Não foi possível carregar os tipos de gestão -- tente novamente.
+                  </p>
+                )}
+                <Controller
+                  control={control}
+                  name="tipos_gestao"
+                  render={({ field }) => (
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {[
+                        ...tiposGestao,
+                        // Renovar pode trazer um tipo que a lista não tem (de
+                        // outra rede): aparece marcado para a pessoa ver e
+                        // desmarcar. Descartar em silêncio podia esvaziar a
+                        // lista, e a permissão valeria para todos os tipos.
+                        ...(field.value ?? [])
+                          .filter((id) => !tiposGestao.some((tipo) => tipo.id === id))
+                          .map((id) => ({ id, nome: "Tipo de outra rede" })),
+                      ].map((tipo) => {
+                        const marcado = field.value?.includes(tipo.id) ?? false;
+                        return (
+                          <label
+                            key={tipo.id}
+                            className="flex items-center gap-2 text-sm text-foreground"
+                          >
+                            <Checkbox
+                              checked={marcado}
+                              onCheckedChange={(valor) =>
+                                field.onChange(
+                                  valor === true
+                                    ? [...(field.value ?? []), tipo.id]
+                                    : (field.value ?? []).filter((id) => id !== tipo.id),
+                                )
+                              }
+                            />
+                            {tipo.nome}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Os tipos marcados viram abas no quadro da pessoa, e ela vê só as demandas deles.
+                  Com Editar, também pode abrir demanda neles. Sem nenhum marcado, a permissão vale
+                  para todos os tipos e não acrescenta abas.
+                </p>
+              </fieldset>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="p-escopo">
@@ -637,7 +730,7 @@ export function FormNovaPermissao({
                 mostrando vazio. */}
             <Button
               type="submit"
-              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel}
+              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel || tiposIndisponiveis}
             >
               {isLoading
                 ? valoresIniciais

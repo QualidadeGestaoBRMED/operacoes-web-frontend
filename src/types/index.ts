@@ -342,6 +342,8 @@ export interface PermissaoUsuario {
   setor: number | null;
   // Só no escopo global (STC-745): a rede que ele cobre; null, as duas.
   rede?: Rede | null;
+  // Só no Kanban (STC-886): ids dos tipos de gestão cobertos; vazio, todos.
+  tipos_gestao?: number[];
   concedido_por: number;
   data_inicio: string;
   data_fim: string | null;
@@ -361,6 +363,7 @@ export interface PermissaoUsuarioPayload {
   setor?: number | null;
   // Só no escopo global; ausente, o backend usa a rede de quem concede.
   rede?: Rede | null;
+  tipos_gestao?: number[];
   data_inicio: string;
   data_fim?: string | null;
 }

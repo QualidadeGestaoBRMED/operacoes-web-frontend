@@ -39,6 +39,7 @@ import {
   useRevogarPermissao,
 } from "@/hooks/usePermissoes";
 import { useSetores } from "@/hooks/useSetores";
+import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -216,6 +217,7 @@ export function PermissoesAdmin() {
   const { recursos } = useRecursosPermissao();
   const { revogar, isLoading: revogando } = useRevogarPermissao();
   const { reativar, isLoading: reativando } = useReativarPermissao();
+  const { tiposGestao, isLoading: carregandoTipos, error: erroTipos } = useTiposGestao();
 
   const [formAberto, setFormAberto] = useState(false);
   const [paraRevogar, setParaRevogar] = useState<PermissaoUsuario | null>(null);
@@ -395,6 +397,15 @@ export function PermissoesAdmin() {
     return recurso ? `${recurso.moduloNome} -- ${recurso.rotulo}` : chave;
   }
 
+  // Tipos de outra rede não vêm em tipos-gestao para quem administra só uma.
+  function nomesDosTipos(ids: number[]) {
+    if (carregandoTipos) return "carregando...";
+    if (erroTipos) return "indisponível";
+    return ids
+      .map((id) => tiposGestao.find((tipo) => tipo.id === id)?.nome ?? "outro tipo")
+      .join(", ");
+  }
+
   function nomeEscopo(permissao: {
     escopo_tipo: EscopoPermissao;
     unidade: number | null;
@@ -469,6 +480,7 @@ export function PermissoesAdmin() {
       setor: permissao.setor ?? undefined,
       // Global de uma rede só continua dessa rede; sem rede, as duas.
       rede: permissao.escopo_tipo === "global" ? (permissao.rede ?? "ambas") : undefined,
+      tipos_gestao: permissao.tipos_gestao ?? [],
     };
   }
 
@@ -877,6 +889,11 @@ export function PermissoesAdmin() {
                                   {nomeEscopo(permissao)}
                                 </span>
                               )}
+                            {(permissao.tipos_gestao?.length ?? 0) > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                Tipos: {nomesDosTipos(permissao.tipos_gestao ?? [])}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-2.5 text-muted-foreground">
                             {permissao.data_fim
