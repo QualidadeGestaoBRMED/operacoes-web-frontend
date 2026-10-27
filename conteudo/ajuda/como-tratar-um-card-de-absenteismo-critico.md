@@ -39,3 +39,8 @@ No alerta, **Conversa** e **Anexos** abrem a conversa com o RH e os arquivos do 
 
 - Se uma nova importação mostrar que o colaborador saiu da faixa crítica naquele período, o alerta é encerrado e o card concluído, sem tratamento a registrar.
 - Se o colaborador for desligado, os alertas pendentes dele são encerrados.
+
+## Os avisos
+
+- **No sino**: "Nova demanda de RH", quando o card é criado, para a coordenação responsável; "Demanda de RH sob sua coordenação", para quem passa a ser responsável depois; e os comentários novos na conversa.
+- **Por e-mail**: todo dia, por volta das 3h15, cada responsável com card em aberto recebe um resumo, com os cards novos primeiro. O e-mail chega até o card ser concluído. Por ser confidencial, ele traz o nome do colaborador abreviado e não mostra o percentual: o link leva ao detalhe no Atlas.
