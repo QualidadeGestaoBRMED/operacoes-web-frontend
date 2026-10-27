@@ -6,6 +6,7 @@ import {
   ChartColumn,
   Clock,
   Columns3,
+  Compass,
   FilePlus2,
   FileSearch,
   FileUp,
@@ -34,6 +35,7 @@ import {
  */
 export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   alerta: TriangleAlert,
+  atlas: Compass,
   aviso: BellRing,
   biblioteca: Library,
   automatico: Bot,
