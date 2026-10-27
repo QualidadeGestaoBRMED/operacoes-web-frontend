@@ -24,6 +24,10 @@ export interface ArtigoResumido {
   icone: string | null;
 }
 
+/** Máximo de "Mais usados": uma linha de cards no computador, como no
+ * Linear. O teste do conteúdo não deixa marcar mais `popular` que isso. */
+export const MAIS_USADOS = 4;
+
 export const FORMATO_DO_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Dentro do grupo: pela ordem e, empatando, pelo título. */

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookOpen, Compass, Search, ShieldCheck, type LucideIcon } from "lucide-react";
 import { FalhaNosModulos } from "@/components/conteudo/FalhaNosModulos";
 import { Input } from "@/components/ui/input";
-import { agruparArtigos, ordenarArtigos, type ArtigoResumido } from "@/lib/ajuda";
+import { agruparArtigos, MAIS_USADOS, ordenarArtigos, type ArtigoResumido } from "@/lib/ajuda";
 import { useAjuda } from "./AjudaProvider";
 import { ICONES_DA_AJUDA } from "./iconesDaAjuda";
 
@@ -18,9 +18,6 @@ export type ArtigoComBusca = ArtigoResumido & {
 function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
-
-/** Máximo de "Mais usados": uma linha de cards no computador, como no Linear. */
-const MAIS_USADOS = 4;
 
 /**
  * O ícone do card: o escolhido no artigo; sem ele, o do módulo (o mesmo do
