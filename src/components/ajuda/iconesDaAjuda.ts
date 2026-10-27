@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BellRing,
+  Bot,
   ChartColumn,
   Columns3,
   FilePlus2,
@@ -30,6 +31,7 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   alerta: TriangleAlert,
   aviso: BellRing,
   biblioteca: Library,
+  automatico: Bot,
   celular: Smartphone,
   desligado: UserMinus,
   documento: FileSearch,
