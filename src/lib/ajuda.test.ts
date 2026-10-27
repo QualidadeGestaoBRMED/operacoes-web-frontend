@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { agruparArtigos, artigosDaTela, artigosVisiveis, type ArtigoResumido } from "./ajuda";
 
 function artigo(slug: string, extra: Partial<ArtigoResumido> = {}): ArtigoResumido {
-  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, popular: false, ...extra };
+  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, popular: false, icone: null, ...extra };
 }
 
 const MODULOS = [

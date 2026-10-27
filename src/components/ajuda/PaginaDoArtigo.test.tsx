@@ -9,7 +9,7 @@ vi.mock("./AjudaProvider", () => ({
 }));
 
 function artigo(slug: string, ordem: number): ArtigoResumido {
-  return { slug, titulo: `Título ${slug}`, resumo: "Resumo.", modulo: "legalizacao", admin: false, telas: ["/modulos/legalizacao/mapa"], ordem, popular: false };
+  return { slug, titulo: `Título ${slug}`, resumo: "Resumo.", modulo: "legalizacao", admin: false, telas: ["/modulos/legalizacao/mapa"], ordem, popular: false, icone: null };
 }
 
 const [A, B, C] = [artigo("a", 1), artigo("b", 2), artigo("c", 3)];

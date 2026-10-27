@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { artigosResumidos, lerArtigo, lerArtigos, PASTA_DA_AJUDA } from "./conteudoAjuda";
+import { ICONES_DA_AJUDA } from "@/components/ajuda/iconesDaAjuda";
 import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 import { lerNovidades } from "./conteudoNovidades";
 
@@ -29,6 +30,7 @@ describe("lerArtigo (STC-878)", () => {
       telas: ["/modulos/gestao-demandas"],
       ordem: 1,
       popular: false,
+      icone: null,
       corpo: "1. Clique em **Nova Demanda**.",
     });
   });
@@ -80,6 +82,13 @@ describe("lerArtigos", () => {
       ...lerNovidades().flatMap((novidade) => novidade.modulos),
     ];
     expect(citados.filter((codigo) => !codigos.has(codigo))).toEqual([]);
+  });
+
+  it("todo ícone escolhido num artigo existe na lista", () => {
+    const desconhecidos = lerArtigos(PASTA_DA_AJUDA)
+      .filter((artigo) => artigo.icone && !(artigo.icone in ICONES_DA_AJUDA))
+      .map((artigo) => `${artigo.slug}: ${artigo.icone}`);
+    expect(desconhecidos).toEqual([]);
   });
 
   it('todo "Ver como usar" das Novidades leva a um artigo que existe', () => {
