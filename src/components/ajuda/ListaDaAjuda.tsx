@@ -40,7 +40,7 @@ function CardDoArtigo({ artigo, icone: Icone }: { artigo: ArtigoResumido; icone:
       href={`/ajuda/${artigo.slug}`}
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
     >
-      <span className="flex h-14 items-start border-b border-border bg-muted/40 p-4 sm:h-20 transition-colors group-hover:bg-muted/70">
+      <span className="flex h-14 items-start border-b border-border bg-muted/40 p-4 sm:h-28 transition-colors group-hover:bg-muted/70">
         <Icone className="size-5 text-primary" aria-hidden />
       </span>
       <span className="flex flex-1 flex-col gap-1.5 p-4">
