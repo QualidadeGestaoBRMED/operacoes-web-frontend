@@ -1,7 +1,9 @@
 import {
   BellRing,
   ChartColumn,
+  FilePlus2,
   FileSearch,
+  FileUp,
   LayoutGrid,
   Library,
   ListFilter,
@@ -26,6 +28,8 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   celular: Smartphone,
   desligado: UserMinus,
   documento: FileSearch,
+  "novo-documento": FileUp,
+  "novo-tipo": FilePlus2,
   grade: LayoutGrid,
   grafico: ChartColumn,
   lista: ListFilter,
