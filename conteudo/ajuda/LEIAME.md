@@ -21,8 +21,11 @@ popular: true                      # opcional; true: também em "Mais usados", n
 ```
 
 - `telas`: o botão (?) no topo abre o artigo num painel lateral nas telas
-  listadas e nas que começam por elas. Vale a mais específica: um artigo de
-  `/modulos/legalizacao/mapa` ganha de um de `/modulos/legalizacao` no Mapa.
+  listadas, só nelas: `/modulos/gestao-rh` não vale para
+  `/modulos/gestao-rh/horas-extras`. Com `/*` no fim, vale também para as
+  telas de baixo (`/modulos/legalizacao/*`). Vale a mais específica: um
+  artigo de `/modulos/legalizacao/mapa` ganha de um de
+  `/modulos/legalizacao/*` no Mapa.
   Com mais de um artigo na mesma tela, o painel mostra a lista. Tela sem
   artigo: o (?) leva à Ajuda, no grupo do módulo.
 - `modulo` e `admin` escolhem quem vê o artigo na tela, não guardam segredo:

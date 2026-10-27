@@ -3,6 +3,7 @@ titulo: Documentos que faltam no Mapa de Conformidade
 resumo: Passe o mouse sobre uma célula do Mapa para ver, naquela categoria, quais documentos já foram cadastrados e quais ainda faltam.
 modulos: [legalizacao]
 abrir: /modulos/legalizacao/mapa
+ajuda: como-ler-o-mapa-de-conformidade
 ---
 ## O que cada célula mostra
 
