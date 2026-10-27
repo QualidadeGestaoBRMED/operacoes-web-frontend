@@ -3,6 +3,7 @@ titulo: Horas perdidas no Painel de Absenteísmo
 resumo: O Painel de Absenteísmo agora mostra quantas horas a unidade perdeu com ausências e de onde elas vêm.
 modulos: [gestao-rh]
 abrir: /modulos/gestao-rh
+ajuda: como-ler-o-painel-de-absenteismo
 ---
 ## Novo card: Horas perdidas
 

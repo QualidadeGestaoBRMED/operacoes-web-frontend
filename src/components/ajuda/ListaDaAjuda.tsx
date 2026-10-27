@@ -5,8 +5,9 @@ import Link from "next/link";
 import { BookOpen, Compass, Search, ShieldCheck, type LucideIcon } from "lucide-react";
 import { FalhaNosModulos } from "@/components/conteudo/FalhaNosModulos";
 import { Input } from "@/components/ui/input";
-import { agruparArtigos, ordenarArtigos, type ArtigoResumido } from "@/lib/ajuda";
+import { agruparArtigos, MAIS_USADOS, ordenarArtigos, type ArtigoResumido } from "@/lib/ajuda";
 import { useAjuda } from "./AjudaProvider";
+import { ICONES_DA_AJUDA } from "./iconesDaAjuda";
 
 export type ArtigoComBusca = ArtigoResumido & {
   /** Texto cru, para a busca. */
@@ -18,8 +19,14 @@ function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-/** O ícone do card: o do módulo (o mesmo do menu); geral e Administração têm o seu. */
+/**
+ * O ícone do card: o escolhido no artigo; sem ele, o do módulo (o mesmo do
+ * menu). Geral e Administração têm o seu.
+ */
 function iconeDoArtigo(artigo: ArtigoResumido, modulos: { codigo: string; icon: LucideIcon }[]): LucideIcon {
+  const escolhido =
+    artigo.icone && Object.hasOwn(ICONES_DA_AJUDA, artigo.icone) ? ICONES_DA_AJUDA[artigo.icone] : undefined;
+  if (escolhido) return escolhido;
   if (artigo.modulo) return modulos.find((modulo) => modulo.codigo === artigo.modulo)?.icon ?? BookOpen;
   return artigo.admin ? ShieldCheck : Compass;
 }
@@ -31,12 +38,12 @@ function CardDoArtigo({ artigo, icone: Icone }: { artigo: ArtigoResumido; icone:
       href={`/ajuda/${artigo.slug}`}
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
     >
-      <span className="flex h-14 items-start border-b border-border bg-muted/40 p-4 sm:h-20 transition-colors group-hover:bg-muted/70">
+      <span className="flex h-14 items-start border-b border-border bg-muted/40 p-4 sm:h-28 transition-colors group-hover:bg-muted/70">
         <Icone className="size-5 text-primary" aria-hidden />
       </span>
       <span className="flex flex-1 flex-col gap-1.5 p-4">
         <span className="font-medium text-foreground">{artigo.titulo}</span>
-        <span className="text-sm leading-6 text-muted-foreground">{artigo.resumo}</span>
+        <span className="line-clamp-3 text-sm leading-6 text-muted-foreground">{artigo.resumo}</span>
       </span>
     </Link>
   );
@@ -88,7 +95,8 @@ export function ListaDaAjuda({ artigos }: { artigos: ArtigoComBusca[] }) {
   // Na busca, só os grupos: o mesmo artigo não aparece duas vezes. Também
   // some quando teria todos os artigos: repetiria a página inteira.
   const marcados = encontrados.filter((artigo) => artigo.popular);
-  const populares = termo || marcados.length === encontrados.length ? [] : ordenarArtigos(marcados);
+  const populares =
+    termo || marcados.length === encontrados.length ? [] : ordenarArtigos(marcados).slice(0, MAIS_USADOS);
   const grupos = agruparArtigos(encontrados, modulos);
   const pronta = !carregando && !falha;
 

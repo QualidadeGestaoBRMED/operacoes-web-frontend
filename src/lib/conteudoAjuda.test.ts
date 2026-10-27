@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { artigosResumidos, lerArtigo, lerArtigos, PASTA_DA_AJUDA } from "./conteudoAjuda";
+import { ICONES_DA_AJUDA } from "@/components/ajuda/iconesDaAjuda";
+import { MAIS_USADOS } from "./ajuda";
 import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 import { lerNovidades } from "./conteudoNovidades";
 
@@ -29,6 +31,7 @@ describe("lerArtigo (STC-878)", () => {
       telas: ["/modulos/gestao-demandas"],
       ordem: 1,
       popular: false,
+      icone: null,
       corpo: "1. Clique em **Nova Demanda**.",
     });
   });
@@ -80,6 +83,41 @@ describe("lerArtigos", () => {
       ...lerNovidades().flatMap((novidade) => novidade.modulos),
     ];
     expect(citados.filter((codigo) => !codigos.has(codigo))).toEqual([]);
+  });
+
+  it('no máximo MAIS_USADOS artigos marcados como popular (o resto não apareceria em "Mais usados")', () => {
+    const populares = lerArtigos(PASTA_DA_AJUDA)
+      .filter((artigo) => artigo.popular)
+      .map((artigo) => artigo.slug);
+    expect(populares.length, populares.join(", ")).toBeLessThanOrEqual(MAIS_USADOS);
+  });
+
+  it("toda tela citada num artigo é uma rota que existe no app", () => {
+    // As rotas são as pastas com page.tsx em src/app/(app); "/*" no fim vale
+    // para a própria tela e as de baixo, então confere a base.
+    const raiz = path.join(process.cwd(), "src/app/(app)");
+    const rotas = new Set<string>();
+    const percorrer = (pasta: string) => {
+      for (const item of fs.readdirSync(pasta, { withFileTypes: true })) {
+        const caminho = path.join(pasta, item.name);
+        if (item.isDirectory()) percorrer(caminho);
+        else if (item.name === "page.tsx") rotas.add(`/${path.relative(raiz, pasta).split(path.sep).join("/")}`);
+      }
+    };
+    percorrer(raiz);
+    const inexistentes = lerArtigos(PASTA_DA_AJUDA).flatMap((artigo) =>
+      artigo.telas
+        .filter((tela) => !rotas.has(tela.endsWith("/*") ? tela.slice(0, -2) : tela))
+        .map((tela) => `${artigo.slug}: ${tela}`),
+    );
+    expect(inexistentes).toEqual([]);
+  });
+
+  it("todo ícone escolhido num artigo existe na lista", () => {
+    const desconhecidos = lerArtigos(PASTA_DA_AJUDA)
+      .filter((artigo) => artigo.icone && !Object.hasOwn(ICONES_DA_AJUDA, artigo.icone))
+      .map((artigo) => `${artigo.slug}: ${artigo.icone}`);
+    expect(desconhecidos).toEqual([]);
   });
 
   it('todo "Ver como usar" das Novidades leva a um artigo que existe', () => {

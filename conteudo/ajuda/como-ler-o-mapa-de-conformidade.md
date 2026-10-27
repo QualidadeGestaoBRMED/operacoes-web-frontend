@@ -1,10 +1,11 @@
 ---
 titulo: Como ler o Mapa de Conformidade
-resumo: Veja, de uma vez, a situação dos documentos de cada unidade em cada categoria regulatória.
+resumo: A situação dos documentos de cada unidade em cada categoria, de uma vez.
 modulo: legalizacao
 telas: [/modulos/legalizacao/mapa]
 ordem: 1
 popular: true
+icone: grade
 ---
 ## Abrir o Mapa
 

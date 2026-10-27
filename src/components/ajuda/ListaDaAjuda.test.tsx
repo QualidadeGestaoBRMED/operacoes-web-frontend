@@ -15,7 +15,7 @@ vi.mock("./AjudaProvider", () => ({
 }));
 
 function artigo(slug: string, extra: Partial<ArtigoComBusca> = {}): ArtigoComBusca {
-  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, popular: false, busca: "", ...extra };
+  return { slug, titulo: slug, resumo: "", modulo: null, admin: false, telas: [], ordem: 100, popular: false, icone: null, busca: "", ...extra };
 }
 
 const ARTIGOS = [
@@ -60,6 +60,16 @@ describe("ListaDaAjuda (STC-878)", () => {
     await userEvent.type(screen.getByRole("searchbox", { name: "Buscar na Ajuda" }), "mapa");
     expect(screen.queryByRole("heading", { name: "Mais usados" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("Mais usados: no máximo 4, uma linha", () => {
+    const muitos = ["a", "b", "c", "d", "e"].map((slug) => artigo(slug, { titulo: slug, popular: true }));
+    const todos = [...muitos, artigo("f", { titulo: "f" })];
+    estado = { ...estado, visiveis: todos };
+    render(<ListaDaAjuda artigos={todos} />);
+
+    const [maisUsados] = screen.getAllByRole("region");
+    expect(within(maisUsados).getAllByRole("link")).toHaveLength(4);
   });
 
   it("busca no texto, sem acento", async () => {

@@ -40,6 +40,7 @@ export function lerArtigo(arquivo: string, conteudo: string): Artigo | string {
     telas: telas.map((tela: string) => tela.trim()),
     ordem: data.ordem ?? 100,
     popular: data.popular === true,
+    icone: texto(data.icone),
     corpo: content.trim(),
   };
 }

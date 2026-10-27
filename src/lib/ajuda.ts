@@ -20,7 +20,13 @@ export interface ArtigoResumido {
   ordem: number;
   /** Aparece também em "Mais usados", no topo da página da Ajuda. */
   popular: boolean;
+  /** Ícone do card (`ICONES_DA_AJUDA`); null: o do módulo. */
+  icone: string | null;
 }
+
+/** Máximo de "Mais usados": uma linha de cards no computador, como no
+ * Linear. O teste do conteúdo não deixa marcar mais `popular` que isso. */
+export const MAIS_USADOS = 4;
 
 export const FORMATO_DO_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -81,14 +87,25 @@ export function agruparArtigos<T extends ArtigoResumido>(
     .filter((grupo) => grupo.artigos.length > 0);
 }
 
+/**
+ * Quanto a tela do artigo combina com a aberta (-1: não combina). A tela
+ * vale só para ela mesma; com "/*" no fim, também para as de baixo. A exata
+ * ganha da com "/*" de mesmo começo.
+ */
 function comprimentoDaTela(tela: string, pathname: string): number {
-  return pathname === tela || pathname.startsWith(`${tela}/`) ? tela.length : -1;
+  if (tela.endsWith("/*")) {
+    const base = tela.slice(0, -2);
+    return pathname === base || pathname.startsWith(`${base}/`) ? base.length : -1;
+  }
+  return pathname === tela ? tela.length + 1 : -1;
 }
 
 /**
  * Os artigos da tela aberta, para o botão (?): os da tela mais específica.
  * No Mapa ("/modulos/legalizacao/mapa"), um artigo do Mapa ganha de um da
- * Legalização inteira ("/modulos/legalizacao").
+ * Legalização inteira ("/modulos/legalizacao/*"). Um artigo do Painel de
+ * Absenteísmo ("/modulos/gestao-rh") não aparece em Horas Extras
+ * ("/modulos/gestao-rh/horas-extras").
  */
 export function artigosDaTela<T extends ArtigoResumido>(artigos: T[], pathname: string): T[] {
   const medidos = artigos.map((artigo) => ({

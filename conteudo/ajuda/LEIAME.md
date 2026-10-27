@@ -16,13 +16,17 @@ modulo: gestao-demandas            # opcional; ausente: geral, em "Primeiros pas
 admin: false                       # opcional; true: só para quem administra
 telas: [/modulos/gestao-demandas]  # opcional; telas em que o botão (?) abre o artigo
 ordem: 1                           # opcional; posição no grupo (menor primeiro)
-popular: true                      # opcional; true: também em "Mais usados", no topo da Ajuda
+popular: true                      # opcional; true: também em "Mais usados" (até 4), no topo da Ajuda
+icone: nova-demanda                # opcional; ícone do card (lista em src/components/ajuda/iconesDaAjuda.ts); sem ele, o do módulo
 ---
 ```
 
 - `telas`: o botão (?) no topo abre o artigo num painel lateral nas telas
-  listadas e nas que começam por elas. Vale a mais específica: um artigo de
-  `/modulos/legalizacao/mapa` ganha de um de `/modulos/legalizacao` no Mapa.
+  listadas, só nelas: `/modulos/gestao-rh` não vale para
+  `/modulos/gestao-rh/horas-extras`. Com `/*` no fim, vale também para as
+  telas de baixo (`/modulos/legalizacao/*`). Vale a mais específica: um
+  artigo de `/modulos/legalizacao/mapa` ganha de um de
+  `/modulos/legalizacao/*` no Mapa.
   Com mais de um artigo na mesma tela, o painel mostra a lista. Tela sem
   artigo: o (?) leva à Ajuda, no grupo do módulo.
 - `modulo` e `admin` escolhem quem vê o artigo na tela, não guardam segredo:
