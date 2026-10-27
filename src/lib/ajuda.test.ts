@@ -58,7 +58,7 @@ describe("agruparArtigos", () => {
 
 describe("artigosDaTela", () => {
   const ARTIGOS = [
-    artigo("legalizacao", { telas: ["/modulos/legalizacao"] }),
+    artigo("legalizacao", { telas: ["/modulos/legalizacao/*"] }),
     artigo("mapa", { telas: ["/modulos/legalizacao/mapa"] }),
     artigo("cores", { telas: ["/modulos/legalizacao/mapa"], ordem: 1 }),
   ];
@@ -73,7 +73,19 @@ describe("artigosDaTela", () => {
     ]);
   });
 
-  it("só o caminho inteiro conta: /modulos/legalizacao não vale para /modulos/legalizacao-x", () => {
+  it("sem /*, a tela vale só para ela: o Painel não aparece em Horas Extras", () => {
+    const painel = [artigo("painel", { telas: ["/modulos/gestao-rh"] })];
+    expect(artigosDaTela(painel, "/modulos/gestao-rh").map((a) => a.slug)).toEqual(["painel"]);
+    expect(artigosDaTela(painel, "/modulos/gestao-rh/horas-extras")).toEqual([]);
+  });
+
+  it("a tela exata ganha da com /* de mesmo começo", () => {
+    const artigos = [artigo("modulo", { telas: ["/modulos/gestao-rh/*"] }), artigo("painel", { telas: ["/modulos/gestao-rh"] })];
+    expect(artigosDaTela(artigos, "/modulos/gestao-rh").map((a) => a.slug)).toEqual(["painel"]);
+    expect(artigosDaTela(artigos, "/modulos/gestao-rh/ferias").map((a) => a.slug)).toEqual(["modulo"]);
+  });
+
+  it("só o caminho inteiro conta: /modulos/legalizacao/* não vale para /modulos/legalizacao-x", () => {
     expect(artigosDaTela(ARTIGOS, "/modulos/legalizacao-x")).toEqual([]);
     expect(artigosDaTela(ARTIGOS, "/modulos/gestao-rh")).toEqual([]);
   });
