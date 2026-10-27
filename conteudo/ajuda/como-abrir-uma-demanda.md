@@ -4,6 +4,7 @@ resumo: Registre um pedido no quadro da Gestão de Demandas, com prioridade, pra
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 1
+popular: true
 ---
 ## Abrir o formulário
 

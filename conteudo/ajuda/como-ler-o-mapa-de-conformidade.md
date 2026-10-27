@@ -4,6 +4,7 @@ resumo: Veja, de uma vez, a situação dos documentos de cada unidade em cada ca
 modulo: legalizacao
 telas: [/modulos/legalizacao/mapa]
 ordem: 1
+popular: true
 ---
 ## Abrir o Mapa
 

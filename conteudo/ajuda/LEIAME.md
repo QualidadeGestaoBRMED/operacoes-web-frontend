@@ -16,6 +16,7 @@ modulo: gestao-demandas            # opcional; ausente: geral, em "Primeiros pas
 admin: false                       # opcional; true: só para quem administra
 telas: [/modulos/gestao-demandas]  # opcional; telas em que o botão (?) abre o artigo
 ordem: 1                           # opcional; posição no grupo (menor primeiro)
+popular: true                      # opcional; true: também em "Mais usados", no topo da Ajuda
 ---
 ```
 
