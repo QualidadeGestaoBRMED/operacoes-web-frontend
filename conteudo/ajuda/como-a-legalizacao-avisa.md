@@ -2,6 +2,7 @@
 titulo: Como a Legalização avisa
 resumo: O aviso ao entrar, o e-mail diário, as notificações e o card no quadro.
 modulo: legalizacao
+telas: [/modulos/legalizacao]
 ordem: 10
 icone: e-mail
 ---
@@ -52,4 +53,4 @@ Quando uma renovação começa, o Atlas abre um card na **Gestão de Demandas**,
 - O card anda sozinho: **Em Andamento** quando a renovação começa e continua lá com o protocolo; **Concluído** quando a renovação termina. Se o documento é desativado, o card vai para a **Lixeira**.
 - O card é controlado pela Legalização: não dá para mudar de coluna, editar, comentar nem anexar nele. Clicar no card abre o documento (ou o lote) na Legalização, onde tudo isso é feito.
 
-Quando o card muda de coluna, quem iniciou a renovação recebe a notificação de mudança de status, que também chega ao celular.
+Quem iniciou a renovação é quem pediu o card. Quando outra pessoa faz a renovação andar (por exemplo, a coordenação conclui uma renovação que a Legalização começou), ela recebe a notificação de mudança de status, que também chega ao celular. As mudanças que ela mesma faz não geram aviso para ela.

@@ -2,6 +2,7 @@
 titulo: Como a Gestão de Demandas avisa
 resumo: Quem recebe cada notificação das demandas, no sino e no celular.
 modulo: gestao-demandas
+telas: [/modulos/gestao-demandas]
 ordem: 7
 icone: sino
 ---
