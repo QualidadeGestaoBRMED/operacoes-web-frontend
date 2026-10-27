@@ -57,7 +57,7 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
     </span>
   ) : null;
   const { categorias } = useCategorias();
-  const { tiposGestao } = useTiposGestao();
+  const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
   const { usuarios } = useUsuarios();
   // Setor não é module-scoped por URL (diferente de tipos-gestao/categorias)
   // -- mesmo critério do FormNovaDemanda: reaproveita o modulo já carregado
@@ -73,8 +73,30 @@ export function KanbanFiltros({ filtros, onMudarFiltros, onNovaDemanda }: Kanban
   // "OPEX" mostrava as filiais normais no filtro (rede errada, fixa em
   // "padrao" incondicional), mesmo elas nunca aparecendo de verdade nas
   // demandas daquela aba.
-  const { unidades } = useUnidades(tipoGestaoAtivo?.visibilidade_padrao === "opex" ? "opex" : "padrao");
+  const {
+    unidades,
+    isLoading: carregandoUnidades,
+    error: erroUnidades,
+  } = useUnidades(tipoGestaoAtivo?.visibilidade_padrao === "opex" ? "opex" : "padrao");
   const ehOperacional = tipoGestaoAtivo?.codigo === CODIGO_TIPO_GESTAO_OPERACIONAL;
+  // Unidade da URL que não é da rede do tipo ativo (link salvo de outra
+  // rede, por exemplo): o Select ficaria em branco e o quadro, vazio. Sai do
+  // filtro sozinha, como o tipo_gestao inválido no KanbanBoard (STC-884).
+  // Só depois de saber o tipo ativo e com a lista da rede dele carregada:
+  // durante o carregamento a lista é outra, e uma unidade válida pareceria
+  // fora dela.
+  const unidadeForaDaRede =
+    filtros.unidade !== undefined &&
+    tipoGestaoAtivo !== undefined &&
+    !ehOperacional &&
+    !carregandoTipos &&
+    !carregandoUnidades &&
+    !erroUnidades &&
+    !unidades.some((unidade) => unidade.id === filtros.unidade);
+  useEffect(() => {
+    if (unidadeForaDaRede) onMudarFiltros({ ...filtros, unidade: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadeForaDaRede]);
   const { setores } = useSetores(moduloAtivo);
   // Admin Q&G nunca é responsável de demanda nenhuma (mesma regra de
   // ResponsavelSection.tsx) -- fora isso, Operacional só aceita quem
