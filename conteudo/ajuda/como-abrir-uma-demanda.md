@@ -66,11 +66,11 @@ Uma demanda confidencial só aparece para quem pediu, para o aprovador, para os 
 
 1. Aparece o aviso "Demanda criada." e a demanda entra na coluna **Backlog** do quadro.
 2. Quem administra a rede recebe uma notificação da nova demanda.
-3. A partir daí, ela anda pelas colunas **Em Andamento**, **Em Revisão** e **Concluído**. A cada mudança de coluna, você recebe uma notificação.
+3. A partir daí, ela anda pelas colunas **Em Andamento**, **Em Revisão** e **Concluído**. Quando outra pessoa muda a demanda de coluna, você, que pediu, recebe uma notificação.
 
 ## Anexar arquivos e acompanhar
 
 1. Clique no card da demanda no quadro.
 2. Na aba **Anexos**, clique em **Adicionar anexo** para enviar fotos, planilhas ou documentos.
-3. Na aba **Comentários**, converse com quem está resolvendo. Cada comentário avisa as outras pessoas da demanda.
+3. Na aba **Comentários**, converse com quem está resolvendo. Cada comentário avisa quem pediu e os responsáveis.
 4. Na aba **Histórico**, veja tudo o que já mudou na demanda.

@@ -33,7 +33,7 @@ Cada célula mostra a situação mais grave dos documentos daquela unidade na ca
 - **Verde, em dia**: nenhuma das situações acima.
 - **Listrado, sem documento**: nenhum documento cadastrado na categoria.
 
-Por onde começar: primeiro as células vermelhas, depois as âmbar. As verdes só pedem atenção se a dica mostrar documentos que faltam cadastrar (veja abaixo).
+Por onde começar: primeiro as células vermelhas, depois as âmbar. As verdes e as listradas pedem atenção se a dica mostrar documentos que faltam cadastrar (veja abaixo).
 
 ## Os cards no topo
 
