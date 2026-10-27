@@ -1259,3 +1259,12 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Nova Demanda aberto antes de os tipos carregarem** fica sem tipo inicial: o formulário só aplica o tipo na abertura (proteção da STC-538, que não muda), e o botão não espera os tipos. É a janela de uma fração de segundo; a pessoa escolhe à mão, como sempre foi antes da STC-884.
 - **Quem só vê o tipo Operacional** passa a seguir a regra dele também no filtro de Responsável (só Admins da rede padrão), como quem tem a aba Operacional. Antes listava todos, pelo mesmo bug.
 - **Conferido no localhost** como o Admin Operações Especiais local: o filtro lista só as aeroclínicas e o Nova Demanda abre com OPEX.
+
+### 7.40 STC-887 — Tipos de gestão no formulário de permissão individual do Kanban (STC-885)
+
+🔄 **Em andamento.** Parte de frontend da permissão individual com tipos de gestão (backend: STC-886). Caso de origem: uma pessoa de perfil Setor precisa abrir e acompanhar demandas de Unidades e OPEX, sem o Operacional.
+
+- **Formulário** (`FormNovaPermissao`): com o recurso Kanban (`RECURSO_KANBAN`), aparece "Tipos de gestão", com um checkbox por tipo das redes de quem concede (`useTiposGestao`, a mesma regra do backend) e o texto: os tipos marcados viram abas e restringem as demandas; com Editar, também liberam abrir demanda; sem nenhum marcado, a permissão vale para todos os tipos e não acrescenta abas. Envia `tipos_gestao` só no Kanban (lista vazia sem marcados).
+- **Tabela de permissões** (`PermissoesAdmin`): os tipos aparecem na célula de Escopo, numa segunda linha ("Tipos: Unidades, OPEX"), sem coluna nova (a ordenação continua a mesma). Tipo de outra rede, que não vem em `tipos-gestao` para quem administra só uma, aparece como "outro tipo". Renovar e reativar trazem os tipos já marcados.
+- **Testes** (`PermissoesAdmin.test.tsx`): envia os tipos marcados; sem marcados, lista vazia; a tabela mostra os tipos e a renovação vem com eles marcados. Os três falham sem a mudança.
+- **Conferido ponta a ponta no localhost** (backend da STC-886): uma pessoa Setor sem abas; o Admin concede pela tela Kanban, Editar, Global, Unidades e OPEX; a tabela mostra os tipos; a pessoa passa a ver as abas Unidades e OPEX, sem o Operacional, e o Nova Demanda abre com tipo. Usuário e permissão de teste desativados depois.
