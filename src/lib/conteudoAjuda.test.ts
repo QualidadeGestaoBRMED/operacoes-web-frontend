@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { artigosResumidos, lerArtigo, lerArtigos, PASTA_DA_AJUDA } from "./conteudoAjuda";
 import { ICONES_DA_AJUDA } from "@/components/ajuda/iconesDaAjuda";
+import { MAIS_USADOS } from "./ajuda";
 import { MODULOS_FUTUROS } from "@/config/modulos-futuros";
 import { lerNovidades } from "./conteudoNovidades";
 
@@ -82,6 +83,13 @@ describe("lerArtigos", () => {
       ...lerNovidades().flatMap((novidade) => novidade.modulos),
     ];
     expect(citados.filter((codigo) => !codigos.has(codigo))).toEqual([]);
+  });
+
+  it('no máximo MAIS_USADOS artigos marcados como popular (o resto não apareceria em "Mais usados")', () => {
+    const populares = lerArtigos(PASTA_DA_AJUDA)
+      .filter((artigo) => artigo.popular)
+      .map((artigo) => artigo.slug);
+    expect(populares.length, populares.join(", ")).toBeLessThanOrEqual(MAIS_USADOS);
   });
 
   it("todo ícone escolhido num artigo existe na lista", () => {
