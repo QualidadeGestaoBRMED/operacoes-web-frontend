@@ -2010,6 +2010,51 @@ describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
     expect(criarPermissao).not.toHaveBeenCalled();
   });
 
+  it("renovar com tipo de outra rede: aparece marcado e pode ser desmarcado", async () => {
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_UNIDADES]);
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({
+        ativo: false,
+        data_fim: "2026-01-15",
+        escopo_tipo: "global",
+        unidade: null,
+        tipos_gestao: [TIPO_UNIDADES.id, 99],
+      }),
+    ]);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase({ tipos_gestao: [TIPO_UNIDADES.id] }));
+    const user = userEvent.setup();
+    renderTela();
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", { name: /renovar permissão/i });
+    const deOutraRede = await within(dialog).findByRole("checkbox", { name: "Tipo de outra rede" });
+    expect(deOutraRede).toBeChecked();
+
+    await user.click(deOutraRede);
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    await user.click(within(dialog).getByRole("button", { name: /renovar permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({ tipos_gestao: [TIPO_UNIDADES.id] }),
+      );
+    });
+  });
+
+  it("com erro ao carregar os tipos, a tabela mostra 'indisponível'", async () => {
+    vi.mocked(listarTiposGestao).mockRejectedValue(new Error("rede"));
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({ escopo_tipo: "global", unidade: null, tipos_gestao: [TIPO_UNIDADES.id] }),
+    ]);
+    renderTela();
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+
+    expect(await tabela.findByText("Tipos: indisponível")).toBeInTheDocument();
+  });
+
   it("a tabela mostra os tipos e a renovação vem com eles marcados", async () => {
     vi.mocked(listarPermissoes).mockResolvedValue([
       permissaoBase({
