@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatarDataHora } from "@/lib/utils";
-import type { Modulo, PermissaoUsuario, Unidade, Usuario } from "@/types";
+import type { Modulo, PermissaoUsuario, TipoGestao, Unidade, Usuario } from "@/types";
 import { PermissoesAdmin } from "./PermissoesAdmin";
 
 // STC-519: PermissoesAdmin agora lê usePathname() direto (não mais um prop
@@ -42,6 +42,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 vi.mock("@/lib/plataforma");
+vi.mock("@/lib/demandas");
 vi.mock("@/lib/legalizacao");
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("@/lib/gestaoRH", async (original) => ({
@@ -58,6 +59,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { listarTiposGestao } from "@/lib/demandas";
 import { listarDocumentosLegalizacao } from "@/lib/legalizacao";
 import { listarTiposDocumento } from "@/lib/legalizacaoCatalogo";
 import { buscarParametrosAbsenteismo, buscarReguaFerias, listarEquipesVR } from "@/lib/gestaoRH";
@@ -127,6 +129,25 @@ const ADMIN_CONCEDENTE: Usuario = {
   foto_url: "",
 };
 
+const TIPO_UNIDADES: TipoGestao = {
+  id: 2,
+  modulo: 7,
+  nome: "Unidades",
+  codigo: "unidades",
+  descricao: "",
+  visibilidade_padrao: "unidade",
+  ativo: true,
+  ordem: 1,
+};
+const TIPO_OPEX: TipoGestao = {
+  ...TIPO_UNIDADES,
+  id: 3,
+  nome: "OPEX",
+  codigo: "opex",
+  visibilidade_padrao: "opex",
+  ordem: 2,
+};
+
 function permissaoBase(
   overrides: Partial<PermissaoUsuario> = {},
 ): PermissaoUsuario {
@@ -169,6 +190,7 @@ beforeEach(() => {
   vi.mocked(listarUnidades).mockResolvedValue([UNIDADE_NITEROI]);
   vi.mocked(listarSetores).mockResolvedValue([]);
   vi.mocked(listarPermissoes).mockResolvedValue([]);
+  vi.mocked(listarTiposGestao).mockResolvedValue([]);
   vi.mocked(listarModulos).mockResolvedValue([MODULO_GESTAO_DEMANDAS]);
   vi.mocked(listarPerfis).mockResolvedValue([]);
   vi.mocked(listarTiposDocumento).mockResolvedValue([]);
@@ -1872,5 +1894,82 @@ describe("PermissoesAdmin -- ordenação das permissões individuais (STC-794)",
     // Decrescente pela ordem dos status (Ativa, Agendada, ...): Agendada
     // primeiro. Em ordem alfabética decrescente, seria Ativa primeiro.
     expect(status).toEqual(["Agendada", "Ativa"]);
+  });
+});
+
+describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
+  async function abrirFormularioComKanban(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: /nova permissão/i }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText(/pessoa/i));
+    await user.click(await screen.findByRole("option", { name: "Fernanda Lima" }));
+    // Unidade antes do recurso: com o Kanban, o checkbox "Unidades" também casa com /^unidade/.
+    await user.click(within(dialog).getByLabelText(/^unidade/i));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await user.click(within(dialog).getByLabelText(/recurso/i));
+    await user.click(await screen.findByRole("option", { name: /kanban/i }));
+    const campoInicio = within(dialog).getByLabelText(/início/i);
+    await user.clear(campoInicio);
+    await user.type(campoInicio, "2026-03-01");
+    return dialog;
+  }
+
+  beforeEach(() => {
+    simularAuth({ isAdminOps: true, isAdminQG: true, isLoading: false } as ReturnType<
+      typeof useAuth
+    >);
+    vi.mocked(listarTiposGestao).mockResolvedValue([TIPO_UNIDADES, TIPO_OPEX]);
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+  });
+
+  it("envia os tipos marcados", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Unidades" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: "OPEX" }));
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(
+        expect.objectContaining({ tipos_gestao: [TIPO_UNIDADES.id, TIPO_OPEX.id] }),
+      );
+    });
+  });
+
+  it("sem tipos marcados, envia a lista vazia (vale para todos)", async () => {
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    await within(dialog).findByRole("checkbox", { name: "Unidades" });
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => {
+      expect(criarPermissao).toHaveBeenCalledWith(expect.objectContaining({ tipos_gestao: [] }));
+    });
+  });
+
+  it("a tabela mostra os tipos e a renovação vem com eles marcados", async () => {
+    vi.mocked(listarPermissoes).mockResolvedValue([
+      permissaoBase({
+        ativo: false,
+        data_fim: "2026-01-15",
+        escopo_tipo: "global",
+        unidade: null,
+        tipos_gestao: [TIPO_UNIDADES.id, TIPO_OPEX.id],
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+    const tabela = within(await screen.findByRole("table", { name: /permissões individuais/i }));
+
+    expect(await tabela.findByText("Tipos: Unidades, OPEX")).toBeInTheDocument();
+
+    await user.click(await tabela.findByRole("button", { name: "Reativar" }));
+    const dialog = await screen.findByRole("dialog", { name: /renovar permissão/i });
+    expect(await within(dialog).findByRole("checkbox", { name: "Unidades" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "OPEX" })).toBeChecked();
   });
 });
