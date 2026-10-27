@@ -1985,6 +1985,31 @@ describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("enquanto os tipos carregam, não deixa conceder", async () => {
+    vi.mocked(listarTiposGestao).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    expect(await within(dialog).findByText("Carregando os tipos de gestão...")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /conceder permissão/i })).toBeDisabled();
+  });
+
+  it("com erro ao carregar os tipos, avisa e não deixa conceder", async () => {
+    vi.mocked(listarTiposGestao).mockRejectedValue(new Error("rede"));
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    expect(
+      await within(dialog).findByText(/Não foi possível carregar os tipos de gestão/),
+    ).toBeInTheDocument();
+    const botao = within(dialog).getByRole("button", { name: /conceder permissão/i });
+    expect(botao).toBeDisabled();
+    await user.click(botao);
+    expect(criarPermissao).not.toHaveBeenCalled();
+  });
+
   it("a tabela mostra os tipos e a renovação vem com eles marcados", async () => {
     vi.mocked(listarPermissoes).mockResolvedValue([
       permissaoBase({
