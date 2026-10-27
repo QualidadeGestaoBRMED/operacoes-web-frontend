@@ -64,7 +64,7 @@ Só aparecem os tipos marcados com **Permite múltiplas instâncias** no catálo
 8. Deixe marcado **Gerar card em Gestão de Demandas quando o processo de renovação começar** se cada renovação deve abrir um card no quadro.
 9. Clique em **Cadastrar documentos**. Os documentos são criados na hora, como **Não iniciado**, e a janela **Anexar evidências** abre.
 
-Dá para cadastrar até 200 itens de uma vez. Cada linha precisa ser diferente das outras e de um item que já exista na unidade: o Atlas avisa em "Identificadores duplicados".
+Dá para cadastrar até 200 itens de uma vez. Cada linha precisa ser diferente das outras (o Atlas avisa "Identificadores duplicados") e de um item que já exista na unidade para o mesmo tipo (o Atlas avisa que o documento já existe).
 
 ### 2. Anexar as evidências e concluir
 
