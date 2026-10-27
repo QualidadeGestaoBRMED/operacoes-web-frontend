@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  Bell,
   BellRing,
   Bot,
   ChartColumn,
@@ -48,4 +49,5 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   "nova-demanda": SquarePlus,
   renovacao: RefreshCw,
   responsaveis: UsersRound,
+  sino: Bell,
 };
