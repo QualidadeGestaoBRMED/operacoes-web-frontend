@@ -211,6 +211,7 @@ export function FormNovaPermissao({
   const escopoSelecionado = watch("escopo_tipo");
   const recursoSelecionado = watch("recurso");
   const acaoSelecionada = watch("acao");
+  const tiposMarcados = watch("tipos_gestao");
   const recursoAtual = encontrarRecursoPorChave(recursos, recursoSelecionado);
   const ehKanban = recursoSelecionado === RECURSO_KANBAN;
   // Sem os tipos carregados, o campo não aparece e o envio iria sem tipos,
@@ -498,7 +499,8 @@ export function FormNovaPermissao({
             </div>
 
             {/* Tipos de gestão (STC-886): só no Kanban. */}
-            {ehKanban && (tiposIndisponiveis || tiposGestao.length > 0) && (
+            {ehKanban &&
+              (tiposIndisponiveis || tiposGestao.length > 0 || (tiposMarcados?.length ?? 0) > 0) && (
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-foreground">Tipos de gestão</legend>
                 {carregandoTipos && (
@@ -514,7 +516,16 @@ export function FormNovaPermissao({
                   name="tipos_gestao"
                   render={({ field }) => (
                     <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {tiposGestao.map((tipo) => {
+                      {[
+                        ...tiposGestao,
+                        // Renovar pode trazer um tipo que a lista não tem (de
+                        // outra rede): aparece marcado para a pessoa ver e
+                        // desmarcar. Descartar em silêncio podia esvaziar a
+                        // lista, e a permissão valeria para todos os tipos.
+                        ...(field.value ?? [])
+                          .filter((id) => !tiposGestao.some((tipo) => tipo.id === id))
+                          .map((id) => ({ id, nome: "Tipo de outra rede" })),
+                      ].map((tipo) => {
                         const marcado = field.value?.includes(tipo.id) ?? false;
                         return (
                           <label

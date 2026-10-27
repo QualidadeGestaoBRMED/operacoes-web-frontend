@@ -217,7 +217,7 @@ export function PermissoesAdmin() {
   const { recursos } = useRecursosPermissao();
   const { revogar, isLoading: revogando } = useRevogarPermissao();
   const { reativar, isLoading: reativando } = useReativarPermissao();
-  const { tiposGestao, isLoading: carregandoTipos } = useTiposGestao();
+  const { tiposGestao, isLoading: carregandoTipos, error: erroTipos } = useTiposGestao();
 
   const [formAberto, setFormAberto] = useState(false);
   const [paraRevogar, setParaRevogar] = useState<PermissaoUsuario | null>(null);
@@ -400,6 +400,7 @@ export function PermissoesAdmin() {
   // Tipos de outra rede não vêm em tipos-gestao para quem administra só uma.
   function nomesDosTipos(ids: number[]) {
     if (carregandoTipos) return "carregando...";
+    if (erroTipos) return "indisponível";
     return ids
       .map((id) => tiposGestao.find((tipo) => tipo.id === id)?.nome ?? "outro tipo")
       .join(", ");
