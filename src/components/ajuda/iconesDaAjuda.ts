@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   BellRing,
   ChartColumn,
   FilePlus2,
@@ -7,6 +8,7 @@ import {
   LayoutGrid,
   Library,
   ListFilter,
+  Mail,
   RefreshCw,
   Smartphone,
   SquarePlus,
@@ -33,6 +35,8 @@ export const ICONES_DA_AJUDA: Record<string, LucideIcon> = {
   grade: LayoutGrid,
   grafico: ChartColumn,
   lista: ListFilter,
+  "e-mail": Mail,
+  movimentacao: ArrowLeftRight,
   "nova-demanda": SquarePlus,
   renovacao: RefreshCw,
 };
