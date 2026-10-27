@@ -299,6 +299,29 @@ describe("KanbanBoard", () => {
   // mudança de visibilidade_padrao) -- o efeito de "resolver tipo padrão"
   // só agia quando a URL vinha vazia, nunca quando vinha com um valor que
   // não corresponde a nenhum tipo da lista atual.
+  describe("um tipo de gestão só, sem abas (STC-884)", () => {
+    it("Nova Demanda abre com o único tipo já escolhido", async () => {
+      const opex: TipoGestao = {
+        ...TIPO_GESTAO_UNICO,
+        id: 3,
+        nome: "OPEX",
+        codigo: "opex",
+        visibilidade_padrao: "opex",
+      };
+      vi.mocked(listarTiposGestao).mockResolvedValue([opex]);
+      mockarDemandas([]);
+      const user = userEvent.setup();
+
+      renderBoard();
+      await screen.findAllByText("Nenhuma demanda aqui");
+      const [botao] = screen.getAllByRole("button", { name: "Nova Demanda" });
+      await user.click(botao);
+
+      const dialogo = await screen.findByRole("dialog");
+      expect(within(dialogo).getByLabelText(/Tipo de gestão/)).toHaveTextContent("OPEX");
+    });
+  });
+
   describe("tipo_gestao inválido na URL", () => {
     it("limpa da URL quando só resta 1 tipo visível pro usuário", async () => {
       vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams("tipo_gestao=999") as never);
