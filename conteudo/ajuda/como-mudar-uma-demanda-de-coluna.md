@@ -1,6 +1,6 @@
 ---
 titulo: Como mudar uma demanda de coluna
-resumo: Arraste o card ou use Mudar status para levar a demanda de Backlog até Concluído, e veja o que cada passagem exige.
+resumo: Leve a demanda até Concluído e veja o que cada passagem exige.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 3

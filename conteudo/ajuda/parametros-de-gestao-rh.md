@@ -1,6 +1,6 @@
 ---
 titulo: Parâmetros de Gestão RH
-resumo: Os limites e as faixas do absenteísmo, a avaliação automática, as equipes do VR e a importação manual dos relatórios. Só para quem administra.
+resumo: Faixas, avaliação automática, equipes do VR e importação manual.
 modulo: gestao-rh
 admin: true
 telas: [/admin/permissoes/parametros-gestao-rh]

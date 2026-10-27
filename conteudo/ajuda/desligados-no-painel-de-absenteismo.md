@@ -1,6 +1,6 @@
 ---
 titulo: Desligados no Painel de Absenteísmo
-resumo: Quem foi desligado sai da lista e das faixas, mas continua contando no absenteísmo e nas horas perdidas do período em que trabalhou.
+resumo: Quem foi desligado sai da lista, mas conta no período trabalhado.
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 4

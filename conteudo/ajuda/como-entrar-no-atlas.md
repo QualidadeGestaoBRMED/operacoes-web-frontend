@@ -1,6 +1,6 @@
 ---
 titulo: Como entrar no Atlas
-resumo: Entre com a sua conta Google da BR MED, veja o que fazer quando o acesso não funciona e como sair.
+resumo: Entre com a sua conta Google da BR MED, e o que fazer se não der.
 ordem: 1
 icone: entrar
 ---

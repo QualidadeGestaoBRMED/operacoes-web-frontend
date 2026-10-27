@@ -1,6 +1,6 @@
 ---
 titulo: Responsáveis e aprovador
-resumo: Defina quem conduz a demanda, quem ajuda e quem aprova, e troque ou remova quando precisar.
+resumo: Defina quem conduz, quem ajuda e quem aprova a demanda.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 4

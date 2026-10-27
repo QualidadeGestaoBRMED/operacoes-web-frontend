@@ -1,6 +1,6 @@
 ---
 titulo: Como cadastrar um documento
-resumo: Cadastre um documento regulatório para uma unidade, com responsável, status, validade e o PDF, ou vários de uma vez em lote.
+resumo: Cadastre um documento com validade e PDF, um por vez ou em lote.
 modulo: legalizacao
 telas: [/admin/permissoes/catalogo-legalizacao]
 ordem: 8

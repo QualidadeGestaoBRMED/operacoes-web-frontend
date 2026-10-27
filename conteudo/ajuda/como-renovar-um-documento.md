@@ -1,6 +1,6 @@
 ---
 titulo: Como renovar um documento
-resumo: Registre a renovação de um documento do pedido ao órgão até a nova validade, um por vez ou vários em lote.
+resumo: Registre a renovação até a nova validade, um por vez ou em lote.
 modulo: legalizacao
 telas: [/modulos/legalizacao]
 ordem: 4

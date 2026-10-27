@@ -1,6 +1,6 @@
 ---
 titulo: Como abrir uma demanda
-resumo: Registre um pedido no quadro da Gestão de Demandas, com prioridade, prazo e quem precisa resolver.
+resumo: Registre um pedido no quadro, com prioridade, prazo e responsável.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 1

@@ -1,6 +1,6 @@
 ---
 titulo: Como a Gestão de Demandas avisa
-resumo: As notificações do sino e do celular, quem recebe cada uma e quando. A Gestão de Demandas não manda e-mail.
+resumo: Quem recebe cada notificação das demandas, no sino e no celular.
 modulo: gestao-demandas
 ordem: 7
 icone: sino

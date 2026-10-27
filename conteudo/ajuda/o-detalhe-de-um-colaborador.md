@@ -1,6 +1,6 @@
 ---
 titulo: O detalhe de um colaborador
-resumo: Os indicadores do período, as ausências que contam, as ocorrências dia a dia, o alerta e o histórico de um colaborador.
+resumo: Indicadores, ocorrências, alerta e histórico de um colaborador.
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 2

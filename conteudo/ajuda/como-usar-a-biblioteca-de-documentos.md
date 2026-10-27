@@ -1,6 +1,6 @@
 ---
 titulo: Como usar a Biblioteca de Documentos
-resumo: Consulte e baixe o arquivo atual de cada documento regulatório de uma unidade, organizado por categoria.
+resumo: Consulte e baixe o arquivo atual de cada documento de uma unidade.
 modulo: legalizacao
 telas: [/modulos/legalizacao/biblioteca]
 ordem: 6

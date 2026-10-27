@@ -1,6 +1,6 @@
 ---
 titulo: Como acompanhar o quadro
-resumo: Entenda as colunas, os números do topo e cada card do quadro de demandas, e encontre o que precisa com a busca e os filtros.
+resumo: As colunas, os números do topo, os cards e como achar uma demanda.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 2

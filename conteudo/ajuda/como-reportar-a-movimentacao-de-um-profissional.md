@@ -1,6 +1,6 @@
 ---
 titulo: Como reportar a movimentação de um profissional
-resumo: Avise a saída ou a entrada de um responsável técnico ou técnico de radiologia, e o Atlas atualiza o CNES, a Dosimetria e os registros de CREMERJ e COREN da unidade.
+resumo: Avise a saída ou a entrada de um responsável técnico.
 modulo: legalizacao
 telas: [/modulos/legalizacao]
 ordem: 9

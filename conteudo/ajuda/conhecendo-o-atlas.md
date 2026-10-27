@@ -1,6 +1,6 @@
 ---
 titulo: Conhecendo o Atlas
-resumo: O menu, o topo da tela, a Ajuda de cada tela e as Novidades, no computador e no celular.
+resumo: O menu, o topo, a Ajuda de cada tela e as Novidades.
 ordem: 2
 popular: true
 icone: atlas

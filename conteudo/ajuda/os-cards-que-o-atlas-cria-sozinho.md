@@ -1,6 +1,6 @@
 ---
 titulo: Os cards que o Atlas cria sozinho
-resumo: Alguns cards do quadro vêm de outros módulos, como a renovação de um documento e o absenteísmo crítico. Veja como reconhecer, onde tratar e por que eles não mudam de coluna à mão.
+resumo: Os cards de renovação e de absenteísmo, que andam sozinhos.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 6

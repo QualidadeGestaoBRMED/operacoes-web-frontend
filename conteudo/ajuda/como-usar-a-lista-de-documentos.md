@@ -1,6 +1,6 @@
 ---
 titulo: Como usar a lista de documentos
-resumo: Encontre qualquer documento regulatório das unidades com a busca e os filtros, e veja o status e o prazo de cada um.
+resumo: Encontre qualquer documento com a busca e os filtros.
 modulo: legalizacao
 telas: [/modulos/legalizacao]
 ordem: 2

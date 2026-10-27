@@ -1,6 +1,6 @@
 ---
 titulo: Como ler o Painel de Absenteísmo
-resumo: Acompanhe as faltas, os atestados, os atrasos e as horas perdidas de cada unidade, e quem está nas faixas crítica e de atenção.
+resumo: Faltas, atrasos e horas perdidas por unidade, e quem está nas faixas.
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 1

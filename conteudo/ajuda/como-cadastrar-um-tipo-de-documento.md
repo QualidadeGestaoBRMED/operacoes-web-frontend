@@ -1,6 +1,6 @@
 ---
 titulo: Como cadastrar um tipo de documento
-resumo: Inclua um novo tipo de documento regulatório no catálogo da Legalização, com a categoria, a área responsável e o que ele exige.
+resumo: Inclua um tipo de documento no catálogo da Legalização.
 modulo: legalizacao
 telas: [/admin/permissoes/catalogo-legalizacao]
 ordem: 7

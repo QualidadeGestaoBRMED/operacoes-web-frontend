@@ -1,6 +1,6 @@
 ---
 titulo: Como a Legalização avisa
-resumo: O aviso ao entrar, o e-mail diário, as notificações e o card no quadro de demandas, com quem recebe cada um, quando e até quando.
+resumo: O aviso ao entrar, o e-mail diário, as notificações e o card no quadro.
 modulo: legalizacao
 ordem: 10
 icone: e-mail

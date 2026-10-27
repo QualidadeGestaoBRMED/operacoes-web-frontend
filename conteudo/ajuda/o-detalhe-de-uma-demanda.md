@@ -1,6 +1,6 @@
 ---
 titulo: O detalhe de uma demanda
-resumo: Abra uma demanda para editar os dados, conversar nos comentários, anexar arquivos e ver tudo o que aconteceu com ela.
+resumo: Edite, comente, anexe arquivos e veja o histórico de uma demanda.
 modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 5

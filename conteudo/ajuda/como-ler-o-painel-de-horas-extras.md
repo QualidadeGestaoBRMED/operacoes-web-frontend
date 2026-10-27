@@ -1,6 +1,6 @@
 ---
 titulo: Como ler o Painel de Horas Extras
-resumo: Veja quantas horas extras cada unidade e cada colaborador fizeram no período, separadas em 50% e 100%, e quem mais fez.
+resumo: As horas extras de 50% e 100% por unidade e por colaborador.
 modulo: gestao-rh
 telas: [/modulos/gestao-rh/horas-extras]
 ordem: 5

@@ -1,6 +1,6 @@
 ---
 titulo: O aviso de documentos pendentes
-resumo: Quando um documento entra na janela de renovação e ninguém agiu, o Atlas abre um aviso ao entrar. Veja o que fazer com ele.
+resumo: A janela de documentos pendentes que abre ao entrar e o que fazer.
 modulo: legalizacao
 ordem: 5
 icone: aviso

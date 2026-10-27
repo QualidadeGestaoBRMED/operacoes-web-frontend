@@ -1,6 +1,6 @@
 ---
 titulo: Como instalar o Atlas no celular
-resumo: Coloque o Atlas na tela de início do celular para abrir como um aplicativo, em tela cheia.
+resumo: Coloque o Atlas na tela de início do celular, como um aplicativo.
 ordem: 4
 popular: true
 icone: celular

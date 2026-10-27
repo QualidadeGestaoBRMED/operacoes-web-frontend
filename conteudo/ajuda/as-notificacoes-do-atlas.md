@@ -1,6 +1,6 @@
 ---
 titulo: As notificações do Atlas
-resumo: O sino reúne os avisos de todos os módulos. Veja como usar, o que chega de cada módulo, o que vai por e-mail e o que chega no celular.
+resumo: O sino com os avisos de todos os módulos, o e-mail e o celular.
 ordem: 3
 icone: sino
 ---

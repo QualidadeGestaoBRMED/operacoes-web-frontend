@@ -1,6 +1,6 @@
 ---
 titulo: O detalhe de um documento
-resumo: Veja a validade, o responsável, os arquivos e o histórico de um documento, e o que dá para fazer com ele.
+resumo: A validade, o responsável, os arquivos e o histórico de um documento.
 modulo: legalizacao
 telas: [/modulos/legalizacao]
 ordem: 3
