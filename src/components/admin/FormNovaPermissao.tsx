@@ -166,7 +166,7 @@ export function FormNovaPermissao({
   const unidades = todasAsUnidades.filter((unidade) => redesAdministradas.includes(unidade.rede));
   const { setores } = useSetores();
   // Os tipos das redes de quem concede: o mesmo que o backend aceita (STC-886).
-  const { tiposGestao } = useTiposGestao();
+  const { tiposGestao, isLoading: carregandoTipos, error: erroTipos } = useTiposGestao();
   const { recursos } = useRecursosPermissao();
   // catalogoCarregando/catalogoComErro: mesma chave SWR de
   // useRecursosPermissao() por baixo -- ver achado de code review abaixo,
@@ -212,6 +212,10 @@ export function FormNovaPermissao({
   const recursoSelecionado = watch("recurso");
   const acaoSelecionada = watch("acao");
   const recursoAtual = encontrarRecursoPorChave(recursos, recursoSelecionado);
+  const ehKanban = recursoSelecionado === RECURSO_KANBAN;
+  // Sem os tipos carregados, o campo não aparece e o envio iria sem tipos,
+  // valendo para todos (inclusive o Operacional): bloqueia, como o catálogo.
+  const tiposIndisponiveis = ehKanban && (carregandoTipos || Boolean(erroTipos));
   // Teto ACOES_KANBAN ∩ o que o recurso escolhido realmente suporta -- sem
   // recurso escolhido ainda, mostra o teto inteiro (mesmo comportamento de
   // antes, quando a lista era só um array fixo).
@@ -302,6 +306,14 @@ export function FormNovaPermissao({
     // pro submit como se o recurso suportasse essa ação. Segunda camada
     // (o botão já fica desabilitado, ver disabled abaixo), mesmo motivo do
     // catalogoCarregando acima.
+    if (tiposIndisponiveis) {
+      toast.error(
+        erroTipos
+          ? "Não foi possível carregar os tipos de gestão -- tente novamente."
+          : "Tipos de gestão ainda carregando -- tente de novo em instantes.",
+      );
+      return;
+    }
     if (acaoIndisponivel) {
       toast.error(
         "Este recurso não suporta nenhuma ação que este formulário pode conceder.",
@@ -486,9 +498,17 @@ export function FormNovaPermissao({
             </div>
 
             {/* Tipos de gestão (STC-886): só no Kanban. */}
-            {recursoSelecionado === RECURSO_KANBAN && tiposGestao.length > 0 && (
+            {ehKanban && (tiposIndisponiveis || tiposGestao.length > 0) && (
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-foreground">Tipos de gestão</legend>
+                {carregandoTipos && (
+                  <p className="text-xs text-muted-foreground">Carregando os tipos de gestão...</p>
+                )}
+                {erroTipos && !carregandoTipos && (
+                  <p className="text-xs text-destructive">
+                    Não foi possível carregar os tipos de gestão -- tente novamente.
+                  </p>
+                )}
                 <Controller
                   control={control}
                   name="tipos_gestao"
@@ -699,7 +719,7 @@ export function FormNovaPermissao({
                 mostrando vazio. */}
             <Button
               type="submit"
-              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel}
+              disabled={isLoading || catalogoIndisponivel || acaoIndisponivel || tiposIndisponiveis}
             >
               {isLoading
                 ? valoresIniciais
