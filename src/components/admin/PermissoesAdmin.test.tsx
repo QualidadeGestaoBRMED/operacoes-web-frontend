@@ -1951,6 +1951,40 @@ describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
     });
   });
 
+  it("servidor que devolve a permissão sem os tipos: avisa em vez de dar como concedida", async () => {
+    const { toast } = await import("sonner");
+    vi.mocked(criarPermissao).mockResolvedValue(permissaoBase());
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Unidades" }));
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("criada sem os tipos de gestão"),
+      );
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("servidor que devolve os tipos: concede normalmente", async () => {
+    const { toast } = await import("sonner");
+    vi.mocked(criarPermissao).mockResolvedValue(
+      permissaoBase({ tipos_gestao: [TIPO_UNIDADES.id] }),
+    );
+    const user = userEvent.setup();
+    renderTela();
+    const dialog = await abrirFormularioComKanban(user);
+
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Unidades" }));
+    await user.click(within(dialog).getByRole("button", { name: /conceder permissão/i }));
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Permissão concedida."));
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it("a tabela mostra os tipos e a renovação vem com eles marcados", async () => {
     vi.mocked(listarPermissoes).mockResolvedValue([
       permissaoBase({
