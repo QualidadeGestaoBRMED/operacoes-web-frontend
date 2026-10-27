@@ -1239,6 +1239,7 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 - **Artigos novos** em `conteudo/ajuda/`: "Como ler o Painel de Absenteísmo", "Como tratar um card de absenteísmo crítico", "Desligados no Painel de Absenteísmo" (os três no botão (?) do Painel) e "Como instalar o Atlas no celular" (geral, em "Primeiros passos").
 - **"Ver como usar"** nas novidades do Mapa e das Horas perdidas, apontando para os artigos (o teste do conteúdo confere que todo "Ver como usar" leva a um artigo que existe).
+- **Página da Ajuda mais perto do Linear Docs:** cada artigo pode escolher o ícone do card (`icone`, lista curta em `src/components/ajuda/iconesDaAjuda.ts`; sem ele, o do módulo), o resumo do card vai até 3 linhas e "Mais usados" mostra no máximo 4 artigos, uma linha.
 - **Telas do (?) passam a valer só para a tela listada** (`src/lib/ajuda.ts`): `/modulos/gestao-rh` não vale para `/modulos/gestao-rh/horas-extras`. Com `/*` no fim, vale para as telas de baixo; a exata ganha da com `/*`.
 - **Imagens com dados fictícios:** o banco local tem nomes reais do VR. Nos prints da lista, nome, iniciais e matrícula de cada linha viram fictícios; no card do Kanban e no alerta, o nome do colaborador e o da responsável também. O formulário de tratamento é só aberto, nunca enviado. Roteiros locais em `ferramentas/animacoes/` (fora do repositório).
 - **Fica para depois das chaves VAPID em produção e do teste num celular:** a novidade "Notificações no celular" (destaque) e o artigo dela.
