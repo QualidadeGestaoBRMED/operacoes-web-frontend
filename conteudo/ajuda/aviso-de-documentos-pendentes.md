@@ -19,7 +19,7 @@ Quando um documento entra no prazo de renovação (a antecedência do alerta) e 
 
 1. Clique num documento da lista. O Atlas abre o detalhe dele.
 2. Comece a renovação em **Registrar renovação** (veja "Como renovar um documento"), ou, se o documento não se aplica à unidade, marque como **Não aplicável**.
-3. Quando o documento tem uma ação, ele sai do aviso.
+3. O documento sai do aviso quando volta para **Regular** (com a renovação concluída), quando é marcado como **Não aplicável** ou quando é desativado. Começar a renovação não basta: ele continua no aviso até a renovação ser concluída.
 
 ## Ver depois
 
