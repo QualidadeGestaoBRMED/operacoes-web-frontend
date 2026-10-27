@@ -4,6 +4,7 @@ resumo: Quem foi desligado sai da lista e das faixas, mas continua contando no a
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 3
+icone: desligado
 ---
 ## Ver os desligados na lista
 

@@ -5,6 +5,7 @@ modulo: gestao-demandas
 telas: [/modulos/gestao-demandas]
 ordem: 1
 popular: true
+icone: nova-demanda
 ---
 ## O caminho inteiro
 

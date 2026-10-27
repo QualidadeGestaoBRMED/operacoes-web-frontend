@@ -5,6 +5,7 @@ modulo: legalizacao
 telas: [/modulos/legalizacao/mapa]
 ordem: 1
 popular: true
+icone: grade
 ---
 ## Abrir o Mapa
 

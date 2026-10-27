@@ -4,7 +4,7 @@ resumo: Quando um colaborador entra na faixa crítica, o Atlas abre uma demanda 
 modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 2
-popular: true
+icone: alerta
 ---
 ## Quando o card aparece
 

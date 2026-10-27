@@ -5,6 +5,7 @@ modulo: gestao-rh
 telas: [/modulos/gestao-rh]
 ordem: 1
 popular: true
+icone: grafico
 ---
 ## Abrir o Painel
 
