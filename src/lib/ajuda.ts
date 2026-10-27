@@ -20,6 +20,8 @@ export interface ArtigoResumido {
   ordem: number;
   /** Aparece também em "Mais usados", no topo da página da Ajuda. */
   popular: boolean;
+  /** Ícone do card (`ICONES_DA_AJUDA`); null: o do módulo. */
+  icone: string | null;
 }
 
 export const FORMATO_DO_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
