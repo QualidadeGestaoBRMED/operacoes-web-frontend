@@ -92,6 +92,27 @@ describe("lerArtigos", () => {
     expect(populares.length, populares.join(", ")).toBeLessThanOrEqual(MAIS_USADOS);
   });
 
+  it("toda tela citada num artigo é uma rota que existe no app", () => {
+    // As rotas são as pastas com page.tsx em src/app/(app); "/*" no fim vale
+    // para a própria tela e as de baixo, então confere a base.
+    const raiz = path.join(process.cwd(), "src/app/(app)");
+    const rotas = new Set<string>();
+    const percorrer = (pasta: string) => {
+      for (const item of fs.readdirSync(pasta, { withFileTypes: true })) {
+        const caminho = path.join(pasta, item.name);
+        if (item.isDirectory()) percorrer(caminho);
+        else if (item.name === "page.tsx") rotas.add(`/${path.relative(raiz, pasta).split(path.sep).join("/")}`);
+      }
+    };
+    percorrer(raiz);
+    const inexistentes = lerArtigos(PASTA_DA_AJUDA).flatMap((artigo) =>
+      artigo.telas
+        .filter((tela) => !rotas.has(tela.endsWith("/*") ? tela.slice(0, -2) : tela))
+        .map((tela) => `${artigo.slug}: ${tela}`),
+    );
+    expect(inexistentes).toEqual([]);
+  });
+
   it("todo ícone escolhido num artigo existe na lista", () => {
     const desconhecidos = lerArtigos(PASTA_DA_AJUDA)
       .filter((artigo) => artigo.icone && !Object.hasOwn(ICONES_DA_AJUDA, artigo.icone))
