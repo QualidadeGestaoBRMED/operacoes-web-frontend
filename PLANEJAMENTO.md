@@ -1311,3 +1311,4 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Alteração de outra pessoa** aparece em até 5 min numa tela já aberta (antes, até 1 min).
 - **`useAlertasPendentes`** (alerta persistente, 60 s) fica como está: é um aviso para a pessoa, leve, não a lista de documentos.
 - **Testes** (`useDocumentosLegalizacao.intervalos.test.tsx`): intervalo de cada hook e atualização ao voltar para a aba não desligada.
+- **Análise de falhas:** sem defeito. A Biblioteca não abre modal de documento: evidências trocadas em outra tela (detalhe, renovação) aparecem ao abrir a Biblioteca, que busca de novo ao montar (`revalidateIfStale`, padrão do SWR), mesmo com o dado em cache. Trocar anexo, desativar e o lote de renovação já invalidam `evidencias-vigentes` direto.
