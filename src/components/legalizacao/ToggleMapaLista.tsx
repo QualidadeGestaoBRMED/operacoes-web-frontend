@@ -51,12 +51,14 @@ export function ToggleMapaLista({
 }: ToggleMapaListaProps) {
   const { podeEscolher } = useRedeDaLegalizacao();
   return (
-    // No celular, o toggle Mapa/Lista, a dica e o link da Biblioteca ficam
+    // Abaixo de `sm` (640px), o toggle Mapa/Lista e a dica ficam
     // escondidos: o Mapa não tem layout estreito (MapaConformidade.tsx
-    // redireciona para a Lista) e a Biblioteca já está nas abas do módulo
-    // (AbasDoModulo). Sobra só o seletor de rede; sem ele, a barra inteira
-    // some no celular, para não deixar uma faixa vazia entre as abas e a
-    // busca.
+    // redireciona para a Lista abaixo de 640px). O link da Biblioteca some
+    // abaixo de `md` (768px), o mesmo corte de QUERY_MOBILE em que o
+    // AppShell troca o menu lateral pelas abas do módulo (AbasDoModulo),
+    // que já levam à Biblioteca. Abaixo de `sm` sobra só o seletor de rede;
+    // sem ele, a barra inteira some, para não deixar uma faixa vazia entre
+    // as abas e a busca.
     <div
       className={cn(
         "items-center justify-between gap-4 border-b border-border px-7 py-3",
@@ -109,7 +111,7 @@ export function ToggleMapaLista({
       {linkBiblioteca && (
         <Link
           href="/modulos/legalizacao/biblioteca"
-          className="ml-auto hidden text-[12.5px] font-medium text-secondary hover:underline sm:inline"
+          className="ml-auto hidden text-[12.5px] font-medium text-secondary hover:underline md:inline"
         >
           Biblioteca de Documentos →
         </Link>
