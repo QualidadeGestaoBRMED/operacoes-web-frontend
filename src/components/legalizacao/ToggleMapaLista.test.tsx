@@ -1,6 +1,9 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ToggleMapaLista } from "./ToggleMapaLista";
+
+// Seletor de rede (STC-894): sem as duas redes, não aparece.
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ redesAdministradas: [] }) }));
 
 describe("ToggleMapaLista", () => {
   it("mostra o segmented control Mapa/Lista por padrão", () => {

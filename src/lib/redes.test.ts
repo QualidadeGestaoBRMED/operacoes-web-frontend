@@ -13,6 +13,7 @@ import {
   filtroDeUnidadeDosPaineis,
   redeDoCargoDeUnidade,
   redesAdministradas,
+  redesDaLegalizacao,
   unidadeForcadaDoCoordenador,
   unidadesDoUsuario,
 } from "./redes";
@@ -125,5 +126,20 @@ describe("unidades adicionais (STC-862)", () => {
     expect(filtroDeUnidadeDosPaineis(unidades, false, [1]).mostrar).toBe(false);
     // Ponto focal com duas aeroclínicas: nenhuma na lista da rede própria.
     expect(filtroDeUnidadeDosPaineis(unidades, false, [7, 8]).mostrar).toBe(false);
+  });
+});
+
+describe("redesDaLegalizacao (STC-894)", () => {
+  const ninguem = { redesAdministradas: [], isSetorLeg: false, isPontoFocal: false };
+
+  it.each([
+    ["Admin das duas redes, a própria primeiro", { ...ninguem, redesAdministradas: ["opex", "padrao"] }, ["padrao", "opex"]],
+    ["Admin Operações", { ...ninguem, redesAdministradas: ["padrao"] }, ["padrao"]],
+    ["Admin Operações Especiais", { ...ninguem, redesAdministradas: ["opex"] }, ["opex"]],
+    ["Setor de Legalização", { ...ninguem, isSetorLeg: true }, ["padrao", "opex"]],
+    ["Ponto focal", { ...ninguem, isPontoFocal: true }, ["opex"]],
+    ["Coordenador e os demais", ninguem, ["padrao"]],
+  ] as const)("%s", (_, usuario, esperado) => {
+    expect(redesDaLegalizacao({ ...usuario, redesAdministradas: [...usuario.redesAdministradas] })).toEqual(esperado);
   });
 });

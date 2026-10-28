@@ -341,6 +341,25 @@ describe("Sidebar -- 'Catálogo de Legalização' dentro do submenu de Legaliza�
     expect(link).toHaveAttribute("href", "/admin/permissoes/catalogo-legalizacao");
   });
 
+  // STC-894: o Admin Operações Especiais cadastra os documentos e as regras
+  // das unidades OPEX pelo Catálogo.
+  it("Admin Operações Especiais também tem o atalho do Catálogo (STC-894)", async () => {
+    simularAuth({
+      isAdminQG: false,
+      isAdminOps: true,
+      isCoordenacaoUnidade: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+
+    renderSidebar();
+
+    await screen.findByRole("link", { name: "Matriz de Conformidade" });
+    expect(screen.getByRole("link", { name: "Catálogo de Legalização" })).toHaveAttribute(
+      "href",
+      "/admin/permissoes/catalogo-legalizacao",
+    );
+  });
+
   // STC-519: Admin (QG/Operações) já podia acessar o mesmo catálogo pelo
   // bloco "Administração" de baixo, só sem esse atalho direto -- passa a
   // ganhar o mesmo subitem que o Coordenador já tinha.
@@ -546,7 +565,7 @@ describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
     ]);
   });
 
-  it("não vê Legalização nem Gestão RH (só a rede padrão), mas vê a Administração", async () => {
+  it("vê Legalização (STC-894), não vê Gestão RH (só a rede padrão) e vê a Administração", async () => {
     simularAuth({
       isAdminQG: false,
       isAdminOps: true,
@@ -556,9 +575,7 @@ describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
 
     expect(await screen.findByRole("link", { name: "Administração" })).toBeInTheDocument();
     await waitFor(() => expect(listarModulos).toHaveBeenCalled());
-    // Mesmo depois de carregar os módulos, nenhum dos dois aparece.
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(screen.queryByRole("button", { name: "Expandir Legalização" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Expandir Legalização" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Expandir Gestão RH" })).not.toBeInTheDocument();
   });
 
