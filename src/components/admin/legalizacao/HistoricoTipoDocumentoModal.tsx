@@ -10,6 +10,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHistoricoTipoDocumento } from "@/hooks/useTiposDocumento";
 import { LABEL_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import { ROTULO_ABRANGENCIA } from "@/lib/redes";
 import { formatarDataHora, nomeOuRemovido } from "@/lib/utils";
 import type { HistoricoTipoDocumento } from "@/types/legalizacao";
 
@@ -22,6 +23,7 @@ const LABEL_CAMPO: Record<string, string> = {
   codigo: "Código",
   categoria: "Categoria",
   area_responsavel: "Área responsável",
+  abrangencia: "Usado em",
   setor_apoio: "Setor de apoio",
   exige_validade: "Exige validade",
   exige_protocolo: "Exige protocolo",
@@ -32,6 +34,7 @@ const LABEL_CAMPO: Record<string, string> = {
 };
 
 const ROTULO_CATEGORIA = LABEL_CATEGORIA as Record<string, string>;
+const ROTULO_DA_ABRANGENCIA = ROTULO_ABRANGENCIA as Record<string, string>;
 
 // valor_anterior/valor_novo em HistoricoTipoDocumento são texto cru (o
 // str() do valor no backend) -- "True"/"False" pra booleano, o código do
@@ -42,6 +45,7 @@ function valorTraduzido(campo: string, valor: string): string {
   if (valor === "True") return "Sim";
   if (valor === "False") return "Não";
   if (campo === "categoria" && ROTULO_CATEGORIA[valor]) return ROTULO_CATEGORIA[valor];
+  if (campo === "abrangencia" && ROTULO_DA_ABRANGENCIA[valor]) return ROTULO_DA_ABRANGENCIA[valor];
   if (campo === "area_responsavel") {
     if (valor === "legalizacao") return "Legalização";
     if (valor === "coordenacao") return "Coordenação da Unidade";
