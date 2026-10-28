@@ -14,6 +14,8 @@ import {
   redeDoCargoDeUnidade,
   redesAdministradas,
   redesDaLegalizacao,
+  podeEditarTipoDeDocumento,
+  redesDaAbrangencia,
   unidadeForcadaDoCoordenador,
   unidadesDoUsuario,
 } from "./redes";
@@ -143,3 +145,27 @@ describe("redesDaLegalizacao (STC-894)", () => {
     expect(redesDaLegalizacao({ ...usuario, redesAdministradas: [...usuario.redesAdministradas] })).toEqual(esperado);
   });
 });
+
+describe("tipos de documento por rede (STC-904)", () => {
+  it("as duas redes cobrem as duas", () => {
+    expect(redesDaAbrangencia("ambas")).toEqual(["padrao", "opex"]);
+    expect(redesDaAbrangencia("opex")).toEqual(["opex"]);
+  });
+
+  it.each([
+    ["Setor de Legalização edita todos", { redesAdministradas: [], isSetorLeg: true }, "ambas", true],
+    ["Admin OPEX edita os de OPEX", { redesAdministradas: ["opex"], isSetorLeg: false }, "opex", true],
+    ["Admin OPEX não edita os da rede própria", { redesAdministradas: ["opex"], isSetorLeg: false }, "padrao", false],
+    ["Admin OPEX não edita os das duas", { redesAdministradas: ["opex"], isSetorLeg: false }, "ambas", false],
+    ["Admin das duas redes edita os das duas", { redesAdministradas: ["padrao", "opex"], isSetorLeg: false }, "ambas", true],
+    ["Coordenação não edita", { redesAdministradas: [], isSetorLeg: false }, "padrao", false],
+  ] as const)("%s", (_, usuario, abrangencia, esperado) => {
+    expect(
+      podeEditarTipoDeDocumento(
+        { ...usuario, redesAdministradas: [...usuario.redesAdministradas] },
+        abrangencia,
+      ),
+    ).toBe(esperado);
+  });
+});
+

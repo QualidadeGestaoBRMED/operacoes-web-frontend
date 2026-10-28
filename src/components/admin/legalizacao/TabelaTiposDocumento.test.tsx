@@ -11,6 +11,10 @@ vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
+// Rede da Legalização (STC-904): rede própria, sem seletor.
+vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
+  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+}));
 
 import {
   atualizarTipoDocumento,
@@ -24,6 +28,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   nome: "Licença Sanitária",
   categoria: "regularizacao",
   area_responsavel: "legalizacao",
+  abrangencia: "padrao",
   setor_apoio: "",
   exige_validade: true,
   exige_protocolo: false,
@@ -45,7 +50,7 @@ function renderTela() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useMediaQuery).mockReturnValue(false);
-  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true, isSetorLeg: false } as never);
+  vi.mocked(useAuth).mockReturnValue({ redesAdministradas: ["padrao"], isSetorLeg: false } as never);
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
@@ -348,12 +353,14 @@ describe("TabelaTiposDocumento, ordenação por coluna (STC-794)", () => {
 
 describe("TabelaTiposDocumento -- quem edita os tipos (STC-894)", () => {
   it.each([
-    ["Setor de Legalização", { isSetorLeg: true }, true],
-    ["Admin da rede própria", { administraRedePadrao: true }, true],
-    ["Admin Operações Especiais, Ponto focal e Coordenador", {}, false],
-  ])("%s", async (_, cargo, edita) => {
+    ["Setor de Legalização", { isSetorLeg: true }, true, true],
+    ["Admin da rede própria", { redesAdministradas: ["padrao"] }, true, true],
+    // Cria os tipos da rede dele, mas não edita um da rede própria.
+    ["Admin Operações Especiais", { redesAdministradas: ["opex"] }, true, false],
+    ["Ponto focal e Coordenador", {}, false, false],
+  ])("%s", async (_, cargo, cria, edita) => {
     vi.mocked(useAuth).mockReturnValue({
-      administraRedePadrao: false,
+      redesAdministradas: [],
       isSetorLeg: false,
       ...cargo,
     } as never);
@@ -361,7 +368,7 @@ describe("TabelaTiposDocumento -- quem edita os tipos (STC-894)", () => {
     renderTela();
 
     expect(await screen.findByText("Licença Sanitária")).toBeInTheDocument();
-    expect(Boolean(screen.queryByRole("button", { name: /novo tipo de documento/i }))).toBe(edita);
+    expect(Boolean(screen.queryByRole("button", { name: /novo tipo de documento/i }))).toBe(cria);
     expect(Boolean(screen.queryByRole("button", { name: "Editar Licença Sanitária" }))).toBe(edita);
     expect(Boolean(screen.queryByRole("button", { name: "Desativar Licença Sanitária" }))).toBe(
       edita,
@@ -371,3 +378,17 @@ describe("TabelaTiposDocumento -- quem edita os tipos (STC-894)", () => {
   });
 });
 
+describe("TabelaTiposDocumento -- tipo das duas redes (STC-904)", () => {
+  it("só o tipo das duas redes ganha a marca", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([
+      TIPO,
+      { ...TIPO, id: 2, nome: "Dedetização", abrangencia: "ambas" },
+    ]);
+    renderTela();
+
+    const linhaDasDuas = (await screen.findByText("Dedetização")).closest("tr")!;
+    expect(within(linhaDasDuas).getByText("As duas redes")).toBeInTheDocument();
+    const linhaDaRede = screen.getByText("Licença Sanitária").closest("tr")!;
+    expect(within(linhaDaRede).queryByText("As duas redes")).not.toBeInTheDocument();
+  });
+});

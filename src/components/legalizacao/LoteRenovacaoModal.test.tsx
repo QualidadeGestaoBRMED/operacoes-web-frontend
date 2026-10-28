@@ -46,6 +46,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   nome: "Calibração de Balança",
   categoria: "equipamentos",
   area_responsavel: "legalizacao",
+  abrangencia: "padrao",
   setor_apoio: "",
   exige_validade: true,
   exige_protocolo: false,

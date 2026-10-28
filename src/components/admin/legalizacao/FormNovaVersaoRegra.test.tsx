@@ -42,6 +42,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   nome: "Licença Sanitária",
   categoria: "regularizacao",
   area_responsavel: "legalizacao",
+  abrangencia: "padrao",
   setor_apoio: "",
   exige_validade: true,
   exige_protocolo: false,
