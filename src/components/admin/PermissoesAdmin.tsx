@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
+import { SeletorRedeLegalizacao } from "@/components/legalizacao/SeletorRedeLegalizacao";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -606,36 +607,44 @@ export function PermissoesAdmin() {
           </h1>
         </div>
 
-        {/* Sem Select nenhum pro Coordenador -- só 1 aba (Catálogo de
-            Legalização) faz parte do acesso dele, não tem entre o quê
-            escolher. */}
-        {!apenasCatalogo && (
-          <Select
-            value={abaEfetiva}
-            onValueChange={(valor) => {
-              // STC-519: aba é derivada do pathname (ver comentário acima),
-              // então só navegar já basta -- sem remount (PermissoesAdmin
-              // vive no layout.tsx, não em cada page.tsx), a sidebar e o
-              // conteúdo desta tela atualizam juntos a partir do mesmo
-              // pathname, sem perder nenhum outro state (filtros, seção
-              // expandida, diálogos abertos). replace (não push): é troca
-              // de aba, não deveria empilhar no histórico do back-button a
-              // cada clique no Select.
-              router.replace(ROTA_ABA[valor as Aba]);
-            }}
-          >
-            <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {abasPermitidas.map((valor) => (
-                <SelectItem key={valor} value={valor}>
-                  {ROTULO_ABA[valor]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* STC-894: no Catálogo, a rede das unidades dos formulários (só
+              para quem vê as duas redes). No cabeçalho, sem linha própria,
+              para não tirar altura da tabela de tipos. */}
+          {abaEfetiva === "catalogo-legalizacao" && (
+            <SeletorRedeLegalizacao size="default" className="w-full sm:w-52" />
+          )}
+          {/* Sem Select nenhum pro Coordenador -- só 1 aba (Catálogo de
+              Legalização) faz parte do acesso dele, não tem entre o quê
+              escolher. */}
+          {!apenasCatalogo && (
+            <Select
+              value={abaEfetiva}
+              onValueChange={(valor) => {
+                // STC-519: aba é derivada do pathname (ver comentário acima),
+                // então só navegar já basta -- sem remount (PermissoesAdmin
+                // vive no layout.tsx, não em cada page.tsx), a sidebar e o
+                // conteúdo desta tela atualizam juntos a partir do mesmo
+                // pathname, sem perder nenhum outro state (filtros, seção
+                // expandida, diálogos abertos). replace (não push): é troca
+                // de aba, não deveria empilhar no histórico do back-button a
+                // cada clique no Select.
+                router.replace(ROTA_ABA[valor as Aba]);
+              }}
+            >
+              <SelectTrigger aria-label="Seção" className="w-full sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {abasPermitidas.map((valor) => (
+                  <SelectItem key={valor} value={valor}>
+                    {ROTULO_ABA[valor]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {visitouAcessos && <AcessosAdmin hidden={abaEfetiva !== "acessos"} />}

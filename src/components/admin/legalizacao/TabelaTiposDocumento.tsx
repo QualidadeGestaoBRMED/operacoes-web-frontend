@@ -126,8 +126,8 @@ export function TabelaTiposDocumento() {
           Tipos de documento
         </h2>
         <p className="text-sm text-muted-foreground">
-          Catálogo único, usado por todas as unidades. A categoria e as
-          exigências são as mesmas em qualquer unidade.
+          Catálogo único, usado por todas as unidades das duas redes. A
+          categoria e as exigências são as mesmas em qualquer unidade.
         </p>
       </div>
 
