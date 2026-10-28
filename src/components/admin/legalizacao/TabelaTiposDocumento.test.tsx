@@ -392,3 +392,14 @@ describe("TabelaTiposDocumento -- tipo das duas redes (STC-904)", () => {
     expect(within(linhaDaRede).queryByText("As duas redes")).not.toBeInTheDocument();
   });
 });
+
+describe("TabelaTiposDocumento -- descrição (code review da STC-894)", () => {
+  it("diz que a tabela é do catálogo da rede, com os tipos das duas", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    renderTela();
+
+    expect(await screen.findByText(/Os tipos de documento desta rede e os usados nas duas/)).toBeInTheDocument();
+    expect(screen.queryByText(/Catálogo único/)).not.toBeInTheDocument();
+  });
+});
+
