@@ -91,32 +91,21 @@ describe("CatalogoLegalizacaoAdmin (STC-415)", () => {
 });
 
 describe("CatalogoLegalizacaoAdmin -- rede (STC-894)", () => {
-  it("quem vê as duas redes escolhe a rede das unidades dos formulários", async () => {
-    window.localStorage.clear();
+  it("os formulários usam as unidades da rede escolhida", async () => {
+    window.localStorage.setItem("atlas.legalizacao.rede", "opex");
     vi.mocked(useAuth).mockReturnValue({
       user: undefined,
       isLoading: false,
       isAdminOps: true,
+      administraRedePadrao: true,
       isCoordenacaoUnidade: false,
       redesAdministradas: ["opex", "padrao"],
     } as never);
-    const user = userEvent.setup();
-    renderTela();
-
-    expect(
-      await screen.findByText(/Os tipos de documento acima são os mesmos nas duas redes/),
-    ).toBeInTheDocument();
-    expect(listarUnidades).toHaveBeenCalledWith("padrao");
-    await user.click(screen.getByLabelText("Rede"));
-    await user.click(screen.getByRole("option", { name: "Operações Especiais" }));
-
-    expect(listarUnidades).toHaveBeenCalledWith("opex");
-  });
-
-  it("quem vê uma rede só não tem o seletor", async () => {
     renderTela();
 
     expect(await screen.findByText("Tipos de documento")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+    expect(listarUnidades).toHaveBeenCalledWith("opex");
+    expect(listarUnidades).not.toHaveBeenCalledWith("padrao");
+    window.localStorage.clear();
   });
 });

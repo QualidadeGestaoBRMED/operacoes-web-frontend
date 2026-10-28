@@ -2078,3 +2078,38 @@ describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
     expect(within(dialog).getByRole("checkbox", { name: "OPEX" })).toBeChecked();
   });
 });
+
+describe("PermissoesAdmin -- rede da Legalização no cabeçalho (STC-894)", () => {
+  it("no Catálogo, quem vê as duas redes tem o seletor no cabeçalho; nas outras abas, não", async () => {
+    simularAuth({
+      isAdminOps: true,
+      administraRedePadrao: true,
+      isLoading: false,
+      redesAdministradas: ["opex", "padrao"],
+    } as ReturnType<typeof useAuth>);
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    const { unmount } = renderTela();
+
+    expect(await screen.findByLabelText("Rede")).toHaveTextContent("Rede própria");
+    unmount();
+
+    mockSetPathname("/admin/permissoes");
+    renderTela();
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Usuários");
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+  });
+
+  it("Admin Operações Especiais não tem o seletor (fica em Operações Especiais)", async () => {
+    simularAuth({
+      isAdminOps: true,
+      isLoading: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    renderTela();
+
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Catálogo de Legalização");
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+  });
+});
+
