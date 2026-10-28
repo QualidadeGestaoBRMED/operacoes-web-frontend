@@ -371,6 +371,32 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
   });
 });
 
+describe("FormNovoTipoDocumento -- novo tipo com os setores chegando depois (code review da STC-894)", () => {
+  it("não apaga o que já foi digitado", async () => {
+    let resolverSetores: (setores: Setor[]) => void = () => {};
+    vi.mocked(listarSetores).mockReturnValue(
+      new Promise((resolve) => {
+        resolverSetores = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText(/^nome/i), "Licença da ANAC");
+    await user.click(screen.getByLabelText(/categoria/i));
+    await user.click(await screen.findByRole("option", { name: "Regularização e licenciamento" }));
+    resolverSetores([SETOR_TI]);
+    // Os setores chegaram (setores.length foi de 0 para 1): o setor aparece
+    // na lista do campo.
+    await user.click(screen.getByLabelText(/setor de apoio/i));
+    expect(await screen.findByRole("option", { name: "TI" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByLabelText(/^nome/i)).toHaveValue("Licença da ANAC");
+    expect(screen.getByLabelText(/categoria/i)).toHaveTextContent("Regularização e licenciamento");
+  });
+});
+
 describe("FormNovoTipoDocumento -- onde o tipo é usado (STC-904)", () => {
   it("nasce na rede escolhida e envia a abrangência escolhida", async () => {
     vi.mocked(criarTipoDocumento).mockResolvedValue({} as never);
