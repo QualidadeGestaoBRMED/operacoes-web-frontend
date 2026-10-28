@@ -1300,3 +1300,15 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Achado da análise de falhas:** o link saía só abaixo de `sm` (640px), mas as abas do módulo aparecem até 767px (`QUERY_MOBILE`, `useMediaQuery`). De 640 a 767px (celular deitado, tablet pequeno), o link e a aba Biblioteca continuavam juntos. A barra segue com `sm`: nessa faixa ela ainda mostra o toggle Mapa/Lista, porque o Mapa só redireciona para a Lista abaixo de 640px.
 - **Sessão carregando:** enquanto a sessão não chega, ninguém tem seletor, então no celular a barra começa escondida e aparece para quem vê as duas redes quando a sessão chega. Antes era o seletor que surgia dentro da barra. Mesmo deslocamento, sem ação.
 - **Cabeçalho da Biblioteca no celular** (visto no teste em tela, mesma issue): o seletor de rede (tamanho pequeno, 190px) e o de unidade (tamanho padrão, 220px) ficavam desalinhados, "Operações Especiais" saía cortado e a descrição virava "Documentos regula...". No celular, os dois seletores ocupam a linha inteira, um embaixo do outro, no tamanho padrão (`w-full sm:w-[...]`), e a descrição só aparece a partir de `sm`. O seletor de rede passa a ter 210px em todas as telas, para caber "Operações Especiais" inteiro com o ícone e a seta.
+
+### 7.43 STC-911 — Listas da Legalização atualizando a cada 5 minutos
+
+✅ **Concluído.** Com a Matriz aberta, a lista inteira de documentos era buscada de novo a cada 60 s. Em produção (28/10/2026, 747 documentos), cada carga tem ~856 KB (medido com volume parecido, STC-910).
+
+- **`useDocumentosLegalizacao`** (Matriz e Mapa) e **`useEvidenciasVigentes`** (Biblioteca): `INTERVALO_POLL_LISTA_MS` = 5 min. A lista pausada dos filtros continua sem atualizar sozinha.
+- **`useDocumentoLegalizacao`** (detalhe, um documento, leve): segue em 60 s enquanto o modal está aberto (`INTERVALO_POLL_DETALHE_MS`).
+- **O que a própria pessoa altera continua aparecendo na hora:** as ações de cadastrar, cadastrar em lote, editar, reverter, desativar, enviar evidência, trocar anexo, responsáveis, renovação, lote de renovação e movimentação profissional já chamam `mutate` da lista. Voltar para a aba e abrir a tela também buscam de novo (padrão do SWR, sem `SWRConfig` global que desligue).
+- **Alteração de outra pessoa** aparece em até 5 min numa tela já aberta (antes, até 1 min).
+- **`useAlertasPendentes`** (alerta persistente, 60 s) fica como está: é um aviso para a pessoa, leve, não a lista de documentos.
+- **Testes** (`useDocumentosLegalizacao.intervalos.test.tsx`): intervalo de cada hook e atualização ao voltar para a aba não desligada.
+- **Análise de falhas:** sem defeito. A Biblioteca não abre modal de documento: evidências trocadas em outra tela (detalhe, renovação) aparecem ao abrir a Biblioteca, que busca de novo ao montar (`revalidateIfStale`, padrão do SWR), mesmo com o dado em cache. Trocar anexo, desativar e o lote de renovação já invalidam `evidencias-vigentes` direto.
