@@ -36,11 +36,13 @@ describe("ToggleMapaLista", () => {
 
   // jsdom não avalia media query: as classes responsivas são o único jeito
   // de o teste ver o que some no celular.
-  it("esconde o linkBiblioteca no celular: a Biblioteca já está nas abas do módulo", () => {
+  // Mesmo corte do QUERY_MOBILE (767px), em que as abas do módulo aparecem:
+  // com `sm`, de 640 a 767px o link e a aba Biblioteca apareceriam juntos.
+  it("esconde o linkBiblioteca enquanto há abas do módulo (abaixo de md)", () => {
     render(<ToggleMapaLista ativo="lista" linkBiblioteca />);
 
     const link = screen.getByRole("link", { name: /Biblioteca de Documentos/i });
-    expect(link).toHaveClass("hidden", "sm:inline");
+    expect(link).toHaveClass("hidden", "md:inline");
   });
 
   it("sem seletor de rede, a barra inteira some no celular", () => {
