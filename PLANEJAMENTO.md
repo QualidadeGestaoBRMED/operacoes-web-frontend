@@ -1289,3 +1289,11 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Efeito no Kanban (2ª análise de falhas):** `isCoordenacaoUnidade` também é usado na Nova Demanda (`FormNovaDemanda`). Com o Ponto focal incluído, ele passa a ver só as próprias aeroclínicas no campo Unidade, e a única vem preenchida, como o Coordenador; o backend já recusava demanda do Ponto focal em aeroclínica que não é dele. Teste em `useAuth.test.tsx` (nível 5 é coordenação e Ponto focal).
 - **Publicação:** o frontend sai no merge (Vercel). Com o backend sem a STC-893, o `?rede=` é ignorado e o Admin OPEX entraria num módulo vazio; como as unidades OPEX não têm documentos, nada aparece errado, mas o cadastro dos documentos OPEX só começa com as duas no ar.
 
+
+### 7.42 STC-909 — Link "Biblioteca de Documentos →" fora da Matriz no celular
+
+✅ **Concluído.** No celular, a Legalização já tem as abas Matriz · Biblioteca · Catálogo (`AbasDoModulo`, subitens de `useNavegacao`, para todos os perfis), e o link da barra do `ToggleMapaLista` levava ao mesmo lugar da aba Biblioteca.
+
+- **Link** só a partir de `sm` (`hidden sm:inline`); no desktop, sem mudança.
+- **Barra:** no celular sobra só o seletor de rede. Sem ele (quem vê uma rede só), a barra inteira some no celular (`hidden sm:flex`), sem faixa vazia entre as abas e a busca; com ele (Admin Q&G, Gestão de Operações, Setor de Legalização), continua.
+- **Testes** (`ToggleMapaLista.test.tsx`): link escondido no celular, barra escondida sem seletor e visível com ele.
