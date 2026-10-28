@@ -191,6 +191,7 @@ export function FormNovoTipoDocumento({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(criarSchema(emEdicao)),
@@ -200,8 +201,6 @@ export function FormNovoTipoDocumento({
   useEffect(() => {
     if (!open) {
       reset(valoresPadrao);
-    } else if (!tipoDocumento) {
-      reset({ ...valoresPadrao, abrangencia: rede });
     } else if (tipoDocumento) {
       // keepDirtyValues: este formulário fica montado (só `hidden`/fechado)
       // em TabelaTiposDocumento.tsx -- o fetch de useSetores() começa
@@ -223,6 +222,14 @@ export function FormNovoTipoDocumento({
     // todo render) e só muda de fato quando a lista real chega.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tipoDocumento?.id, setores.length]);
+
+  // Tipo novo nasce na rede escolhida nas telas. Só ao abrir, num efeito
+  // à parte: o de cima roda de novo quando os setores chegam, e um reset
+  // aqui apagaria o que a pessoa já digitou (code review da STC-894).
+  useEffect(() => {
+    if (open && !tipoDocumento) setValue("abrangencia", rede);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tipoDocumento?.id]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {

@@ -111,7 +111,7 @@ export function MatrizFiltros({
   // "Todos os documentos" -- indistinguível de "não há outros tipos
   // cadastrados".
   const { documentos: catalogoDocumentos, error: erroCatalogoDocumentos } =
-    useDocumentosLegalizacao(undefined, { pausado: true });
+    useDocumentosLegalizacao({ rede }, { pausado: true });
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();
