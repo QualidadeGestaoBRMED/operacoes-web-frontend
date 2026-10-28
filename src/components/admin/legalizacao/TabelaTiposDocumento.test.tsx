@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
@@ -9,6 +10,7 @@ import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
 import {
   atualizarTipoDocumento,
@@ -43,6 +45,7 @@ function renderTela() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true, isSetorLeg: false } as never);
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
@@ -342,3 +345,29 @@ describe("TabelaTiposDocumento, ordenação por coluna (STC-794)", () => {
     expect(screen.queryByRole("button", { name: "Ações" })).not.toBeInTheDocument();
   });
 });
+
+describe("TabelaTiposDocumento -- quem edita os tipos (STC-894)", () => {
+  it.each([
+    ["Setor de Legalização", { isSetorLeg: true }, true],
+    ["Admin da rede própria", { administraRedePadrao: true }, true],
+    ["Admin Operações Especiais, Ponto focal e Coordenador", {}, false],
+  ])("%s", async (_, cargo, edita) => {
+    vi.mocked(useAuth).mockReturnValue({
+      administraRedePadrao: false,
+      isSetorLeg: false,
+      ...cargo,
+    } as never);
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    renderTela();
+
+    expect(await screen.findByText("Licença Sanitária")).toBeInTheDocument();
+    expect(Boolean(screen.queryByRole("button", { name: /novo tipo de documento/i }))).toBe(edita);
+    expect(Boolean(screen.queryByRole("button", { name: "Editar Licença Sanitária" }))).toBe(edita);
+    expect(Boolean(screen.queryByRole("button", { name: "Desativar Licença Sanitária" }))).toBe(
+      edita,
+    );
+    // O histórico continua aberto para todos.
+    expect(screen.getByRole("button", { name: "Ver histórico de Licença Sanitária" })).toBeInTheDocument();
+  });
+});
+

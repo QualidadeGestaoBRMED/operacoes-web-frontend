@@ -34,6 +34,7 @@ beforeEach(() => {
     isLoading: false,
     isAdminQG: false,
     isAdminOps: true,
+    administraRedePadrao: true,
     isCoordenacaoUnidade: false,
   } as never);
 });
