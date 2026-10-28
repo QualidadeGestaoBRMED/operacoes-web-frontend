@@ -416,6 +416,19 @@ describe("BibliotecaDocumentos (STC-416)", () => {
     ).toBeInTheDocument();
   });
 
+  // STC-909: jsdom não avalia media query; as classes responsivas são o
+  // que o teste consegue ver do layout do celular.
+  it("no celular, o seletor de unidade ocupa a linha e a descrição some", async () => {
+    renderTela();
+
+    await screen.findByText(/nenhum documento regulatório cadastrado nesta unidade/i);
+    expect(screen.getByRole("combobox", { name: "Unidade" })).toHaveClass("w-full", "sm:w-[220px]");
+    expect(screen.getByText(/Documentos regulatórios vigentes desta unidade/)).toHaveClass(
+      "hidden",
+      "sm:block",
+    );
+  });
+
   it("mostra mensagem específica (não fica em 'Carregando...' pra sempre) quando não há nenhuma unidade cadastrada", async () => {
     // Achado numa checagem de falhas críticas: sem isto, unidades=[] deixava
     // unidadeId indefinido pra sempre (o efeito que escolhe a 1ª unidade
