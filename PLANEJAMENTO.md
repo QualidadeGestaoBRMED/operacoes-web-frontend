@@ -1294,6 +1294,8 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 
 ✅ **Concluído.** No celular, a Legalização já tem as abas Matriz · Biblioteca · Catálogo (`AbasDoModulo`, subitens de `useNavegacao`, para todos os perfis), e o link da barra do `ToggleMapaLista` levava ao mesmo lugar da aba Biblioteca.
 
-- **Link** só a partir de `sm` (`hidden sm:inline`); no desktop, sem mudança.
+- **Link** só a partir de `md` (`hidden md:inline`), o mesmo corte do `QUERY_MOBILE` (767px) em que o `AppShell` mostra as abas do módulo; no desktop, sem mudança.
 - **Barra:** no celular sobra só o seletor de rede. Sem ele (quem vê uma rede só), a barra inteira some no celular (`hidden sm:flex`), sem faixa vazia entre as abas e a busca; com ele (Admin Q&G, Gestão de Operações, Setor de Legalização), continua.
 - **Testes** (`ToggleMapaLista.test.tsx`): link escondido no celular, barra escondida sem seletor e visível com ele.
+- **Achado da análise de falhas:** o link saía só abaixo de `sm` (640px), mas as abas do módulo aparecem até 767px (`QUERY_MOBILE`, `useMediaQuery`). De 640 a 767px (celular deitado, tablet pequeno), o link e a aba Biblioteca continuavam juntos. A barra segue com `sm`: nessa faixa ela ainda mostra o toggle Mapa/Lista, porque o Mapa só redireciona para a Lista abaixo de 640px.
+- **Sessão carregando:** enquanto a sessão não chega, ninguém tem seletor, então no celular a barra começa escondida e aparece para quem vê as duas redes quando a sessão chega. Antes era o seletor que surgia dentro da barra. Mesmo deslocamento, sem ação.
