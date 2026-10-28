@@ -312,7 +312,9 @@ export function BibliotecaDocumentos() {
           mostrandoExpandido && "sm:hidden",
         )}
       >
-        <SeletorRedeLegalizacao />
+        {/* No celular, os dois seletores ocupam a linha inteira, um embaixo
+            do outro, no mesmo tamanho. */}
+        <SeletorRedeLegalizacao size="default" className="w-full sm:w-[210px]" />
         <Select
           // "" (nunca undefined) -- achado em code review: alternar entre
           // undefined e uma string definida faz o Radix Select logar
@@ -322,7 +324,7 @@ export function BibliotecaDocumentos() {
           value={unidadeId !== undefined ? String(unidadeId) : ""}
           onValueChange={(valor) => mudarUnidade(Number(valor))}
         >
-          <SelectTrigger className="w-[220px]" aria-label="Unidade">
+          <SelectTrigger className="w-full sm:w-[220px]" aria-label="Unidade">
             <MapPin className="size-4 text-secondary" />
             <SelectValue placeholder="Selecionar unidade..." />
           </SelectTrigger>
@@ -334,7 +336,8 @@ export function BibliotecaDocumentos() {
             ))}
           </SelectContent>
         </Select>
-        <p className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
+        {/* No celular não cabe: cortada, a frase não diria nada. */}
+        <p className="hidden min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground sm:block">
           Documentos regulatórios vigentes desta unidade, organizados por
           categoria -- só a evidência atual de cada tipo aparece aqui.
         </p>

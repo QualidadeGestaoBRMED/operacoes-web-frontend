@@ -1289,3 +1289,14 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Efeito no Kanban (2ª análise de falhas):** `isCoordenacaoUnidade` também é usado na Nova Demanda (`FormNovaDemanda`). Com o Ponto focal incluído, ele passa a ver só as próprias aeroclínicas no campo Unidade, e a única vem preenchida, como o Coordenador; o backend já recusava demanda do Ponto focal em aeroclínica que não é dele. Teste em `useAuth.test.tsx` (nível 5 é coordenação e Ponto focal).
 - **Publicação:** o frontend sai no merge (Vercel). Com o backend sem a STC-893, o `?rede=` é ignorado e o Admin OPEX entraria num módulo vazio; como as unidades OPEX não têm documentos, nada aparece errado, mas o cadastro dos documentos OPEX só começa com as duas no ar.
 
+
+### 7.42 STC-909 — Link "Biblioteca de Documentos →" fora da Matriz no celular
+
+✅ **Concluído.** No celular, a Legalização já tem as abas Matriz · Biblioteca · Catálogo (`AbasDoModulo`, subitens de `useNavegacao`, para todos os perfis), e o link da barra do `ToggleMapaLista` levava ao mesmo lugar da aba Biblioteca.
+
+- **Link** só a partir de `md` (`hidden md:inline`), o mesmo corte do `QUERY_MOBILE` (767px) em que o `AppShell` mostra as abas do módulo; no desktop, sem mudança.
+- **Barra:** no celular sobra só o seletor de rede. Sem ele (quem vê uma rede só), a barra inteira some no celular (`hidden sm:flex`), sem faixa vazia entre as abas e a busca; com ele (Admin Q&G, Gestão de Operações, Setor de Legalização), continua.
+- **Testes** (`ToggleMapaLista.test.tsx`): link escondido no celular, barra escondida sem seletor e visível com ele.
+- **Achado da análise de falhas:** o link saía só abaixo de `sm` (640px), mas as abas do módulo aparecem até 767px (`QUERY_MOBILE`, `useMediaQuery`). De 640 a 767px (celular deitado, tablet pequeno), o link e a aba Biblioteca continuavam juntos. A barra segue com `sm`: nessa faixa ela ainda mostra o toggle Mapa/Lista, porque o Mapa só redireciona para a Lista abaixo de 640px.
+- **Sessão carregando:** enquanto a sessão não chega, ninguém tem seletor, então no celular a barra começa escondida e aparece para quem vê as duas redes quando a sessão chega. Antes era o seletor que surgia dentro da barra. Mesmo deslocamento, sem ação.
+- **Cabeçalho da Biblioteca no celular** (visto no teste em tela, mesma issue): o seletor de rede (tamanho pequeno, 190px) e o de unidade (tamanho padrão, 220px) ficavam desalinhados, "Operações Especiais" saía cortado e a descrição virava "Documentos regula...". No celular, os dois seletores ocupam a linha inteira, um embaixo do outro, no tamanho padrão (`w-full sm:w-[...]`), e a descrição só aparece a partir de `sm`. O seletor de rede passa a ter 210px em todas as telas, para caber "Operações Especiais" inteiro com o ícone e a seta.

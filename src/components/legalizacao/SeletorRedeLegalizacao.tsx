@@ -31,7 +31,8 @@ export function SeletorRedeLegalizacao({
   if (!podeEscolher) return null;
   return (
     <Select value={rede} onValueChange={(valor) => escolherRede(valor as Rede)}>
-      <SelectTrigger size={size} className={cn("w-[190px]", className)} aria-label="Rede">
+      <SelectTrigger size={size} // 210px: "Operações Especiais" inteiro, com o ícone e a seta.
+        className={cn("w-[210px]", className)} aria-label="Rede">
         <Network className="size-4 text-secondary" />
         <SelectValue />
       </SelectTrigger>
