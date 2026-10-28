@@ -38,6 +38,7 @@ import {
   useRegrasDocumento,
 } from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
@@ -203,7 +204,8 @@ export function FormCadastrarDocumento({
 }) {
   const { user, isCoordenacaoUnidade } = useAuth();
   const unidadesDoUsuario = unidadesDe(user);
-  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  const { rede } = useRedeDaLegalizacao();
+  const { unidades: todasAsUnidades } = useUnidades(rede);
   // STC-514: mesmo critério da STC-512 -- Coordenador só pode cadastrar na
   // própria unidade, o seletor abaixo oferece só essa opção.
   const unidades = isCoordenacaoUnidade

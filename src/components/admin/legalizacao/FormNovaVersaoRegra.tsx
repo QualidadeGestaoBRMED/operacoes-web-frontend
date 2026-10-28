@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useDocumentosLegalizacao";
 import { useCriarRegraDocumento } from "@/hooks/useRegrasDocumento";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { excluirRegraDocumento } from "@/lib/legalizacaoCatalogo";
@@ -298,7 +299,8 @@ export function FormNovaVersaoRegra() {
   const unidadesDoUsuario = unidadesDe(user);
   // Com mais de uma unidade (STC-862), nada vem preenchido: a pessoa escolhe.
   const unidadeUnica = unidadesDoUsuario.length === 1 ? unidadesDoUsuario[0] : undefined;
-  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  const { rede } = useRedeDaLegalizacao();
+  const { unidades: todasAsUnidades } = useUnidades(rede);
   // STC-514: mesmo critério de FormCadastrarDocumento.tsx -- Coordenador só
   // pode corrigir regra da própria unidade.
   const unidades = isCoordenacaoUnidade

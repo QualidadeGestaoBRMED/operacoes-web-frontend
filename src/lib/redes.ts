@@ -77,6 +77,22 @@ export function administra(usuario: ComCargo | null | undefined, rede: Rede): bo
   return redesAdministradas(usuario).includes(rede);
 }
 
+/** Redes que a pessoa acompanha na Legalização (STC-894): o Admin, as que
+ * administra; o Setor de Legalização, as duas; o Ponto focal, a OPEX; os
+ * demais, a rede própria. A padrão vem primeiro. */
+export function redesDaLegalizacao(usuario: {
+  redesAdministradas: Rede[];
+  isSetorLeg: boolean;
+  isPontoFocal: boolean;
+}): Rede[] {
+  const redePropriaPrimeiro: Rede[] = ["padrao", "opex"];
+  if (usuario.redesAdministradas.length > 0) {
+    return redePropriaPrimeiro.filter((rede) => usuario.redesAdministradas.includes(rede));
+  }
+  if (usuario.isSetorLeg) return redePropriaPrimeiro;
+  return usuario.isPontoFocal ? ["opex"] : ["padrao"];
+}
+
 /** Rede de uma unidade; sem unidade (demanda Operacional), a padrão. */
 /** Unidade principal e adicionais do usuário (STC-862), sem repetir. */
 export function unidadesDoUsuario(

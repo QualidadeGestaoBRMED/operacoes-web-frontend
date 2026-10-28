@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { SeletorRedeLegalizacao } from "./SeletorRedeLegalizacao";
 
 // Achado em code review: dica/linkBiblioteca ocupam o mesmo espaço à
 // direita do segmented control -- um union discriminado (em vez de duas
@@ -58,41 +59,44 @@ export function ToggleMapaLista({
     // sm:flex/sm:block" migrou pra dentro de cada ramo do toggle, não pro
     // container inteiro.
     <div className="flex items-center justify-between gap-4 border-b border-border px-7 py-3">
-      {mostrarMapa ? (
-        <div className="hidden rounded-md bg-muted p-0.5 sm:flex">
-          <Link
-            href="/modulos/legalizacao/mapa"
-            aria-current={ativo === "mapa" ? "page" : undefined}
-            className={cn(
-              "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
-              ativo === "mapa" &&
-                "bg-card font-semibold text-foreground shadow-xs",
-            )}
-          >
-            Mapa
-          </Link>
-          <Link
-            href="/modulos/legalizacao"
-            aria-current={ativo === "lista" ? "page" : undefined}
-            className={cn(
-              "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
-              ativo === "lista" &&
-                "bg-card font-semibold text-foreground shadow-xs",
-            )}
-          >
+      <div className="flex items-center gap-3">
+        {mostrarMapa ? (
+          <div className="hidden rounded-md bg-muted p-0.5 sm:flex">
+            <Link
+              href="/modulos/legalizacao/mapa"
+              aria-current={ativo === "mapa" ? "page" : undefined}
+              className={cn(
+                "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                ativo === "mapa" &&
+                  "bg-card font-semibold text-foreground shadow-xs",
+              )}
+            >
+              Mapa
+            </Link>
+            <Link
+              href="/modulos/legalizacao"
+              aria-current={ativo === "lista" ? "page" : undefined}
+              className={cn(
+                "rounded-md px-4 py-1.5 text-[12.5px] font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                ativo === "lista" &&
+                  "bg-card font-semibold text-foreground shadow-xs",
+              )}
+            >
+              Lista
+            </Link>
+          </div>
+        ) : (
+          // Sem Mapa disponível (Coordenação da Unidade, STC-451), um
+          // segmented control com "Lista" sozinha não teria pra onde
+          // alternar -- mesmo raciocínio do "hidden sm:flex" acima pro
+          // mobile. Só o rótulo, sem virar link (já estamos na única tela
+          // que existe pra esse perfil).
+          <span className="hidden px-1 text-[12.5px] font-semibold text-foreground sm:block">
             Lista
-          </Link>
-        </div>
-      ) : (
-        // Sem Mapa disponível (Coordenação da Unidade, STC-451), um
-        // segmented control com "Lista" sozinha não teria pra onde
-        // alternar -- mesmo raciocínio do "hidden sm:flex" acima pro
-        // mobile. Só o rótulo, sem virar link (já estamos na única tela
-        // que existe pra esse perfil).
-        <span className="hidden px-1 text-[12.5px] font-semibold text-foreground sm:block">
-          Lista
-        </span>
-      )}
+          </span>
+        )}
+        <SeletorRedeLegalizacao />
+      </div>
       {dica && (
         <p className="hidden truncate text-[12px] text-muted-foreground sm:block">
           {dica}

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { unidadeForcadaDoCoordenador, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
@@ -113,11 +114,12 @@ export function MatrizConformidade() {
   // verdade) fazia o efeito rodar com unidades=[] e apagar o filtro por
   // engano. Sem erro, segue validando normalmente; com erro, não mexe no
   // filtro (o erro já derruba a tela mais abaixo, via `error` combinado).
+  const { rede } = useRedeDaLegalizacao();
   const {
     unidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades("padrao");
+  } = useUnidades(rede);
   useEffect(() => {
     if (carregandoUnidades || erroUnidades || !filtros.unidade) return;
     const existe = unidades.some((unidade) => unidade.id === filtros.unidade);
@@ -187,9 +189,10 @@ export function MatrizConformidade() {
     carregandoPrimeiraVez,
     error: erroDocumentos,
     mensagemErro,
-  } = useDocumentosLegalizacao(filtros, {
-    desabilitado: aguardandoValidacaoDeUnidade,
-  });
+  } = useDocumentosLegalizacao(
+    { ...filtros, rede },
+    { desabilitado: aguardandoValidacaoDeUnidade },
+  );
 
   const error =
     erroDocumentos ??

@@ -26,6 +26,8 @@ import {
   limparCachePreviewEvidencia,
   useEvidenciaVigentePreview,
 } from "@/hooks/useEvidenciasLegalizacao";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
+import { SeletorRedeLegalizacao } from "./SeletorRedeLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { urlAbsolutaDaEvidencia } from "@/lib/legalizacao";
@@ -92,11 +94,12 @@ export function BibliotecaDocumentos() {
     isCoordenacaoUnidade,
   } = useAuth();
   const unidadesDoUsuario = unidadesDe(user);
+  const { rede } = useRedeDaLegalizacao();
   const {
     unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades("padrao");
+  } = useUnidades(rede);
   // STC-512: Coordenador só pode ver/selecionar a própria unidade -- o
   // backend já restringe o dado (_documentos_visiveis_para,
   // legalizacao/views.py) a Q(unidade_id=usuario.unidade_id), mas o Select
@@ -309,6 +312,7 @@ export function BibliotecaDocumentos() {
           mostrandoExpandido && "sm:hidden",
         )}
       >
+        <SeletorRedeLegalizacao />
         <Select
           // "" (nunca undefined) -- achado em code review: alternar entre
           // undefined e uma string definida faz o Radix Select logar

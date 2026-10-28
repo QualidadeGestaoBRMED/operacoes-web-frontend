@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { SeletorRedeLegalizacao } from "@/components/legalizacao/SeletorRedeLegalizacao";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { FormCadastrarDocumento } from "./FormCadastrarDocumento";
 import { FormCadastrarDocumentosEmLote } from "./FormCadastrarDocumentosEmLote";
 import { FormNovaVersaoRegra } from "./FormNovaVersaoRegra";
@@ -12,6 +14,7 @@ import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
   const [formCadastroAberto, setFormCadastroAberto] = useState(false);
   const [formLoteAberto, setFormLoteAberto] = useState(false);
+  const { podeEscolher } = useRedeDaLegalizacao();
 
   return (
     // hidden (não desmontar): achado na revisão de código -- essa aba era
@@ -50,6 +53,18 @@ export function CatalogoLegalizacaoAdmin({ hidden }: { hidden?: boolean }) {
       </div>
 
       <Separator className="shrink-0" />
+
+      {/* STC-894: a rede escolhe as unidades dos formulários abaixo; o
+          catálogo de tipos, acima, é um só para as duas redes. */}
+      {podeEscolher && (
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <SeletorRedeLegalizacao />
+          <p className="text-sm text-muted-foreground">
+            Vale para o cadastro de documentos e as regras abaixo. Os tipos de
+            documento acima são os mesmos nas duas redes.
+          </p>
+        </div>
+      )}
 
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
         <div>

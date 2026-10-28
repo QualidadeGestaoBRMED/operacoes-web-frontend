@@ -1,4 +1,4 @@
-import type { StatusDemanda, Unidade, Usuario } from "./index";
+import type { Rede, StatusDemanda, Unidade, Usuario } from "./index";
 
 // Espelha TipoDocumentoRegulatorio.Categoria (backend/legalizacao/models.py).
 export type CategoriaDocumento =
@@ -416,4 +416,6 @@ export interface DocumentoUnidadeFiltros {
   responsavel?: number;
   criticidade?: Criticidade;
   prazo_ate?: string;
+  /** Rede das unidades (STC-893/894): separa as duas para quem vê as duas. */
+  rede?: Rede;
 }

@@ -51,9 +51,9 @@ export function useNavegacao() {
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
   const modulosNavegacao = useModulosNavegacao();
-  // STC-747: Legalização e Gestão RH só trabalham com a rede padrão; o Admin
-  // Operações Especiais (Admin só da rede OPEX) não os vê até as versões de
-  // Operações Especiais.
+  // STC-747: Gestão RH só trabalha com a rede padrão; o Admin Operações
+  // Especiais (Admin só da rede OPEX) não o vê até a versão de Operações
+  // Especiais. A Legalização tem as duas redes (STC-894).
   const soAdminOpex = isAdminOps && !administraRedePadrao;
 
   // Subitens do módulo, com os atalhos de Administração por perfil.
@@ -63,7 +63,7 @@ export function useNavegacao() {
     // (/admin/permissoes/catalogo-legalizacao, não /admin/permissoes com
     // query string): sem isso, pathname.startsWith() não distinguia este
     // atalho do link "Administração" (mesmo pathname).
-    if (codigo === "legalizacao" && (isCoordenacaoUnidade || administraRedePadrao || isSetorLeg)) {
+    if (codigo === "legalizacao" && (isCoordenacaoUnidade || isAdminOps || isSetorLeg)) {
       return [
         ...base,
         {
@@ -94,7 +94,7 @@ export function useNavegacao() {
       .filter(
         (modulo) =>
           modulo.ativo &&
-          !(soAdminOpex && (modulo.codigo === "legalizacao" || modulo.codigo === "gestao-rh")),
+          !(soAdminOpex && modulo.codigo === "gestao-rh"),
       )
       // rota as string: useModulosNavegacao só marca ativo=true quando a
       // rota também está preenchida (ver ModuloNavegacao.ativo).
