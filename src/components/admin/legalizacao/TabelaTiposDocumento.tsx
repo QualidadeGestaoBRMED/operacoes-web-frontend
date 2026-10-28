@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
+import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   useAtualizarTipoDocumento,
@@ -60,6 +61,12 @@ export function TabelaTiposDocumento() {
   const { tiposDocumento, isLoading, error, mensagemErro } =
     useTiposDocumento();
   const { atualizar } = useAtualizarTipoDocumento();
+  // Criar, editar e ativar tipos é do Setor de Legalização e de quem
+  // administra a rede própria (PodeEscreverCatalogoLegalizacao no backend).
+  // Coordenação, Ponto focal e Admin Operações Especiais entram no Catálogo
+  // pelas regras e documentos das suas unidades e só consultam os tipos.
+  const { administraRedePadrao, isSetorLeg } = useAuth();
+  const podeEditarTipos = Boolean(administraRedePadrao || isSetorLeg);
   // Mesmo hook de GerenciarUsuarios.tsx -- trava a altura da tabela num
   // múltiplo exato de linhas inteiras, usando o espaço real que sobra na
   // tela (refPai é o wrapper com flex-1/min-h que CatalogoLegalizacaoAdmin
@@ -165,13 +172,15 @@ export function TabelaTiposDocumento() {
             </Select>
           </>
         )}
-        <Button
-          className="ml-auto shrink-0"
-          onClick={() => setFormAberto(true)}
-        >
-          <Plus className="size-4" />
-          Novo tipo de documento
-        </Button>
+        {podeEditarTipos && (
+          <Button
+            className="ml-auto shrink-0"
+            onClick={() => setFormAberto(true)}
+          >
+            <Plus className="size-4" />
+            Novo tipo de documento
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -280,26 +289,30 @@ export function TabelaTiposDocumento() {
                       <Badge variant={tipo.ativo ? "success" : "muted"}>
                         {tipo.ativo ? "Ativo" : "Inativo"}
                       </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label={`${tipo.ativo ? "Desativar" : "Ativar"} ${tipo.nome}`}
-                        onClick={() => void alternarAtivo(tipo)}
-                      >
-                        {tipo.ativo ? "Desativar" : "Ativar"}
-                      </Button>
+                      {podeEditarTipos && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          aria-label={`${tipo.ativo ? "Desativar" : "Ativar"} ${tipo.nome}`}
+                          onClick={() => void alternarAtivo(tipo)}
+                        >
+                          {tipo.ativo ? "Desativar" : "Ativar"}
+                        </Button>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Editar ${tipo.nome}`}
-                        onClick={() => setTipoEditando(tipo)}
-                      >
-                        Editar
-                      </Button>
+                      {podeEditarTipos && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`Editar ${tipo.nome}`}
+                          onClick={() => setTipoEditando(tipo)}
+                        >
+                          Editar
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
