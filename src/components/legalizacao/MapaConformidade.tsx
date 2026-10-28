@@ -89,7 +89,7 @@ export function MapaConformidade() {
 
   // Dica de cada célula (STC-866): o catálogo da categoria com o que a
   // unidade já cadastrou. Sem o catálogo (carregando ou falhou), sem dica.
-  const { tiposDocumento } = useTiposDocumento();
+  const { tiposDocumento } = useTiposDocumento(rede);
   const indice = useMemo(() => indiceDoChecklist(documentos), [documentos]);
   const checklist =
     tiposDocumento.length > 0

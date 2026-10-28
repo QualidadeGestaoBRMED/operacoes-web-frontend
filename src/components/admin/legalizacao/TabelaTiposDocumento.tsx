@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   useAtualizarTipoDocumento,
@@ -23,6 +24,7 @@ import {
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
 import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
+import { podeEditarTipoDeDocumento, ROTULO_ABRANGENCIA } from "@/lib/redes";
 import { cn } from "@/lib/utils";
 import type {
   AreaResponsavelDocumento,
@@ -58,15 +60,20 @@ const ROTULO_FILTRO_ATIVO: Record<FiltroAtivo, string> = {
 };
 
 export function TabelaTiposDocumento() {
+  // O catálogo da rede escolhida: os tipos dela e os das duas (STC-904).
+  const { rede } = useRedeDaLegalizacao();
   const { tiposDocumento, isLoading, error, mensagemErro } =
-    useTiposDocumento();
+    useTiposDocumento(rede);
   const { atualizar } = useAtualizarTipoDocumento();
-  // Criar, editar e ativar tipos é do Setor de Legalização e de quem
-  // administra a rede própria (PodeEscreverCatalogoLegalizacao no backend).
-  // Coordenação, Ponto focal e Admin Operações Especiais entram no Catálogo
-  // pelas regras e documentos das suas unidades e só consultam os tipos.
-  const { administraRedePadrao, isSetorLeg } = useAuth();
-  const podeEditarTipos = Boolean(administraRedePadrao || isSetorLeg);
+  // Tipos de documento (STC-904, pode_editar_tipo_de_documento no
+  // backend): o Setor de Legalização cria e edita todos; o Admin, os das
+  // redes que administra. Coordenação e Ponto focal só consultam.
+  const { redesAdministradas, isSetorLeg } = useAuth();
+  const quemEdita = {
+    redesAdministradas: redesAdministradas ?? [],
+    isSetorLeg: Boolean(isSetorLeg),
+  };
+  const podeCriarTipos = quemEdita.isSetorLeg || quemEdita.redesAdministradas.length > 0;
   // Mesmo hook de GerenciarUsuarios.tsx -- trava a altura da tabela num
   // múltiplo exato de linhas inteiras, usando o espaço real que sobra na
   // tela (refPai é o wrapper com flex-1/min-h que CatalogoLegalizacaoAdmin
@@ -172,7 +179,7 @@ export function TabelaTiposDocumento() {
             </Select>
           </>
         )}
-        {podeEditarTipos && (
+        {podeCriarTipos && (
           <Button
             className="ml-auto shrink-0"
             onClick={() => setFormAberto(true)}
@@ -258,6 +265,13 @@ export function TabelaTiposDocumento() {
                 >
                   <td className="sticky left-0 z-[1] bg-background px-4 py-2.5 font-medium text-foreground">
                     {tipo.nome}
+                    {/* A tabela já é da rede escolhida; só o tipo das duas
+                        redes ganha a marca (STC-904). */}
+                    {tipo.abrangencia === "ambas" && (
+                      <Badge variant="outline" className="ml-2 font-normal">
+                        {ROTULO_ABRANGENCIA.ambas}
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">
                     {LABEL_CATEGORIA[tipo.categoria]}
@@ -289,7 +303,7 @@ export function TabelaTiposDocumento() {
                       <Badge variant={tipo.ativo ? "success" : "muted"}>
                         {tipo.ativo ? "Ativo" : "Inativo"}
                       </Badge>
-                      {podeEditarTipos && (
+                      {podeEditarTipoDeDocumento(quemEdita, tipo.abrangencia) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -303,7 +317,7 @@ export function TabelaTiposDocumento() {
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1">
-                      {podeEditarTipos && (
+                      {podeEditarTipoDeDocumento(quemEdita, tipo.abrangencia) && (
                         <Button
                           size="sm"
                           variant="ghost"

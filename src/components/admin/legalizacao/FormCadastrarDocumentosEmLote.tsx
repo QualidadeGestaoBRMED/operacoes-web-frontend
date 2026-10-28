@@ -171,7 +171,7 @@ export function FormCadastrarDocumentosEmLote({
   const unidades = isCoordenacaoUnidade
     ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
-  const { tiposDocumento } = useTiposDocumento();
+  const { tiposDocumento } = useTiposDocumento(rede);
   const { criar: criarLote, isLoading: salvando } = useCriarDocumentosLegalizacaoEmLote();
 
   // Não-nulo == passo 2 (anexar evidências) -- documentos já criados de

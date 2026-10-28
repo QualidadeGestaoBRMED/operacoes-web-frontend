@@ -9,12 +9,22 @@ import {
   listarTiposDocumento,
 } from "@/lib/legalizacaoCatalogo";
 import { extrairMensagemErro } from "@/lib/erros";
+import type { Rede } from "@/types";
 import type { TipoDocumentoRegulatorioPayload } from "@/types/legalizacao";
 
 const CHAVE_LISTA = "tipos-documento-legalizacao";
 
-export function useTiposDocumento() {
-  const { data, error, isLoading } = useSWR(CHAVE_LISTA, listarTiposDocumento);
+// Toda variação da lista (por rede ou sem) -- criar ou editar um tipo pode
+// mudar qualquer uma delas.
+function ehChaveDaLista(chave: unknown) {
+  return Array.isArray(chave) && chave[0] === CHAVE_LISTA;
+}
+
+/** Sem `rede`, todos os tipos; com ela, o catálogo da rede (STC-904). */
+export function useTiposDocumento(rede?: Rede) {
+  const { data, error, isLoading } = useSWR([CHAVE_LISTA, rede], () =>
+    listarTiposDocumento(rede),
+  );
 
   return {
     tiposDocumento: data ?? [],
@@ -30,7 +40,7 @@ export function useCriarTipoDocumento() {
     CHAVE_LISTA,
     (_chave, { arg }: { arg: TipoDocumentoRegulatorioPayload }) =>
       criarTipoDocumento(arg),
-    { onSuccess: () => mutate(CHAVE_LISTA) },
+    { onSuccess: () => mutate(ehChaveDaLista) },
   );
 
   return {
@@ -53,7 +63,7 @@ export function useAtualizarTipoDocumento() {
         arg: { id: number; payload: Partial<TipoDocumentoRegulatorioPayload> };
       },
     ) => atualizarTipoDocumento(arg.id, arg.payload),
-    { onSuccess: () => mutate(CHAVE_LISTA) },
+    { onSuccess: () => mutate(ehChaveDaLista) },
   );
 
   return {

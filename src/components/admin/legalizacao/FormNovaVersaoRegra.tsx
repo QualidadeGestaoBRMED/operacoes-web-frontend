@@ -306,7 +306,7 @@ export function FormNovaVersaoRegra() {
   const unidades = isCoordenacaoUnidade
     ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
-  const { tiposDocumento } = useTiposDocumento();
+  const { tiposDocumento } = useTiposDocumento(rede);
   const [unidadeId, setUnidadeId] = useState<number | undefined>();
   const [tipoDocumentoId, setTipoDocumentoId] = useState<number | undefined>();
   const [dialogAberto, setDialogAberto] = useState(false);

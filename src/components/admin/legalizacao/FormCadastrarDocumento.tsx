@@ -211,7 +211,7 @@ export function FormCadastrarDocumento({
   const unidades = isCoordenacaoUnidade
     ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
     : todasAsUnidades;
-  const { tiposDocumento } = useTiposDocumento();
+  const { tiposDocumento } = useTiposDocumento(rede);
   const { criar: criarRegra } = useCriarRegraDocumento();
   const { criar: criarDocumento } = useCriarDocumentoLegalizacao();
   const [arquivo, setArquivo] = useState<File | null>(null);

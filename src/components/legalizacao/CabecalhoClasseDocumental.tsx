@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 import { LABEL_CATEGORIA } from "@/lib/legalizacaoMatriz";
 import type { AreaResponsavelDocumento, CategoriaDocumento } from "@/types/legalizacao";
@@ -33,7 +34,8 @@ const ALTURA_MAXIMA_DA_LISTA = ITENS_VISIVEIS * ALTURA_DO_ITEM + (ITENS_VISIVEIS
  * largura dela, para não cobrir as classes vizinhas.
  */
 export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaDocumento }) {
-  const { tiposDocumento, isLoading, mensagemErro } = useTiposDocumento();
+  const { rede } = useRedeDaLegalizacao();
+  const { tiposDocumento, isLoading, mensagemErro } = useTiposDocumento(rede);
   const [aberto, setAberto] = useState(false);
   // Aberto pelo mouse: o clique seguinte fixa o Popover em vez de fechá-lo.
   const abertoPeloMouse = useRef(false);

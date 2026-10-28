@@ -15,12 +15,17 @@ export type CategoriaDocumento =
 // e sem relação entre os dois módulos.
 export type AreaResponsavelDocumento = "legalizacao" | "coordenacao";
 
+/** Em quais redes o tipo é usado (STC-904): cada rede tem o seu catálogo,
+ * e um tipo comum às duas é "ambas", sem cópia. */
+export type AbrangenciaTipoDocumento = "padrao" | "opex" | "ambas";
+
 export interface TipoDocumentoRegulatorio {
   id: number;
   codigo: string;
   nome: string;
   categoria: CategoriaDocumento;
   area_responsavel: AreaResponsavelDocumento;
+  abrangencia: AbrangenciaTipoDocumento;
   setor_apoio: string;
   exige_validade: boolean;
   exige_protocolo: boolean;
@@ -204,6 +209,7 @@ export interface TipoDocumentoRegulatorioPayload {
   nome: string;
   categoria: CategoriaDocumento;
   area_responsavel: AreaResponsavelDocumento;
+  abrangencia?: AbrangenciaTipoDocumento;
   // STC-526: nome do setor_apoio.setor_apoio_id (write-only no backend) --
   // ver TipoDocumentoRegulatorioSerializer.
   setor_apoio_id?: number | null;
