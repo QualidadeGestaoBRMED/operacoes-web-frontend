@@ -27,11 +27,15 @@ import {
   useAtualizarTipoDocumento,
   useCriarTipoDocumento,
 } from "@/hooks/useTiposDocumento";
+import { useAuth } from "@/hooks/useAuth";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useSetores } from "@/hooks/useSetores";
 import { extrairMensagemErro } from "@/lib/erros";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import { podeEditarTipoDeDocumento, ROTULO_ABRANGENCIA } from "@/lib/redes";
 import type { Setor } from "@/types";
 import type {
+  AbrangenciaTipoDocumento,
   AreaResponsavelDocumento,
   TipoDocumentoRegulatorio,
 } from "@/types/legalizacao";
@@ -91,6 +95,9 @@ function criarSchema(emEdicao: boolean) {
     area_responsavel: z.enum(["legalizacao", "coordenacao"], {
       error: "Selecione a área responsável.",
     }),
+    abrangencia: z.enum(["padrao", "opex", "ambas"], {
+      error: "Selecione onde o tipo é usado.",
+    }),
     exige_validade: z.boolean(),
     exige_protocolo: z.boolean(),
     exige_evidencia: z.boolean(),
@@ -142,6 +149,7 @@ function valoresDe(
     codigo: tipo.codigo,
     categoria: tipo.categoria,
     area_responsavel: tipo.area_responsavel,
+    abrangencia: tipo.abrangencia,
     exige_validade: tipo.exige_validade,
     exige_protocolo: tipo.exige_protocolo,
     exige_evidencia: tipo.exige_evidencia,
@@ -165,12 +173,25 @@ export function FormNovoTipoDocumento({
   const { atualizar, isLoading: atualizando } = useAtualizarTipoDocumento();
   const isLoading = emEdicao ? atualizando : criando;
   const { setores } = useSetores();
+  // STC-904: só as abrangências que quem edita pode usar (a mesma regra do
+  // backend); um tipo novo nasce na rede escolhida nas telas.
+  const { rede } = useRedeDaLegalizacao();
+  const { redesAdministradas, isSetorLeg } = useAuth();
+  const abrangencias = (
+    Object.keys(ROTULO_ABRANGENCIA) as AbrangenciaTipoDocumento[]
+  ).filter((abrangencia) =>
+    podeEditarTipoDeDocumento(
+      { redesAdministradas: redesAdministradas ?? [], isSetorLeg: Boolean(isSetorLeg) },
+      abrangencia,
+    ),
+  );
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValuesEntrada, unknown, FormValuesSaida>({
     resolver: zodResolver(criarSchema(emEdicao)),
@@ -201,6 +222,14 @@ export function FormNovoTipoDocumento({
     // todo render) e só muda de fato quando a lista real chega.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tipoDocumento?.id, setores.length]);
+
+  // Tipo novo nasce na rede escolhida nas telas. Só ao abrir, num efeito
+  // à parte: o de cima roda de novo quando os setores chegam, e um reset
+  // aqui apagaria o que a pessoa já digitou (code review da STC-894).
+  useEffect(() => {
+    if (open && !tipoDocumento) setValue("abrangencia", rede);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tipoDocumento?.id]);
 
   async function aoSubmeter(valores: FormValuesSaida) {
     try {
@@ -336,6 +365,37 @@ export function FormNovoTipoDocumento({
                 <p className="text-xs text-destructive">
                   {errors.area_responsavel.message}
                 </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="td-abrangencia">
+                Usado em <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={control}
+                name="abrangencia"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="td-abrangencia" className="w-full">
+                      <SelectValue placeholder="Selecionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {abrangencias.map((abrangencia) => (
+                        <SelectItem key={abrangencia} value={abrangencia}>
+                          {ROTULO_ABRANGENCIA[abrangencia]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Cada rede tem o seu catálogo. Um tipo das duas redes aparece nos
+                dois.
+              </p>
+              {errors.abrangencia && (
+                <p className="text-xs text-destructive">{errors.abrangencia.message}</p>
               )}
             </div>
 

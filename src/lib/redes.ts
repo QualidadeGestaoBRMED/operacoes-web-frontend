@@ -1,4 +1,5 @@
 import type { Perfil, Rede, Unidade, Usuario } from "@/types";
+import type { AbrangenciaTipoDocumento } from "@/types/legalizacao";
 
 // Cargos (accounts/permissions.py). Os números só identificam o cargo: quem
 // administra o quê vem de REDES_POR_NIVEL, nunca de comparar maior/menor
@@ -75,6 +76,46 @@ export function redesAdministradas(usuario: ComCargo | null | undefined): Rede[]
 
 export function administra(usuario: ComCargo | null | undefined, rede: Rede): boolean {
   return redesAdministradas(usuario).includes(rede);
+}
+
+/** Redes que a pessoa acompanha na Legalização (STC-894): o Admin, as que
+ * administra; o Setor de Legalização, as duas; o Ponto focal, a OPEX; os
+ * demais, a rede própria. A padrão vem primeiro. */
+export function redesDaLegalizacao(usuario: {
+  redesAdministradas: Rede[];
+  isSetorLeg: boolean;
+  isPontoFocal: boolean;
+}): Rede[] {
+  const redePropriaPrimeiro: Rede[] = ["padrao", "opex"];
+  if (usuario.redesAdministradas.length > 0) {
+    return redePropriaPrimeiro.filter((rede) => usuario.redesAdministradas.includes(rede));
+  }
+  if (usuario.isSetorLeg) return redePropriaPrimeiro;
+  return usuario.isPontoFocal ? ["opex"] : ["padrao"];
+}
+
+/** Redes cobertas pela abrangência de um tipo de documento (STC-904). */
+export function redesDaAbrangencia(abrangencia: AbrangenciaTipoDocumento): Rede[] {
+  return abrangencia === "ambas" ? ["padrao", "opex"] : [abrangencia];
+}
+
+export const ROTULO_ABRANGENCIA: Record<AbrangenciaTipoDocumento, string> = {
+  padrao: "Rede própria",
+  opex: "Operações Especiais",
+  ambas: "As duas redes",
+};
+
+/** Quem edita um tipo de documento (pode_editar_tipo_de_documento no
+ * backend): o Setor de Legalização, todos; o Admin, os das redes que
+ * administra (um tipo das duas, só quem administra as duas). */
+export function podeEditarTipoDeDocumento(
+  usuario: { redesAdministradas: Rede[]; isSetorLeg: boolean },
+  abrangencia: AbrangenciaTipoDocumento,
+): boolean {
+  if (usuario.isSetorLeg) return true;
+  return redesDaAbrangencia(abrangencia).every((rede) =>
+    usuario.redesAdministradas.includes(rede),
+  );
 }
 
 /** Rede de uma unidade; sem unidade (demanda Operacional), a padrão. */

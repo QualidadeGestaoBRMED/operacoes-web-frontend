@@ -5,7 +5,13 @@ import useSWR from "swr";
 
 import { obterUsuarioLogado, type UsuarioLogado } from "@/lib/plataforma";
 import { useVerComo } from "@/lib/verComo";
-import { NIVEL_ADMIN_QG, NIVEL_SETOR, NIVEL_UNIDADE, redesAdministradas } from "@/lib/redes";
+import {
+  NIVEL_ADMIN_QG,
+  NIVEL_PONTO_FOCAL,
+  NIVEL_SETOR,
+  NIVEL_UNIDADE,
+  redesAdministradas,
+} from "@/lib/redes";
 
 export function useAuth() {
   const { data: session, status } = useSession();
@@ -63,12 +69,14 @@ export function useAuth() {
     // categorias do Kanban) são da rede padrão.
     administraRedePadrao: redes.includes("padrao"),
     administraAsDuasRedes: redes.length === 2,
-    // Coordenação da Unidade (perfil nível 3) -- mesmo nível usado no RBAC
-    // de backend (accounts.permissions.NIVEL_UNIDADE, legalizacao/views.py
+    // Coordenação da Unidade: Coordenador (rede própria) e Ponto focal
+    // (OPEX, STC-894) -- os mesmos níveis do RBAC de backend
+    // (accounts.permissions.NIVEIS_DA_COORDENACAO, legalizacao/views.py
     // ::_documentos_visiveis_para). Usado em Legalização pra restringir
-    // telas de panorama da rede (Mapa/Biblioteca/Matriz) à própria unidade
+    // telas de panorama da rede (Mapa/Biblioteca/Matriz) às unidades
     // desse perfil, em vez de deixar ver a rede inteira.
-    isCoordenacaoUnidade: nivel === NIVEL_UNIDADE,
+    isCoordenacaoUnidade: nivel === NIVEL_UNIDADE || nivel === NIVEL_PONTO_FOCAL,
+    isPontoFocal: nivel === NIVEL_PONTO_FOCAL,
     // STC-521: nível 4 sozinho não basta -- existem outros setores no mesmo
     // nível (RH etc.), então "é Setor LEG" exige nível 4 E setor.codigo
     // === "LEG" (mesmo critério que legalizacao.permissions.e_setor_leg()

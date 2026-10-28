@@ -1,4 +1,5 @@
 import api from "./api";
+import type { Rede } from "@/types";
 import type {
   HistoricoTipoDocumento,
   RegraDocumento,
@@ -11,11 +12,13 @@ const MODULO_URL = "/modulos/legalizacao/";
 const TIPOS_DOCUMENTO_URL = `${MODULO_URL}tipos-documento/`;
 const REGRAS_URL = `${MODULO_URL}regras/`;
 
-export async function listarTiposDocumento(): Promise<
-  TipoDocumentoRegulatorio[]
-> {
-  const { data } =
-    await api.get<TipoDocumentoRegulatorio[]>(TIPOS_DOCUMENTO_URL);
+/** Com `rede`, o catálogo da rede: os tipos dela e os das duas (STC-904). */
+export async function listarTiposDocumento(
+  rede?: Rede,
+): Promise<TipoDocumentoRegulatorio[]> {
+  const { data } = await api.get<TipoDocumentoRegulatorio[]>(TIPOS_DOCUMENTO_URL, {
+    params: rede ? { rede } : undefined,
+  });
   return data;
 }
 

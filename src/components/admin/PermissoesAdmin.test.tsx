@@ -480,7 +480,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(buscarReguaFerias).toHaveBeenCalled();
   });
 
-  it("STC-747/STC-746: Admin Operações Especiais fica com Usuários e Acessos, mesmo pela rota dos Parâmetros", async () => {
+  it("STC-747/STC-894: Admin Operações Especiais fica com Usuários, Acessos e Catálogo, sem os Parâmetros, mesmo pela rota deles", async () => {
     mockSetPathname("/admin/permissoes/parametros-gestao-rh");
     simularAuth({
       isAdminOps: true,
@@ -498,6 +498,7 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual([
       "Usuários",
       "Acessos",
+      "Catálogo de Legalização",
     ]);
     expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
     // A URL sai da aba proibida.
@@ -1766,7 +1767,7 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
     return { user, dialog };
   }
 
-  it("Admin Operações Especiais só tem a aba Usuários", async () => {
+  it("Admin Operações Especiais entra no Catálogo de Legalização (STC-894), sem os Parâmetros de Gestão RH", async () => {
     simularAuth({
       isAdminOps: true,
       isLoading: false,
@@ -1777,10 +1778,10 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
 
     renderTela();
 
-    expect(await screen.findByTestId("secao-usuarios")).toBeVisible();
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Catálogo de Legalização");
     await user.click(screen.getByLabelText("Seção"));
     expect(await screen.findByRole("option", { name: "Usuários" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Catálogo de Legalização" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Catálogo de Legalização" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Parâmetros de Gestão RH" })).not.toBeInTheDocument();
   });
 
@@ -2077,3 +2078,38 @@ describe("Permissão do Kanban com tipos de gestão (STC-887)", () => {
     expect(within(dialog).getByRole("checkbox", { name: "OPEX" })).toBeChecked();
   });
 });
+
+describe("PermissoesAdmin -- rede da Legalização no cabeçalho (STC-894)", () => {
+  it("no Catálogo, quem vê as duas redes tem o seletor no cabeçalho; nas outras abas, não", async () => {
+    simularAuth({
+      isAdminOps: true,
+      administraRedePadrao: true,
+      isLoading: false,
+      redesAdministradas: ["opex", "padrao"],
+    } as ReturnType<typeof useAuth>);
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    const { unmount } = renderTela();
+
+    expect(await screen.findByLabelText("Rede")).toHaveTextContent("Rede própria");
+    unmount();
+
+    mockSetPathname("/admin/permissoes");
+    renderTela();
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Usuários");
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+  });
+
+  it("Admin Operações Especiais não tem o seletor (fica em Operações Especiais)", async () => {
+    simularAuth({
+      isAdminOps: true,
+      isLoading: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    mockSetPathname("/admin/permissoes/catalogo-legalizacao");
+    renderTela();
+
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Catálogo de Legalização");
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+  });
+});
+

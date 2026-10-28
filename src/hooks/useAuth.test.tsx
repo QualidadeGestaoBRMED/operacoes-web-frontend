@@ -197,3 +197,20 @@ describe("useAuth em ver como (STC-790)", () => {
     expect(result.current.isLoading).toBe(true);
   });
 });
+
+describe("useAuth -- coordenação (STC-894)", () => {
+  it.each([
+    [3, true, false],
+    [5, true, true],
+    [4, false, false],
+  ])("nível %i: coordenação %s, Ponto focal %s", (nivel, coordenacao, pontoFocal) => {
+    sessaoCom({ id: nivel, nome: "Cargo", descricao: "", nivel });
+    vi.mocked(obterUsuarioLogado).mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.isCoordenacaoUnidade).toBe(coordenacao);
+    expect(result.current.isPontoFocal).toBe(pontoFocal);
+  });
+});
+

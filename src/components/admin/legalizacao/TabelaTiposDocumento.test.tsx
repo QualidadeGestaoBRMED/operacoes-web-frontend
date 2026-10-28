@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
@@ -9,6 +10,11 @@ import { TabelaTiposDocumento } from "./TabelaTiposDocumento";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
+// Rede da Legalização (STC-904): rede própria, sem seletor.
+vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
+  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+}));
 
 import {
   atualizarTipoDocumento,
@@ -22,6 +28,7 @@ const TIPO: TipoDocumentoRegulatorio = {
   nome: "Licença Sanitária",
   categoria: "regularizacao",
   area_responsavel: "legalizacao",
+  abrangencia: "padrao",
   setor_apoio: "",
   exige_validade: true,
   exige_protocolo: false,
@@ -43,6 +50,7 @@ function renderTela() {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(useMediaQuery).mockReturnValue(false);
+  vi.mocked(useAuth).mockReturnValue({ redesAdministradas: ["padrao"], isSetorLeg: false } as never);
 });
 
 describe("TabelaTiposDocumento (STC-415)", () => {
@@ -342,3 +350,56 @@ describe("TabelaTiposDocumento, ordenação por coluna (STC-794)", () => {
     expect(screen.queryByRole("button", { name: "Ações" })).not.toBeInTheDocument();
   });
 });
+
+describe("TabelaTiposDocumento -- quem edita os tipos (STC-894)", () => {
+  it.each([
+    ["Setor de Legalização", { isSetorLeg: true }, true, true],
+    ["Admin da rede própria", { redesAdministradas: ["padrao"] }, true, true],
+    // Cria os tipos da rede dele, mas não edita um da rede própria.
+    ["Admin Operações Especiais", { redesAdministradas: ["opex"] }, true, false],
+    ["Ponto focal e Coordenador", {}, false, false],
+  ])("%s", async (_, cargo, cria, edita) => {
+    vi.mocked(useAuth).mockReturnValue({
+      redesAdministradas: [],
+      isSetorLeg: false,
+      ...cargo,
+    } as never);
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    renderTela();
+
+    expect(await screen.findByText("Licença Sanitária")).toBeInTheDocument();
+    expect(Boolean(screen.queryByRole("button", { name: /novo tipo de documento/i }))).toBe(cria);
+    expect(Boolean(screen.queryByRole("button", { name: "Editar Licença Sanitária" }))).toBe(edita);
+    expect(Boolean(screen.queryByRole("button", { name: "Desativar Licença Sanitária" }))).toBe(
+      edita,
+    );
+    // O histórico continua aberto para todos.
+    expect(screen.getByRole("button", { name: "Ver histórico de Licença Sanitária" })).toBeInTheDocument();
+  });
+});
+
+describe("TabelaTiposDocumento -- tipo das duas redes (STC-904)", () => {
+  it("só o tipo das duas redes ganha a marca", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([
+      TIPO,
+      { ...TIPO, id: 2, nome: "Dedetização", abrangencia: "ambas" },
+    ]);
+    renderTela();
+
+    const linhaDasDuas = (await screen.findByText("Dedetização")).closest("tr")!;
+    expect(within(linhaDasDuas).getByText("As duas redes")).toBeInTheDocument();
+    const linhaDaRede = screen.getByText("Licença Sanitária").closest("tr")!;
+    expect(within(linhaDaRede).queryByText("As duas redes")).not.toBeInTheDocument();
+  });
+});
+
+describe("TabelaTiposDocumento -- descrição (code review da STC-894)", () => {
+  it("diz que a tabela é do catálogo da rede, com os tipos das duas", async () => {
+    vi.mocked(listarTiposDocumento).mockResolvedValue([TIPO]);
+    renderTela();
+
+    expect(await screen.findByText(/Os tipos de documento desta rede e os usados nas duas/)).toBeInTheDocument();
+    expect(screen.queryByText(/Catálogo único/)).not.toBeInTheDocument();
+  });
+});
+

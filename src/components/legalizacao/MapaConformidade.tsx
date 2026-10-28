@@ -7,6 +7,7 @@ import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
@@ -32,6 +33,7 @@ export function MapaConformidade() {
   const { user, isLoading: carregandoSessao, isCoordenacaoUnidade } = useAuth();
   const unidadesDoUsuario = unidadesDe(user);
   const redireciona = ehMobile;
+  const { rede } = useRedeDaLegalizacao();
   useEffect(() => {
     if (redireciona) router.replace("/modulos/legalizacao");
   }, [redireciona, router]);
@@ -41,7 +43,7 @@ export function MapaConformidade() {
     carregandoPrimeiraVez,
     error: erroDocumentos,
     mensagemErro,
-  } = useDocumentosLegalizacao();
+  } = useDocumentosLegalizacao({ rede });
   // error capturado também aqui -- achado no code review: com só o erro de
   // documentos tratado, uma falha em /unidades/ passava batida (unidades
   // cai no fallback [], a grade renderiza vazia sem nenhum aviso, enquanto
@@ -52,7 +54,7 @@ export function MapaConformidade() {
     unidades: todasAsUnidades,
     isLoading: carregandoUnidades,
     error: erroUnidades,
-  } = useUnidades("padrao");
+  } = useUnidades(rede);
   // STC-513: Coordenação da Unidade só acompanha a própria unidade -- em vez
   // de redirecionar pra fora do Mapa (STC-451, revertido por pedido da
   // Solicitante), a grade passa a conter só a unidade dele. Filtrar aqui
@@ -87,7 +89,7 @@ export function MapaConformidade() {
 
   // Dica de cada célula (STC-866): o catálogo da categoria com o que a
   // unidade já cadastrou. Sem o catálogo (carregando ou falhou), sem dica.
-  const { tiposDocumento } = useTiposDocumento();
+  const { tiposDocumento } = useTiposDocumento(rede);
   const indice = useMemo(() => indiceDoChecklist(documentos), [documentos]);
   const checklist =
     tiposDocumento.length > 0

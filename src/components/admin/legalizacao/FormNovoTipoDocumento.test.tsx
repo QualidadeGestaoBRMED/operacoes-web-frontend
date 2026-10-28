@@ -9,6 +9,14 @@ import { FormNovoTipoDocumento } from "./FormNovoTipoDocumento";
 vi.mock("@/lib/legalizacaoCatalogo");
 vi.mock("@/lib/plataforma");
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+// Rede da Legalização (STC-904): rede própria, sem seletor.
+vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
+  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+}));
+// Quem edita os tipos (STC-904): Setor de Legalização, todas as abrangências.
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({ redesAdministradas: [], isSetorLeg: true }),
+}));
 
 import {
   atualizarTipoDocumento,
@@ -86,6 +94,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "Licença Sanitária",
       categoria: "regularizacao",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "",
       exige_validade: true,
       exige_protocolo: false,
@@ -124,6 +133,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
         codigo: "licenca-sanitaria",
         categoria: "regularizacao",
         area_responsavel: "legalizacao",
+        abrangencia: "padrao",
         exige_validade: true,
         exige_protocolo: false,
         exige_evidencia: true,
@@ -141,6 +151,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "CNES",
       categoria: "registros_tecnicos",
       area_responsavel: "coordenacao",
+      abrangencia: "padrao",
       setor_apoio: "",
       exige_validade: false,
       exige_protocolo: true,
@@ -190,6 +201,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "Calibração de Balança",
       categoria: "equipamentos",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "",
       exige_validade: true,
       exige_protocolo: false,
@@ -248,6 +260,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "PCMSO",
       categoria: "programas",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "TI",
       exige_validade: true,
       exige_protocolo: false,
@@ -291,6 +304,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "PCMSO",
       categoria: "programas",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "TI",
       exige_validade: true,
       exige_protocolo: false,
@@ -329,6 +343,7 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
       nome: "PCMSO",
       categoria: "programas",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "TI",
       exige_validade: true,
       exige_protocolo: false,
@@ -353,5 +368,60 @@ describe("FormNovoTipoDocumento (STC-415)", () => {
     });
 
     expect(screen.getByLabelText(/^nome/i)).toHaveValue("PCMSO Alterado");
+  });
+});
+
+describe("FormNovoTipoDocumento -- novo tipo com os setores chegando depois (code review da STC-894)", () => {
+  it("não apaga o que já foi digitado", async () => {
+    let resolverSetores: (setores: Setor[]) => void = () => {};
+    vi.mocked(listarSetores).mockReturnValue(
+      new Promise((resolve) => {
+        resolverSetores = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText(/^nome/i), "Licença da ANAC");
+    await user.click(screen.getByLabelText(/categoria/i));
+    await user.click(await screen.findByRole("option", { name: "Regularização e licenciamento" }));
+    resolverSetores([SETOR_TI]);
+    // Os setores chegaram (setores.length foi de 0 para 1): o setor aparece
+    // na lista do campo.
+    await user.click(screen.getByLabelText(/setor de apoio/i));
+    expect(await screen.findByRole("option", { name: "TI" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByLabelText(/^nome/i)).toHaveValue("Licença da ANAC");
+    expect(screen.getByLabelText(/categoria/i)).toHaveTextContent("Regularização e licenciamento");
+  });
+});
+
+describe("FormNovoTipoDocumento -- onde o tipo é usado (STC-904)", () => {
+  it("nasce na rede escolhida e envia a abrangência escolhida", async () => {
+    vi.mocked(criarTipoDocumento).mockResolvedValue({} as never);
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(screen.getByLabelText(/usado em/i)).toHaveTextContent("Rede própria");
+    await user.click(screen.getByLabelText(/usado em/i));
+    expect(
+      (await screen.findAllByRole("option")).map((opcao) => opcao.textContent),
+    ).toEqual(["Rede própria", "Operações Especiais", "As duas redes"]);
+    await user.click(screen.getByRole("option", { name: "As duas redes" }));
+
+    await user.type(screen.getByLabelText(/^nome/i), "Dedetização");
+    await user.type(screen.getByLabelText(/^código/i), "dedetizacao");
+    await user.click(screen.getByLabelText(/categoria/i));
+    await user.click(await screen.findByRole("option", { name: "Infraestrutura e sanitário" }));
+    await user.click(screen.getByLabelText(/área responsável/i));
+    await user.click(await screen.findByRole("option", { name: "Legalização" }));
+    await user.click(screen.getByRole("button", { name: /cadastrar tipo de documento/i }));
+
+    await waitFor(() =>
+      expect(criarTipoDocumento).toHaveBeenCalledWith(
+        expect.objectContaining({ codigo: "dedetizacao", abrangencia: "ambas" }),
+      ),
+    );
   });
 });

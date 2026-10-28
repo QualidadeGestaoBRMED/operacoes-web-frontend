@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * Módulos que só trabalham com a rede padrão (Legalização, Gestão RH). O
+ * Módulos que só trabalham com a rede padrão (Gestão RH). O
  * Admin Operações Especiais não os tem no menu e, pela URL, volta para o
  * Kanban. Enquanto a sessão (ou o cargo atual dele) carrega, o módulo espera:
  * montar antes dispara as buscas do módulo para quem não deveria fazê-las.

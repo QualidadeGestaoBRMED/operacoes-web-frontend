@@ -34,6 +34,8 @@ beforeEach(() => {
     isLoading: false,
     isAdminQG: false,
     isAdminOps: true,
+    administraRedePadrao: true,
+    redesAdministradas: ["padrao"],
     isCoordenacaoUnidade: false,
   } as never);
 });
@@ -86,5 +88,28 @@ describe("CatalogoLegalizacaoAdmin (STC-415)", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "Cadastrar documentos em lote",
     );
+  });
+});
+
+describe("CatalogoLegalizacaoAdmin -- rede (STC-894)", () => {
+  it("a tabela e os formulários usam as unidades e os tipos da rede escolhida", async () => {
+    window.localStorage.setItem("atlas.legalizacao.rede", "opex");
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      isLoading: false,
+      isAdminOps: true,
+      administraRedePadrao: true,
+      isCoordenacaoUnidade: false,
+      redesAdministradas: ["opex", "padrao"],
+    } as never);
+    renderTela();
+
+    expect(await screen.findByText("Tipos de documento")).toBeInTheDocument();
+    expect(listarUnidades).toHaveBeenCalledWith("opex");
+    expect(listarUnidades).not.toHaveBeenCalledWith("padrao");
+    // STC-904: a tabela e os formulários usam o catálogo da rede.
+    expect(listarTiposDocumento).toHaveBeenCalledWith("opex");
+    expect(listarTiposDocumento).not.toHaveBeenCalledWith("padrao");
+    window.localStorage.clear();
   });
 });

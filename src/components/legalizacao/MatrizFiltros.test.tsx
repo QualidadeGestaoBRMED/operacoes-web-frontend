@@ -14,8 +14,11 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
 vi.mock("@/hooks/useUsuarios", () => ({ useUsuarios: () => ({ usuarios: [] }) }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: () => false }));
+const filtrosDosDocumentos = vi.hoisted(() => [] as unknown[]);
 vi.mock("@/hooks/useDocumentosLegalizacao", () => ({
-  useDocumentosLegalizacao: () => ({ documentos: [], error: null }),
+  useDocumentosLegalizacao: (filtros: unknown) => (
+    filtrosDosDocumentos.push(filtros), { documentos: [], error: null }
+  ),
 }));
 
 import { useUnidades } from "@/hooks/useUnidades";
@@ -140,22 +143,26 @@ describe("MatrizFiltros -- coordenação com unidades adicionais (STC-862)", () 
   });
 });
 
-describe("MatrizFiltros -- unidades da rede padrão (STC-747)", () => {
-  // A Legalização é só da rede padrão: o filtro pede as unidades dela para
-  // qualquer cargo, sem olhar as redes administradas. O Admin Operações
-  // Especiais nem tem o módulo no menu (Sidebar.test.tsx).
-  it("pede sempre as unidades da rede padrão, mesmo para quem administra as duas redes", () => {
+describe("MatrizFiltros -- rede escolhida (STC-894)", () => {
+  // Unidades e tipos do filtro "Documento" vêm da rede escolhida, sem
+  // misturar as duas para quem vê as duas (code review da STC-894).
+  it("unidades e tipos de documento da rede escolhida", () => {
+    window.localStorage.setItem("atlas.legalizacao.rede", "opex");
+    filtrosDosDocumentos.length = 0;
     vi.mocked(useAuth).mockReturnValue({
-      user: { usuarioId: 1, redes_administradas: ["opex", "padrao"] },
+      user: { usuarioId: 1 },
       isLoading: false,
       isAdminOps: true,
       isCoordenacaoUnidade: false,
+      redesAdministradas: ["opex", "padrao"],
     } as never);
     renderFiltros();
 
-    expect(useUnidades).toHaveBeenCalledWith("padrao");
-    expect(useUnidades).not.toHaveBeenCalledWith("opex");
-    expect(useUnidades).not.toHaveBeenCalledWith();
+    expect(useUnidades).toHaveBeenCalledWith("opex");
+    expect(useUnidades).not.toHaveBeenCalledWith("padrao");
+    expect(filtrosDosDocumentos).toContainEqual({ rede: "opex" });
+    expect(filtrosDosDocumentos).not.toContainEqual(undefined);
+    window.localStorage.clear();
   });
 });
 

@@ -16,8 +16,9 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: vi.fn() }));
 vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
 
+const filtrosDosDocumentos = vi.hoisted(() => [] as unknown[]);
 vi.mock("@/hooks/useDocumentosLegalizacao", () => ({
-  useDocumentosLegalizacao: () => ({
+  useDocumentosLegalizacao: (filtros: unknown) => (filtrosDosDocumentos.push(filtros), {
     documentos: [],
     carregandoPrimeiraVez: false,
     error: null,
@@ -124,5 +125,23 @@ describe("MapaConformidade -- grade só com a própria unidade pra Coordenação
 
     expect(screen.getByTestId("unidades-da-grade")).toHaveTextContent("");
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("MapaConformidade -- rede (STC-894)", () => {
+  it("Ponto focal vê as unidades e os documentos de Operações Especiais", () => {
+    filtrosDosDocumentos.length = 0;
+    vi.mocked(useAuth).mockReturnValue({
+      user: undefined,
+      isLoading: false,
+      isCoordenacaoUnidade: true,
+      isPontoFocal: true,
+      redesAdministradas: [],
+    } as never);
+
+    render(<MapaConformidade />);
+
+    expect(useUnidades).toHaveBeenCalledWith("opex");
+    expect(filtrosDosDocumentos).toContainEqual({ rede: "opex" });
   });
 });

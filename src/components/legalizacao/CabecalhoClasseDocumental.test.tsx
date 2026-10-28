@@ -5,6 +5,10 @@ import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { CabecalhoClasseDocumental } from "./CabecalhoClasseDocumental";
 
 vi.mock("@/hooks/useTiposDocumento", () => ({ useTiposDocumento: vi.fn() }));
+// Rede da Legalização (STC-904): rede própria, sem seletor.
+vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
+  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+}));
 
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
 
@@ -15,6 +19,7 @@ function tipo(extra: Partial<TipoDocumentoRegulatorio>): TipoDocumentoRegulatori
     nome: "Alvará de Funcionamento",
     categoria: "regularizacao",
     area_responsavel: "legalizacao",
+    abrangencia: "padrao",
     setor_apoio: "",
     exige_validade: true,
     exige_protocolo: false,
@@ -45,6 +50,7 @@ beforeEach(() => {
       codigo: "avcb",
       nome: "AVCB",
       area_responsavel: "coordenacao",
+      abrangencia: "padrao",
       setor_apoio: "Manutenção",
     }),
     tipo({ id: 3, codigo: "antigo", nome: "Licença antiga", ativo: false }),

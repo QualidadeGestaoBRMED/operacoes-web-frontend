@@ -7,6 +7,10 @@ import type { DocumentoUnidade } from "@/types/legalizacao";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MatrizMapaGrid } from "./MatrizMapaGrid";
 
+// Rede da Legalização (STC-904): rede própria, sem seletor.
+vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
+  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+}));
 vi.mock("@/hooks/useTiposDocumento", () => ({
   useTiposDocumento: () => ({ tiposDocumento: [], isLoading: false, error: undefined, mensagemErro: null }),
 }));
@@ -29,6 +33,7 @@ function documento(status: DocumentoUnidade["status"]): DocumentoUnidade {
       nome: "Alvará de Funcionamento",
       categoria: "regularizacao",
       area_responsavel: "legalizacao",
+      abrangencia: "padrao",
       setor_apoio: "",
       exige_validade: true,
       exige_protocolo: false,

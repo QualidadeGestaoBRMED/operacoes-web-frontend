@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import {
@@ -77,7 +78,8 @@ export function MatrizFiltros({
 }: MatrizFiltrosProps) {
   const { user, isCoordenacaoUnidade } = useAuth();
   const unidadesDoUsuario = unidadesDe(user);
-  const { unidades: todasAsUnidades } = useUnidades("padrao");
+  const { rede } = useRedeDaLegalizacao();
+  const { unidades: todasAsUnidades } = useUnidades(rede);
   // STC-512: mesmo critério de BibliotecaDocumentos.tsx -- Coordenador só
   // pode escolher a própria unidade no filtro. O backend já restringe o
   // dado de qualquer forma (_documentos_visiveis_para), mas o Select
@@ -109,7 +111,7 @@ export function MatrizFiltros({
   // "Todos os documentos" -- indistinguível de "não há outros tipos
   // cadastrados".
   const { documentos: catalogoDocumentos, error: erroCatalogoDocumentos } =
-    useDocumentosLegalizacao(undefined, { pausado: true });
+    useDocumentosLegalizacao({ rede }, { pausado: true });
 
   const tiposDocumento = useMemo(() => {
     const porId = new Map<number, string>();

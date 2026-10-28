@@ -13,6 +13,9 @@ import {
   filtroDeUnidadeDosPaineis,
   redeDoCargoDeUnidade,
   redesAdministradas,
+  redesDaLegalizacao,
+  podeEditarTipoDeDocumento,
+  redesDaAbrangencia,
   unidadeForcadaDoCoordenador,
   unidadesDoUsuario,
 } from "./redes";
@@ -127,3 +130,42 @@ describe("unidades adicionais (STC-862)", () => {
     expect(filtroDeUnidadeDosPaineis(unidades, false, [7, 8]).mostrar).toBe(false);
   });
 });
+
+describe("redesDaLegalizacao (STC-894)", () => {
+  const ninguem = { redesAdministradas: [], isSetorLeg: false, isPontoFocal: false };
+
+  it.each([
+    ["Admin das duas redes, a própria primeiro", { ...ninguem, redesAdministradas: ["opex", "padrao"] }, ["padrao", "opex"]],
+    ["Admin Operações", { ...ninguem, redesAdministradas: ["padrao"] }, ["padrao"]],
+    ["Admin Operações Especiais", { ...ninguem, redesAdministradas: ["opex"] }, ["opex"]],
+    ["Setor de Legalização", { ...ninguem, isSetorLeg: true }, ["padrao", "opex"]],
+    ["Ponto focal", { ...ninguem, isPontoFocal: true }, ["opex"]],
+    ["Coordenador e os demais", ninguem, ["padrao"]],
+  ] as const)("%s", (_, usuario, esperado) => {
+    expect(redesDaLegalizacao({ ...usuario, redesAdministradas: [...usuario.redesAdministradas] })).toEqual(esperado);
+  });
+});
+
+describe("tipos de documento por rede (STC-904)", () => {
+  it("as duas redes cobrem as duas", () => {
+    expect(redesDaAbrangencia("ambas")).toEqual(["padrao", "opex"]);
+    expect(redesDaAbrangencia("opex")).toEqual(["opex"]);
+  });
+
+  it.each([
+    ["Setor de Legalização edita todos", { redesAdministradas: [], isSetorLeg: true }, "ambas", true],
+    ["Admin OPEX edita os de OPEX", { redesAdministradas: ["opex"], isSetorLeg: false }, "opex", true],
+    ["Admin OPEX não edita os da rede própria", { redesAdministradas: ["opex"], isSetorLeg: false }, "padrao", false],
+    ["Admin OPEX não edita os das duas", { redesAdministradas: ["opex"], isSetorLeg: false }, "ambas", false],
+    ["Admin das duas redes edita os das duas", { redesAdministradas: ["padrao", "opex"], isSetorLeg: false }, "ambas", true],
+    ["Coordenação não edita", { redesAdministradas: [], isSetorLeg: false }, "padrao", false],
+  ] as const)("%s", (_, usuario, abrangencia, esperado) => {
+    expect(
+      podeEditarTipoDeDocumento(
+        { ...usuario, redesAdministradas: [...usuario.redesAdministradas] },
+        abrangencia,
+      ),
+    ).toBe(esperado);
+  });
+});
+

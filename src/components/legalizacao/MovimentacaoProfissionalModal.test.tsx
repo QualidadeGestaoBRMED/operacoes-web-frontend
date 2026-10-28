@@ -37,6 +37,7 @@ function tipo(
     nome: "CNES",
     categoria: "registros_tecnicos",
     area_responsavel: "legalizacao",
+    abrangencia: "padrao",
     setor_apoio: "",
     exige_validade: false,
     exige_protocolo: false,
