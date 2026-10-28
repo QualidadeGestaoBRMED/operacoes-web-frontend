@@ -45,12 +45,16 @@ export function ehChaveDeListaDeDocumentos(chave: unknown) {
   return Array.isArray(chave) && chave[0] === PREFIXO_CHAVE_LISTA;
 }
 
-// Diferente de useDemandas.ts (10s, MP001) de propósito -- achado na STC-378:
-// documento regulatório muda de status raras vezes (não é um board vivo com
-// gente arrastando card o tempo todo), então não se justifica o mesmo custo
-// de polling agressivo. 60s reduz as chamadas em 6x sem perder nada de
-// prático -- ninguém precisa saber que um alvará venceu com 10s de atraso.
-const INTERVALO_POLL_MS = 60_000;
+// Documento regulatório muda de status raras vezes (não é um board vivo como
+// o Kanban, useDemandas.ts, 10 s), e o que a própria pessoa altera já
+// atualiza as telas na hora (mutate() das ações abaixo e dos modais).
+// Listas (Matriz, Mapa, filtros e Biblioteca): 5 min (STC-911). A lista de
+// documentos é a resposta mais pesada do módulo (centenas de documentos com
+// tipo, unidade e responsáveis); voltar para a aba e abrir a tela já buscam
+// de novo (padrão do SWR). O detalhe de um documento, leve, segue em 60 s
+// enquanto o modal está aberto.
+const INTERVALO_POLL_LISTA_MS = 5 * 60_000;
+const INTERVALO_POLL_DETALHE_MS = 60_000;
 
 export function useDocumentosLegalizacao(
   filtros?: DocumentoUnidadeFiltros,
@@ -67,7 +71,7 @@ export function useDocumentosLegalizacao(
     () => listarDocumentosLegalizacao(filtros),
     {
       keepPreviousData: true,
-      refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS,
+      refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_LISTA_MS,
     },
   );
   const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
@@ -85,14 +89,13 @@ export function useDocumentosLegalizacao(
 }
 
 // STC-416 (Biblioteca de Documentos): endpoint agregado, uma linha por
-// documento com evidência vigente na unidade -- mesmo poll de 60s dos
-// outros hooks deste módulo, documento regulatório não muda rápido o
-// suficiente pra justificar algo mais agressivo.
+// documento com evidência vigente na unidade; mesmo intervalo das outras
+// listas do módulo.
 export function useEvidenciasVigentes(unidadeId: number | null) {
   const { data, error, isLoading, mutate } = useSWR<EvidenciaVigente[]>(
     unidadeId ? ["evidencias-vigentes", unidadeId] : null,
     () => listarEvidenciasVigentes(unidadeId as number),
-    { refreshInterval: INTERVALO_POLL_MS },
+    { refreshInterval: INTERVALO_POLL_LISTA_MS },
   );
 
   return {
@@ -108,7 +111,7 @@ export function useDocumentoLegalizacao(id: number | null) {
   const { data, error, isLoading, mutate } = useSWR<DocumentoUnidade>(
     id ? ["documento-legalizacao", id] : null,
     () => buscarDocumentoLegalizacao(id as number),
-    { refreshInterval: INTERVALO_POLL_MS },
+    { refreshInterval: INTERVALO_POLL_DETALHE_MS },
   );
 
   return {
