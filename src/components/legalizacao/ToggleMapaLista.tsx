@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { cn } from "@/lib/utils";
 import { SeletorRedeLegalizacao } from "./SeletorRedeLegalizacao";
 
@@ -48,17 +49,20 @@ export function ToggleMapaLista({
   linkBiblioteca,
   mostrarMapa = true,
 }: ToggleMapaListaProps) {
+  const { podeEscolher } = useRedeDaLegalizacao();
   return (
-    // Acha achado em dogfooding: o "hidden sm:flex" ficava na div de fora,
-    // então escondia o linkBiblioteca junto com o segmented control --
-    // Biblioteca de Documentos (STC-416/441) não tinha NENHUMA outra forma
-    // de navegação no mobile (sidebar hoje é um link só por módulo, sem
-    // submenu), ficando inacessível nesse tamanho de tela. O que não tem
-    // layout mobile é só o toggle Mapa/Lista (MapaConformidade.tsx
-    // redireciona pra Lista em telas estreitas) -- por isso o "hidden
-    // sm:flex/sm:block" migrou pra dentro de cada ramo do toggle, não pro
-    // container inteiro.
-    <div className="flex items-center justify-between gap-4 border-b border-border px-7 py-3">
+    // No celular, o toggle Mapa/Lista, a dica e o link da Biblioteca ficam
+    // escondidos: o Mapa não tem layout estreito (MapaConformidade.tsx
+    // redireciona para a Lista) e a Biblioteca já está nas abas do módulo
+    // (AbasDoModulo). Sobra só o seletor de rede; sem ele, a barra inteira
+    // some no celular, para não deixar uma faixa vazia entre as abas e a
+    // busca.
+    <div
+      className={cn(
+        "items-center justify-between gap-4 border-b border-border px-7 py-3",
+        podeEscolher ? "flex" : "hidden sm:flex",
+      )}
+    >
       <div className="flex items-center gap-3">
         {mostrarMapa ? (
           <div className="hidden rounded-md bg-muted p-0.5 sm:flex">
@@ -105,7 +109,7 @@ export function ToggleMapaLista({
       {linkBiblioteca && (
         <Link
           href="/modulos/legalizacao/biblioteca"
-          className="ml-auto text-[12.5px] font-medium text-secondary hover:underline"
+          className="ml-auto hidden text-[12.5px] font-medium text-secondary hover:underline sm:inline"
         >
           Biblioteca de Documentos →
         </Link>
