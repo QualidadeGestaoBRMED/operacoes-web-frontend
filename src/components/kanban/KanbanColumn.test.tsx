@@ -66,7 +66,7 @@ describe("KanbanColumn com carregamento por fase (STC-931)", () => {
   it("enquanto carrega, mostra o aviso no lugar do botão", () => {
     renderColuna({ total: 103, temMais: true, carregandoMais: true });
 
-    expect(screen.getByText("Carregando mais...")).toBeInTheDocument();
+    expect(screen.getAllByText("Carregando mais...")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Carregar mais" })).not.toBeInTheDocument();
   });
 
@@ -117,5 +117,42 @@ describe("KanbanColumn com carregamento por fase (STC-931)", () => {
     expect(screen.queryByTestId("fim-concluido")).not.toBeInTheDocument();
     expect(aoAparecer).toBeNull();
     expect(onCarregarMais).not.toHaveBeenCalled();
+  });
+
+  it("o aviso para leitor de tela já existe antes de carregar e só troca o texto", () => {
+    const { rerender } = renderColuna({ total: 103, temMais: true });
+    const aviso = screen.getByTestId("aviso-concluido");
+    expect(aviso).toHaveAttribute("aria-live", "polite");
+    expect(aviso).toHaveTextContent("");
+
+    rerender(
+      <DndContext>
+        <KanbanColumn
+          status="concluido"
+          titulo="Concluído"
+          demandas={[criarDemanda({ id: 1, titulo: "Card carregado", status: "concluido" })]}
+          total={103}
+          temMais
+          carregandoMais
+          onSelecionarDemanda={vi.fn()}
+          onRestaurar={vi.fn()}
+        />
+      </DndContext>,
+    );
+
+    expect(screen.getByTestId("aviso-concluido")).toBe(aviso);
+    expect(aviso).toHaveTextContent("Carregando mais...");
+  });
+
+  it("depois de mais de uma página, o fim da fase mostra Fim da lista", () => {
+    renderColuna({ total: 31, temMais: false, chegouAoFim: true });
+
+    expect(screen.getAllByText("Fim da lista")).toHaveLength(2);
+  });
+
+  it("coluna que coube numa página não mostra Fim da lista", () => {
+    renderColuna({ total: 1, temMais: false });
+
+    expect(screen.queryByText("Fim da lista")).not.toBeInTheDocument();
   });
 });
