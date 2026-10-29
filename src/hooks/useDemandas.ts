@@ -2,7 +2,11 @@
 
 import { useRef } from "react";
 import useSWR from "swr";
-import { buscarDemanda, listarDemandas } from "@/lib/demandas";
+import {
+  buscarDemanda,
+  INTERVALO_ATUALIZACAO_DEMANDAS_MS,
+  listarDemandas,
+} from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type { Demanda, DemandaFiltros } from "@/types";
@@ -11,7 +15,7 @@ import type { Demanda, DemandaFiltros } from "@/types";
 // mudando de coluna) só aparecia com F5. pausado (achado no review):
 // enquanto uma demanda está sendo arrastada, um refresh em segundo plano
 // reordenaria a lista debaixo do cursor -- @dnd-kit não lida bem com isso.
-const INTERVALO_POLL_MS = 10_000;
+const INTERVALO_POLL_MS = INTERVALO_ATUALIZACAO_DEMANDAS_MS;
 
 export function useDemandas(
   filtros?: DemandaFiltros,

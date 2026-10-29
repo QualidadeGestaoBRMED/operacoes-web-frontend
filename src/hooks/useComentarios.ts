@@ -2,7 +2,11 @@
 
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { criarComentario, listarComentarios } from "@/lib/demandas";
+import {
+  criarComentario,
+  INTERVALO_ATUALIZACAO_DEMANDAS_MS,
+  listarComentarios,
+} from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { Comentario } from "@/types";
 
@@ -31,8 +35,9 @@ export function useComentariosDaFonte(fonte: FonteComentarios | null) {
     fonte ? fonte.chave : null,
     () => (fonte as FonteComentarios).listar(),
     // STC-206: um comentário de outro usuário só aparecia com F5 -- key vira
-    // null (sem polling) quando o modal fecha, então isso só roda com ele aberto.
-    { refreshInterval: 10_000 },
+    // null (sem polling) quando o modal fecha, então isso só roda com ele
+    // aberto. Vale também para a conversa da Legalização e do Gestão RH.
+    { refreshInterval: INTERVALO_ATUALIZACAO_DEMANDAS_MS },
   );
 
   return {
