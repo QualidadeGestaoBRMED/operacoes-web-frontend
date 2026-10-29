@@ -13,6 +13,7 @@ import type {
   HistoricoAlteracao,
   RespostaPaginada,
   ResumoDemandas,
+  StatusDemanda,
   TipoGestao,
 } from "@/types";
 
@@ -48,54 +49,62 @@ function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | numb
   return params;
 }
 
-// demandas/ pagina 20 por página no backend -- limite defensivo bem acima de
-// qualquer board real deste piloto, só pra uma resposta malformada (ex.:
-// count absurdo) não disparar milhares de requisições em paralelo de uma vez.
-const MAXIMO_DE_PAGINAS_DE_DEMANDAS = 500;
+/** As páginas carregadas de uma fase (uma coluna do Kanban). */
+export interface PaginasDaFase {
+  demandas: Demanda[];
+  /** Total da fase no backend, não só o que foi carregado. */
+  total: number;
+  /** Quantas páginas vieram de fato (pode ser menos que as pedidas). */
+  paginas: number;
+  temMais: boolean;
+}
 
-export async function listarDemandas(filtros?: DemandaFiltros): Promise<Demanda[]> {
-  const params = paramsDeFiltros(filtros);
+/**
+ * As `paginas` primeiras páginas de uma fase (STC-931), em sequência, na
+ * ordem da coluna que o backend devolve (STC-930). Para quando a fase acaba:
+ * uma coluna que encolheu (cards movidos para outra fase) não pede página
+ * que já não existe.
+ */
+export async function listarDemandasDaFase(
+  filtros: DemandaFiltros | undefined,
+  status: StatusDemanda,
+  paginas: number,
+): Promise<PaginasDaFase> {
+  const params = { ...paramsDeFiltros(filtros), status };
   // O cliente api usa baseURL: "/api/backend" de propósito (o token de
   // acesso só existe no server-side do proxy) -- por isso a página seguinte
   // é pedida com ?page=N pelo mesmo cliente, nunca seguindo o "next" que o
   // DRF devolve (URL absoluta apontando direto pro Django via
   // NEXT_PUBLIC_API_URL, que ignoraria o baseURL e sairia sem token).
-  const primeira = await api.get<RespostaPaginada<Demanda>>(BASE_URL, { params });
-  if (!primeira.data.next) {
-    return primeira.data.results;
+  const respostas: RespostaPaginada<Demanda>[] = [];
+  for (let pagina = 1; pagina <= paginas; pagina++) {
+    const { data } = await api.get<RespostaPaginada<Demanda>>(BASE_URL, {
+      params: pagina === 1 ? params : { ...params, page: pagina },
+    });
+    respostas.push(data);
+    if (!data.next) break;
   }
-
-  const tamanhoDaPagina = primeira.data.results.length;
-  const totalDePaginas = Math.min(
-    Math.ceil(primeira.data.count / tamanhoDaPagina),
-    MAXIMO_DE_PAGINAS_DE_DEMANDAS,
-  );
-  const demaisPaginas = await Promise.all(
-    Array.from({ length: totalDePaginas - 1 }, (_, indice) =>
-      api.get<RespostaPaginada<Demanda>>(BASE_URL, {
-        params: { ...params, page: indice + 2 },
-      }),
-    ),
-  );
 
   // Paginação por offset não é atômica: o Kanban é um board ao vivo, com
-  // outros usuários criando/excluindo demandas enquanto essa busca roda.
-  // Uma criação entre as páginas desloca as seguintes e pode repetir um id
-  // em duas páginas -- descarta a repetição mantendo a primeira ocorrência,
-  // pra não duplicar card/quebrar key no board. Uma exclusão no mesmo
-  // instante pode fazer um id sumir desta busca por um ciclo (o board volta
-  // a mostrá-lo no próximo poll de 10s) -- não dá pra evitar isso sem trocar
-  // pra paginação por cursor no backend, fora do escopo desta correção.
+  // outros usuários criando e movendo demandas enquanto as páginas chegam.
+  // Uma demanda nova desloca as páginas seguintes e pode repetir um id em
+  // duas delas -- fica a primeira ocorrência, para não duplicar o card.
   const vistos = new Set<number>();
-  const resultados: Demanda[] = [];
-  for (const { data } of [primeira, ...demaisPaginas]) {
-    for (const demanda of data.results) {
+  const demandas: Demanda[] = [];
+  for (const resposta of respostas) {
+    for (const demanda of resposta.results) {
       if (vistos.has(demanda.id)) continue;
       vistos.add(demanda.id);
-      resultados.push(demanda);
+      demandas.push(demanda);
     }
   }
-  return resultados;
+  const ultima = respostas[respostas.length - 1];
+  return {
+    demandas,
+    total: ultima.count,
+    paginas: respostas.length,
+    temMais: Boolean(ultima.next),
+  };
 }
 
 export async function buscarDemanda(id: number): Promise<Demanda> {

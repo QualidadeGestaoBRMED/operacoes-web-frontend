@@ -94,6 +94,27 @@ export function compararDemandas(a: Demanda, b: Demanda): number {
   return PESO_PRIORIDADE[a.prioridade] - PESO_PRIORIDADE[b.prioridade];
 }
 
+/**
+ * Coloca uma demanda na posição dela numa coluna já ordenada pelo backend
+ * (STC-930), para a mudança aparecer na hora, antes de a coluna ser buscada
+ * de novo. Concluído é da conclusão mais recente para a mais antiga, então
+ * a recém-concluída vai para o topo; nas outras, a ordem de prazo e
+ * prioridade (compararDemandas, desempate pelo id como no backend).
+ */
+export function inserirNaColuna(
+  demandas: Demanda[],
+  demanda: Demanda,
+  status: StatusDemanda,
+): Demanda[] {
+  const semEla = demandas.filter((item) => item.id !== demanda.id);
+  if (status === "concluido") return [demanda, ...semEla];
+  const posicao = semEla.findIndex(
+    (item) => (compararDemandas(demanda, item) || demanda.id - item.id) < 0,
+  );
+  if (posicao === -1) return [...semEla, demanda];
+  return [...semEla.slice(0, posicao), demanda, ...semEla.slice(posicao)];
+}
+
 // Espelha TRANSICOES_PERMITIDAS de backend/demandas/views.py -- "lixeira"
 // fica de fora de propósito (é soft delete via DELETE, não essa rota).
 export const TRANSICOES_PERMITIDAS: Record<StatusDemanda, StatusDemanda[]> = {

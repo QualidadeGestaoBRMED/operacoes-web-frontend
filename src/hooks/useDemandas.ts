@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import useSWR from "swr";
 import {
   buscarDemanda,
   INTERVALO_ATUALIZACAO_DEMANDAS_MS,
-  listarDemandas,
+  listarDemandasDaFase,
+  type PaginasDaFase,
 } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
-import type { Demanda, DemandaFiltros } from "@/types";
+import type { Demanda, DemandaFiltros, StatusDemanda } from "@/types";
 
 // STC-206: sem isso, uma mudança feita por outro usuário (novo card, card
 // mudando de coluna) só aparecia com F5. pausado (achado no review):
@@ -17,10 +18,32 @@ import type { Demanda, DemandaFiltros } from "@/types";
 // reordenaria a lista debaixo do cursor -- @dnd-kit não lida bem com isso.
 const INTERVALO_POLL_MS = INTERVALO_ATUALIZACAO_DEMANDAS_MS;
 
-export function useDemandas(
-  filtros?: DemandaFiltros,
+/** A chave do cache de uma coluna: começa com "demandas", como a lista toda
+ * fazia, para as ações que já invalidam ehChaveDeListaDemandas (criar,
+ * mover, editar, comentar, anexar) atualizarem as colunas sem mudança. */
+export function chaveDaFase(
+  filtros: DemandaFiltros | undefined,
+  status: StatusDemanda,
+  paginas: number,
+) {
+  return ["demandas", { ...filtros, status }, paginas] as const;
+}
+
+/**
+ * Uma coluna do Kanban (STC-931): as demandas de uma fase, 30 por vez, na
+ * ordem que o backend devolve (STC-930). `carregarMais` pede a página
+ * seguinte; as já carregadas continuam na tela enquanto ela chega
+ * (keepPreviousData). Trocar os filtros volta para a primeira página.
+ */
+export function useDemandasDaFase(
+  filtros: DemandaFiltros | undefined,
+  status: StatusDemanda,
   opcoes?: { pausado?: boolean; desabilitado?: boolean },
 ) {
+  const chaveDosFiltros = JSON.stringify(filtros ?? {});
+  const [paginasPedidas, setPaginasPedidas] = useState({ filtros: chaveDosFiltros, paginas: 1 });
+  const paginas = paginasPedidas.filtros === chaveDosFiltros ? paginasPedidas.paginas : 1;
+
   // Achado no review: pausarPolling (via refreshInterval:0 abaixo) só
   // impede um NOVO poll de ser agendado -- não cancela um que já estava em
   // voo quando o arraste começou. Se essa resposta chegar durante o drag ou
@@ -32,54 +55,41 @@ export function useDemandas(
   // a request em voo.
   const pausadoRef = useRef(opcoes?.pausado ?? false);
   pausadoRef.current = opcoes?.pausado ?? false;
-  const dadosAtuaisRef = useRef<Demanda[] | undefined>(undefined);
+  const dadosAtuaisRef = useRef<PaginasDaFase | undefined>(undefined);
 
-  // keepPreviousData: sem isso, trocar um filtro fazia data virar
-  // undefined na hora -- o board inteiro sumia e reaparecia (chave nova do
-  // SWR = sem cache, mesmo já tendo os dados da consulta anterior na
-  // tela). Com isso, o board continua mostrando os dados antigos
-  // (levemente esmaecidos via isValidating) até os novos chegarem, em vez
-  // de colapsar pra um "carregando" genérico.
-  // desabilitado (achado ao investigar o "board mostrando os dois tipos
-  // misturados" mesmo depois da guarda de loading em KanbanBoard.tsx): key
-  // null em vez de só atrasar a exibição -- enquanto o board ainda não sabe
-  // qual tipo_gestao é o padrão, ele nunca teria dado pra confiar mesmo
-  // filtrado por undefined. Só esconder o resultado (guarda de render) não
-  // bastava: quando o filtro correto chegava, o keepPreviousData reusava
-  // esse resultado sem filtro (a chave mudou, mas havia dado anterior "bom o
-  // suficiente" pra manter) e mostrava ele esmaecido até a busca filtrada
-  // responder -- o mesmo piscar, só que através da troca de filtro em vez do
-  // load inicial. Com key null, não existe fetch nenhum pra virar esse
-  // "dado anterior" -- data começa e continua undefined (carregandoPrimeiraVez)
-  // até a primeira busca com filtro de verdade responder.
-  const { data, error, isLoading, isValidating, mutate } = useSWR<Demanda[]>(
-    opcoes?.desabilitado ? null : ["demandas", filtros],
+  // keepPreviousData: trocar um filtro ou pedir mais uma página não apaga a
+  // coluna; os cards de antes ficam até a resposta nova chegar.
+  // desabilitado: chave null enquanto o board não sabe o tipo de gestão
+  // padrão, para nunca existir uma busca sem esse filtro que o
+  // keepPreviousData pudesse reaproveitar.
+  const { data, error, isValidating, mutate } = useSWR<PaginasDaFase>(
+    opcoes?.desabilitado ? null : chaveDaFase(filtros, status, paginas),
     async () => {
-      const resultado = await listarDemandas(filtros);
+      const resultado = await listarDemandasDaFase(filtros, status, paginas);
       return pausadoRef.current ? (dadosAtuaisRef.current ?? resultado) : resultado;
     },
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
   dadosAtuaisRef.current = data;
   const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
+  // Pediu mais páginas do que as que já chegaram, e a fase ainda tinha mais.
+  const carregandoMais = data !== undefined && data.paginas < paginas && data.temMais;
+
+  const carregarMais = useCallback(() => {
+    if (!data?.temMais || data.paginas < paginas) return;
+    setPaginasPedidas({ filtros: chaveDosFiltros, paginas: paginas + 1 });
+  }, [data, paginas, chaveDosFiltros]);
 
   return {
-    demandas: data ?? [],
-    isLoading,
-    // Achado no review: mascarar isValidating aqui (só reportando troca de
-    // filtro) quebrava a semântica esperada do SWR pra qualquer outro
-    // consumidor deste hook -- valor bruto preservado, e a distinção de
-    // "isso é troca de filtro, não polling silencioso" vira um campo à
-    // parte, só pra quem realmente precisa dela (ex.: esmaecer o board).
+    demandas: data?.demandas ?? [],
+    total: data?.total ?? 0,
+    temMais: data?.temMais ?? false,
+    carregandoMais,
+    carregarMais,
     isValidating,
     isFilterChangeValidating: trocandoFiltro,
-    // isLoading é por chave de cache -- a primeira vez que uma combinação
-    // de filtro é usada, isLoading vem true mesmo com keepPreviousData
-    // ativo (ele só afeta o "data" retornado, não esse flag). O sinal
-    // certo pra saber se já existe ALGUM dado pra mostrar (mesmo que
-    // desatualizado, de um filtro anterior) é o "data" bruto ainda ser
-    // undefined -- só acontece na primeiríssima consulta deste hook,
-    // nunca de novo depois, mesmo trocando pra uma chave inédita.
+    // data só é undefined antes da primeiríssima resposta deste hook; depois,
+    // keepPreviousData sempre tem algo para mostrar.
     carregandoPrimeiraVez: data === undefined,
     error,
     mensagemErro: error ? extrairMensagemErro(error) : null,
