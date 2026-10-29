@@ -29,6 +29,7 @@ import {
   COLUNAS,
   ORDEM_COLUNAS,
   filtrosDaUrl,
+  focoPrecisaDeMais,
   hojeNoFusoDoServidor,
   inserirNaColuna,
   mensagemBloqueioConhecido,
@@ -358,7 +359,7 @@ export function KanbanBoard() {
         (atual) =>
           atual && {
             ...atual,
-            demandas: inserirNaColuna(atual.demandas, movida, novoStatus),
+            demandas: inserirNaColuna(atual.demandas, movida, novoStatus, atual.temMais),
             total: atual.total + 1,
           },
         { revalidate: false },
@@ -537,7 +538,12 @@ export function KanbanBoard() {
                     ? (demandasPorColuna.get(coluna.status)?.length ?? 0)
                     : colunas[coluna.status].total
                 }
-                temMais={colunas[coluna.status].temMais}
+                // Com o foco ligado, só busca mais páginas da fase que ainda
+                // pode ter cards à mostra (ver focoPrecisaDeMais).
+                temMais={
+                  colunas[coluna.status].temMais &&
+                  focoPrecisaDeMais(foco, coluna.status, colunas[coluna.status].demandas)
+                }
                 carregandoMais={colunas[coluna.status].carregandoMais}
                 onCarregarMais={colunas[coluna.status].carregarMais}
                 onSelecionarDemanda={selecionarDemanda}

@@ -105,14 +105,43 @@ export function inserirNaColuna(
   demandas: Demanda[],
   demanda: Demanda,
   status: StatusDemanda,
+  temMais = false,
 ): Demanda[] {
   const semEla = demandas.filter((item) => item.id !== demanda.id);
   if (status === "concluido") return [demanda, ...semEla];
   const posicao = semEla.findIndex(
     (item) => (compararDemandas(demanda, item) || demanda.id - item.id) < 0,
   );
-  if (posicao === -1) return [...semEla, demanda];
+  if (posicao === -1) {
+    // Depois do último card carregado de uma coluna que tem mais páginas: o
+    // lugar dele é numa página ainda não carregada. Mostrar no fim e ele sumir
+    // na próxima atualização confundiria; ele aparece quando a coluna rolar até lá.
+    return temMais ? semEla : [...semEla, demanda];
+  }
   return [...semEla.slice(0, posicao), demanda, ...semEla.slice(posicao)];
+}
+
+/**
+ * Se ainda vale buscar mais páginas de uma fase com o foco dos cartões do
+ * topo ligado (STC-931). O foco nunca mostra cards de algumas fases
+ * (concluídas não contam como atrasadas nem sem responsável; "em andamento"
+ * só vale para a própria fase), e buscar as páginas delas só para escondê-las
+ * baixaria o histórico inteiro. Em "atrasadas", a coluna vem do backend pelo
+ * prazo: depois do primeiro card no prazo não há mais atrasado.
+ */
+export function focoPrecisaDeMais(
+  foco: string | null,
+  status: StatusDemanda,
+  carregadas: Demanda[],
+): boolean {
+  if (!foco || status === "lixeira") return true;
+  if (status === "concluido") return false;
+  if (foco === "em andamento") return status === "em_andamento";
+  if (foco === "atrasadas") {
+    const ultima = carregadas[carregadas.length - 1];
+    return !ultima || ultima.data_prevista < hojeNoFusoDoServidor();
+  }
+  return true;
 }
 
 // Espelha TRANSICOES_PERMITIDAS de backend/demandas/views.py -- "lixeira"
