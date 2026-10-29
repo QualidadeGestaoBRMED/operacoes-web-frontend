@@ -9,6 +9,7 @@ import {
   rotuloUnidadeOuResponsavel,
   secaoDoBloqueio,
   tipoGestaoAtivo,
+  focoPrecisaDeMais,
   inserirNaColuna,
 } from "./kanban";
 
@@ -333,6 +334,51 @@ describe("inserirNaColuna (STC-931)", () => {
 
   it("não duplica o card que já estava na coluna", () => {
     expect(inserirNaColuna([cedo, tarde], cedo, "backlog").map((d) => d.id)).toEqual([1, 3]);
+  });
+});
+
+describe("inserirNaColuna numa coluna com mais páginas (STC-931)", () => {
+  const cedo = criarDemanda({ id: 1, data_prevista: "2026-11-01" });
+  const tarde = criarDemanda({ id: 3, data_prevista: "2026-11-20" });
+
+  it("depois do último card carregado, fica para a página dele (não aparece e some)", () => {
+    const longe = criarDemanda({ id: 8, data_prevista: "2027-06-01" });
+
+    expect(inserirNaColuna([cedo, tarde], longe, "backlog", true).map((d) => d.id)).toEqual([1, 3]);
+  });
+
+  it("dentro do trecho carregado, entra normalmente", () => {
+    const meio = criarDemanda({ id: 9, data_prevista: "2026-11-10" });
+
+    expect(inserirNaColuna([cedo, tarde], meio, "backlog", true).map((d) => d.id)).toEqual([1, 9, 3]);
+  });
+});
+
+describe("focoPrecisaDeMais (STC-931)", () => {
+  const atrasada = criarDemanda({ data_prevista: "2000-01-01" });
+  const noPrazo = criarDemanda({ data_prevista: "2999-01-01" });
+
+  it("sem foco, toda fase continua carregando", () => {
+    expect(focoPrecisaDeMais(null, "concluido", [])).toBe(true);
+  });
+
+  it("com foco, não baixa o histórico do Concluído (o foco nunca mostra concluídas)", () => {
+    expect(focoPrecisaDeMais("atrasadas", "concluido", [])).toBe(false);
+    expect(focoPrecisaDeMais("sem responsável", "concluido", [])).toBe(false);
+  });
+
+  it("foco em andamento só carrega a própria fase", () => {
+    expect(focoPrecisaDeMais("em andamento", "em_andamento", [])).toBe(true);
+    expect(focoPrecisaDeMais("em andamento", "backlog", [])).toBe(false);
+  });
+
+  it("atrasadas: para quando o último card carregado já está no prazo", () => {
+    expect(focoPrecisaDeMais("atrasadas", "backlog", [atrasada])).toBe(true);
+    expect(focoPrecisaDeMais("atrasadas", "backlog", [atrasada, noPrazo])).toBe(false);
+  });
+
+  it("a Lixeira não entra no foco", () => {
+    expect(focoPrecisaDeMais("atrasadas", "lixeira", [])).toBe(true);
   });
 });
 

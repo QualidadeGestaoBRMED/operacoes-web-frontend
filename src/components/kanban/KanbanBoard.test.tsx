@@ -94,6 +94,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   atualizarStatusDemanda,
   buscarDemanda,
+  buscarResumoDemandas,
   listarDemandasDaFase,
   listarTiposGestao,
 } from "@/lib/demandas";
@@ -319,6 +320,36 @@ describe("KanbanBoard", () => {
 
     await within(concluido).findByText("Concluída antiga");
     expect(listarDemandasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2);
+  });
+
+  it("com o foco dos cartões ligado, não baixa o histórico do Concluído (STC-931)", async () => {
+    const atrasada = criarDemanda({
+      titulo: "Atrasada no backlog",
+      status: "backlog",
+      data_prevista: "2000-01-01",
+    });
+    vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status) => {
+      if (status === "concluido") {
+        const antiga = criarDemanda({ titulo: "Concluída", status: "concluido" });
+        return { demandas: [antiga], total: 103, paginas: 1, temMais: true };
+      }
+      return daFase([atrasada], status);
+    });
+    vi.mocked(buscarResumoDemandas).mockResolvedValue({
+      estatisticas: [{ valor: "1", rotulo: "atrasadas", atencao: true }],
+      insight: "",
+    } as never);
+    const user = userEvent.setup();
+
+    renderBoard();
+    await screen.findByText("Atrasada no backlog");
+    const concluido = screen.getByTestId("concluido");
+    expect(within(concluido).getByRole("button", { name: "Carregar mais" })).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /atrasadas/i }));
+
+    expect(within(concluido).queryByRole("button", { name: "Carregar mais" })).not.toBeInTheDocument();
+    expect(within(concluido).getByText("Nenhuma demanda aqui")).toBeInTheDocument();
   });
 
   it("mostra erro e não perde o card quando mover falha", async () => {
