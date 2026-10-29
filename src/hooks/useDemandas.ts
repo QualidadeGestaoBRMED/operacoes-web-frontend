@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import {
   buscarDemanda,
   buscarPrimeiraPaginaDaFase,
@@ -29,6 +29,13 @@ export function chaveDaFase(filtros: DemandaFiltros | undefined, status: StatusD
   return ["demandas", { ...filtros, status }] as const;
 }
 
+/** As páginas extras de uma coluna: também começa com "demandas", para
+ * editar, comentar, anexar e mudar responsável atualizarem os cards que
+ * estão além da primeira página. Fica fora da atualização periódica. */
+function chaveDasExtras(filtros: DemandaFiltros | undefined, status: StatusDemanda) {
+  return ["demandas", { ...filtros, status }, "paginas-extras"] as const;
+}
+
 /** O que muda na primeira página quando a fase muda: o total e os cards do topo. */
 function assinaturaDaPagina(pagina: RespostaPaginada<Demanda> | undefined) {
   if (!pagina) return "";
@@ -40,20 +47,37 @@ function assinaturaDaPagina(pagina: RespostaPaginada<Demanda> | undefined) {
  * ordem que o backend devolve (STC-930).
  *
  * - A **primeira página** é a única na atualização periódica (30 s).
- * - As **páginas extras** (`carregarMais`) não entram na atualização: são
- *   buscadas de novo, em paralelo, só quando a primeira mostra que a fase
- *   mudou (outro total ou outros cards no topo). Assim o custo fixo é uma
- *   busca por coluna, por mais que se tenha rolado.
- * - Trocar os filtros volta para a primeira página.
+ * - **Carregar mais** busca só a página seguinte e a junta às que já vieram.
+ * - As **páginas extras** são buscadas de novo, em paralelo, quando a
+ *   primeira mostra que a fase mudou (outro total ou outros cards no topo) e
+ *   nas ações que atualizam a lista (editar, comentar, anexar, mover).
+ * - Trocar os filtros volta para a primeira página; voltar a um filtro já
+ *   visto começa de novo pela primeira, sem reaproveitar extras antigas.
  */
 export function useDemandasDaFase(
   filtros: DemandaFiltros | undefined,
   status: StatusDemanda,
   opcoes?: { pausado?: boolean; desabilitado?: boolean },
 ) {
+  const { mutate: mutateGlobal } = useSWRConfig();
   const chaveDosFiltros = JSON.stringify(filtros ?? {});
   const [paginasPedidas, setPaginasPedidas] = useState({ filtros: chaveDosFiltros, ate: 1 });
+  const [carregando, setCarregando] = useState<{ filtros: string; erro: unknown } | null>(null);
+  // Trocar os filtros zera a coluna: voltar a um filtro já visto começa pela
+  // primeira página, sem reaproveitar páginas extras guardadas dele.
+  if (paginasPedidas.filtros !== chaveDosFiltros) {
+    setPaginasPedidas({ filtros: chaveDosFiltros, ate: 1 });
+    setCarregando(null);
+  }
   const ate = paginasPedidas.filtros === chaveDosFiltros ? paginasPedidas.ate : 1;
+  const ateRef = useRef(ate);
+  ateRef.current = ate;
+  // As páginas extras são buscadas de novo quando a primeira página que veio
+  // do servidor mudou (outro total ou outros cards no topo). Compara só o
+  // que veio do servidor: tirar ou pôr um card na hora não conta.
+  const assinaturaDoServidorRef = useRef<{ filtros: string; assinatura: string } | null>(null);
+  const buscandoExtrasRef = useRef(false);
+  const buscarExtrasDeNovoRef = useRef<() => void>(() => {});
 
   // Achado no review: pausarPolling (via refreshInterval:0 abaixo) só
   // impede um NOVO poll de ser agendado -- não cancela um que já estava em
@@ -76,51 +100,90 @@ export function useDemandasDaFase(
     opcoes?.desabilitado ? null : chaveDaFase(filtros, status),
     async () => {
       const resultado = await buscarPrimeiraPaginaDaFase(filtros, status);
-      return pausadoRef.current ? (primeiraAtualRef.current ?? resultado) : resultado;
+      if (pausadoRef.current) return primeiraAtualRef.current ?? resultado;
+      const assinatura = assinaturaDaPagina(resultado);
+      const anterior = assinaturaDoServidorRef.current;
+      assinaturaDoServidorRef.current = { filtros: chaveDosFiltros, assinatura };
+      const faseMudou = anterior?.filtros === chaveDosFiltros && anterior.assinatura !== assinatura;
+      // Se a mesma ação já está buscando as extras, não repete.
+      if (faseMudou && ateRef.current >= 2 && !buscandoExtrasRef.current) {
+        buscarExtrasDeNovoRef.current();
+      }
+      return resultado;
     },
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
   primeiraAtualRef.current = primeira.data;
 
-  const extras = useSWR<PaginasExtrasDaFase & { filtros: string }>(
-    opcoes?.desabilitado || ate < 2 || !primeira.data
-      ? null
-      : ["paginas-extras-da-fase", { ...filtros, status }, ate],
-    async () => ({ ...(await listarPaginasExtrasDaFase(filtros, status, ate)), filtros: chaveDosFiltros }),
-    {
-      keepPreviousData: true,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      revalidateIfStale: false,
+  // Chave só existe depois do primeiro "carregar mais" com estes filtros, que
+  // já grava a página buscada no cache: aqui o fetcher só roda para buscar de
+  // novo as páginas que a coluna tem (fase mudou ou ação na lista).
+  const chaveExtras = chaveDasExtras(filtros, status);
+  const extrasAtuaisRef = useRef<PaginasExtrasDaFase | undefined>(undefined);
+  const extras = useSWR<PaginasExtrasDaFase>(
+    opcoes?.desabilitado || ate < 2 ? null : chaveExtras,
+    async () => {
+      buscandoExtrasRef.current = true;
+      try {
+        const resultado = await listarPaginasExtrasDaFase(filtros, status, ateRef.current);
+        return pausadoRef.current ? (extrasAtuaisRef.current ?? resultado) : resultado;
+      } finally {
+        buscandoExtrasRef.current = false;
+      }
     },
+    { revalidateOnFocus: false, revalidateOnReconnect: false, revalidateIfStale: false },
   );
-  // keepPreviousData também devolve o dado antigo quando a chave vira null ou
-  // é de outros filtros: só valem as extras pedidas com os filtros de agora.
-  const dadosExtras = ate >= 2 && extras.data?.filtros === chaveDosFiltros ? extras.data : undefined;
+  const dadosExtras = ate >= 2 ? extras.data : undefined;
+  extrasAtuaisRef.current = dadosExtras;
 
-  // A fase mudou (outro total ou outros cards no topo): as páginas extras
-  // podem ter deslocado, então são buscadas de novo, uma vez.
-  const assinatura = assinaturaDaPagina(primeira.data);
-  const assinaturaAnteriorRef = useRef(assinatura);
   const mutateExtras = extras.mutate;
   useEffect(() => {
-    if (assinatura === assinaturaAnteriorRef.current) return;
-    assinaturaAnteriorRef.current = assinatura;
-    if (ate >= 2) void mutateExtras();
-  }, [assinatura, ate, mutateExtras]);
+    buscarExtrasDeNovoRef.current = () => void mutateExtras();
+  }, [mutateExtras]);
 
   const demandas = useMemo(
     () => juntarSemRepetir(primeira.data?.results ?? [], dadosExtras?.demandas ?? []),
     [primeira.data, dadosExtras],
   );
   const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, primeira.isValidating);
-  const temMais = ate < 2 ? Boolean(primeira.data?.next) : (dadosExtras?.temMais ?? true);
-  const carregandoMais = ate >= 2 && !extras.error && (dadosExtras?.ate ?? 1) < ate && temMais;
+  const temMais = ate < 2 ? Boolean(primeira.data?.next) : (dadosExtras?.temMais ?? false);
 
-  const carregarMais = useCallback(() => {
-    if (!temMais || carregandoMais || extras.error) return;
-    setPaginasPedidas({ filtros: chaveDosFiltros, ate: ate + 1 });
-  }, [temMais, carregandoMais, extras.error, chaveDosFiltros, ate]);
+  const carregandoAgora = carregando?.filtros === chaveDosFiltros ? carregando : null;
+  const carregandoMais = Boolean(carregandoAgora && carregandoAgora.erro === null);
+  const erroAoCarregar = carregandoAgora?.erro ?? null;
+
+  /** Busca só a página seguinte e a junta às que a coluna já tem. */
+  const carregarMais = useCallback(async () => {
+    if (!temMais || carregandoMais || opcoes?.desabilitado) return;
+    const filtrosDaBusca = chaveDosFiltros;
+    // Parte do que de fato veio: a fase pode ter encolhido desde o pedido.
+    const proxima = (ate >= 2 ? (dadosExtras?.ate ?? ate) : 1) + 1;
+    setCarregando({ filtros: filtrosDaBusca, erro: null });
+    try {
+      const nova = await listarPaginasExtrasDaFase(filtros, status, proxima, proxima);
+      const anteriores = ate >= 2 ? (extrasAtuaisRef.current?.demandas ?? []) : [];
+      await mutateGlobal(
+        chaveExtras,
+        { demandas: [...anteriores, ...nova.demandas], ate: nova.ate, temMais: nova.temMais },
+        { revalidate: false },
+      );
+      setPaginasPedidas({ filtros: filtrosDaBusca, ate: Math.max(nova.ate, proxima - 1) });
+      setCarregando(null);
+    } catch (erro) {
+      setCarregando({ filtros: filtrosDaBusca, erro });
+    }
+  }, [
+    temMais,
+    carregandoMais,
+    opcoes?.desabilitado,
+    chaveDosFiltros,
+    ate,
+    dadosExtras,
+    filtros,
+    status,
+    chaveExtras,
+    mutateGlobal,
+  ]);
 
   const mutatePrimeira = primeira.mutate;
   /** Tira um card da coluna na hora (antes da resposta do backend). */
@@ -172,19 +235,32 @@ export function useDemandasDaFase(
     [demandas, status, temMais, primeira.data, dadosExtras, mutatePrimeira, mutateExtras],
   );
 
+  const erroDasExtras = erroAoCarregar ?? (dadosExtras ? null : (extras.error ?? null));
+
   return {
     demandas,
     total: primeira.data?.count ?? 0,
     temMais,
     carregandoMais,
-    carregarMais,
+    carregarMais: () => void carregarMais(),
     /** Falha ao buscar as páginas extras: fica na coluna, o resto do quadro segue. */
-    erroAoCarregarMais: extras.error ? extrairMensagemErro(extras.error) : null,
-    tentarDeNovo: () => void mutateExtras(),
+    erroAoCarregarMais: erroDasExtras ? extrairMensagemErro(erroDasExtras) : null,
+    /** Falhou a página seguinte: busca só ela de novo; falhou a busca das extras: busca de novo. */
+    tentarDeNovo: () => {
+      if (erroAoCarregar) {
+        setCarregando(null);
+        void carregarMais();
+      } else {
+        void mutateExtras();
+      }
+    },
     remover,
     inserir,
-    /** Busca a primeira página de novo; as extras seguem se a fase mudou. */
-    revalidar: () => void mutatePrimeira(),
+    /** Busca de novo a coluna inteira: a primeira página e as extras que já vieram. */
+    revalidar: () => {
+      void mutatePrimeira();
+      if (ate >= 2) void mutateExtras();
+    },
     isValidating: primeira.isValidating,
     isFilterChangeValidating: trocandoFiltro,
     // data só é undefined antes da primeiríssima resposta deste hook; depois,

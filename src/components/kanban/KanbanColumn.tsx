@@ -114,6 +114,8 @@ export function KanbanColumn({
           <div
             ref={fimRef}
             data-testid={`fim-${status}`}
+            // Leitor de tela ouve "Carregando mais..." sem o foco sair do lugar.
+            aria-live="polite"
             className="flex items-center justify-center gap-1.5 py-2 text-[12px] text-muted-foreground"
           >
             {carregandoMais ? (
@@ -124,7 +126,7 @@ export function KanbanColumn({
             ) : (
               <button
                 type="button"
-                className="rounded px-2 py-1 hover:text-foreground focus-visible:outline-2"
+                className="rounded px-2 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
                 onClick={onCarregarMais}
               >
                 Carregar mais
@@ -150,7 +152,7 @@ function ErroNaColuna({
       {onTentarDeNovo && (
         <button
           type="button"
-          className="rounded px-2 py-1 font-medium text-foreground hover:underline focus-visible:outline-2"
+          className="rounded px-2 py-1 font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
           onClick={onTentarDeNovo}
         >
           Tentar novamente

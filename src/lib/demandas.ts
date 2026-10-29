@@ -74,7 +74,8 @@ export interface PaginasExtrasDaFase {
 }
 
 /**
- * Páginas 2 a `ate` de uma fase, em paralelo (STC-931). O cliente api usa
+ * Páginas `de` a `ate` de uma fase, em paralelo (STC-931). Por padrão, da 2ª
+ * em diante (a 1ª vem de buscarPrimeiraPaginaDaFase). O cliente api usa
  * baseURL "/api/backend" de propósito (o token de acesso só existe no proxy):
  * a página é pedida com ?page=N pelo mesmo cliente, nunca pelo "next" do DRF
  * (URL absoluta direto no Django, que sairia sem token). Página que deixou de
@@ -84,14 +85,15 @@ export async function listarPaginasExtrasDaFase(
   filtros: DemandaFiltros | undefined,
   status: StatusDemanda,
   ate: number,
+  de = 2,
 ): Promise<PaginasExtrasDaFase> {
   const params = { ...paramsDeFiltros(filtros), status };
-  const paginas = Array.from({ length: Math.max(ate - 1, 0) }, (_, indice) => indice + 2);
+  const paginas = Array.from({ length: Math.max(ate - de + 1, 0) }, (_, indice) => indice + de);
   const respostas = await Promise.allSettled(
     paginas.map((page) => api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, page } })),
   );
   const demandas: Demanda[] = [];
-  let ultima = 1;
+  let ultima = de - 1;
   let temMais = true;
   for (const resposta of respostas) {
     if (resposta.status === "rejected") {
