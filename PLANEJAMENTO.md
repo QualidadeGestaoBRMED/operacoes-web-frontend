@@ -1369,3 +1369,13 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **O que entra no número:** a rede entre a Vercel e o Render, o Django e o banco. A diferença para a espera total do navegador é a parte da Vercel (função, sessão) e da rede até o navegador.
 - Vale para qualquer status que o backend devolver; as respostas que o proxy dá sozinho (401 sem sessão, 400 de caminho inválido) não chamam o backend e não têm o cabeçalho. Nenhuma informação nova sobre o backend, sem mudança nele.
 - **Testes:** duração no cabeçalho, resposta de erro do backend com status e corpo intactos, sem cabeçalho no 401 do próprio proxy.
+
+### 7.47 STC-932 — Chamadas da API sem o redirecionamento 308 da barra final
+
+✅ **Concluído.** Medição de 28/10/2026 (Matriz em produção): antes de cada chamada da API aparecia um 308 de 40 a 156 ms. Os endereços do código seguem o padrão do Django, com barra final; o Next, com `trailingSlash` no padrão, responde 308 para a versão sem barra, e o navegador repetia a chamada (inclusive POST e PATCH, com o corpo).
+
+- **Cliente da API** (`src/lib/api.ts`): o interceptor de requisição tira a barra final do caminho (antes do `?` ou do `#`) com `semBarraFinal`. Endereço absoluto (URL assinada etc.) fica como veio, e `/` continua `/`. As constantes de endereço espalhadas pelo código não mudam.
+- **Proxy** (`src/app/api/backend/[...path]/route.ts`): sem mudança; ele já recoloca a barra, então o backend recebe o mesmo endereço de antes.
+- **Fora do cliente da API:** `/api/media/evidencia-vigente` e `/api/sessao/renovar` já saíam sem barra; as chamadas do servidor do Next ao Django (login, logout, refresh) não passam pela Vercel e continuam iguais.
+- Conferido no servidor local: com barra, 308; sem barra, a chamada vai direto ao proxy.
+- **Testes:** `semBarraFinal` (com e sem query, com `#`, `/`, absoluto); GET, POST, PATCH e DELETE saindo sem a barra com os parâmetros intactos; a requisição repetida depois de renovar a sessão também sem barra; o proxy recolocando a barra antes da query. Suíte completa: 1588 testes passando.

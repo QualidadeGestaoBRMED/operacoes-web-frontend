@@ -245,3 +245,48 @@ describe("ver como (STC-790)", () => {
     expect(sessionStorage.getItem("atlas.verComoAviso")).toBeNull();
   });
 });
+
+describe("endereço sem a barra final (STC-932)", () => {
+  it("tira a barra final do caminho, antes do ?, e deixa o resto como está", async () => {
+    const { semBarraFinal } = await import("./api");
+
+    expect(semBarraFinal("/modulos/legalizacao/documentos/")).toBe("/modulos/legalizacao/documentos");
+    expect(semBarraFinal("/modulos/legalizacao/documentos/?rede=padrao")).toBe(
+      "/modulos/legalizacao/documentos?rede=padrao",
+    );
+    expect(semBarraFinal("/demandas/12/anexos/#topo")).toBe("/demandas/12/anexos#topo");
+    expect(semBarraFinal("/auth/me")).toBe("/auth/me");
+    expect(semBarraFinal("/")).toBe("/");
+    expect(semBarraFinal(undefined)).toBeUndefined();
+  });
+
+  it("endereço absoluto (ex.: URL assinada) fica como veio", async () => {
+    const { semBarraFinal } = await import("./api");
+
+    expect(semBarraFinal("https://r2.exemplo.com/bucket/arquivo/")).toBe(
+      "https://r2.exemplo.com/bucket/arquivo/",
+    );
+  });
+
+  it.each(["get", "post", "patch", "delete"] as const)(
+    "%s sai sem a barra final, com os parâmetros intactos",
+    async (metodo) => {
+      const { api, adapter } = await carregar([200]);
+
+      await api.request({ method: metodo, url: "/modulos/gestao-demandas/demandas/", params: { status: "backlog" } });
+
+      const enviada = adapter.mock.calls[0][0];
+      expect(enviada.url).toBe("/modulos/gestao-demandas/demandas");
+      expect(enviada.params).toEqual({ status: "backlog" });
+    },
+  );
+
+  it("a requisição repetida depois de renovar a sessão também vai sem a barra", async () => {
+    const { api, adapter } = await carregar([401, 200]);
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+
+    await api.get("/auth/me/");
+
+    expect(adapter.mock.calls.map((c) => c[0].url)).toEqual(["/auth/me", "/auth/me"]);
+  });
+});

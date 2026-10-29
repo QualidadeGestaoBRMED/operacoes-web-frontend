@@ -31,7 +31,24 @@ declare module "axios" {
 
 const METODOS_DE_LEITURA = ["get", "head", "options"];
 
+/**
+ * Tira a barra final do caminho (antes do `?`) de um endereço relativo
+ * (STC-932). Os endereços do código seguem o padrão do Django, com barra; o
+ * Next responde 308 para a versão sem barra, e o navegador repetia cada
+ * chamada. O proxy (src/app/api/backend/[...path]/route.ts) recoloca a barra,
+ * então o backend recebe o mesmo endereço. Endereço absoluto fica como veio.
+ */
+export function semBarraFinal(url: string | undefined): string | undefined {
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
+  const fimDoCaminho = url.search(/[?#]/);
+  const caminho = fimDoCaminho < 0 ? url : url.slice(0, fimDoCaminho);
+  const resto = fimDoCaminho < 0 ? "" : url.slice(fimDoCaminho);
+  const limpo = caminho.replace(/\/+$/, "");
+  return limpo ? limpo + resto : url;
+}
+
 api.interceptors.request.use((config: ConfigComRenovacao) => {
+  config.url = semBarraFinal(config.url);
   config._enviadaEm = Date.now();
   // "Ver como" (STC-790): leitura vai com o id da sessão no cabeçalho e é
   // respondida como a pessoa; escrita nem sai daqui, com a mesma recusa que

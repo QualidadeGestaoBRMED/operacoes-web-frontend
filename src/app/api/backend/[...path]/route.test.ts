@@ -144,3 +144,17 @@ describe("proxy /api/backend mede o tempo do backend (STC-933)", () => {
     expect(resposta.headers.get("Server-Timing")).toBeNull();
   });
 });
+
+describe("proxy /api/backend recoloca a barra final (STC-932)", () => {
+  it("caminho sem barra chega ao backend com a barra, antes da query", async () => {
+    const requisicao = new NextRequest(
+      "http://localhost:3000/api/backend/modulos/legalizacao/documentos?rede=padrao",
+    );
+
+    await GET(requisicao, contexto("modulos", "legalizacao", "documentos"));
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://backend:8000/api/modulos/legalizacao/documentos/?rede=padrao",
+    );
+  });
+});
