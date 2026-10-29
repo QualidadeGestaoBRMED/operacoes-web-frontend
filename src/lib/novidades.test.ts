@@ -16,6 +16,7 @@ function novidade(id: string, extra: Partial<NovidadeResumida> = {}): NovidadeRe
     titulo: id,
     resumo: "",
     modulos: [],
+    redes: [],
     admin: false,
     destaque: false,
     imagem: null,
@@ -52,15 +53,24 @@ describe("visiveisPara", () => {
   ];
 
   it("só as dos módulos que a pessoa acessa e as gerais", () => {
-    expect(visiveisPara(todas, ["gestao-rh"], false).map((n) => n.id)).toEqual([
+    expect(visiveisPara(todas, ["gestao-rh"], false, ["padrao"]).map((n) => n.id)).toEqual([
       "2026-10-26-04-geral",
       "2026-10-26-03-rh",
     ]);
   });
 
   it("as de Administração, só para quem administra", () => {
-    expect(visiveisPara(todas, [], true).map((n) => n.id)).toContain("2026-10-26-01-admin");
-    expect(visiveisPara(todas, [], false).map((n) => n.id)).not.toContain("2026-10-26-01-admin");
+    expect(visiveisPara(todas, [], true, ["padrao"]).map((n) => n.id)).toContain("2026-10-26-01-admin");
+    expect(visiveisPara(todas, [], false, ["padrao"]).map((n) => n.id)).not.toContain("2026-10-26-01-admin");
+  });
+
+  it("as de uma rede, só para quem atua nela (STC-952)", () => {
+    const daOpex = [novidade("2026-10-29-01-opex", { modulos: ["legalizacao"], redes: ["opex"] })];
+
+    expect(visiveisPara(daOpex, ["legalizacao"], false, ["opex"])).toHaveLength(1);
+    expect(visiveisPara(daOpex, ["legalizacao"], true, ["opex", "padrao"])).toHaveLength(1);
+    expect(visiveisPara(daOpex, ["legalizacao"], false, ["padrao"])).toHaveLength(0);
+    expect(visiveisPara(daOpex, ["legalizacao"], false, [])).toHaveLength(0);
   });
 });
 

@@ -16,6 +16,7 @@ import {
   redesDaLegalizacao,
   podeEditarTipoDeDocumento,
   redesDaAbrangencia,
+  redesEmQueAtua,
   unidadeForcadaDoCoordenador,
   unidadesDoUsuario,
 } from "./redes";
@@ -169,3 +170,14 @@ describe("tipos de documento por rede (STC-904)", () => {
   });
 });
 
+
+describe("redesEmQueAtua (STC-952)", () => {
+  it("o Admin, as que administra; os demais, a do cargo", () => {
+    expect(redesEmQueAtua({ perfil: perfil(NIVEL_ADMIN_QG) }).sort()).toEqual(["opex", "padrao"]);
+    expect(redesEmQueAtua({ perfil: perfil(NIVEL_ADMIN_OPERACOES_ESPECIAIS) })).toEqual(["opex"]);
+    expect(redesEmQueAtua({ perfil: perfil(NIVEL_PONTO_FOCAL) })).toEqual(["opex"]);
+    expect(redesEmQueAtua({ perfil: perfil(NIVEL_UNIDADE) })).toEqual(["padrao"]);
+    expect(redesEmQueAtua({ perfil: perfil(NIVEL_SETOR) })).toEqual(["padrao"]);
+    expect(redesEmQueAtua({ perfil: null })).toEqual([]);
+  });
+});

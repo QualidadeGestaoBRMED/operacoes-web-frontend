@@ -24,6 +24,7 @@ describe("lerNovidade (STC-877)", () => {
       titulo: "Notificações no celular",
       resumo: "Agora o Atlas avisa no celular.",
       modulos: ["gestao-rh"],
+      redes: [],
       admin: false,
       destaque: true,
       imagem: null,
@@ -37,9 +38,15 @@ describe("lerNovidade (STC-877)", () => {
     ["2026-10-26-celular.md", VALIDA, /nome fora do formato/],
     ["2026-10-26-01-celular.md", "---\ntitulo: Só título\n---\n", /sem titulo ou resumo/],
     ["2026-10-26-01-celular.md", "---\ntitulo: T\nresumo: R\nmodulos: gestao-rh\n---\n", /lista/],
+    ["2026-10-26-01-celular.md", "---\ntitulo: T\nresumo: R\nredes: [aeroporto]\n---\n", /redes precisa/],
   ])("recusa %s com o motivo", (arquivo, conteudo, motivo) => {
     expect(lerNovidade(arquivo, conteudo)).toMatch(motivo);
   });
+});
+
+it("lê as redes do público (STC-952)", () => {
+  const lida = lerNovidade("2026-10-29-01-x.md", "---\ntitulo: T\nresumo: R\nredes: [opex]\n---\n");
+  expect(typeof lida === "string" ? lida : lida.redes).toEqual(["opex"]);
 });
 
 describe("abrir no Atlas", () => {
