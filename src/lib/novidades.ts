@@ -6,6 +6,8 @@
  * (`ultima_novidade_vista`, STC-876).
  */
 
+import type { Rede } from "@/types";
+
 /** O que o navegador recebe de cada entrada (sem o texto, lido só na página). */
 export interface NovidadeResumida {
   /** "AAAA-MM-DD-NN-assunto": data, ordem no dia e assunto. */
@@ -16,6 +18,8 @@ export interface NovidadeResumida {
   resumo: string;
   /** Códigos dos módulos; vazio: para todos. */
   modulos: string[];
+  /** Redes do público (STC-952); vazio: todas. */
+  redes: Rede[];
   admin: boolean;
   destaque: boolean;
   imagem: string | null;
@@ -50,18 +54,20 @@ export function ordenar<T extends { id: string }>(novidades: T[]): T[] {
   return [...novidades].sort((a, b) => (ordem(a.id) < ordem(b.id) ? 1 : ordem(a.id) > ordem(b.id) ? -1 : 0));
 }
 
-/** As entradas que a pessoa vê: dos módulos que acessa (vazio: todos) e, as
- * de Administração, só quem administra. */
+/** As entradas que a pessoa vê: dos módulos que acessa e das redes em que
+ * atua (vazio: todos) e, as de Administração, só quem administra. */
 export function visiveisPara<T extends NovidadeResumida>(
   novidades: T[],
   codigosDosModulos: string[],
   administra: boolean,
+  redes: Rede[],
 ): T[] {
   return novidades.filter(
     (novidade) =>
       (!novidade.admin || administra) &&
       (novidade.modulos.length === 0 ||
-        novidade.modulos.some((codigo) => codigosDosModulos.includes(codigo))),
+        novidade.modulos.some((codigo) => codigosDosModulos.includes(codigo))) &&
+      (novidade.redes.length === 0 || novidade.redes.some((rede) => redes.includes(rede))),
   );
 }
 

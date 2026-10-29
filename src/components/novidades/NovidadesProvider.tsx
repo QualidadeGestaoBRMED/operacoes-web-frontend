@@ -12,6 +12,7 @@ import {
 } from "@/lib/novidades";
 import { marcarNovidadesComoVistas } from "@/lib/plataforma";
 import { sessaoVerComo } from "@/lib/verComo";
+import type { Rede } from "@/types";
 
 const NovidadesContexto = createContext<NovidadeResumida[]>([]);
 
@@ -35,7 +36,7 @@ export function NovidadesProvider({
  */
 export function useNovidades() {
   const todas = useContext(NovidadesContexto);
-  const { modulos, temAdministracao } = useNavegacao();
+  const { modulos, temAdministracao, redes } = useNavegacao();
   const { user, recarregarUsuario } = useAuth();
   // Mesma busca (SWR "modulos") do menu: nenhuma requisição a mais.
   const { isLoading: carregandoModulos, error: falhaNosModulos } = useModulos();
@@ -44,9 +45,16 @@ export function useNovidades() {
   const ultimaVista = vistaNoUsuario === null ? "" : vistaNoUsuario;
   const codigos = modulos.map((modulo) => modulo.codigo);
   const chaveDosCodigos = codigos.join(",");
+  const chaveDasRedes = redes.join(",");
   const visiveis = useMemo(
-    () => visiveisPara(todas, chaveDosCodigos ? chaveDosCodigos.split(",") : [], temAdministracao),
-    [todas, chaveDosCodigos, temAdministracao],
+    () =>
+      visiveisPara(
+        todas,
+        chaveDosCodigos ? chaveDosCodigos.split(",") : [],
+        temAdministracao,
+        chaveDasRedes ? (chaveDasRedes.split(",") as Rede[]) : [],
+      ),
+    [todas, chaveDosCodigos, temAdministracao, chaveDasRedes],
   );
   const conhecida = ultimaVista !== undefined && !carregandoModulos && !falhaNosModulos;
   const maisNova = visiveis[0];

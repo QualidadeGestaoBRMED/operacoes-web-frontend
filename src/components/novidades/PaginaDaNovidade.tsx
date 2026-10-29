@@ -22,7 +22,7 @@ import { useNovidades } from "./NovidadesProvider";
  * novo.
  */
 export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
-  const { modulos, temAdministracao } = useNavegacao();
+  const { modulos, temAdministracao, redes } = useNavegacao();
   const {
     isLoading: carregandoModulos,
     error: falhaNosModulos,
@@ -34,7 +34,8 @@ export function PaginaDaNovidade({ novidade }: { novidade: NovidadeComTexto }) {
   const anterior = posicao >= 0 ? todasVisiveis[posicao + 1] : undefined;
   const proxima = posicao > 0 ? todasVisiveis[posicao - 1] : undefined;
   const visivel =
-    visiveisPara([novidade], modulos.map((modulo) => modulo.codigo), temAdministracao).length > 0;
+    visiveisPara([novidade], modulos.map((modulo) => modulo.codigo), temAdministracao, redes)
+      .length > 0;
 
   useEffect(() => {
     void marcarComoVistas(novidade.id);

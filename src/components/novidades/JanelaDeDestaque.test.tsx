@@ -17,6 +17,7 @@ const DESTAQUE = {
   titulo: "Notificações no celular",
   resumo: "Agora o Atlas avisa no celular.",
   modulos: [],
+  redes: [],
   admin: false,
   destaque: true,
   imagem: null,

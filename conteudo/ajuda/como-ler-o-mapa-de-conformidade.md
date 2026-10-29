@@ -14,6 +14,14 @@ icone: grade
 
 O Mapa é só para o computador: no celular, a Legalização abre direto na lista. Quem coordena unidade vê só as suas.
 
+## Rede própria e Operações Especiais
+
+A Legalização acompanha as clínicas da rede própria e as unidades de Operações Especiais, cada rede com o seu catálogo de documentos:
+
+- a coordenação vê as próprias unidades: o Coordenador da Unidade, na rede própria; o Ponto focal, em Operações Especiais;
+- quem administra uma rede vê todas as unidades dela;
+- quem acompanha as duas (o Setor de Legalização, o Admin Q&G e a Gestão de Operações) escolhe a rede no seletor **Rede**, no alto da tela. A escolha vale para o Mapa, a Lista, a Biblioteca e o Catálogo.
+
 ## O que o Mapa mostra
 
 ![Mapa de Conformidade com os cards de resumo no topo, a grade de unidades por categoria e a legenda embaixo](/ajuda/como-ler-o-mapa-visao-geral.webp)

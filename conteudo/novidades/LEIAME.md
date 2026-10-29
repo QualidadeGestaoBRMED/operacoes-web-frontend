@@ -14,6 +14,7 @@ Cabeçalho:
 titulo: Notificações no celular
 resumo: Uma ou duas frases. Aparece na janela de destaque e no topo da entrada.
 modulos: [gestao-rh]   # opcional; vazio ou ausente: para todos
+redes: [opex]          # opcional; padrao e/ou opex: só para quem atua na rede (unidade dela ou quem a administra); vazio ou ausente: as duas
 admin: false           # opcional; true: só para quem administra
 destaque: false        # opcional; true: abre sozinha uma vez (raro, grandes lançamentos)
 imagem: /novidades/2026-10-26-01-notificacoes-no-celular.webp   # opcional, em public/novidades; .png, .webp ou .gif
@@ -22,7 +23,7 @@ abrir: /modulos/gestao-rh        # opcional; tela do recurso, no botão "Abrir n
 ---
 ```
 
-`modulos` e `admin` escolhem quem vê a novidade na tela, não guardam
+`modulos`, `redes` e `admin` escolhem quem vê a novidade na tela, não guardam
 segredo: o texto de todas chega ao navegador de quem está logado. Nada
 interno ou ainda não lançado entra aqui; a novidade só entra no
 repositório quando o recurso for lançado.

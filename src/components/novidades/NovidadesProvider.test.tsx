@@ -22,6 +22,7 @@ function novidade(id: string, extra: Partial<NovidadeResumida> = {}): NovidadeRe
     titulo: id,
     resumo: "",
     modulos: [],
+    redes: [],
     admin: false,
     destaque: false,
     imagem: null,
@@ -59,6 +60,7 @@ beforeEach(() => {
   vi.mocked(useNavegacao).mockReturnValue({
     modulos: [{ codigo: "gestao-rh" }],
     temAdministracao: false,
+    redes: [],
   } as unknown as ReturnType<typeof useNavegacao>);
 });
 

@@ -22,6 +22,7 @@ const HORAS: NovidadeComTexto = {
   titulo: "Horas perdidas",
   resumo: "Clique no card.",
   modulos: ["gestao-rh"],
+  redes: [],
   admin: false,
   destaque: false,
   imagem: null,
@@ -35,6 +36,7 @@ function comModulos(codigos: string[]) {
   vi.mocked(useNavegacao).mockReturnValue({
     modulos: codigos.map((codigo) => ({ codigo, nome: codigo })),
     temAdministracao: false,
+    redes: [],
   } as unknown as ReturnType<typeof useNavegacao>);
 }
 
