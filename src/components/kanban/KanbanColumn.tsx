@@ -17,6 +17,11 @@ interface KanbanColumnProps {
   temMais?: boolean;
   carregandoMais?: boolean;
   onCarregarMais?: () => void;
+  /** A primeira página da fase falhou: a coluna mostra o erro, o quadro segue. */
+  erro?: string | null;
+  /** Falhou a página seguinte: os cards já carregados continuam. */
+  erroAoCarregarMais?: string | null;
+  onTentarDeNovo?: () => void;
   onSelecionarDemanda: (demanda: Demanda) => void;
   onRestaurar: (demanda: Demanda) => void;
 }
@@ -29,6 +34,9 @@ export function KanbanColumn({
   temMais = false,
   carregandoMais = false,
   onCarregarMais,
+  erro = null,
+  erroAoCarregarMais = null,
+  onTentarDeNovo,
   onSelecionarDemanda,
   onRestaurar,
 }: KanbanColumnProps) {
@@ -43,7 +51,7 @@ export function KanbanColumn({
   // acabar.
   useEffect(() => {
     const fim = fimRef.current;
-    if (!temMais || carregandoMais || !fim || !onCarregarMais) return;
+    if (!temMais || carregandoMais || erroAoCarregarMais || !fim || !onCarregarMais) return;
     if (typeof IntersectionObserver === "undefined") return;
     const observador = new IntersectionObserver(
       (entradas) => {
@@ -53,7 +61,7 @@ export function KanbanColumn({
     );
     observador.observe(fim);
     return () => observador.disconnect();
-  }, [temMais, carregandoMais, onCarregarMais, demandas.length]);
+  }, [temMais, carregandoMais, erroAoCarregarMais, onCarregarMais, demandas.length]);
 
   return (
     <div
@@ -82,7 +90,9 @@ export function KanbanColumn({
         ref={listaRef}
         className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5"
       >
-        {demandas.length === 0 && !temMais ? (
+        {erro ? (
+          <ErroNaColuna mensagem={erro} onTentarDeNovo={onTentarDeNovo} />
+        ) : demandas.length === 0 && !temMais ? (
           <div className="flex flex-col items-center gap-2 px-4 py-9 text-center text-muted-foreground">
             <Inbox className="size-6" />
             <span className="text-[13px] font-semibold text-foreground">Nenhuma demanda aqui</span>
@@ -97,7 +107,10 @@ export function KanbanColumn({
             />
           ))
         )}
-        {temMais && (
+        {!erro && erroAoCarregarMais && (
+          <ErroNaColuna mensagem={erroAoCarregarMais} onTentarDeNovo={onTentarDeNovo} />
+        )}
+        {!erro && !erroAoCarregarMais && temMais && (
           <div
             ref={fimRef}
             data-testid={`fim-${status}`}
@@ -120,6 +133,29 @@ export function KanbanColumn({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ErroNaColuna({
+  mensagem,
+  onTentarDeNovo,
+}: {
+  mensagem: string;
+  onTentarDeNovo?: () => void;
+}) {
+  return (
+    <div role="alert" className="flex flex-col items-center gap-1.5 px-3 py-4 text-center text-[12.5px]">
+      <span className="text-destructive">{mensagem}</span>
+      {onTentarDeNovo && (
+        <button
+          type="button"
+          className="rounded px-2 py-1 font-medium text-foreground hover:underline focus-visible:outline-2"
+          onClick={onTentarDeNovo}
+        >
+          Tentar novamente
+        </button>
+      )}
     </div>
   );
 }

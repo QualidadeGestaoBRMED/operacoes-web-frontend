@@ -31,14 +31,12 @@ import {
   filtrosDaUrl,
   focoPrecisaDeMais,
   hojeNoFusoDoServidor,
-  inserirNaColuna,
   mensagemBloqueioConhecido,
   passaNoFoco,
   secaoDoBloqueio,
   tipoGestaoAtivo,
 } from "@/lib/kanban";
 import { cn } from "@/lib/utils";
-import type { PaginasDaFase } from "@/lib/demandas";
 import type { Demanda, DemandaFiltros, StatusDemanda } from "@/types";
 import { DemandaCardArrastando } from "./DemandaCard";
 import { KanbanColumn } from "./KanbanColumn";
@@ -120,8 +118,11 @@ export function KanbanBoard() {
   const demandasAtivas = ORDEM_COLUNAS.filter((status) => status !== "lixeira").flatMap(
     (status) => colunas[status].demandas,
   );
-  const colunaComErro = listaDeColunas.find((coluna) => coluna.error);
-  const carregandoPrimeiraVez = listaDeColunas.some((coluna) => coluna.carregandoPrimeiraVez);
+  // Uma coluna que falhou mostra o erro nela mesma (KanbanColumn), com
+  // "Tentar novamente"; as outras seguem na tela.
+  const carregandoPrimeiraVez = listaDeColunas.some(
+    (coluna) => coluna.carregandoPrimeiraVez && !coluna.error,
+  );
   const trocandoFiltro = listaDeColunas.some((coluna) => coluna.isFilterChangeValidating);
   // Rótulo da estatística clicada nos cards de KPI ("atrasadas"/"sem
   // responsável") -- clicar de novo no mesmo card desliga o filtro.
@@ -161,17 +162,30 @@ export function KanbanBoard() {
   // fim e carrega as páginas seguintes sozinha (KanbanColumn), então o foco
   // alcança todos os cards da fase, não só os já carregados.
   const demandasPorColuna = useMemo(() => {
+    const porFase: Record<StatusDemanda, Demanda[]> = {
+      backlog: backlog.demandas,
+      em_andamento: emAndamento.demandas,
+      em_revisao: emRevisao.demandas,
+      concluido: concluido.demandas,
+      lixeira: lixeira.demandas,
+    };
     const grupos = new Map<StatusDemanda, Demanda[]>();
     for (const status of ORDEM_COLUNAS) {
-      const demandas = colunas[status].demandas;
+      const demandas = porFase[status];
       grupos.set(
         status,
         status === "lixeira" ? demandas : demandas.filter((demanda) => passaNoFoco(demanda, foco)),
       );
     }
     return grupos;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backlog.demandas, emAndamento.demandas, emRevisao.demandas, concluido.demandas, lixeira.demandas, foco]);
+  }, [
+    backlog.demandas,
+    emAndamento.demandas,
+    emRevisao.demandas,
+    concluido.demandas,
+    lixeira.demandas,
+    foco,
+  ]);
 
   // Índice da coluna "virtual" atual durante um arraste por teclado --
   // precisa ser estado mutável entre teclas, não recalculado do zero a
@@ -311,12 +325,6 @@ export function KanbanBoard() {
     setMovimentoPendente(true);
     const origem = colunas[demanda.status];
     const destino = colunas[novoStatus];
-    const tirarDaOrigem = (atual: PaginasDaFase | undefined) =>
-      atual && {
-        ...atual,
-        demandas: atual.demandas.filter((item) => item.id !== demanda.id),
-        total: Math.max(atual.total - 1, 0),
-      };
     try {
       // "lixeira" fica fora do endpoint de status de propósito no backend
       // (soft delete via DELETE, não PATCH .../status/). Achado no review:
@@ -324,16 +332,16 @@ export function KanbanBoard() {
       // sucesso da exclusão mantém o otimista e revalida as duas colunas à
       // parte, sem acoplar o resultado de uma à da outra.
       if (novoStatus === "lixeira") {
-        void origem.mutate(tirarDaOrigem, { revalidate: false });
+        origem.remover(demanda.id);
         try {
           await excluirDemanda(demanda.id);
         } catch (erro) {
           toast.error(extrairMensagemErro(erro));
-          void origem.mutate();
+          origem.revalidar();
           return;
         }
-        void origem.mutate();
-        void lixeira.mutate();
+        origem.revalidar();
+        lixeira.revalidar();
         return;
       }
 
@@ -354,16 +362,8 @@ export function KanbanBoard() {
       };
       // O card sai de uma coluna e entra na outra na hora (STC-931); depois
       // as duas fases são buscadas de novo.
-      void origem.mutate(tirarDaOrigem, { revalidate: false });
-      void destino.mutate(
-        (atual) =>
-          atual && {
-            ...atual,
-            demandas: inserirNaColuna(atual.demandas, movida, novoStatus, atual.temMais),
-            total: atual.total + 1,
-          },
-        { revalidate: false },
-      );
+      origem.remover(demanda.id);
+      destino.inserir(movida);
       try {
         await atualizarStatusDemanda(demanda.id, { status: novoStatus });
       } catch (erro) {
@@ -372,33 +372,25 @@ export function KanbanBoard() {
         // estado real (em vez de só reverter pro cache anterior) e mostra o motivo.
         toast.error(extrairMensagemErro(erro));
       }
-      void origem.mutate();
-      void destino.mutate();
+      origem.revalidar();
+      destino.revalidar();
     } finally {
       setMovimentoPendente(false);
     }
   }
 
   async function restaurar(demanda: Demanda) {
-    void lixeira.mutate(
-      (atual) =>
-        atual && {
-          ...atual,
-          demandas: atual.demandas.filter((item) => item.id !== demanda.id),
-          total: Math.max(atual.total - 1, 0),
-        },
-      { revalidate: false },
-    );
+    lixeira.remover(demanda.id);
     try {
       await restaurarDemanda(demanda.id);
     } catch (erro) {
       toast.error(extrairMensagemErro(erro));
-      void lixeira.mutate();
+      lixeira.revalidar();
       return;
     }
     // A fase para onde a demanda volta é decidida no backend: busca de novo
     // a Lixeira e as colunas ativas.
-    for (const coluna of listaDeColunas) void coluna.mutate();
+    for (const coluna of listaDeColunas) coluna.revalidar();
   }
 
   function handleDragStart(evento: DragStartEvent) {
@@ -471,14 +463,7 @@ export function KanbanBoard() {
         onNovaDemanda={() => setFormNovaDemandaAberto(true)}
       />
 
-      {colunaComErro ? (
-        // Achado no code review: o erro de qualquer coluna precisa aparecer;
-        // senão o board ficava preso em "Carregando demandas..." pra sempre,
-        // escondendo até os dados que já tinham chegado.
-        <div className="flex flex-1 items-center justify-center text-sm text-destructive">
-          {colunaComErro.mensagemErro}
-        </div>
-      ) : carregandoPrimeiraVez || resolvendoTipoGestaoPadrao ? (
+      {carregandoPrimeiraVez || resolvendoTipoGestaoPadrao ? (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Carregando demandas...
         </div>
@@ -546,6 +531,13 @@ export function KanbanBoard() {
                 }
                 carregandoMais={colunas[coluna.status].carregandoMais}
                 onCarregarMais={colunas[coluna.status].carregarMais}
+                erro={colunas[coluna.status].mensagemErro}
+                erroAoCarregarMais={colunas[coluna.status].erroAoCarregarMais}
+                onTentarDeNovo={() =>
+                  colunas[coluna.status].mensagemErro
+                    ? colunas[coluna.status].revalidar()
+                    : colunas[coluna.status].tentarDeNovo()
+                }
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
               />

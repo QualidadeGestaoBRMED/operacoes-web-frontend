@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import api from "./api";
 import { enviarArquivo, type AoProgredir } from "./uploadDireto";
 import type {
@@ -49,62 +50,81 @@ function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | numb
   return params;
 }
 
-/** As páginas carregadas de uma fase (uma coluna do Kanban). */
-export interface PaginasDaFase {
+/**
+ * Primeira página de uma fase (uma coluna do Kanban, STC-931), na ordem da
+ * coluna que o backend devolve (STC-930, 30 por página). É a única que a
+ * coluna busca de novo a cada atualização.
+ */
+export async function buscarPrimeiraPaginaDaFase(
+  filtros: DemandaFiltros | undefined,
+  status: StatusDemanda,
+): Promise<RespostaPaginada<Demanda>> {
+  const { data } = await api.get<RespostaPaginada<Demanda>>(BASE_URL, {
+    params: { ...paramsDeFiltros(filtros), status },
+  });
+  return data;
+}
+
+/** As páginas de 2 em diante já carregadas numa coluna. */
+export interface PaginasExtrasDaFase {
   demandas: Demanda[];
-  /** Total da fase no backend, não só o que foi carregado. */
-  total: number;
-  /** Quantas páginas vieram de fato (pode ser menos que as pedidas). */
-  paginas: number;
+  /** Até que página veio (a fase pode ter acabado antes da pedida). */
+  ate: number;
   temMais: boolean;
 }
 
 /**
- * As `paginas` primeiras páginas de uma fase (STC-931), em sequência, na
- * ordem da coluna que o backend devolve (STC-930). Para quando a fase acaba:
- * uma coluna que encolheu (cards movidos para outra fase) não pede página
- * que já não existe.
+ * Páginas 2 a `ate` de uma fase, em paralelo (STC-931). O cliente api usa
+ * baseURL "/api/backend" de propósito (o token de acesso só existe no proxy):
+ * a página é pedida com ?page=N pelo mesmo cliente, nunca pelo "next" do DRF
+ * (URL absoluta direto no Django, que sairia sem token). Página que deixou de
+ * existir (a fase encolheu) responde 404 e marca o fim.
  */
-export async function listarDemandasDaFase(
+export async function listarPaginasExtrasDaFase(
   filtros: DemandaFiltros | undefined,
   status: StatusDemanda,
-  paginas: number,
-): Promise<PaginasDaFase> {
+  ate: number,
+): Promise<PaginasExtrasDaFase> {
   const params = { ...paramsDeFiltros(filtros), status };
-  // O cliente api usa baseURL: "/api/backend" de propósito (o token de
-  // acesso só existe no server-side do proxy) -- por isso a página seguinte
-  // é pedida com ?page=N pelo mesmo cliente, nunca seguindo o "next" que o
-  // DRF devolve (URL absoluta apontando direto pro Django via
-  // NEXT_PUBLIC_API_URL, que ignoraria o baseURL e sairia sem token).
-  const respostas: RespostaPaginada<Demanda>[] = [];
-  for (let pagina = 1; pagina <= paginas; pagina++) {
-    const { data } = await api.get<RespostaPaginada<Demanda>>(BASE_URL, {
-      params: pagina === 1 ? params : { ...params, page: pagina },
-    });
-    respostas.push(data);
-    if (!data.next) break;
-  }
-
-  // Paginação por offset não é atômica: o Kanban é um board ao vivo, com
-  // outros usuários criando e movendo demandas enquanto as páginas chegam.
-  // Uma demanda nova desloca as páginas seguintes e pode repetir um id em
-  // duas delas -- fica a primeira ocorrência, para não duplicar o card.
-  const vistos = new Set<number>();
+  const paginas = Array.from({ length: Math.max(ate - 1, 0) }, (_, indice) => indice + 2);
+  const respostas = await Promise.allSettled(
+    paginas.map((page) => api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, page } })),
+  );
   const demandas: Demanda[] = [];
+  let ultima = 1;
+  let temMais = true;
   for (const resposta of respostas) {
-    for (const demanda of resposta.results) {
+    if (resposta.status === "rejected") {
+      if (isAxiosError(resposta.reason) && resposta.reason.response?.status === 404) {
+        temMais = false;
+        break;
+      }
+      throw resposta.reason;
+    }
+    demandas.push(...resposta.value.data.results);
+    ultima += 1;
+    temMais = Boolean(resposta.value.data.next);
+    if (!temMais) break;
+  }
+  return { demandas, ate: ultima, temMais };
+}
+
+/**
+ * Junta as páginas de uma coluna sem repetir card. Paginação por offset não
+ * é atômica: uma demanda nova entre uma página e outra desloca as seguintes
+ * e pode repetir um id; fica a primeira ocorrência.
+ */
+export function juntarSemRepetir(...listas: Demanda[][]): Demanda[] {
+  const vistos = new Set<number>();
+  const resultado: Demanda[] = [];
+  for (const lista of listas) {
+    for (const demanda of lista) {
       if (vistos.has(demanda.id)) continue;
       vistos.add(demanda.id);
-      demandas.push(demanda);
+      resultado.push(demanda);
     }
   }
-  const ultima = respostas[respostas.length - 1];
-  return {
-    demandas,
-    total: ultima.count,
-    paginas: respostas.length,
-    temMais: Boolean(ultima.next),
-  };
+  return resultado;
 }
 
 export async function buscarDemanda(id: number): Promise<Demanda> {
