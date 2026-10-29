@@ -26,3 +26,17 @@ Os tipos de documento de Operações Especiais ficam num catálogo próprio, sep
 - **Ponto focal:** as unidades dele.
 - **Admin Operações Especiais:** todas as unidades de Operações Especiais.
 - **Setor de Legalização:** as duas redes, escolhendo qual acompanhar no seletor **Rede**.
+
+### Melhorias
+
+- **Gestão de Demandas:** as colunas do Kanban carregam conforme a rolagem, e o quadro abre mais rápido, mesmo com muitas demandas.
+- **Gestão de Demandas:** o quadro e a demanda aberta se atualizam sozinhos a cada 30 segundos.
+- **Legalização:** o e-mail de vencimento traz cada documento a cada 10 dias e, nos últimos 10 dias antes do vencimento ou já vencido, todo dia.
+- **Legalização:** assunto do e-mail com **[URGENTE]** quando há documento vencido ou vencendo em até 10 dias, e **[ALERTA]** para os que ainda estão no prazo.
+- **Legalização:** as listas se atualizam sozinhas a cada 5 minutos.
+- **Legalização:** telas e listas mais rápidas com muitos documentos.
+- **Atlas:** cada pedido ao servidor chega direto, sem uma volta a mais, e as telas respondem mais rápido.
+
+### Correções
+
+- **Gestão de Demandas:** quem tem permissão no quadro e não é da unidade da demanda, como um setor de apoio, já pode ser escolhido como responsável.
