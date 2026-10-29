@@ -347,7 +347,7 @@ describe("KanbanBoard", () => {
     await user.click(within(concluido).getByRole("button", { name: "Carregar mais" }));
 
     await within(concluido).findByText("Concluída antiga");
-    expect(listarPaginasExtrasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2);
+    expect(listarPaginasExtrasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2, 2);
   });
 
   it("com o foco dos cartões ligado, não baixa o histórico do Concluído (STC-931)", async () => {

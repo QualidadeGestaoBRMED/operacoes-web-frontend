@@ -70,6 +70,16 @@ describe("listarPaginasExtrasDaFase (STC-931)", () => {
     expect(extras).toMatchObject({ ate: 3, temMais: false });
   });
 
+  it("a partir de uma página: busca só a pedida (carregar mais)", async () => {
+    apiGetMock.mockResolvedValueOnce(paginaMock([7, 8], 8, null));
+
+    const extras = await listarPaginasExtrasDaFase(undefined, "backlog", 4, 4);
+
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(paramsDaChamada(0)).toEqual({ status: "backlog", page: 4 });
+    expect(extras).toMatchObject({ ate: 4, temMais: false });
+  });
+
   it("página que deixou de existir (fase encolheu) marca o fim, sem erro", async () => {
     apiGetMock
       .mockResolvedValueOnce(paginaMock([3], 3, null))
