@@ -16,6 +16,7 @@ import type {
   ResumoDemandas,
   StatusDemanda,
   TipoGestao,
+  Usuario,
 } from "@/types";
 
 /**
@@ -224,6 +225,14 @@ export async function criarComentario(demandaId: number, texto: string): Promise
 
 export async function listarHistorico(demandaId: number): Promise<HistoricoAlteracao[]> {
   const { data } = await api.get<HistoricoAlteracao[]>(`${BASE_URL}${demandaId}/historico/`);
+  return data;
+}
+
+// Quem pode ser responsável da demanda (STC-951): a mesma regra que o backend
+// aplica ao atribuir -- unidade, Admin da rede ou permissão individual no
+// Kanban que cubra a demanda, sem Admin Q&G.
+export async function listarCandidatosResponsavel(demandaId: number): Promise<Usuario[]> {
+  const { data } = await api.get<Usuario[]>(`${BASE_URL}${demandaId}/responsaveis/candidatos/`);
   return data;
 }
 

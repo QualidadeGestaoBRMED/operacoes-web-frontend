@@ -15,34 +15,49 @@ import {
 } from "@/components/ui/select";
 import {
   useAdicionarResponsavel,
+  useCandidatosResponsavel,
   useRemoverResponsavel,
   useTrocarPrincipal,
 } from "@/hooks/useResponsaveis";
-import { useUsuarios } from "@/hooks/useUsuarios";
 import { extrairMensagemErro } from "@/lib/erros";
 import { iniciaisDe, nomeExibicao } from "@/lib/utils";
-import { administra, NIVEL_ADMIN_QG, redeDaUnidade, unidadesDoUsuario } from "@/lib/redes";
 import type { Demanda, DemandaResponsavel, Usuario } from "@/types";
 
 
 function SeletorCandidato({
   candidatos,
+  carregando,
+  mensagemErro,
+  tentarNovamente,
   value,
   onValueChange,
 }: {
   candidatos: Usuario[];
+  carregando: boolean;
+  mensagemErro: string | null;
+  tentarNovamente: () => void;
   value: string;
   onValueChange: (valor: string) => void;
 }) {
+  if (mensagemErro) {
+    return (
+      <div className="flex items-center gap-2 text-[13px] text-destructive" role="alert">
+        <span>Não foi possível carregar quem pode ser responsável.</span>
+        <Button size="xs" variant="ghost" onClick={tentarNovamente}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger size="sm" className="h-8 text-[13px]" aria-label="Usuário responsável">
-        <SelectValue placeholder="Selecionar usuário" />
+        <SelectValue placeholder={carregando ? "Carregando..." : "Selecionar usuário"} />
       </SelectTrigger>
       <SelectContent>
         {candidatos.length === 0 ? (
           <div className="px-2 py-1.5 text-[13px] text-muted-foreground">
-            Nenhum candidato disponível
+            {carregando ? "Carregando..." : "Nenhum candidato disponível"}
           </div>
         ) : (
           candidatos.map((usuario) => (
@@ -120,48 +135,31 @@ export function ResponsavelSection({
     }
   }, [ativo, abrirComFormularioDeAdicionar, jaTemPrincipal]);
 
-  const { usuarios } = useUsuarios();
   const { adicionar, isLoading: adicionando } = useAdicionarResponsavel(demanda.id);
   const { remover, isLoading: removendo } = useRemoverResponsavel(demanda.id);
   const { trocarPrincipal, isLoading: trocando } = useTrocarPrincipal(demanda.id);
-
-  // Não filtra a busca de usuários pela unidade da demanda: o backend
-  // (validate_usuario_id) permite um usuário sem unidade (admin) como
-  // responsável de qualquer demanda, então o filtro precisa reproduzir essa
-  // mesma regra em vez de só comparar unidade_id.
-  //
-  // Admin Q&G fica de fora sempre, mesmo se por acaso tiver a mesma unidade
-  // da demanda -- pedido do usuário: esse perfil é de supervisão/qualidade,
-  // não de quem executa a demanda, então não deve aparecer como candidato a
-  // responsável.
-  function elegivel(usuario: Usuario) {
-    if (usuario.perfil?.nivel === NIVEL_ADMIN_QG) return false;
-    // Demanda do tipo de gestão "Operacional" não tem unidade (usa
-    // area_responsavel): só quem administra a rede padrão (Admin
-    // Operações ou Gestão de Operações), regra espelhada de
-    // validate_usuario_id no backend.
-    if (!demanda.unidade) return administra(usuario, "padrao");
-    // Com unidade: quem é dela ou administra a rede dela (STC-747).
-    return (
-      unidadesDoUsuario(usuario).includes(demanda.unidade.id) ||
-      administra(usuario, redeDaUnidade(demanda.unidade))
-    );
-  }
+  // Quem pode ser responsável vem do backend (STC-951): unidade da demanda,
+  // Admin da rede dela ou permissão individual no Kanban que a cubra, sem
+  // Admin Q&G. As permissões dos outros usuários só o backend conhece.
+  const {
+    candidatos,
+    isLoading: carregandoCandidatos,
+    mensagemErro: erroCandidatos,
+    tentarNovamente: buscarCandidatosDeNovo,
+  } = useCandidatosResponsavel(demanda.id, formularioAberto || trocandoUsuarioId !== null);
 
   const idsJaResponsaveis = new Set(demanda.responsaveis.map((r) => r.usuario.id));
   // Pra "Adicionar responsável": exclui quem já é responsável (duplicar dá
   // 400 no backend).
-  const candidatosParaAdicionar = usuarios.filter(
-    (usuario) => !idsJaResponsaveis.has(usuario.id) && elegivel(usuario),
+  const candidatosParaAdicionar = candidatos.filter(
+    (usuario) => !idsJaResponsaveis.has(usuario.id),
   );
   // Achado no review do Tech Lead: candidatosParaAdicionar excluía TODO
   // responsável já existente -- inclusive um colaborador da própria demanda,
   // que é justamente quem mais faz sentido promover a principal. Pra
   // "Trocar", só o próprio usuário sendo substituído fica de fora.
   function candidatosParaTrocarPrincipal(usuarioSendoTrocadoId: number) {
-    return usuarios.filter(
-      (usuario) => usuario.id !== usuarioSendoTrocadoId && elegivel(usuario),
-    );
+    return candidatos.filter((usuario) => usuario.id !== usuarioSendoTrocadoId);
   }
 
   const quantidadePrincipais = demanda.responsaveis.filter(
@@ -278,6 +276,9 @@ export function ResponsavelSection({
                 </span>
                 <SeletorCandidato
                   candidatos={candidatosParaTrocarPrincipal(responsavel.usuario.id)}
+                  carregando={carregandoCandidatos}
+                  mensagemErro={erroCandidatos}
+                  tentarNovamente={buscarCandidatosDeNovo}
                   value={novoPrincipalId}
                   onValueChange={setNovoPrincipalId}
                 />
@@ -313,6 +314,9 @@ export function ResponsavelSection({
           <div className="mt-1 flex flex-col gap-1.5 rounded-md border border-border p-2">
             <SeletorCandidato
               candidatos={candidatosParaAdicionar}
+              carregando={carregandoCandidatos}
+              mensagemErro={erroCandidatos}
+              tentarNovamente={buscarCandidatosDeNovo}
               value={usuarioSelecionadoId}
               onValueChange={setUsuarioSelecionadoId}
             />
