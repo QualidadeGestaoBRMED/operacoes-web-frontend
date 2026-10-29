@@ -30,7 +30,7 @@ function normalizar(texto: string): string {
  * nova como vista (some o ponto).
  */
 export function ListaDeNovidades({ novidades }: { novidades: NovidadeComTexto[] }) {
-  const { modulos, temAdministracao } = useNavegacao();
+  const { modulos, temAdministracao, redes } = useNavegacao();
   const {
     isLoading: carregandoModulos,
     error: falhaNosModulos,
@@ -43,6 +43,7 @@ export function ListaDeNovidades({ novidades }: { novidades: NovidadeComTexto[] 
     novidades,
     modulos.map((modulo) => modulo.codigo),
     temAdministracao,
+    redes,
   );
   // Abas: só os módulos da pessoa que têm novidade; as gerais ficam em "Todas".
   const abas = modulos.filter((modulo) =>

@@ -169,6 +169,16 @@ export function podeAtribuirCargo(ator: ComCargo | null | undefined, perfil: Per
   return nivelDoAtor !== undefined && QUEM_ATRIBUI[perfil!.nivel].includes(nivelDoAtor);
 }
 
+/** Redes em que a pessoa atua (público das Novidades, STC-952): o Admin,
+ * as que administra; os demais, a do cargo (o Ponto focal, a OPEX; o cargo
+ * combina com a rede da unidade). */
+export function redesEmQueAtua(usuario: ComCargo | null | undefined): Rede[] {
+  const administradas = redesAdministradas(usuario);
+  if (administradas.length > 0) return administradas;
+  const rede = redeDoUsuario(usuario?.perfil, null);
+  return rede ? [rede] : [];
+}
+
 /** Rede de um usuário com este cargo e esta unidade (rede_do_usuario do
  * backend): a unidade manda; sem unidade, o cargo; sem os dois, nenhuma. */
 export function redeDoUsuario(

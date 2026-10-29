@@ -3,6 +3,7 @@
 import { ClipboardList, Home, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useModulosNavegacao } from "@/hooks/useModulosNavegacao";
+import { redesEmQueAtua } from "@/lib/redes";
 
 export interface SubitemDeNavegacao {
   label: string;
@@ -45,7 +46,7 @@ const GESTAO_DE_DEMANDAS: ModuloDeNavegacao = {
  * em dois lugares.
  */
 export function useNavegacao() {
-  const { isAdminQG, isAdminOps, administraRedePadrao, isCoordenacaoUnidade, isSetorLeg } =
+  const { user, isAdminQG, isAdminOps, administraRedePadrao, isCoordenacaoUnidade, isSetorLeg } =
     useAuth();
   // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
@@ -115,6 +116,8 @@ export function useNavegacao() {
     bloqueados,
     // isAdminOps (Admin de alguma rede): a tela de Administração.
     temAdministracao: isAdminOps,
+    // Público das Novidades por rede (STC-952).
+    redes: redesEmQueAtua(user),
     // Django Admin, só do Admin Q&G. NEXT_PUBLIC_API_URL é inlined no build:
     // sem a env, não mostra o link (falha fechada) em vez de um link para
     // "undefined/admin".

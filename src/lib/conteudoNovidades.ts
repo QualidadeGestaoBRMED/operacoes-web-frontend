@@ -2,6 +2,7 @@ import path from "node:path";
 import matter from "gray-matter";
 import { caminhoInterno, lerPasta, textoDoCabecalho as texto } from "./arquivosDeConteudo";
 import { FORMATO_DO_IDENTIFICADOR, ordenar, type NovidadeResumida } from "./novidades";
+import { TODAS_AS_REDES } from "./redes";
 
 /**
  * Leitura dos arquivos de `conteudo/novidades/` (STC-877). Só no servidor:
@@ -29,12 +30,17 @@ export function lerNovidade(arquivo: string, conteudo: string): Novidade | strin
   if (!Array.isArray(modulos) || !modulos.every((codigo) => typeof codigo === "string")) {
     return "modulos precisa ser uma lista de códigos";
   }
+  const redes = data.redes ?? [];
+  if (!Array.isArray(redes) || !redes.every((rede) => TODAS_AS_REDES.includes(rede))) {
+    return `redes precisa ser uma lista com ${TODAS_AS_REDES.join(" e/ou ")}`;
+  }
   return {
     id,
     data: id.slice(0, 10),
     titulo,
     resumo,
     modulos,
+    redes,
     admin: data.admin === true,
     destaque: data.destaque === true,
     imagem: texto(data.imagem),
