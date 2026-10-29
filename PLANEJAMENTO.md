@@ -1379,3 +1379,11 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Fora do cliente da API:** `/api/media/evidencia-vigente` e `/api/sessao/renovar` já saíam sem barra; as chamadas do servidor do Next ao Django (login, logout, refresh) não passam pela Vercel e continuam iguais.
 - Conferido no servidor local: com barra, 308; sem barra, a chamada vai direto ao proxy.
 - **Testes:** `semBarraFinal` (com e sem query, com `#`, `/`, absoluto); GET, POST, PATCH e DELETE saindo sem a barra com os parâmetros intactos; a requisição repetida depois de renovar a sessão também sem barra; o proxy recolocando a barra antes da query. Suíte completa: 1588 testes passando.
+
+### 7.48 STC-951 — Seletor de responsáveis da demanda pela rota de candidatos
+
+✅ **Concluído.** Issue-pai STC-949 (backend na STC-950). O seletor de responsáveis filtrava a lista de usuários na tela (unidade da demanda ou Admin da rede) e escondia quem tem permissão individual no Kanban, como um usuário de Setor sem unidade.
+
+- `ResponsavelSection.tsx`: "Adicionar responsável" e "Trocar" (principal) listam os usuários de `GET /demandas/{id}/responsaveis/candidatos/` (`listarCandidatosResponsavel`, `useCandidatosResponsavel`), a mesma regra que o backend aplica ao atribuir. O filtro local (`elegivel`) saiu; continua de fora quem já é responsável (adicionar) ou quem está sendo trocado.
+- A busca só acontece com um dos formulários aberto; "Carregando..." enquanto vem, e erro com "Tentar novamente".
+- **Testes** (`ResponsavelSection.test.tsx`): candidato de Setor sem unidade aparece e é adicionado, quem já é responsável fica de fora, busca só ao abrir, erro e nova tentativa. Os testes do filtro local (Operacional, unidade adicional, rede) passaram para o backend (`TestQuemPodeSerResponsavel`).

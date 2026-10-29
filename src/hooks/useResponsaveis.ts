@@ -1,15 +1,31 @@
 "use client";
 
-import { useSWRConfig } from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
 import {
   adicionarResponsavel,
+  listarCandidatosResponsavel,
   removerResponsavel,
   trocarPrincipalResponsavel,
 } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import { ehChaveDeListaDemandas } from "@/hooks/useDemandaMutations";
 import type { DemandaResponsavel } from "@/types";
+
+// Busca só com um formulário de escolha aberto (`buscar`): a lista não
+// aparece em outro lugar da demanda.
+export function useCandidatosResponsavel(demandaId: number, buscar: boolean) {
+  const { data, error, isLoading, mutate } = useSWR(
+    buscar ? ["demanda", demandaId, "candidatos-responsavel"] : null,
+    () => listarCandidatosResponsavel(demandaId),
+  );
+  return {
+    candidatos: data ?? [],
+    isLoading,
+    mensagemErro: error ? extrairMensagemErro(error) : null,
+    tentarNovamente: () => void mutate(),
+  };
+}
 
 // Diferente de comentários/anexos/histórico, responsáveis não têm endpoint
 // de leitura próprio -- já vêm embutidos no objeto Demanda (demanda.
