@@ -5,6 +5,7 @@ import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { criarDemanda, responsavelPrincipal } from "@/test-utils/fixtures";
 import type { Demanda, StatusDemanda, TipoGestao } from "@/types";
+import { toast } from "sonner";
 import { KanbanBoard } from "./KanbanBoard";
 
 // SWR guarda um cache global por padrão -- sem isolar, o resultado de um
@@ -324,6 +325,51 @@ describe("KanbanBoard", () => {
     await waitFor(() => expect(within(emAndamento).getByText("Trocar lâmpadas")).toBeInTheDocument());
     expect(within(screen.getByTestId("backlog")).queryByText("Trocar lâmpadas")).not.toBeInTheDocument();
     expect(screen.getAllByText("Trocar lâmpadas")).toHaveLength(1);
+  });
+
+  it("card movido para depois dos cards carregados avisa que aparece ao rolar (STC-931)", async () => {
+    const aviso = vi.spyOn(toast, "info");
+    const emAndamento = criarDemanda({ titulo: "Prazo próximo", status: "em_andamento" });
+    const movida = criarDemanda({
+      titulo: "Prazo distante",
+      status: "backlog",
+      data_prevista: "2099-01-01",
+      responsaveis: [responsavelPrincipal()],
+    });
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
+      daFase([emAndamento, movida], status, status === "em_andamento" ? 40 : undefined),
+    );
+    vi.mocked(atualizarStatusDemanda).mockResolvedValue({ ...movida, status: "em_andamento" });
+
+    renderBoard();
+    await screen.findByText("Prazo distante");
+    onDragEndCapturado?.({ active: { id: movida.id }, over: { id: "em_andamento" } });
+
+    await waitFor(() =>
+      expect(aviso).toHaveBeenCalledWith(
+        "Demanda movida para Em Andamento. Ela aparece mais abaixo na coluna, ao rolar.",
+      ),
+    );
+    const colunaEmAndamento = screen.getByTestId("em_andamento");
+    expect(within(colunaEmAndamento).queryByText("Prazo distante")).not.toBeInTheDocument();
+  });
+
+  it("card movido que fica à mostra não gera aviso (STC-931)", async () => {
+    const aviso = vi.spyOn(toast, "info");
+    const demanda = criarDemanda({
+      titulo: "Trocar lâmpadas",
+      status: "backlog",
+      responsaveis: [responsavelPrincipal()],
+    });
+    mockarDemandas([demanda]);
+    vi.mocked(atualizarStatusDemanda).mockResolvedValue({ ...demanda, status: "em_andamento" });
+
+    renderBoard();
+    await screen.findByText("Trocar lâmpadas");
+    onDragEndCapturado?.({ active: { id: demanda.id }, over: { id: "em_andamento" } });
+
+    await waitFor(() => expect(atualizarStatusDemanda).toHaveBeenCalled());
+    expect(aviso).not.toHaveBeenCalled();
   });
 
   it("cada coluna mostra o total da fase e carrega mais ao pedir (STC-931)", async () => {

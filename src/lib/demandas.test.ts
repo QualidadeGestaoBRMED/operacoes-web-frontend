@@ -70,6 +70,26 @@ describe("listarPaginasExtrasDaFase (STC-931)", () => {
     expect(extras).toMatchObject({ ate: 3, temMais: false });
   });
 
+  it("muitas páginas vão em lotes de 4, um lote depois do outro", async () => {
+    let emVoo = 0;
+    let maximo = 0;
+    apiGetMock.mockImplementation(async (_url, config) => {
+      emVoo += 1;
+      maximo = Math.max(maximo, emVoo);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      emVoo -= 1;
+      const page = (config as { params: { page: number } }).params.page;
+      return paginaMock([page], 10, page < 10 ? "https://x/?page=next" : null);
+    });
+
+    const extras = await listarPaginasExtrasDaFase(undefined, "concluido", 10);
+
+    expect(apiGetMock).toHaveBeenCalledTimes(9);
+    expect(maximo).toBe(4);
+    expect(extras.demandas.map((d) => d.id)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(extras).toMatchObject({ ate: 10, temMais: false });
+  });
+
   it("a partir de uma página: busca só a pedida (carregar mais)", async () => {
     apiGetMock.mockResolvedValueOnce(paginaMock([7, 8], 8, null));
 
