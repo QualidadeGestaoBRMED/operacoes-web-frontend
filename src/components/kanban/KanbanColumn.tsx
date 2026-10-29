@@ -16,6 +16,8 @@ interface KanbanColumnProps {
   /** A fase tem mais cards do que os carregados (STC-931). */
   temMais?: boolean;
   carregandoMais?: boolean;
+  /** A coluna carregou mais de uma página e a fase acabou: mostra "Fim da lista". */
+  chegouAoFim?: boolean;
   onCarregarMais?: () => void;
   /** A primeira página da fase falhou: a coluna mostra o erro, o quadro segue.
    * Se a coluna já tinha cards (falhou uma atualização), eles continuam. */
@@ -34,6 +36,7 @@ export function KanbanColumn({
   total,
   temMais = false,
   carregandoMais = false,
+  chegouAoFim = false,
   onCarregarMais,
   erro = null,
   erroAoCarregarMais = null,
@@ -114,8 +117,6 @@ export function KanbanColumn({
           <div
             ref={fimRef}
             data-testid={`fim-${status}`}
-            // Leitor de tela ouve "Carregando mais..." sem o foco sair do lugar.
-            aria-live="polite"
             className="flex items-center justify-center gap-1.5 py-2 text-[12px] text-muted-foreground"
           >
             {carregandoMais ? (
@@ -134,6 +135,14 @@ export function KanbanColumn({
             )}
           </div>
         )}
+        {!erro && !erroAoCarregarMais && !temMais && chegouAoFim && demandas.length > 0 && (
+          <div className="py-2 text-center text-[12px] text-muted-foreground">Fim da lista</div>
+        )}
+        {/* Sempre montado: leitor de tela anuncia a mudança do texto, o que
+            não acontece com uma região criada já com o conteúdo. */}
+        <div aria-live="polite" className="sr-only" data-testid={`aviso-${status}`}>
+          {carregandoMais ? "Carregando mais..." : temMais || !chegouAoFim ? "" : "Fim da lista"}
+        </div>
       </div>
     </div>
   );

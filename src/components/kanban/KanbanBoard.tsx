@@ -535,6 +535,7 @@ export function KanbanBoard() {
                   focoPrecisaDeMais(foco, coluna.status, colunas[coluna.status].demandas)
                 }
                 carregandoMais={colunas[coluna.status].carregandoMais}
+                chegouAoFim={colunas[coluna.status].paginou}
                 onCarregarMais={colunas[coluna.status].carregarMais}
                 erro={colunas[coluna.status].mensagemErro}
                 erroAoCarregarMais={colunas[coluna.status].erroAoCarregarMais}

@@ -244,6 +244,8 @@ export function useDemandasDaFase(
     demandas,
     total: primeira.data?.count ?? 0,
     temMais,
+    /** Já veio mais de uma página: o fim da fase ganha "Fim da lista". */
+    paginou: ate >= 2,
     carregandoMais,
     carregarMais: () => void carregarMais(),
     /** Falha ao buscar as páginas extras: fica na coluna, o resto do quadro segue. */
