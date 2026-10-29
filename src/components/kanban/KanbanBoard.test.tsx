@@ -94,10 +94,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   atualizarStatusDemanda,
   buscarDemanda,
+  buscarPrimeiraPaginaDaFase,
   buscarResumoDemandas,
-  listarDemandasDaFase,
+  juntarSemRepetir,
+  listarPaginasExtrasDaFase,
   listarTiposGestao,
 } from "@/lib/demandas";
+
+const { juntarSemRepetir: juntarDeVerdade } =
+  await vi.importActual<typeof import("@/lib/demandas")>("@/lib/demandas");
 
 const TIPO_GESTAO_UNICO: TipoGestao = {
   id: 1,
@@ -133,15 +138,21 @@ function mockarTiposGestao() {
 const substituirUrl = vi.fn();
 const navegarPush = vi.fn();
 
-// Cada coluna busca a própria fase (STC-931): a resposta de uma fase são as
-// demandas daquele status, numa página só.
-function daFase(demandas: Demanda[], status: StatusDemanda) {
+// Cada coluna busca a própria fase (STC-931): a primeira página de uma fase
+// são as demandas daquele status, sem página seguinte.
+function daFase(demandas: Demanda[], status: StatusDemanda, total?: number) {
   const daColuna = demandas.filter((demanda) => demanda.status === status);
-  return { demandas: daColuna, total: daColuna.length, paginas: 1, temMais: false };
+  const count = total ?? daColuna.length;
+  return {
+    count,
+    next: count > daColuna.length ? "https://x/?page=2" : null,
+    previous: null,
+    results: daColuna,
+  };
 }
 
 function mockarDemandas(demandas: ReturnType<typeof criarDemanda>[]) {
-  vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status) =>
+  vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
     daFase(demandas, status),
   );
 }
@@ -154,6 +165,7 @@ beforeEach(() => {
   // silenciosa esperando pra virar teste flaky. resetAllMocks também zera
   // a implementação, forçando cada teste a declarar o que precisa.
   vi.resetAllMocks();
+  vi.mocked(juntarSemRepetir).mockImplementation(juntarDeVerdade);
   mockarTiposGestao();
   // Default equivalente ao antigo mock fixo (URL sem filtro nenhum) -- só
   // os testes de tipo_gestao inválido sobrescrevem useSearchParams.
@@ -188,7 +200,7 @@ describe("KanbanBoard", () => {
 
   it("mostra estado de carregamento antes dos dados chegarem", () => {
     // Nunca resolve dentro da janela do teste -- fica sempre "carregando".
-    vi.mocked(listarDemandasDaFase).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(() => new Promise(() => {}));
 
     renderBoard();
 
@@ -204,14 +216,28 @@ describe("KanbanBoard", () => {
     expect(vazios.length).toBeGreaterThan(0);
   });
 
-  it("mostra estado de erro quando a busca falha", async () => {
-    vi.mocked(listarDemandasDaFase).mockRejectedValue(new Error("falha de rede"));
+  it("a fase que falha mostra o erro na própria coluna e as outras seguem (STC-931)", async () => {
+    const noBacklog = criarDemanda({ titulo: "Card do backlog", status: "backlog" });
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) => {
+      if (status === "concluido") throw new Error("falha de rede");
+      return daFase([noBacklog], status);
+    });
+    const user = userEvent.setup();
 
     renderBoard();
 
+    const concluido = await screen.findByTestId("concluido");
     expect(
-      await screen.findByText("Não foi possível completar a operação. Tente novamente."),
+      await within(concluido).findByText("Não foi possível completar a operação. Tente novamente."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Card do backlog")).toBeInTheDocument();
+
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
+      daFase([noBacklog], status),
+    );
+    await user.click(within(concluido).getByRole("button", { name: "Tentar novamente" }));
+
+    expect(await within(concluido).findByText("Nenhuma demanda aqui")).toBeInTheDocument();
   });
 
   it("abre o modal de detalhe ao clicar num card", async () => {
@@ -303,11 +329,13 @@ describe("KanbanBoard", () => {
   it("cada coluna mostra o total da fase e carrega mais ao pedir (STC-931)", async () => {
     const carregada = criarDemanda({ titulo: "Concluída recente", status: "concluido" });
     const antiga = criarDemanda({ titulo: "Concluída antiga", status: "concluido" });
-    vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status, paginas) => {
-      if (status !== "concluido") return daFase([], status);
-      return paginas === 1
-        ? { demandas: [carregada], total: 31, paginas: 1, temMais: true }
-        : { demandas: [carregada, antiga], total: 31, paginas: 2, temMais: false };
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
+      daFase([carregada], status, status === "concluido" ? 31 : undefined),
+    );
+    vi.mocked(listarPaginasExtrasDaFase).mockResolvedValue({
+      demandas: [antiga],
+      ate: 2,
+      temMais: false,
     });
     const user = userEvent.setup();
 
@@ -319,7 +347,7 @@ describe("KanbanBoard", () => {
     await user.click(within(concluido).getByRole("button", { name: "Carregar mais" }));
 
     await within(concluido).findByText("Concluída antiga");
-    expect(listarDemandasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2);
+    expect(listarPaginasExtrasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2);
   });
 
   it("com o foco dos cartões ligado, não baixa o histórico do Concluído (STC-931)", async () => {
@@ -328,13 +356,10 @@ describe("KanbanBoard", () => {
       status: "backlog",
       data_prevista: "2000-01-01",
     });
-    vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status) => {
-      if (status === "concluido") {
-        const antiga = criarDemanda({ titulo: "Concluída", status: "concluido" });
-        return { demandas: [antiga], total: 103, paginas: 1, temMais: true };
-      }
-      return daFase([atrasada], status);
-    });
+    const antiga = criarDemanda({ titulo: "Concluída", status: "concluido" });
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
+      status === "concluido" ? daFase([antiga], status, 103) : daFase([atrasada], status),
+    );
     vi.mocked(buscarResumoDemandas).mockResolvedValue({
       estatisticas: [{ valor: "1", rotulo: "atrasadas", atencao: true }],
       insight: "",
@@ -477,7 +502,7 @@ describe("KanbanBoard", () => {
     // tipo padrão, o board saía do "Carregando" e reaproveitava esse
     // resultado antigo -- misturado -- até a busca filtrada de verdade
     // responder. Só sumir com o texto de loading não bastava; precisa nunca
-    // ter chamado listarDemandasDaFase sem tipo_gestao enquanto isso está em
+    // ter chamado buscarPrimeiraPaginaDaFase sem tipo_gestao enquanto isso está em
     // aberto (ver "desabilitado" em useDemandas.ts/useResumoDemandas.ts).
     it("nunca busca (nem mostra) demandas sem tipo_gestao quando há mais de um tipo cadastrado", async () => {
       vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
@@ -489,7 +514,7 @@ describe("KanbanBoard", () => {
       );
       const demandaOperacional = criarDemanda({ titulo: "Card Operacional", status: "backlog" });
       const demandaUnidades = criarDemanda({ titulo: "Card Unidades", status: "backlog" });
-      vi.mocked(listarDemandasDaFase).mockImplementation(async (filtros, status) => {
+      vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (filtros, status) => {
         if (filtros?.tipo_gestao === TIPO_GESTAO_A.id) return daFase([demandaOperacional], status);
         if (filtros?.tipo_gestao === TIPO_GESTAO_B.id) return daFase([demandaUnidades], status);
         return daFase([demandaOperacional, demandaUnidades], status);
@@ -500,7 +525,7 @@ describe("KanbanBoard", () => {
       await waitFor(() => {
         expect(screen.getByText("Carregando demandas...")).toBeInTheDocument();
       });
-      expect(listarDemandasDaFase).not.toHaveBeenCalled();
+      expect(buscarPrimeiraPaginaDaFase).not.toHaveBeenCalled();
 
       resolverTipos([TIPO_GESTAO_A, TIPO_GESTAO_B]);
 

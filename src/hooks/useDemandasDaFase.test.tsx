@@ -3,70 +3,116 @@ import type { ReactNode } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listarDemandasDaFase } from "@/lib/demandas";
+import { buscarPrimeiraPaginaDaFase, listarPaginasExtrasDaFase } from "@/lib/demandas";
 import type { Demanda, DemandaFiltros } from "@/types";
 import { useDemandasDaFase } from "./useDemandas";
 
 vi.mock("@/lib/demandas", async (original) => ({
   ...(await original<typeof import("@/lib/demandas")>()),
-  listarDemandasDaFase: vi.fn(),
+  buscarPrimeiraPaginaDaFase: vi.fn(),
+  listarPaginasExtrasDaFase: vi.fn(),
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
   return <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>;
 }
 
-// A fase tem 70 cards: 30 por página, a última com 10.
-function fase(paginas: number) {
-  const carregados = Math.min(paginas * 30, 70);
-  return {
-    demandas: Array.from({ length: carregados }, (_, i) => ({ id: i + 1 }) as Demanda),
-    total: 70,
-    paginas: Math.min(paginas, 3),
-    temMais: paginas < 3,
-  };
+const cards = (de: number, ate: number) =>
+  Array.from({ length: ate - de + 1 }, (_, i) => ({ id: de + i, updated_at: "t" }) as Demanda);
+
+// A fase tem 70 cards: 30 na primeira página, 30 na segunda e 10 na terceira.
+function primeiraPagina(total = 70) {
+  return { count: total, next: "https://x/?page=2", previous: null, results: cards(1, 30) };
 }
 
 beforeEach(() => {
-  vi.mocked(listarDemandasDaFase).mockReset().mockImplementation(async (_f, _s, paginas) => fase(paginas));
+  vi.mocked(buscarPrimeiraPaginaDaFase).mockReset().mockResolvedValue(primeiraPagina());
+  vi.mocked(listarPaginasExtrasDaFase)
+    .mockReset()
+    .mockImplementation(async (_f, _s, ate) => ({
+      demandas: cards(31, Math.min(ate * 30, 70)),
+      ate,
+      temMais: ate < 3,
+    }));
 });
 
 describe("useDemandasDaFase (STC-931)", () => {
   it("começa pela primeira página e traz o total da fase", async () => {
-    const { result } = renderHook(() => useDemandasDaFase({ tipo_gestao: 2 }, "concluido"), { wrapper });
+    const { result } = renderHook(() => useDemandasDaFase({ tipo_gestao: 2 }, "concluido"), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.demandas).toHaveLength(30));
     expect(result.current.total).toBe(70);
     expect(result.current.temMais).toBe(true);
-    expect(listarDemandasDaFase).toHaveBeenLastCalledWith({ tipo_gestao: 2 }, "concluido", 1);
+    expect(buscarPrimeiraPaginaDaFase).toHaveBeenCalledWith({ tipo_gestao: 2 }, "concluido");
+    expect(listarPaginasExtrasDaFase).not.toHaveBeenCalled();
   });
 
-  it("carregarMais pede a página seguinte sem apagar as já carregadas", async () => {
+  it("carregarMais busca a página seguinte sem apagar as já carregadas", async () => {
     const { result } = renderHook(() => useDemandasDaFase({}, "concluido"), { wrapper });
     await waitFor(() => expect(result.current.demandas).toHaveLength(30));
 
     act(() => result.current.carregarMais());
 
     expect(result.current.demandas).toHaveLength(30);
-    expect(result.current.carregandoMais).toBe(true);
     await waitFor(() => expect(result.current.demandas).toHaveLength(60));
-    expect(listarDemandasDaFase).toHaveBeenLastCalledWith({}, "concluido", 2);
+    expect(listarPaginasExtrasDaFase).toHaveBeenLastCalledWith({}, "concluido", 2);
     expect(result.current.carregandoMais).toBe(false);
   });
 
+  it("buscar a primeira página de novo não refaz as extras se a fase não mudou", async () => {
+    const { result } = renderHook(() => useDemandasDaFase({}, "concluido"), { wrapper });
+    await waitFor(() => expect(result.current.demandas).toHaveLength(30));
+    act(() => result.current.carregarMais());
+    await waitFor(() => expect(result.current.demandas).toHaveLength(60));
+
+    await act(async () => result.current.revalidar());
+
+    await waitFor(() => expect(buscarPrimeiraPaginaDaFase).toHaveBeenCalledTimes(2));
+    expect(listarPaginasExtrasDaFase).toHaveBeenCalledTimes(1);
+  });
+
+  it("quando a fase muda (outro total), as extras são buscadas de novo", async () => {
+    const { result } = renderHook(() => useDemandasDaFase({}, "concluido"), { wrapper });
+    await waitFor(() => expect(result.current.demandas).toHaveLength(30));
+    act(() => result.current.carregarMais());
+    await waitFor(() => expect(result.current.demandas).toHaveLength(60));
+
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockResolvedValue(primeiraPagina(71));
+    await act(async () => result.current.revalidar());
+
+    await waitFor(() => expect(listarPaginasExtrasDaFase).toHaveBeenCalledTimes(2));
+  });
+
+  it("falha nas extras fica na coluna e os cards já carregados continuam", async () => {
+    vi.mocked(listarPaginasExtrasDaFase).mockRejectedValueOnce(new Error("timeout"));
+    const { result } = renderHook(() => useDemandasDaFase({}, "concluido"), { wrapper });
+    await waitFor(() => expect(result.current.demandas).toHaveLength(30));
+
+    act(() => result.current.carregarMais());
+
+    await waitFor(() => expect(result.current.erroAoCarregarMais).not.toBeNull());
+    expect(result.current.demandas).toHaveLength(30);
+    expect(result.current.error).toBeUndefined();
+
+    await act(async () => result.current.tentarDeNovo());
+    await waitFor(() => expect(result.current.demandas).toHaveLength(60));
+  });
+
   it("não pede mais quando a fase acabou", async () => {
-    vi.mocked(listarDemandasDaFase).mockResolvedValue({
-      demandas: [{ id: 1 } as Demanda],
-      total: 1,
-      paginas: 1,
-      temMais: false,
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: cards(1, 1),
     });
     const { result } = renderHook(() => useDemandasDaFase({}, "backlog"), { wrapper });
     await waitFor(() => expect(result.current.demandas).toHaveLength(1));
 
     act(() => result.current.carregarMais());
 
-    expect(listarDemandasDaFase).toHaveBeenCalledTimes(1);
+    expect(listarPaginasExtrasDaFase).not.toHaveBeenCalled();
   });
 
   it("trocar os filtros volta para a primeira página", async () => {
@@ -81,7 +127,8 @@ describe("useDemandasDaFase (STC-931)", () => {
     rerender({ filtros: { tipo_gestao: 2 } });
 
     await waitFor(() =>
-      expect(listarDemandasDaFase).toHaveBeenLastCalledWith({ tipo_gestao: 2 }, "concluido", 1),
+      expect(buscarPrimeiraPaginaDaFase).toHaveBeenLastCalledWith({ tipo_gestao: 2 }, "concluido"),
     );
+    await waitFor(() => expect(result.current.demandas).toHaveLength(30));
   });
 });

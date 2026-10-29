@@ -82,4 +82,33 @@ describe("KanbanColumn com carregamento por fase (STC-931)", () => {
     expect(screen.queryByText("Nenhuma demanda aqui")).not.toBeInTheDocument();
     expect(screen.getByTestId("fim-concluido")).toBeInTheDocument();
   });
+
+  it("falha na primeira página mostra o erro e o botão de tentar de novo", async () => {
+    const onTentarDeNovo = vi.fn();
+    renderColuna({ erro: "Falha de rede", onTentarDeNovo });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha de rede");
+    expect(screen.queryByText("Card carregado")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(onTentarDeNovo).toHaveBeenCalledTimes(1);
+  });
+
+  it("falha na página seguinte mantém os cards e não fica pedindo sozinha", () => {
+    vi.stubGlobal("IntersectionObserver", ObservadorFalso);
+    const onCarregarMais = vi.fn();
+    renderColuna({
+      total: 103,
+      temMais: true,
+      onCarregarMais,
+      erroAoCarregarMais: "Falha de rede",
+      onTentarDeNovo: vi.fn(),
+    });
+
+    expect(screen.getByText("Card carregado")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha de rede");
+    expect(screen.queryByTestId("fim-concluido")).not.toBeInTheDocument();
+    expect(aoAparecer).toBeNull();
+    expect(onCarregarMais).not.toHaveBeenCalled();
+  });
 });
