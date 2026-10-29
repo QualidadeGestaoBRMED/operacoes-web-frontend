@@ -2,7 +2,6 @@
 titulo: Legalização para as unidades de Operações Especiais
 resumo: As unidades de Operações Especiais passam a ter a Legalização no Atlas, com catálogo de documentos próprio, Mapa, Lista, Biblioteca, renovação e avisos de vencimento.
 modulos: [legalizacao]
-redes: [opex]
 destaque: true
 abrir: /modulos/legalizacao
 ajuda: como-ler-o-mapa-de-conformidade
