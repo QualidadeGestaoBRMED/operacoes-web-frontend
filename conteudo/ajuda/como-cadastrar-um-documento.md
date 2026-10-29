@@ -10,7 +10,7 @@ icone: novo-documento
 
 O documento é a ligação de um tipo do catálogo com uma unidade: o Alvará de Funcionamento de Niterói, a Dedetização de Cabo Frio. Se o tipo ainda não existe, cadastre-o primeiro (veja "Como cadastrar um tipo de documento").
 
-Quem pode cadastrar: o Setor de Legalização, quem administra a rede e a coordenação, nas suas próprias unidades.
+Quem pode cadastrar: o Setor de Legalização, quem administra a rede e a coordenação (o Coordenador da Unidade e, em Operações Especiais, o Ponto focal), nas suas próprias unidades.
 
 ## Cadastrar um documento
 

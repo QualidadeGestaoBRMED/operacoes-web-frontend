@@ -16,7 +16,7 @@ A renovação tem três etapas: **Solicitação**, **Protocolo** e **Conclusão*
 
 O protocolo é opcional: se não houver órgão envolvido, dá para ir direto da solicitação para a conclusão. Tudo fica registrado no **Histórico** do documento.
 
-Quem pode renovar: o Setor de Legalização, a coordenação da própria unidade e quem administra a rede.
+Quem pode renovar: o Setor de Legalização, a coordenação da própria unidade (o Coordenador da Unidade ou, em Operações Especiais, o Ponto focal) e quem administra a rede.
 
 ![Processo de Renovação com as etapas Solicitação, Protocolo e Conclusão](/ajuda/como-renovar-um-documento.webp)
 

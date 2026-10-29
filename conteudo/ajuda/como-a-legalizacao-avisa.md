@@ -26,12 +26,20 @@ Enquanto houver alerta pendente, o Atlas mostra a janela de documentos pendentes
 
 ![E-mail Resumo diário de alertas regulatórios, com a lista de documentos, a unidade e a situação Vencido ou Em atenção](/ajuda/como-a-legalizacao-avisa-email.webp)
 
-Todo dia, por volta das **3h15**, cada responsável com alerta pendente recebe **um** e-mail com todos os seus documentos pendentes:
+Por volta das **3h15**, cada responsável recebe **um** e-mail com os seus documentos pendentes daquele dia. Cada documento entra:
 
-- Assunto: "Atlas · N alertas regulatórios pendentes".
-- Uma linha por documento, com a unidade e a situação: **Vencido** ou **Em atenção**. O nome do documento leva direto a ele no Atlas.
+- no dia em que o alerta é criado;
+- depois, a cada 10 dias, quando faltam 60, 50, 40, 30 ou 20 dias para vencer;
+- **todo dia** nos últimos 10 dias antes do vencimento e depois de vencido.
 
-O e-mail chega todo dia enquanto o alerta estiver pendente. Quem não tem alerta pendente não recebe nada.
+Quem não tem documento para aquele dia não recebe e-mail. O sino e o aviso ao entrar continuam mostrando todos os pendentes.
+
+O assunto diz a urgência:
+
+- **[URGENTE]**, quando há documento vencido ou vencendo em até 10 dias: "[URGENTE] Legalização · 2 documentos vencidos e 1 vence em até 10 dias".
+- **[ALERTA]**, quando todos ainda estão no prazo: "[ALERTA] Legalização · 5 documentos próximos do vencimento".
+
+No e-mail, os urgentes vêm primeiro, destacados em vermelho. Cada linha mostra a unidade, o prazo ("Vence em 40 dias", "Venceu há 3 dias") e a situação: **Vencido** ou **Em atenção**. O nome do documento leva direto a ele no Atlas.
 
 ## As notificações (sino)
 
