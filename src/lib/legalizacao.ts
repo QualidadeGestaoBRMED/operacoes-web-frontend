@@ -341,7 +341,7 @@ export async function reverterDocumentoLegalizacao(
 }
 
 // STC-443: alertas/ pagina 20 por página no backend (STC-398) -- mesmo
-// motivo/limite defensivo de listarDemandas() (demandas.ts): segue ?page=N
+// motivo de listarPaginasExtrasDaFase() (demandas.ts): segue ?page=N
 // pelo mesmo cliente, nunca o "next" que o DRF devolve (URL absoluta contra
 // NEXT_PUBLIC_API_URL, que sairia sem o token do proxy e bateria na CSP
 // connect-src 'self'). Alerta pendente acumulado é raro passar de uma
@@ -397,7 +397,7 @@ export async function listarAlertasPendentes(): Promise<AlertaRegulatorio[]> {
     ),
   );
 
-  // Mesmo cuidado de listarDemandas(): paginação por offset não é atômica,
+  // Mesmo cuidado de listarPaginasExtrasDaFase(): paginação por offset não é atômica,
   // um alerta novo gerado pela varredura diária entre uma página e outra
   // desloca as seguintes -- descarta repetição mantendo a 1ª ocorrência.
   const vistos = new Set<number>();

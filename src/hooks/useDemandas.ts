@@ -1,15 +1,19 @@
 "use client";
 
-import { useRef } from "react";
-import useSWR from "swr";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 import {
   buscarDemanda,
+  buscarPrimeiraPaginaDaFase,
   INTERVALO_ATUALIZACAO_DEMANDAS_MS,
-  listarDemandas,
+  juntarSemRepetir,
+  listarPaginasExtrasDaFase,
+  type PaginasExtrasDaFase,
 } from "@/lib/demandas";
+import { inserirNaColuna } from "@/lib/kanban";
 import { extrairMensagemErro } from "@/lib/erros";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
-import type { Demanda, DemandaFiltros } from "@/types";
+import type { Demanda, DemandaFiltros, RespostaPaginada, StatusDemanda } from "@/types";
 
 // STC-206: sem isso, uma mudança feita por outro usuário (novo card, card
 // mudando de coluna) só aparecia com F5. pausado (achado no review):
@@ -17,10 +21,64 @@ import type { Demanda, DemandaFiltros } from "@/types";
 // reordenaria a lista debaixo do cursor -- @dnd-kit não lida bem com isso.
 const INTERVALO_POLL_MS = INTERVALO_ATUALIZACAO_DEMANDAS_MS;
 
-export function useDemandas(
-  filtros?: DemandaFiltros,
+/** A chave da primeira página de uma coluna: começa com "demandas", como a
+ * lista toda fazia, para as ações que já invalidam ehChaveDeListaDemandas
+ * (criar, mover, editar, comentar, anexar) atualizarem as colunas sem
+ * mudança. As páginas extras têm chave própria, fora da atualização. */
+export function chaveDaFase(filtros: DemandaFiltros | undefined, status: StatusDemanda) {
+  return ["demandas", { ...filtros, status }] as const;
+}
+
+/** As páginas extras de uma coluna: também começa com "demandas", para
+ * editar, comentar, anexar e mudar responsável atualizarem os cards que
+ * estão além da primeira página. Fica fora da atualização periódica. */
+function chaveDasExtras(filtros: DemandaFiltros | undefined, status: StatusDemanda) {
+  return ["demandas", { ...filtros, status }, "paginas-extras"] as const;
+}
+
+/** O que muda na primeira página quando a fase muda: o total e os cards do topo. */
+function assinaturaDaPagina(pagina: RespostaPaginada<Demanda> | undefined) {
+  if (!pagina) return "";
+  return `${pagina.count}|${pagina.results.map((d) => `${d.id}:${d.updated_at}`).join(",")}`;
+}
+
+/**
+ * Uma coluna do Kanban (STC-931): as demandas de uma fase, 30 por vez, na
+ * ordem que o backend devolve (STC-930).
+ *
+ * - A **primeira página** é a única na atualização periódica (30 s).
+ * - **Carregar mais** busca só a página seguinte e a junta às que já vieram.
+ * - As **páginas extras** são buscadas de novo, em paralelo, quando a
+ *   primeira mostra que a fase mudou (outro total ou outros cards no topo) e
+ *   nas ações que atualizam a lista (editar, comentar, anexar, mover).
+ * - Trocar os filtros volta para a primeira página; voltar a um filtro já
+ *   visto começa de novo pela primeira, sem reaproveitar extras antigas.
+ */
+export function useDemandasDaFase(
+  filtros: DemandaFiltros | undefined,
+  status: StatusDemanda,
   opcoes?: { pausado?: boolean; desabilitado?: boolean },
 ) {
+  const { mutate: mutateGlobal } = useSWRConfig();
+  const chaveDosFiltros = JSON.stringify(filtros ?? {});
+  const [paginasPedidas, setPaginasPedidas] = useState({ filtros: chaveDosFiltros, ate: 1 });
+  const [carregando, setCarregando] = useState<{ filtros: string; erro: unknown } | null>(null);
+  // Trocar os filtros zera a coluna: voltar a um filtro já visto começa pela
+  // primeira página, sem reaproveitar páginas extras guardadas dele.
+  if (paginasPedidas.filtros !== chaveDosFiltros) {
+    setPaginasPedidas({ filtros: chaveDosFiltros, ate: 1 });
+    setCarregando(null);
+  }
+  const ate = paginasPedidas.filtros === chaveDosFiltros ? paginasPedidas.ate : 1;
+  const ateRef = useRef(ate);
+  ateRef.current = ate;
+  // As páginas extras são buscadas de novo quando a primeira página que veio
+  // do servidor mudou (outro total ou outros cards no topo). Compara só o
+  // que veio do servidor: tirar ou pôr um card na hora não conta.
+  const assinaturaDoServidorRef = useRef<{ filtros: string; assinatura: string } | null>(null);
+  const buscandoExtrasRef = useRef(false);
+  const buscarExtrasDeNovoRef = useRef<() => void>(() => {});
+
   // Achado no review: pausarPolling (via refreshInterval:0 abaixo) só
   // impede um NOVO poll de ser agendado -- não cancela um que já estava em
   // voo quando o arraste começou. Se essa resposta chegar durante o drag ou
@@ -32,58 +90,189 @@ export function useDemandas(
   // a request em voo.
   const pausadoRef = useRef(opcoes?.pausado ?? false);
   pausadoRef.current = opcoes?.pausado ?? false;
-  const dadosAtuaisRef = useRef<Demanda[] | undefined>(undefined);
+  const primeiraAtualRef = useRef<RespostaPaginada<Demanda> | undefined>(undefined);
 
-  // keepPreviousData: sem isso, trocar um filtro fazia data virar
-  // undefined na hora -- o board inteiro sumia e reaparecia (chave nova do
-  // SWR = sem cache, mesmo já tendo os dados da consulta anterior na
-  // tela). Com isso, o board continua mostrando os dados antigos
-  // (levemente esmaecidos via isValidating) até os novos chegarem, em vez
-  // de colapsar pra um "carregando" genérico.
-  // desabilitado (achado ao investigar o "board mostrando os dois tipos
-  // misturados" mesmo depois da guarda de loading em KanbanBoard.tsx): key
-  // null em vez de só atrasar a exibição -- enquanto o board ainda não sabe
-  // qual tipo_gestao é o padrão, ele nunca teria dado pra confiar mesmo
-  // filtrado por undefined. Só esconder o resultado (guarda de render) não
-  // bastava: quando o filtro correto chegava, o keepPreviousData reusava
-  // esse resultado sem filtro (a chave mudou, mas havia dado anterior "bom o
-  // suficiente" pra manter) e mostrava ele esmaecido até a busca filtrada
-  // responder -- o mesmo piscar, só que através da troca de filtro em vez do
-  // load inicial. Com key null, não existe fetch nenhum pra virar esse
-  // "dado anterior" -- data começa e continua undefined (carregandoPrimeiraVez)
-  // até a primeira busca com filtro de verdade responder.
-  const { data, error, isLoading, isValidating, mutate } = useSWR<Demanda[]>(
-    opcoes?.desabilitado ? null : ["demandas", filtros],
+  // keepPreviousData: trocar um filtro não apaga a coluna; os cards de antes
+  // ficam até a resposta nova chegar. desabilitado: chave null enquanto o
+  // board não sabe o tipo de gestão padrão, para nunca existir uma busca sem
+  // esse filtro que o keepPreviousData pudesse reaproveitar.
+  const primeira = useSWR<RespostaPaginada<Demanda>>(
+    opcoes?.desabilitado ? null : chaveDaFase(filtros, status),
     async () => {
-      const resultado = await listarDemandas(filtros);
-      return pausadoRef.current ? (dadosAtuaisRef.current ?? resultado) : resultado;
+      const resultado = await buscarPrimeiraPaginaDaFase(filtros, status);
+      if (pausadoRef.current) return primeiraAtualRef.current ?? resultado;
+      const assinatura = assinaturaDaPagina(resultado);
+      const anterior = assinaturaDoServidorRef.current;
+      assinaturaDoServidorRef.current = { filtros: chaveDosFiltros, assinatura };
+      const faseMudou = anterior?.filtros === chaveDosFiltros && anterior.assinatura !== assinatura;
+      // Se a mesma ação já está buscando as extras, não repete.
+      if (faseMudou && ateRef.current >= 2 && !buscandoExtrasRef.current) {
+        buscarExtrasDeNovoRef.current();
+      }
+      return resultado;
     },
     { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
   );
-  dadosAtuaisRef.current = data;
-  const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, isValidating);
+  primeiraAtualRef.current = primeira.data;
+
+  // Chave só existe depois do primeiro "carregar mais" com estes filtros, que
+  // já grava a página buscada no cache: aqui o fetcher só roda para buscar de
+  // novo as páginas que a coluna tem (fase mudou ou ação na lista).
+  const chaveExtras = chaveDasExtras(filtros, status);
+  const extrasAtuaisRef = useRef<PaginasExtrasDaFase | undefined>(undefined);
+  const extras = useSWR<PaginasExtrasDaFase>(
+    opcoes?.desabilitado || ate < 2 ? null : chaveExtras,
+    async () => {
+      buscandoExtrasRef.current = true;
+      try {
+        const resultado = await listarPaginasExtrasDaFase(filtros, status, ateRef.current);
+        return pausadoRef.current ? (extrasAtuaisRef.current ?? resultado) : resultado;
+      } finally {
+        buscandoExtrasRef.current = false;
+      }
+    },
+    { revalidateOnFocus: false, revalidateOnReconnect: false, revalidateIfStale: false },
+  );
+  const dadosExtras = ate >= 2 ? extras.data : undefined;
+  extrasAtuaisRef.current = dadosExtras;
+
+  const mutateExtras = extras.mutate;
+  useEffect(() => {
+    buscarExtrasDeNovoRef.current = () => void mutateExtras();
+  }, [mutateExtras]);
+
+  const demandas = useMemo(
+    () => juntarSemRepetir(primeira.data?.results ?? [], dadosExtras?.demandas ?? []),
+    [primeira.data, dadosExtras],
+  );
+  const trocandoFiltro = useValidandoPorTrocaDeChave(filtros, primeira.isValidating);
+  const temMais = ate < 2 ? Boolean(primeira.data?.next) : (dadosExtras?.temMais ?? false);
+
+  const carregandoAgora = carregando?.filtros === chaveDosFiltros ? carregando : null;
+  const carregandoMais = Boolean(carregandoAgora && carregandoAgora.erro === null);
+  const erroAoCarregar = carregandoAgora?.erro ?? null;
+
+  /** Busca só a página seguinte e a junta às que a coluna já tem. */
+  const carregarMais = useCallback(async () => {
+    if (!temMais || carregandoMais || opcoes?.desabilitado) return;
+    const filtrosDaBusca = chaveDosFiltros;
+    // Parte do que de fato veio: a fase pode ter encolhido desde o pedido.
+    const proxima = (ate >= 2 ? (dadosExtras?.ate ?? ate) : 1) + 1;
+    setCarregando({ filtros: filtrosDaBusca, erro: null });
+    try {
+      const nova = await listarPaginasExtrasDaFase(filtros, status, proxima, proxima);
+      const anteriores = ate >= 2 ? (extrasAtuaisRef.current?.demandas ?? []) : [];
+      await mutateGlobal(
+        chaveExtras,
+        { demandas: [...anteriores, ...nova.demandas], ate: nova.ate, temMais: nova.temMais },
+        { revalidate: false },
+      );
+      setPaginasPedidas({ filtros: filtrosDaBusca, ate: Math.max(nova.ate, proxima - 1) });
+      setCarregando(null);
+    } catch (erro) {
+      setCarregando({ filtros: filtrosDaBusca, erro });
+    }
+  }, [
+    temMais,
+    carregandoMais,
+    opcoes?.desabilitado,
+    chaveDosFiltros,
+    ate,
+    dadosExtras,
+    filtros,
+    status,
+    chaveExtras,
+    mutateGlobal,
+  ]);
+
+  const mutatePrimeira = primeira.mutate;
+  /** Tira um card da coluna na hora (antes da resposta do backend). */
+  const remover = useCallback(
+    (id: number) => {
+      void mutatePrimeira(
+        (atual) =>
+          atual && {
+            ...atual,
+            results: atual.results.filter((d) => d.id !== id),
+            count: Math.max(atual.count - 1, 0),
+          },
+        { revalidate: false },
+      );
+      void mutateExtras(
+        (atual) => atual && { ...atual, demandas: atual.demandas.filter((d) => d.id !== id) },
+        { revalidate: false },
+      );
+    },
+    [mutatePrimeira, mutateExtras],
+  );
+
+  /** Põe um card na posição dele na coluna, na hora (STC-931). Devolve se
+   * ele ficou à mostra: com mais páginas e o lugar dele depois dos cards
+   * carregados, só o total sobe e ele aparece quando a coluna rolar até lá. */
+  const inserir = useCallback(
+    (demanda: Demanda): boolean => {
+      const naColuna = inserirNaColuna(demandas, demanda, status, temMais);
+      const posicao = naColuna.findIndex((d) => d.id === demanda.id);
+      const tamanhoDaPrimeira = primeira.data?.results.length ?? 0;
+      void mutatePrimeira(
+        (atual) =>
+          atual && {
+            ...atual,
+            count: atual.count + 1,
+            results:
+              posicao >= 0 && (posicao <= tamanhoDaPrimeira || !dadosExtras)
+                ? inserirNaColuna(atual.results, demanda, status)
+                : atual.results,
+          },
+        { revalidate: false },
+      );
+      if (posicao > tamanhoDaPrimeira && dadosExtras) {
+        void mutateExtras(
+          (atual) =>
+            atual && { ...atual, demandas: inserirNaColuna(atual.demandas, demanda, status, temMais) },
+          { revalidate: false },
+        );
+      }
+      return posicao >= 0;
+    },
+    [demandas, status, temMais, primeira.data, dadosExtras, mutatePrimeira, mutateExtras],
+  );
+
+  const erroDasExtras = erroAoCarregar ?? (dadosExtras ? null : (extras.error ?? null));
 
   return {
-    demandas: data ?? [],
-    isLoading,
-    // Achado no review: mascarar isValidating aqui (só reportando troca de
-    // filtro) quebrava a semântica esperada do SWR pra qualquer outro
-    // consumidor deste hook -- valor bruto preservado, e a distinção de
-    // "isso é troca de filtro, não polling silencioso" vira um campo à
-    // parte, só pra quem realmente precisa dela (ex.: esmaecer o board).
-    isValidating,
+    demandas,
+    total: primeira.data?.count ?? 0,
+    temMais,
+    /** Já veio mais de uma página: o fim da fase ganha "Fim da lista". */
+    paginou: ate >= 2,
+    carregandoMais,
+    carregarMais: () => void carregarMais(),
+    /** Falha ao buscar as páginas extras: fica na coluna, o resto do quadro segue. */
+    erroAoCarregarMais: erroDasExtras ? extrairMensagemErro(erroDasExtras) : null,
+    /** Falhou a página seguinte: busca só ela de novo; falhou a busca das extras: busca de novo. */
+    tentarDeNovo: () => {
+      if (erroAoCarregar) {
+        setCarregando(null);
+        void carregarMais();
+      } else {
+        void mutateExtras();
+      }
+    },
+    remover,
+    inserir,
+    /** Busca de novo a coluna inteira: a primeira página e as extras que já vieram. */
+    revalidar: () => {
+      void mutatePrimeira();
+      if (ate >= 2) void mutateExtras();
+    },
+    isValidating: primeira.isValidating,
     isFilterChangeValidating: trocandoFiltro,
-    // isLoading é por chave de cache -- a primeira vez que uma combinação
-    // de filtro é usada, isLoading vem true mesmo com keepPreviousData
-    // ativo (ele só afeta o "data" retornado, não esse flag). O sinal
-    // certo pra saber se já existe ALGUM dado pra mostrar (mesmo que
-    // desatualizado, de um filtro anterior) é o "data" bruto ainda ser
-    // undefined -- só acontece na primeiríssima consulta deste hook,
-    // nunca de novo depois, mesmo trocando pra uma chave inédita.
-    carregandoPrimeiraVez: data === undefined,
-    error,
-    mensagemErro: error ? extrairMensagemErro(error) : null,
-    mutate,
+    // data só é undefined antes da primeiríssima resposta deste hook; depois,
+    // keepPreviousData sempre tem algo para mostrar.
+    carregandoPrimeiraVez: primeira.data === undefined,
+    error: primeira.error,
+    mensagemErro: primeira.error ? extrairMensagemErro(primeira.error) : null,
   };
 }
 

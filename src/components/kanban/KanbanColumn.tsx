@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { Inbox } from "lucide-react";
+import { Inbox, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Demanda, StatusDemanda } from "@/types";
 import { DemandaCard } from "./DemandaCard";
@@ -10,6 +11,20 @@ interface KanbanColumnProps {
   status: StatusDemanda;
   titulo: string;
   demandas: Demanda[];
+  /** Número no cabeçalho: o total da fase, não só os cards carregados. */
+  total: number;
+  /** A fase tem mais cards do que os carregados (STC-931). */
+  temMais?: boolean;
+  carregandoMais?: boolean;
+  /** A coluna carregou mais de uma página e a fase acabou: mostra "Fim da lista". */
+  chegouAoFim?: boolean;
+  onCarregarMais?: () => void;
+  /** A primeira página da fase falhou: a coluna mostra o erro, o quadro segue.
+   * Se a coluna já tinha cards (falhou uma atualização), eles continuam. */
+  erro?: string | null;
+  /** Falhou a página seguinte: os cards já carregados continuam. */
+  erroAoCarregarMais?: string | null;
+  onTentarDeNovo?: () => void;
   onSelecionarDemanda: (demanda: Demanda) => void;
   onRestaurar: (demanda: Demanda) => void;
 }
@@ -18,10 +33,39 @@ export function KanbanColumn({
   status,
   titulo,
   demandas,
+  total,
+  temMais = false,
+  carregandoMais = false,
+  chegouAoFim = false,
+  onCarregarMais,
+  erro = null,
+  erroAoCarregarMais = null,
+  onTentarDeNovo,
   onSelecionarDemanda,
   onRestaurar,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
+  const listaRef = useRef<HTMLDivElement>(null);
+  const fimRef = useRef<HTMLDivElement>(null);
+
+  // Rolagem infinita (STC-931): quando o fim da coluna aparece, pede a
+  // página seguinte da fase. Também cobre a coluna curta, que nem chega a
+  // ter rolagem (ex.: o foco dos cartões do topo deixou poucos cards à
+  // mostra): o fim já aparece de cara e as páginas seguintes vêm até a fase
+  // acabar.
+  useEffect(() => {
+    const fim = fimRef.current;
+    if (!temMais || carregandoMais || erroAoCarregarMais || !fim || !onCarregarMais) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas.some((entrada) => entrada.isIntersecting)) onCarregarMais();
+      },
+      { root: listaRef.current, rootMargin: "120px" },
+    );
+    observador.observe(fim);
+    return () => observador.disconnect();
+  }, [temMais, carregandoMais, erroAoCarregarMais, onCarregarMais, demandas.length]);
 
   return (
     <div
@@ -41,13 +85,17 @@ export function KanbanColumn({
         <div className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
           {titulo}
           <span className="rounded-full bg-card px-2 py-px text-[11.5px] font-semibold text-muted-foreground">
-            {demandas.length}
+            {total}
           </span>
         </div>
       </div>
 
-      <div className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5">
-        {demandas.length === 0 ? (
+      <div
+        ref={listaRef}
+        className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5"
+      >
+        {erro && <ErroNaColuna mensagem={erro} onTentarDeNovo={onTentarDeNovo} />}
+        {erro && demandas.length === 0 ? null : demandas.length === 0 && !temMais ? (
           <div className="flex flex-col items-center gap-2 px-4 py-9 text-center text-muted-foreground">
             <Inbox className="size-6" />
             <span className="text-[13px] font-semibold text-foreground">Nenhuma demanda aqui</span>
@@ -62,7 +110,63 @@ export function KanbanColumn({
             />
           ))
         )}
+        {!erro && erroAoCarregarMais && (
+          <ErroNaColuna mensagem={erroAoCarregarMais} onTentarDeNovo={onTentarDeNovo} />
+        )}
+        {!erro && !erroAoCarregarMais && temMais && (
+          <div
+            ref={fimRef}
+            data-testid={`fim-${status}`}
+            className="flex items-center justify-center gap-1.5 py-2 text-[12px] text-muted-foreground"
+          >
+            {carregandoMais ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                Carregando mais...
+              </>
+            ) : (
+              <button
+                type="button"
+                className="rounded px-2 py-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+                onClick={onCarregarMais}
+              >
+                Carregar mais
+              </button>
+            )}
+          </div>
+        )}
+        {!erro && !erroAoCarregarMais && !temMais && chegouAoFim && demandas.length > 0 && (
+          <div className="py-2 text-center text-[12px] text-muted-foreground">Fim da lista</div>
+        )}
+        {/* Sempre montado: leitor de tela anuncia a mudança do texto, o que
+            não acontece com uma região criada já com o conteúdo. */}
+        <div aria-live="polite" className="sr-only" data-testid={`aviso-${status}`}>
+          {carregandoMais ? "Carregando mais..." : temMais || !chegouAoFim ? "" : "Fim da lista"}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function ErroNaColuna({
+  mensagem,
+  onTentarDeNovo,
+}: {
+  mensagem: string;
+  onTentarDeNovo?: () => void;
+}) {
+  return (
+    <div role="alert" className="flex flex-col items-center gap-1.5 px-3 py-4 text-center text-[12.5px]">
+      <span className="text-destructive">{mensagem}</span>
+      {onTentarDeNovo && (
+        <button
+          type="button"
+          className="rounded px-2 py-1 font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+          onClick={onTentarDeNovo}
+        >
+          Tentar novamente
+        </button>
+      )}
     </div>
   );
 }

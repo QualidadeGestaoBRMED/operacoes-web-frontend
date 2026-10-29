@@ -17,7 +17,7 @@ vi.mock("swr", async (original) => {
 
 import { useAnexos } from "./useAnexos";
 import { useComentarios } from "./useComentarios";
-import { useDemanda, useDemandas } from "./useDemandas";
+import { useDemanda, useDemandasDaFase } from "./useDemandas";
 import { useHistorico } from "./useHistorico";
 import { useResumoDemandas } from "./useResumoDemandas";
 
@@ -28,8 +28,16 @@ describe("intervalos de atualização do Kanban (STC-929)", () => {
     configuracoes.length = 0;
   });
 
+  it("coluna do Kanban: só a primeira página atualiza a cada 30 segundos", () => {
+    renderHook(() => useDemandasDaFase({}, "backlog"));
+
+    const comAtualizacao = configuracoes.filter((c) => c?.refreshInterval !== undefined);
+    expect(comAtualizacao.map((c) => c?.refreshInterval)).toEqual([TRINTA_SEGUNDOS]);
+    // As páginas extras não entram na atualização periódica nem na volta à aba.
+    expect(configuracoes.some((c) => c?.revalidateOnFocus === false)).toBe(true);
+  });
+
   it.each<[string, () => unknown]>([
-    ["lista do Kanban", () => useDemandas({})],
     ["resumo", () => useResumoDemandas({})],
     ["detalhe da demanda", () => useDemanda(1)],
     ["comentários", () => useComentarios(1)],
@@ -41,17 +49,19 @@ describe("intervalos de atualização do Kanban (STC-929)", () => {
     expect(configuracoes.at(-1)?.refreshInterval).toBe(TRINTA_SEGUNDOS);
   });
 
-  it("a lista pausada (card sendo arrastado) não atualiza sozinha", () => {
-    renderHook(() => useDemandas({}, { pausado: true }));
+  it("a coluna pausada (card sendo arrastado) não atualiza sozinha", () => {
+    renderHook(() => useDemandasDaFase({}, "backlog", { pausado: true }));
 
-    expect(configuracoes.at(-1)?.refreshInterval).toBe(0);
+    expect(configuracoes.some((c) => c?.refreshInterval === 0)).toBe(true);
+    expect(configuracoes.some((c) => c?.refreshInterval === TRINTA_SEGUNDOS)).toBe(false);
   });
 
-  it("nenhum deles desliga a atualização ao voltar para a aba", () => {
-    renderHook(() => useDemandas({}));
+  it("a primeira página da coluna e o resumo atualizam ao voltar para a aba", () => {
+    renderHook(() => useDemandasDaFase({}, "backlog"));
     renderHook(() => useResumoDemandas({}));
 
-    for (const configuracao of configuracoes) {
+    const comAtualizacao = configuracoes.filter((c) => c?.refreshInterval !== undefined);
+    for (const configuracao of comAtualizacao) {
       expect(configuracao?.revalidateOnFocus).not.toBe(false);
     }
   });

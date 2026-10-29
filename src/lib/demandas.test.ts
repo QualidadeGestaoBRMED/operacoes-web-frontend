@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import api from "./api";
-import { listarDemandas } from "./demandas";
+import type { Demanda } from "@/types";
+import {
+  buscarPrimeiraPaginaDaFase,
+  juntarSemRepetir,
+  listarPaginasExtrasDaFase,
+} from "./demandas";
 
 vi.mock("./api", () => ({
   default: { get: vi.fn() },
@@ -20,101 +25,106 @@ function paginaMock(indices: number[], count: number, next: string | null) {
   };
 }
 
-describe("listarDemandas", () => {
+function erro404() {
+  return Object.assign(new Error("404"), { isAxiosError: true, response: { status: 404 } });
+}
+
+function paramsDaChamada(chamada: number) {
+  return (apiGetMock.mock.calls[chamada][1] as { params: Record<string, unknown> }).params;
+}
+
+describe("buscarPrimeiraPaginaDaFase (STC-931)", () => {
   beforeEach(() => {
     apiGetMock.mockReset();
   });
 
-  it("devolve os resultados de uma única página quando next é null, sem chamada extra", async () => {
-    apiGetMock.mockResolvedValueOnce(paginaMock([1], 1, null));
+  it("pede a fase com os filtros, sem página", async () => {
+    apiGetMock.mockResolvedValueOnce(paginaMock([1, 2], 47, "https://x/?page=2"));
 
-    const resultado = await listarDemandas();
+    const pagina = await buscarPrimeiraPaginaDaFase({ tipo_gestao: 2, search: "zebra" }, "backlog");
 
-    expect(resultado).toEqual([{ id: 1 }]);
+    expect(paramsDaChamada(0)).toEqual({ tipo_gestao: 2, search: "zebra", status: "backlog" });
+    expect(pagina.count).toBe(47);
+  });
+});
+
+describe("listarPaginasExtrasDaFase (STC-931)", () => {
+  beforeEach(() => {
+    apiGetMock.mockReset();
+  });
+
+  it("busca as páginas 2 até a pedida em paralelo, com a fase em todas", async () => {
+    apiGetMock.mockImplementation(async (_url, config) => {
+      const page = (config as { params: { page: number } }).params.page;
+      return page === 2
+        ? paginaMock([3, 4], 6, "https://x/?page=3")
+        : paginaMock([5, 6], 6, null);
+    });
+
+    const extras = await listarPaginasExtrasDaFase({ tipo_gestao: 2 }, "concluido", 3);
+
+    expect(apiGetMock).toHaveBeenCalledTimes(2);
+    expect(paramsDaChamada(0)).toEqual({ tipo_gestao: 2, status: "concluido", page: 2 });
+    expect(paramsDaChamada(1)).toEqual({ tipo_gestao: 2, status: "concluido", page: 3 });
+    expect(extras.demandas.map((d) => d.id)).toEqual([3, 4, 5, 6]);
+    expect(extras).toMatchObject({ ate: 3, temMais: false });
+  });
+
+  it("muitas páginas vão em lotes de 4, um lote depois do outro", async () => {
+    let emVoo = 0;
+    let maximo = 0;
+    apiGetMock.mockImplementation(async (_url, config) => {
+      emVoo += 1;
+      maximo = Math.max(maximo, emVoo);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      emVoo -= 1;
+      const page = (config as { params: { page: number } }).params.page;
+      return paginaMock([page], 10, page < 10 ? "https://x/?page=next" : null);
+    });
+
+    const extras = await listarPaginasExtrasDaFase(undefined, "concluido", 10);
+
+    expect(apiGetMock).toHaveBeenCalledTimes(9);
+    expect(maximo).toBe(4);
+    expect(extras.demandas.map((d) => d.id)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(extras).toMatchObject({ ate: 10, temMais: false });
+  });
+
+  it("a partir de uma página: busca só a pedida (carregar mais)", async () => {
+    apiGetMock.mockResolvedValueOnce(paginaMock([7, 8], 8, null));
+
+    const extras = await listarPaginasExtrasDaFase(undefined, "backlog", 4, 4);
+
     expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(paramsDaChamada(0)).toEqual({ status: "backlog", page: 4 });
+    expect(extras).toMatchObject({ ate: 4, temMais: false });
   });
 
-  it("calcula o total de páginas pelo count da 1ª página e busca o restante em paralelo", async () => {
-    // 45 itens, página com 20 -- 1ª página + 2 páginas em paralelo (2 e 3).
-    apiGetMock.mockImplementation(async (_url, config) => {
-      const pagina = (config as { params?: { page?: number } })?.params?.page ?? 1;
-      if (pagina === 1) {
-        return paginaMock(
-          Array.from({ length: 20 }, (_, i) => i + 1),
-          45,
-          "https://operacoes-web-backend.onrender.com/api/modulos/gestao-demandas/demandas/?page=2",
-        );
-      }
-      if (pagina === 2) {
-        return paginaMock(
-          Array.from({ length: 20 }, (_, i) => i + 21),
-          45,
-          "irrelevante-nao-e-mais-lido",
-        );
-      }
-      return paginaMock([41, 42, 43, 44, 45], 45, null);
-    });
+  it("página que deixou de existir (fase encolheu) marca o fim, sem erro", async () => {
+    apiGetMock
+      .mockResolvedValueOnce(paginaMock([3], 3, null))
+      .mockRejectedValueOnce(erro404());
 
-    const resultado = await listarDemandas();
+    const extras = await listarPaginasExtrasDaFase(undefined, "backlog", 3);
 
-    expect(resultado).toHaveLength(45);
-    expect(resultado.map((d) => d.id)).toEqual(Array.from({ length: 45 }, (_, i) => i + 1));
-    expect(apiGetMock).toHaveBeenCalledTimes(3);
-    // nunca a URL absoluta de "next" -- sempre o mesmo BASE_URL relativo,
-    // que passa pelo proxy /api/backend com o token.
-    for (const [urlChamada] of apiGetMock.mock.calls) {
-      expect(urlChamada).toBe("/modulos/gestao-demandas/demandas/");
-    }
+    expect(extras).toMatchObject({ ate: 2, temMais: false });
+    expect(extras.demandas.map((d) => d.id)).toEqual([3]);
   });
 
-  it("preserva os filtros em todas as páginas buscadas em paralelo", async () => {
-    apiGetMock.mockImplementation(async (_url, config) => {
-      const pagina = (config as { params?: { page?: number } })?.params?.page ?? 1;
-      return paginaMock(
-        pagina === 1 ? Array.from({ length: 20 }, (_, i) => i + 1) : [21],
-        21,
-        pagina === 1 ? "https://x/demandas/?page=2" : null,
-      );
-    });
+  it("outro erro sobe para a coluna mostrar", async () => {
+    apiGetMock.mockRejectedValueOnce(new Error("timeout"));
 
-    await listarDemandas({ search: "zebra" });
-
-    for (const [, config] of apiGetMock.mock.calls) {
-      expect((config as { params?: Record<string, unknown> })?.params).toMatchObject({
-        search: "zebra",
-      });
-    }
+    await expect(listarPaginasExtrasDaFase(undefined, "backlog", 2)).rejects.toThrow("timeout");
   });
+});
 
-  it("descarta duplicata quando uma demanda criada entre as buscas repete um id em duas páginas", async () => {
-    // Drift real de paginação por offset: uma criação entre a busca da
-    // página 1 e da página 2 desloca as demais, e o id que fechava a
-    // página 1 pode reaparecer abrindo a página 2.
-    apiGetMock.mockImplementation(async (_url, config) => {
-      const pagina = (config as { params?: { page?: number } })?.params?.page ?? 1;
-      if (pagina === 1) {
-        return paginaMock([1, 2, 3], 5, "https://x/demandas/?page=2");
-      }
-      return paginaMock([3, 4, 5], 5, null); // 3 repetido de propósito
-    });
+describe("juntarSemRepetir (STC-931)", () => {
+  it("fica a primeira ocorrência do card repetido entre páginas", () => {
+    const resultado = juntarSemRepetir(
+      [{ id: 1 }, { id: 2 }] as Demanda[],
+      [{ id: 2 }, { id: 3 }] as Demanda[],
+    );
 
-    const resultado = await listarDemandas();
-
-    expect(resultado.map((d) => d.id)).toEqual([1, 2, 3, 4, 5]);
-  });
-
-  it("limita o número de páginas buscadas em paralelo mesmo com count absurdo", async () => {
-    apiGetMock.mockImplementation(async (_url, config) => {
-      const pagina = (config as { params?: { page?: number } })?.params?.page ?? 1;
-      return paginaMock(
-        [pagina],
-        20 * 100_000, // count malformado -- não deve virar 100.000 requisições
-        pagina === 1 ? "https://x/demandas/?page=2" : "https://x/demandas/?page=999999",
-      );
-    });
-
-    await listarDemandas();
-
-    expect(apiGetMock.mock.calls.length).toBeLessThan(600);
+    expect(resultado.map((d) => d.id)).toEqual([1, 2, 3]);
   });
 });

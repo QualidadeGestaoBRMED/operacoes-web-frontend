@@ -9,6 +9,8 @@ import {
   rotuloUnidadeOuResponsavel,
   secaoDoBloqueio,
   tipoGestaoAtivo,
+  focoPrecisaDeMais,
+  inserirNaColuna,
 } from "./kanban";
 
 describe("rotuloUnidadeOuResponsavel", () => {
@@ -293,3 +295,90 @@ describe("tipoGestaoAtivo (STC-884)", () => {
     expect(tipoGestaoAtivo([], undefined)).toBeUndefined();
   });
 });
+
+describe("inserirNaColuna (STC-931)", () => {
+  const cedo = criarDemanda({ id: 1, data_prevista: "2026-11-01", prioridade: "media" });
+  const tarde = criarDemanda({ id: 3, data_prevista: "2026-11-20", prioridade: "media" });
+
+  it("coloca o card na posição de prazo e prioridade da coluna aberta", () => {
+    const meio = criarDemanda({ id: 9, data_prevista: "2026-11-10", prioridade: "baixa" });
+
+    const ids = inserirNaColuna([cedo, tarde], meio, "em_andamento").map((d) => d.id);
+
+    expect(ids).toEqual([1, 9, 3]);
+  });
+
+  it("com o mesmo prazo, a prioridade mais alta vem antes; empate, o menor id", () => {
+    const urgente = criarDemanda({ id: 7, data_prevista: "2026-11-01", prioridade: "urgente" });
+    const mesmoDeTudo = criarDemanda({ id: 2, data_prevista: "2026-11-01", prioridade: "media" });
+
+    expect(inserirNaColuna([cedo, tarde], urgente, "backlog").map((d) => d.id)).toEqual([7, 1, 3]);
+    expect(inserirNaColuna([cedo, tarde], mesmoDeTudo, "backlog").map((d) => d.id)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it("no fim da coluna quando vem depois de todos", () => {
+    const ultimo = criarDemanda({ id: 8, data_prevista: "2026-12-30" });
+
+    expect(inserirNaColuna([cedo, tarde], ultimo, "backlog").map((d) => d.id)).toEqual([1, 3, 8]);
+  });
+
+  it("no Concluído vai para o topo (a conclusão mais recente)", () => {
+    const concluida = criarDemanda({ id: 5, data_prevista: "2026-12-30" });
+
+    expect(inserirNaColuna([cedo, tarde], concluida, "concluido").map((d) => d.id)).toEqual([
+      5, 1, 3,
+    ]);
+  });
+
+  it("não duplica o card que já estava na coluna", () => {
+    expect(inserirNaColuna([cedo, tarde], cedo, "backlog").map((d) => d.id)).toEqual([1, 3]);
+  });
+});
+
+describe("inserirNaColuna numa coluna com mais páginas (STC-931)", () => {
+  const cedo = criarDemanda({ id: 1, data_prevista: "2026-11-01" });
+  const tarde = criarDemanda({ id: 3, data_prevista: "2026-11-20" });
+
+  it("depois do último card carregado, fica para a página dele (não aparece e some)", () => {
+    const longe = criarDemanda({ id: 8, data_prevista: "2027-06-01" });
+
+    expect(inserirNaColuna([cedo, tarde], longe, "backlog", true).map((d) => d.id)).toEqual([1, 3]);
+  });
+
+  it("dentro do trecho carregado, entra normalmente", () => {
+    const meio = criarDemanda({ id: 9, data_prevista: "2026-11-10" });
+
+    expect(inserirNaColuna([cedo, tarde], meio, "backlog", true).map((d) => d.id)).toEqual([1, 9, 3]);
+  });
+});
+
+describe("focoPrecisaDeMais (STC-931)", () => {
+  const atrasada = criarDemanda({ data_prevista: "2000-01-01" });
+  const noPrazo = criarDemanda({ data_prevista: "2999-01-01" });
+
+  it("sem foco, toda fase continua carregando", () => {
+    expect(focoPrecisaDeMais(null, "concluido", [])).toBe(true);
+  });
+
+  it("com foco, não baixa o histórico do Concluído (o foco nunca mostra concluídas)", () => {
+    expect(focoPrecisaDeMais("atrasadas", "concluido", [])).toBe(false);
+    expect(focoPrecisaDeMais("sem responsável", "concluido", [])).toBe(false);
+  });
+
+  it("foco em andamento só carrega a própria fase", () => {
+    expect(focoPrecisaDeMais("em andamento", "em_andamento", [])).toBe(true);
+    expect(focoPrecisaDeMais("em andamento", "backlog", [])).toBe(false);
+  });
+
+  it("atrasadas: para quando o último card carregado já está no prazo", () => {
+    expect(focoPrecisaDeMais("atrasadas", "backlog", [atrasada])).toBe(true);
+    expect(focoPrecisaDeMais("atrasadas", "backlog", [atrasada, noPrazo])).toBe(false);
+  });
+
+  it("a Lixeira não entra no foco", () => {
+    expect(focoPrecisaDeMais("atrasadas", "lixeira", [])).toBe(true);
+  });
+});
+
