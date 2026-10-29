@@ -9,6 +9,8 @@ ajuda: como-ler-o-mapa-de-conformidade
 ---
 ## O que passa a existir
 
+![Mapa de Conformidade com as unidades de Operações Especiais, a dica de uma célula com o documento cadastrado e a Lista de documentos](/novidades/2026-10-29-01-legalizacao-operacoes-especiais.webp)
+
 Os documentos das unidades de Operações Especiais agora ficam no Atlas, como os das clínicas da rede própria:
 
 - **Mapa e Lista:** a situação de cada documento, por unidade e por categoria, com busca e filtros.
