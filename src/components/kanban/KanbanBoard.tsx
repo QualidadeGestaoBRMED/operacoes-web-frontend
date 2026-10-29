@@ -363,9 +363,14 @@ export function KanbanBoard() {
       // O card sai de uma coluna e entra na outra na hora (STC-931); depois
       // as duas fases são buscadas de novo.
       origem.remover(demanda.id);
-      destino.inserir(movida);
+      const aMostra = destino.inserir(movida);
       try {
         await atualizarStatusDemanda(demanda.id, { status: novoStatus });
+        if (!aMostra) {
+          toast.info(
+            `Demanda movida para ${nomeColuna(novoStatus)}. Ela aparece mais abaixo na coluna, ao rolar.`,
+          );
+        }
       } catch (erro) {
         // Backend é a fonte de verdade: se a transição não for permitida (ex.:
         // faltando responsável principal ou aprovador), revalida pra buscar o

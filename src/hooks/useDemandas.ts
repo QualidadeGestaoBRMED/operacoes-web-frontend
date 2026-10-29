@@ -206,9 +206,11 @@ export function useDemandasDaFase(
     [mutatePrimeira, mutateExtras],
   );
 
-  /** Põe um card na posição dele na coluna, na hora (STC-931). */
+  /** Põe um card na posição dele na coluna, na hora (STC-931). Devolve se
+   * ele ficou à mostra: com mais páginas e o lugar dele depois dos cards
+   * carregados, só o total sobe e ele aparece quando a coluna rolar até lá. */
   const inserir = useCallback(
-    (demanda: Demanda) => {
+    (demanda: Demanda): boolean => {
       const naColuna = inserirNaColuna(demandas, demanda, status, temMais);
       const posicao = naColuna.findIndex((d) => d.id === demanda.id);
       const tamanhoDaPrimeira = primeira.data?.results.length ?? 0;
@@ -231,6 +233,7 @@ export function useDemandasDaFase(
           { revalidate: false },
         );
       }
+      return posicao >= 0;
     },
     [demandas, status, temMais, primeira.data, dadosExtras, mutatePrimeira, mutateExtras],
   );

@@ -17,7 +17,8 @@ interface KanbanColumnProps {
   temMais?: boolean;
   carregandoMais?: boolean;
   onCarregarMais?: () => void;
-  /** A primeira página da fase falhou: a coluna mostra o erro, o quadro segue. */
+  /** A primeira página da fase falhou: a coluna mostra o erro, o quadro segue.
+   * Se a coluna já tinha cards (falhou uma atualização), eles continuam. */
   erro?: string | null;
   /** Falhou a página seguinte: os cards já carregados continuam. */
   erroAoCarregarMais?: string | null;
@@ -90,9 +91,8 @@ export function KanbanColumn({
         ref={listaRef}
         className="scrollbar-discreta flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2.5"
       >
-        {erro ? (
-          <ErroNaColuna mensagem={erro} onTentarDeNovo={onTentarDeNovo} />
-        ) : demandas.length === 0 && !temMais ? (
+        {erro && <ErroNaColuna mensagem={erro} onTentarDeNovo={onTentarDeNovo} />}
+        {erro && demandas.length === 0 ? null : demandas.length === 0 && !temMais ? (
           <div className="flex flex-col items-center gap-2 px-4 py-9 text-center text-muted-foreground">
             <Inbox className="size-6" />
             <span className="text-[13px] font-semibold text-foreground">Nenhuma demanda aqui</span>

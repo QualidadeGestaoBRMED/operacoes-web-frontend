@@ -73,13 +73,17 @@ export interface PaginasExtrasDaFase {
   temMais: boolean;
 }
 
+/** Quantas páginas de uma fase são pedidas ao mesmo tempo. */
+const PAGINAS_POR_LOTE = 4;
+
 /**
- * Páginas `de` a `ate` de uma fase, em paralelo (STC-931). Por padrão, da 2ª
- * em diante (a 1ª vem de buscarPrimeiraPaginaDaFase). O cliente api usa
- * baseURL "/api/backend" de propósito (o token de acesso só existe no proxy):
- * a página é pedida com ?page=N pelo mesmo cliente, nunca pelo "next" do DRF
- * (URL absoluta direto no Django, que sairia sem token). Página que deixou de
- * existir (a fase encolheu) responde 404 e marca o fim.
+ * Páginas `de` a `ate` de uma fase (STC-931), em lotes de 4 em paralelo, para
+ * uma coluna rolada por muitas páginas não disparar dezenas de pedidos de uma
+ * vez. Por padrão, da 2ª em diante (a 1ª vem de buscarPrimeiraPaginaDaFase).
+ * O cliente api usa baseURL "/api/backend" de propósito (o token de acesso só
+ * existe no proxy): a página é pedida com ?page=N pelo mesmo cliente, nunca
+ * pelo "next" do DRF (URL absoluta direto no Django, que sairia sem token).
+ * Página que deixou de existir (a fase encolheu) responde 404 e marca o fim.
  */
 export async function listarPaginasExtrasDaFase(
   filtros: DemandaFiltros | undefined,
@@ -88,25 +92,30 @@ export async function listarPaginasExtrasDaFase(
   de = 2,
 ): Promise<PaginasExtrasDaFase> {
   const params = { ...paramsDeFiltros(filtros), status };
-  const paginas = Array.from({ length: Math.max(ate - de + 1, 0) }, (_, indice) => indice + de);
-  const respostas = await Promise.allSettled(
-    paginas.map((page) => api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, page } })),
-  );
   const demandas: Demanda[] = [];
   let ultima = de - 1;
   let temMais = true;
-  for (const resposta of respostas) {
-    if (resposta.status === "rejected") {
-      if (isAxiosError(resposta.reason) && resposta.reason.response?.status === 404) {
-        temMais = false;
-        break;
+  for (let inicio = de; inicio <= ate && temMais; inicio += PAGINAS_POR_LOTE) {
+    const lote = Array.from(
+      { length: Math.min(PAGINAS_POR_LOTE, ate - inicio + 1) },
+      (_, indice) => inicio + indice,
+    );
+    const respostas = await Promise.allSettled(
+      lote.map((page) => api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, page } })),
+    );
+    for (const resposta of respostas) {
+      if (resposta.status === "rejected") {
+        if (isAxiosError(resposta.reason) && resposta.reason.response?.status === 404) {
+          temMais = false;
+          break;
+        }
+        throw resposta.reason;
       }
-      throw resposta.reason;
+      demandas.push(...resposta.value.data.results);
+      ultima += 1;
+      temMais = Boolean(resposta.value.data.next);
+      if (!temMais) break;
     }
-    demandas.push(...resposta.value.data.results);
-    ultima += 1;
-    temMais = Boolean(resposta.value.data.next);
-    if (!temMais) break;
   }
   return { demandas, ate: ultima, temMais };
 }
