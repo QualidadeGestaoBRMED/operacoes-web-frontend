@@ -105,3 +105,42 @@ describe("proxy /api/backend repassa o ver como (STC-790)", () => {
     expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("X-Ver-Como");
   });
 });
+
+describe("proxy /api/backend mede o tempo do backend (STC-933)", () => {
+  it("devolve o Server-Timing com a duração da chamada ao backend", async () => {
+    const agora = vi.spyOn(performance, "now").mockReturnValueOnce(1000).mockReturnValueOnce(1842.34);
+
+    const resposta = await GET(
+      new NextRequest("http://localhost:3000/api/backend/modulos/legalizacao/documentos"),
+      contexto("modulos", "legalizacao", "documentos"),
+    );
+
+    expect(resposta.headers.get("Server-Timing")).toBe("backend;dur=842.3");
+    agora.mockRestore();
+  });
+
+  it("vale também para resposta de erro do backend, sem mexer no status e no corpo", async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ detail: "Não encontrado." }, { status: 404 }));
+
+    const resposta = await GET(
+      new NextRequest("http://localhost:3000/api/backend/modulos/x"),
+      contexto("modulos", "x"),
+    );
+
+    expect(resposta.status).toBe(404);
+    expect(await resposta.json()).toEqual({ detail: "Não encontrado." });
+    expect(resposta.headers.get("Server-Timing")).toMatch(/^backend;dur=\d+(\.\d)?$/);
+  });
+
+  it("não sai quando o proxy responde sozinho, sem chamar o backend", async () => {
+    vi.mocked(obterTokenBackend).mockResolvedValueOnce(null as never);
+
+    const resposta = await GET(
+      new NextRequest("http://localhost:3000/api/backend/auth/me"),
+      contexto("auth", "me"),
+    );
+
+    expect(resposta.status).toBe(401);
+    expect(resposta.headers.get("Server-Timing")).toBeNull();
+  });
+});

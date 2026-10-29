@@ -1360,3 +1360,12 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
   - **Faltava o indicador de fim:** "Fim da lista" quando a fase acaba depois de mais de uma página.
   - **`aria-live` criado já com o conteúdo:** a região passou a ficar sempre montada, só o texto muda.
   - **Rolagem sem observador:** já coberta; o teste do botão roda sem `IntersectionObserver` (o jsdom não tem) e o do observador usa um falso. Sem mudança.
+
+### 7.46 STC-933 — Tempo do backend no cabeçalho Server-Timing do proxy da API
+
+✅ **Concluído.** Medição de 28/10/2026: a lista da Matriz de Conformidade levava ~1,55 s, 1,23 s esperando o servidor, sem como separar o backend da Vercel (o log de produção só grava leitura de 2 s ou mais, e a métrica de latência do Render não é liberada no plano atual). A decisão da STC-913 depende desse número.
+
+- **Proxy da API** (`src/app/api/backend/[...path]/route.ts`): mede do início do `fetch` ao fim da leitura da resposta e devolve `Server-Timing: backend;dur=<ms>` (uma casa decimal). O DevTools mostra em Timing > Server Timing, separado da espera total.
+- **O que entra no número:** a rede entre a Vercel e o Render, o Django e o banco. A diferença para a espera total do navegador é a parte da Vercel (função, sessão) e da rede até o navegador.
+- Vale para qualquer status que o backend devolver; as respostas que o proxy dá sozinho (401 sem sessão, 400 de caminho inválido) não chamam o backend e não têm o cabeçalho. Nenhuma informação nova sobre o backend, sem mudança nele.
+- **Testes:** duração no cabeçalho, resposta de erro do backend com status e corpo intactos, sem cabeçalho no 401 do próprio proxy.

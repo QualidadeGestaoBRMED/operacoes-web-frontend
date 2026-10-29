@@ -46,6 +46,7 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   // sessão a cada requisição (é do Admin deste token, não venceu).
   const verComo = request.headers.get("x-ver-como");
 
+  const inicio = performance.now();
   const resposta = await fetch(destino, {
     method: request.method,
     headers: {
@@ -60,9 +61,16 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
   });
 
   const corpoResposta = await resposta.text();
+  // Tempo da chamada ao backend, do início do fetch ao fim da leitura (rede
+  // Vercel-Render, Django e banco). O DevTools mostra em Timing > Server
+  // Timing, separado da espera total do navegador (STC-933).
+  const duracao = performance.now() - inicio;
   return new NextResponse(corpoResposta || null, {
     status: resposta.status,
-    headers: { "Content-Type": resposta.headers.get("Content-Type") ?? "application/json" },
+    headers: {
+      "Content-Type": resposta.headers.get("Content-Type") ?? "application/json",
+      "Server-Timing": `backend;dur=${duracao.toFixed(1)}`,
+    },
   });
 }
 
