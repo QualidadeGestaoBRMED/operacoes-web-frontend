@@ -1312,3 +1312,15 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **`useAlertasPendentes`** (alerta persistente, 60 s) fica como está: é um aviso para a pessoa, leve, não a lista de documentos.
 - **Testes** (`useDocumentosLegalizacao.intervalos.test.tsx`): intervalo de cada hook e atualização ao voltar para a aba não desligada.
 - **Análise de falhas:** sem defeito. A Biblioteca não abre modal de documento: evidências trocadas em outra tela (detalhe, renovação) aparecem ao abrir a Biblioteca, que busca de novo ao montar (`revalidateIfStale`, padrão do SWR), mesmo com o dado em cache. Trocar anexo, desativar e o lote de renovação já invalidam `evidencias-vigentes` direto.
+
+### 7.44 STC-929 — Kanban e demanda aberta atualizando a cada 30 s
+
+✅ **Concluído.** Revisão de lentidão do Gestão de Demandas (28/10/2026): com o Kanban aberto, a lista (todas as páginas) e o resumo eram buscados a cada 10 s; com uma demanda aberta, também o detalhe, os comentários, o histórico e os anexos. O comentário de `DEFAULT_THROTTLE_RATES` no backend já registrava mais de 100 requisições por minuto por aba.
+
+- **`INTERVALO_ATUALIZACAO_DEMANDAS_MS` = 30 s** (`lib/demandas.ts`), usado em `useDemandas` (lista e `useDemanda`), `useResumoDemandas`, `useComentariosDaFonte`, `useHistorico` e `useAnexos`. Antes, 10 s espalhado em cada hook.
+- `useComentariosDaFonte` também alimenta a conversa do documento e da renovação na Legalização e a conversa da demanda no Gestão RH: passam a atualizar a cada 30 s com o modal aberto.
+- **Continua igual:** a própria ação aparece na hora (`mutate`); voltar para a aba busca de novo; com a aba em segundo plano, nada é buscado; a lista pausada durante o arraste de um card.
+- **Alteração de outra pessoa** aparece em até 30 s numa tela já aberta (antes, até 10 s).
+- **Fora daqui:** sino de notificações (`useNotificacoes`, 10 s em toda tela), a decidir depois.
+- **Testes** (`useDemandas.intervalos.test.tsx`): intervalo de cada hook, lista pausada sem atualizar e atualização ao voltar para a aba não desligada.
+- **Achado da análise de falhas:** os contadores de comentários e anexos do card (`DemandaCard`) não eram atualizados pela própria ação: comentar, anexar ou excluir anexo só revalidava a lista do modal, e o card esperava a próxima atualização da lista (até 10 s, que passaria a até 30 s). Agora o comentário na demanda (`fonteDaDemanda`, campo `afetaTambem` de `FonteComentarios`) e o envio e a exclusão de anexo também revalidam a lista do Kanban (`ehChaveDeListaDemandas`), como as outras ações da demanda já faziam. Comentários de outras fontes (documento e renovação da Legalização) não buscam a lista do Kanban. Testes em `useComentariosEAnexos.lista.test.tsx` (sem a correção, os 3 casos da demanda falham).

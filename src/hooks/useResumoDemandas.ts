@@ -1,14 +1,14 @@
 "use client";
 
 import useSWR from "swr";
-import { buscarResumoDemandas } from "@/lib/demandas";
+import { buscarResumoDemandas, INTERVALO_ATUALIZACAO_DEMANDAS_MS } from "@/lib/demandas";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 import type { DemandaFiltros, ResumoDemandas } from "@/types";
 
 // STC-206: mesmo motivo/valor de useDemandas.ts -- pausado enquanto há uma
 // demanda sendo arrastada no board (o KPI reagir a isso não tem por quê
 // perturbar o drag-and-drop, mesmo não sendo ele mesmo alvo do arraste).
-const INTERVALO_POLL_MS = 10_000;
+const INTERVALO_POLL_MS = INTERVALO_ATUALIZACAO_DEMANDAS_MS;
 
 export function useResumoDemandas(
   filtros?: DemandaFiltros,

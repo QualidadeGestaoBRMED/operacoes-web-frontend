@@ -16,6 +16,15 @@ import type {
   TipoGestao,
 } from "@/types";
 
+/**
+ * Intervalo de atualização do Kanban e da demanda aberta (lista, resumo,
+ * detalhe, comentários, histórico e anexos; STC-929). O que a própria pessoa
+ * faz aparece na hora (as ações chamam `mutate`), e voltar para a aba busca
+ * de novo (padrão do SWR); o que outra pessoa faz aparece em até 30 s numa
+ * tela já aberta. Com a aba em segundo plano, nada é buscado.
+ */
+export const INTERVALO_ATUALIZACAO_DEMANDAS_MS = 30_000;
+
 const MODULO_URL = "/modulos/gestao-demandas/";
 const BASE_URL = `${MODULO_URL}demandas/`;
 

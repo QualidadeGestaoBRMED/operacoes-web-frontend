@@ -1,10 +1,15 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
-import { criarComentario, listarComentarios } from "@/lib/demandas";
+import {
+  criarComentario,
+  INTERVALO_ATUALIZACAO_DEMANDAS_MS,
+  listarComentarios,
+} from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 import type { Comentario } from "@/types";
+import { ehChaveDeListaDemandas } from "./useDemandaMutations";
 
 /**
  * De onde vêm e para onde vão os comentários de um feed: a demanda no
@@ -16,6 +21,8 @@ export interface FonteComentarios {
   chave: readonly (string | number)[];
   listar: () => Promise<Comentario[]>;
   criar: (texto: string) => Promise<Comentario>;
+  /** Outras chaves do cache que mudam com um comentário novo. */
+  afetaTambem?: (chave: unknown) => boolean;
 }
 
 export function fonteDaDemanda(demandaId: number): FonteComentarios {
@@ -23,6 +30,8 @@ export function fonteDaDemanda(demandaId: number): FonteComentarios {
     chave: ["demanda", demandaId, "comentarios"],
     listar: () => listarComentarios(demandaId),
     criar: (texto) => criarComentario(demandaId, texto),
+    // O card do Kanban mostra quantos comentários a demanda tem.
+    afetaTambem: ehChaveDeListaDemandas,
   };
 }
 
@@ -31,8 +40,9 @@ export function useComentariosDaFonte(fonte: FonteComentarios | null) {
     fonte ? fonte.chave : null,
     () => (fonte as FonteComentarios).listar(),
     // STC-206: um comentário de outro usuário só aparecia com F5 -- key vira
-    // null (sem polling) quando o modal fecha, então isso só roda com ele aberto.
-    { refreshInterval: 10_000 },
+    // null (sem polling) quando o modal fecha, então isso só roda com ele
+    // aberto. Vale também para a conversa da Legalização e do Gestão RH.
+    { refreshInterval: INTERVALO_ATUALIZACAO_DEMANDAS_MS },
   );
 
   return {
@@ -54,9 +64,15 @@ export function useCriarComentario(fonte: FonteComentarios) {
   // um matcher via useSWRConfig(). Aqui a chave de leitura e a de mutação já
   // são idênticas (sem filtro variável), então o revalidate automático do
   // useSWRMutation (comportamento padrão) já busca a lista atualizada.
+  const { mutate } = useSWRConfig();
   const { trigger, isMutating, error } = useSWRMutation(
     fonte.chave,
     (_chave, { arg }: { arg: string }) => fonte.criar(arg),
+    {
+      onSuccess: () => {
+        if (fonte.afetaTambem) void mutate(fonte.afetaTambem);
+      },
+    },
   );
 
   return {

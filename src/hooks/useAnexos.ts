@@ -3,15 +3,21 @@
 import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRMutation from "swr/mutation";
-import { enviarAnexo, excluirAnexo, listarAnexos } from "@/lib/demandas";
+import {
+  enviarAnexo,
+  excluirAnexo,
+  INTERVALO_ATUALIZACAO_DEMANDAS_MS,
+  listarAnexos,
+} from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
+import { ehChaveDeListaDemandas } from "./useDemandaMutations";
 
 export function useAnexos(demandaId: number | null) {
   const { data, error, isLoading, mutate } = useSWR(
     demandaId ? ["demanda", demandaId, "anexos"] : null,
     () => listarAnexos(demandaId as number),
     // STC-206: mesmo motivo de useComentarios -- só roda com o modal aberto.
-    { refreshInterval: 10_000 },
+    { refreshInterval: INTERVALO_ATUALIZACAO_DEMANDAS_MS },
   );
 
   return {
@@ -42,7 +48,13 @@ export function useEnviarAnexo(demandaId: number) {
         setProgresso(null);
       }
     },
-    { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
+    {
+      onSuccess: () => {
+        void mutate(["demanda", demandaId, "historico"]);
+        // O card do Kanban mostra quantos anexos a demanda tem.
+        void mutate(ehChaveDeListaDemandas);
+      },
+    },
   );
 
   return {
@@ -59,7 +71,12 @@ export function useExcluirAnexo(demandaId: number) {
   const { trigger, isMutating, error } = useSWRMutation(
     ["demanda", demandaId, "anexos"],
     (_chave, { arg }: { arg: number }) => excluirAnexo(demandaId, arg),
-    { onSuccess: () => mutate(["demanda", demandaId, "historico"]) },
+    {
+      onSuccess: () => {
+        void mutate(["demanda", demandaId, "historico"]);
+        void mutate(ehChaveDeListaDemandas);
+      },
+    },
   );
 
   return {

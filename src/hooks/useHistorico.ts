@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { listarHistorico } from "@/lib/demandas";
+import { INTERVALO_ATUALIZACAO_DEMANDAS_MS, listarHistorico } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
 
 // Só leitura -- histórico é escrito pelo backend (registrar_historico), nunca
@@ -11,7 +11,7 @@ export function useHistorico(demandaId: number | null) {
     demandaId ? ["demanda", demandaId, "historico"] : null,
     () => listarHistorico(demandaId as number),
     // STC-206: mesmo motivo de useComentarios -- só roda com o modal aberto.
-    { refreshInterval: 10_000 },
+    { refreshInterval: INTERVALO_ATUALIZACAO_DEMANDAS_MS },
   );
 
   return {
