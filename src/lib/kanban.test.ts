@@ -9,6 +9,7 @@ import {
   rotuloUnidadeOuResponsavel,
   secaoDoBloqueio,
   tipoGestaoAtivo,
+  inserirNaColuna,
 } from "./kanban";
 
 describe("rotuloUnidadeOuResponsavel", () => {
@@ -293,3 +294,45 @@ describe("tipoGestaoAtivo (STC-884)", () => {
     expect(tipoGestaoAtivo([], undefined)).toBeUndefined();
   });
 });
+
+describe("inserirNaColuna (STC-931)", () => {
+  const cedo = criarDemanda({ id: 1, data_prevista: "2026-11-01", prioridade: "media" });
+  const tarde = criarDemanda({ id: 3, data_prevista: "2026-11-20", prioridade: "media" });
+
+  it("coloca o card na posição de prazo e prioridade da coluna aberta", () => {
+    const meio = criarDemanda({ id: 9, data_prevista: "2026-11-10", prioridade: "baixa" });
+
+    const ids = inserirNaColuna([cedo, tarde], meio, "em_andamento").map((d) => d.id);
+
+    expect(ids).toEqual([1, 9, 3]);
+  });
+
+  it("com o mesmo prazo, a prioridade mais alta vem antes; empate, o menor id", () => {
+    const urgente = criarDemanda({ id: 7, data_prevista: "2026-11-01", prioridade: "urgente" });
+    const mesmoDeTudo = criarDemanda({ id: 2, data_prevista: "2026-11-01", prioridade: "media" });
+
+    expect(inserirNaColuna([cedo, tarde], urgente, "backlog").map((d) => d.id)).toEqual([7, 1, 3]);
+    expect(inserirNaColuna([cedo, tarde], mesmoDeTudo, "backlog").map((d) => d.id)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it("no fim da coluna quando vem depois de todos", () => {
+    const ultimo = criarDemanda({ id: 8, data_prevista: "2026-12-30" });
+
+    expect(inserirNaColuna([cedo, tarde], ultimo, "backlog").map((d) => d.id)).toEqual([1, 3, 8]);
+  });
+
+  it("no Concluído vai para o topo (a conclusão mais recente)", () => {
+    const concluida = criarDemanda({ id: 5, data_prevista: "2026-12-30" });
+
+    expect(inserirNaColuna([cedo, tarde], concluida, "concluido").map((d) => d.id)).toEqual([
+      5, 1, 3,
+    ]);
+  });
+
+  it("não duplica o card que já estava na coluna", () => {
+    expect(inserirNaColuna([cedo, tarde], cedo, "backlog").map((d) => d.id)).toEqual([1, 3]);
+  });
+});
+

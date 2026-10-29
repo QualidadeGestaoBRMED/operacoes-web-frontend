@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { criarDemanda, responsavelPrincipal } from "@/test-utils/fixtures";
-import type { TipoGestao } from "@/types";
+import type { Demanda, StatusDemanda, TipoGestao } from "@/types";
 import { KanbanBoard } from "./KanbanBoard";
 
 // SWR guarda um cache global por padrão -- sem isolar, o resultado de um
@@ -94,7 +94,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   atualizarStatusDemanda,
   buscarDemanda,
-  listarDemandas,
+  listarDemandasDaFase,
   listarTiposGestao,
 } from "@/lib/demandas";
 
@@ -132,11 +132,17 @@ function mockarTiposGestao() {
 const substituirUrl = vi.fn();
 const navegarPush = vi.fn();
 
+// Cada coluna busca a própria fase (STC-931): a resposta de uma fase são as
+// demandas daquele status, numa página só.
+function daFase(demandas: Demanda[], status: StatusDemanda) {
+  const daColuna = demandas.filter((demanda) => demanda.status === status);
+  return { demandas: daColuna, total: daColuna.length, paginas: 1, temMais: false };
+}
+
 function mockarDemandas(demandas: ReturnType<typeof criarDemanda>[]) {
-  vi.mocked(listarDemandas).mockImplementation(async (filtros) => {
-    if (filtros?.status === "lixeira") return [];
-    return demandas;
-  });
+  vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status) =>
+    daFase(demandas, status),
+  );
 }
 
 beforeEach(() => {
@@ -181,7 +187,7 @@ describe("KanbanBoard", () => {
 
   it("mostra estado de carregamento antes dos dados chegarem", () => {
     // Nunca resolve dentro da janela do teste -- fica sempre "carregando".
-    vi.mocked(listarDemandas).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(listarDemandasDaFase).mockImplementation(() => new Promise(() => {}));
 
     renderBoard();
 
@@ -198,7 +204,7 @@ describe("KanbanBoard", () => {
   });
 
   it("mostra estado de erro quando a busca falha", async () => {
-    vi.mocked(listarDemandas).mockRejectedValue(new Error("falha de rede"));
+    vi.mocked(listarDemandasDaFase).mockRejectedValue(new Error("falha de rede"));
 
     renderBoard();
 
@@ -271,6 +277,48 @@ describe("KanbanBoard", () => {
     await waitFor(() => {
       expect(atualizarStatusDemanda).toHaveBeenCalledWith(demanda.id, { status: "em_andamento" });
     });
+  });
+
+  it("o card sai da coluna de origem e entra na de destino na hora, sem duplicar (STC-931)", async () => {
+    const demanda = criarDemanda({
+      titulo: "Trocar lâmpadas",
+      status: "backlog",
+      responsaveis: [responsavelPrincipal()],
+    });
+    mockarDemandas([demanda]);
+    // A confirmação do backend nunca chega: o que aparece é só o otimista.
+    vi.mocked(atualizarStatusDemanda).mockImplementation(() => new Promise(() => {}));
+
+    renderBoard();
+    await screen.findByText("Trocar lâmpadas");
+    onDragEndCapturado?.({ active: { id: demanda.id }, over: { id: "em_andamento" } });
+
+    const emAndamento = screen.getByTestId("em_andamento");
+    await waitFor(() => expect(within(emAndamento).getByText("Trocar lâmpadas")).toBeInTheDocument());
+    expect(within(screen.getByTestId("backlog")).queryByText("Trocar lâmpadas")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Trocar lâmpadas")).toHaveLength(1);
+  });
+
+  it("cada coluna mostra o total da fase e carrega mais ao pedir (STC-931)", async () => {
+    const carregada = criarDemanda({ titulo: "Concluída recente", status: "concluido" });
+    const antiga = criarDemanda({ titulo: "Concluída antiga", status: "concluido" });
+    vi.mocked(listarDemandasDaFase).mockImplementation(async (_filtros, status, paginas) => {
+      if (status !== "concluido") return daFase([], status);
+      return paginas === 1
+        ? { demandas: [carregada], total: 31, paginas: 1, temMais: true }
+        : { demandas: [carregada, antiga], total: 31, paginas: 2, temMais: false };
+    });
+    const user = userEvent.setup();
+
+    renderBoard();
+    await screen.findByText("Concluída recente");
+    const concluido = screen.getByTestId("concluido");
+    expect(within(concluido).getByText("31")).toBeInTheDocument();
+
+    await user.click(within(concluido).getByRole("button", { name: "Carregar mais" }));
+
+    await within(concluido).findByText("Concluída antiga");
+    expect(listarDemandasDaFase).toHaveBeenCalledWith(expect.anything(), "concluido", 2);
   });
 
   it("mostra erro e não perde o card quando mover falha", async () => {
@@ -398,7 +446,7 @@ describe("KanbanBoard", () => {
     // tipo padrão, o board saía do "Carregando" e reaproveitava esse
     // resultado antigo -- misturado -- até a busca filtrada de verdade
     // responder. Só sumir com o texto de loading não bastava; precisa nunca
-    // ter chamado listarDemandas sem tipo_gestao enquanto isso está em
+    // ter chamado listarDemandasDaFase sem tipo_gestao enquanto isso está em
     // aberto (ver "desabilitado" em useDemandas.ts/useResumoDemandas.ts).
     it("nunca busca (nem mostra) demandas sem tipo_gestao quando há mais de um tipo cadastrado", async () => {
       vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
@@ -410,11 +458,10 @@ describe("KanbanBoard", () => {
       );
       const demandaOperacional = criarDemanda({ titulo: "Card Operacional", status: "backlog" });
       const demandaUnidades = criarDemanda({ titulo: "Card Unidades", status: "backlog" });
-      vi.mocked(listarDemandas).mockImplementation(async (filtros) => {
-        if (filtros?.status === "lixeira") return [];
-        if (filtros?.tipo_gestao === TIPO_GESTAO_A.id) return [demandaOperacional];
-        if (filtros?.tipo_gestao === TIPO_GESTAO_B.id) return [demandaUnidades];
-        return [demandaOperacional, demandaUnidades];
+      vi.mocked(listarDemandasDaFase).mockImplementation(async (filtros, status) => {
+        if (filtros?.tipo_gestao === TIPO_GESTAO_A.id) return daFase([demandaOperacional], status);
+        if (filtros?.tipo_gestao === TIPO_GESTAO_B.id) return daFase([demandaUnidades], status);
+        return daFase([demandaOperacional, demandaUnidades], status);
       });
 
       const { rerender } = renderBoard();
@@ -422,7 +469,7 @@ describe("KanbanBoard", () => {
       await waitFor(() => {
         expect(screen.getByText("Carregando demandas...")).toBeInTheDocument();
       });
-      expect(listarDemandas).not.toHaveBeenCalled();
+      expect(listarDemandasDaFase).not.toHaveBeenCalled();
 
       resolverTipos([TIPO_GESTAO_A, TIPO_GESTAO_B]);
 

@@ -17,7 +17,7 @@ vi.mock("swr", async (original) => {
 
 import { useAnexos } from "./useAnexos";
 import { useComentarios } from "./useComentarios";
-import { useDemanda, useDemandas } from "./useDemandas";
+import { useDemanda, useDemandasDaFase } from "./useDemandas";
 import { useHistorico } from "./useHistorico";
 import { useResumoDemandas } from "./useResumoDemandas";
 
@@ -29,7 +29,7 @@ describe("intervalos de atualização do Kanban (STC-929)", () => {
   });
 
   it.each<[string, () => unknown]>([
-    ["lista do Kanban", () => useDemandas({})],
+    ["coluna do Kanban", () => useDemandasDaFase({}, "backlog")],
     ["resumo", () => useResumoDemandas({})],
     ["detalhe da demanda", () => useDemanda(1)],
     ["comentários", () => useComentarios(1)],
@@ -42,13 +42,13 @@ describe("intervalos de atualização do Kanban (STC-929)", () => {
   });
 
   it("a lista pausada (card sendo arrastado) não atualiza sozinha", () => {
-    renderHook(() => useDemandas({}, { pausado: true }));
+    renderHook(() => useDemandasDaFase({}, "backlog", { pausado: true }));
 
     expect(configuracoes.at(-1)?.refreshInterval).toBe(0);
   });
 
   it("nenhum deles desliga a atualização ao voltar para a aba", () => {
-    renderHook(() => useDemandas({}));
+    renderHook(() => useDemandasDaFase({}, "backlog"));
     renderHook(() => useResumoDemandas({}));
 
     for (const configuracao of configuracoes) {
