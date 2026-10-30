@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FERIAS_ATIVA } from "@/config/gestaoRH";
 import { useAuth } from "@/hooks/useAuth";
+import { SeletorRedeGestaoRH } from "@/components/gestao-rh/SeletorRedeGestaoRH";
 import { useRedeDoGestaoRH } from "@/hooks/useRedeDoGestaoRH";
 import { AbaEquipes } from "./AbaEquipes";
 import { AbaImportacao } from "./AbaImportacao";
@@ -18,8 +19,9 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
  * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias). A de
  * Equipes classifica as equipes do VR; a de Importação é o envio manual dos
  * relatórios do VR, contingência do robô, só de quem administra a rede
- * própria (o robô é um só). Parâmetros e régua são da rede escolhida no
- * cabeçalho da Administração (STC-907). Abas sublinhadas,
+ * própria (o robô é um só). Parâmetros e régua são por rede (STC-907): o
+ * seletor fica na própria aba, porque Importação e Equipes não dependem da
+ * rede (a categoria da equipe é que diz a rede). Abas sublinhadas,
  * como no detalhe do documento da Legalização; seções empilhadas na largura
  * toda, como as outras seções da Administração.
  */
@@ -87,6 +89,8 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           hidden={aba !== "absenteismo-ferias"}
           className="space-y-7"
         >
+          {/* Só para quem administra as duas redes. */}
+          <SeletorRedeGestaoRH size="default" className="w-full sm:w-52" />
           {/* key: trocar de rede remonta o formulário, sem levar uma edição
               em andamento para a versão da outra rede. */}
           <FormParametrosAbsenteismo key={rede} rede={rede} />

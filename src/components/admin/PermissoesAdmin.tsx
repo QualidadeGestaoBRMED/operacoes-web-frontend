@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CabecalhoOrdenavel } from "@/components/CabecalhoOrdenavel";
-import { SeletorRedeGestaoRH } from "@/components/gestao-rh/SeletorRedeGestaoRH";
 import { SeletorRedeLegalizacao } from "@/components/legalizacao/SeletorRedeLegalizacao";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -610,10 +609,6 @@ export function PermissoesAdmin() {
               para não tirar altura da tabela de tipos. */}
           {abaEfetiva === "catalogo-legalizacao" && (
             <SeletorRedeLegalizacao size="default" className="w-full sm:w-52" />
-          )}
-          {/* Parâmetros e régua da rede escolhida (STC-907), mesmo lugar. */}
-          {abaEfetiva === "parametros-gestao-rh" && (
-            <SeletorRedeGestaoRH size="default" className="w-full sm:w-52" />
           )}
           {/* Sem Select nenhum pro Coordenador -- só 1 aba (Catálogo de
               Legalização) faz parte do acesso dele, não tem entre o quê
