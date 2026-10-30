@@ -11,7 +11,6 @@ import type {
   VersaoMarcoRegua,
   VersaoParametrosAbsenteismo,
 } from "@/types/gestaoRH";
-import { SeletorRedeGestaoRH } from "@/components/gestao-rh/SeletorRedeGestaoRH";
 import { ParametrosGestaoRHAdmin } from "./ParametrosGestaoRHAdmin";
 
 // Testes de férias: chave ligada (STC-687 desliga em produção nesta fase).
@@ -1069,20 +1068,11 @@ describe("Parâmetros por rede (STC-907)", () => {
     );
   });
 
-  // O seletor fica no cabeçalho da Administração; aqui, ao lado da seção.
-  function renderComSeletor() {
-    return render(
-      <SWRConfig value={{ provider: () => new Map() }}>
-        <SeletorRedeGestaoRH />
-        <ParametrosGestaoRHAdmin />
-      </SWRConfig>,
-    );
-  }
 
   it("quem administra as duas troca de rede, e a edição em andamento não vai junto", async () => {
     sessao.atual = { administraRedePadrao: true, redesAdministradas: ["opex", "padrao"] };
     const user = userEvent.setup();
-    renderComSeletor();
+    renderTela();
     const limite = await screen.findByLabelText("Limite de atraso e saída antecipada (minutos)");
     await user.clear(limite);
     await user.type(limite, "45");
@@ -1096,6 +1086,9 @@ describe("Parâmetros por rede (STC-907)", () => {
     expect(buscarReguaFerias).toHaveBeenCalledWith("opex");
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
     expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
+    // O seletor é só da aba Absenteísmo: Equipes não depende da rede.
+    await user.click(screen.getByRole("tab", { name: "Equipes" }));
+    expect(screen.getByLabelText("Rede")).not.toBeVisible();
   });
 
   it("Admin Operações Especiais: os parâmetros dele, Equipes sem trocar a categoria e sem Importação", async () => {
@@ -1110,7 +1103,7 @@ describe("Parâmetros por rede (STC-907)", () => {
       }),
     ]);
     const user = userEvent.setup();
-    renderComSeletor();
+    renderTela();
 
     expect(
       await screen.findByLabelText("Limite de atraso e saída antecipada (minutos)"),
