@@ -14,6 +14,8 @@ describe("EsperaASessao (STC-907)", () => {
       </EsperaASessao>,
     );
     expect(screen.queryByText("Painel")).not.toBeInTheDocument();
+    // Esqueleto no lugar da área em branco.
+    expect(screen.getByRole("status", { name: "Carregando" })).toBeInTheDocument();
 
     vi.mocked(useAuth).mockReturnValue({ isLoading: false } as ReturnType<typeof useAuth>);
     rerender(
@@ -22,5 +24,6 @@ describe("EsperaASessao (STC-907)", () => {
       </EsperaASessao>,
     );
     expect(screen.getByText("Painel")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Carregando" })).not.toBeInTheDocument();
   });
 });
