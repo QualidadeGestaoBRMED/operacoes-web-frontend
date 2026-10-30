@@ -42,7 +42,7 @@
 | STC-850 Anexos no card de absenteísmo (rotas da STC-846) | P5.3 | ✅ Mergeada |
 | STC-860 Marcação "Desligado" nas listas do Painel de Absenteísmo e de Horas Extras (campo da STC-859) | P5.1 | ✅ Mergeada |
 | STC-849 Card de horas perdidas no Painel de Absenteísmo (campo da STC-845) | P5.1 | ✅ Mergeada |
-| STC-873 Cards de Absenteísmo e Horas perdidas lado a lado no celular | P5.1 | 🔄 Em andamento |
+| STC-873 Cards de Absenteísmo e Horas perdidas lado a lado no celular | P5.1 | ✅ Mergeada |
 | STC-848 Gráfico justificado × injustificado na aba Absenteísmo do modal (campos da STC-844) | P5.3 | ✅ Mergeada |
 | STC-872 Caixa "Incluir desligados" nos filtros do Painel de Absenteísmo (filtro da STC-871) | P5.1 | ✅ Mergeada |
 | STC-868 Gráfico das horas perdidas ao clicar no card do Painel (composição da STC-867) | P5.1 | ✅ Mergeada |
