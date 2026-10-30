@@ -22,6 +22,9 @@ export async function buscarPainelFerias(filtros: FiltrosPainelFerias): Promise<
   return data;
 }
 
+// Rotas do colaborador (cabeçalho e férias do modal) sem `?rede=`: o backend
+// usa a rede do próprio colaborador (STC-906), qualquer que seja a rede
+// escolhida no seletor.
 export async function buscarColaboradorRH(id: number): Promise<CabecalhoColaborador> {
   const { data } = await api.get<CabecalhoColaborador>(`${MODULO_URL}colaboradores/${id}/`);
   return data;
