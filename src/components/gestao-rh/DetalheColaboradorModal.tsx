@@ -94,7 +94,14 @@ export function DetalheColaboradorModal({
   focarAlertaAbsenteismo = false,
   onFechar,
 }: DetalheColaboradorModalProps) {
-  const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(colaboradorId);
+  // O diálogo anima a saída por ~0,2 s depois de fechar: até ela terminar
+  // (onCloseAutoFocus), o modal segue com o colaborador que estava aberto.
+  // Sem isso, a saída mostrava o carregamento no lugar dos dados (STC-960).
+  const [idExibido, setIdExibido] = useState(colaboradorId);
+  if (colaboradorId !== null && colaboradorId !== idExibido) {
+    setIdExibido(colaboradorId);
+  }
+  const { colaborador, isLoading, mensagemErro, recarregar } = useColaboradorRH(idExibido);
   const alertasFerias = colaborador?.alertas_pendentes.ferias ?? 0;
   const alertasAbsenteismo = colaborador?.alertas_pendentes.absenteismo ?? 0;
   // Conversa da demanda de um alerta, sobre a área de conteúdo. O modal
@@ -104,9 +111,9 @@ export function DetalheColaboradorModal({
   const [conversa, setConversa] = useState<{ dados: ConversaAberta; origem: HTMLElement } | null>(
     null,
   );
-  const [colaboradorDaConversa, setColaboradorDaConversa] = useState(colaboradorId);
-  if (colaboradorDaConversa !== colaboradorId) {
-    setColaboradorDaConversa(colaboradorId);
+  const [colaboradorDaConversa, setColaboradorDaConversa] = useState(idExibido);
+  if (colaboradorDaConversa !== idExibido) {
+    setColaboradorDaConversa(idExibido);
     setConversa(null);
   }
   const conversaAberta = conversa;
@@ -125,6 +132,7 @@ export function DetalheColaboradorModal({
   return (
     <Dialog open={colaboradorId !== null} onOpenChange={(aberto) => !aberto && onFechar()}>
       <DialogContent
+        onCloseAutoFocus={() => setIdExibido(null)}
         // Com a conversa aberta, Esc volta à aba (sem perder o modal nem o
         // contexto); com a aba na tela, fecha o modal como sempre.
         onEscapeKeyDown={(evento) => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAnexos } from "@/hooks/useAnexos";
 import { useComentarios } from "@/hooks/useComentarios";
@@ -113,3 +113,34 @@ describe("DetalheCard em ver como (STC-790)", () => {
   });
 });
 
+describe("DetalheCard — fechamento (STC-960)", () => {
+  it("fechar não mostra a mensagem de falha durante a saída", async () => {
+    const demanda = criarDemanda();
+    vi.mocked(useDemanda).mockImplementation(
+      (id) =>
+        ({
+          demanda: id === null ? undefined : demanda,
+          isLoading: false,
+          error: undefined,
+          mensagemErro: null,
+          mutate: vi.fn(),
+        }) as ReturnType<typeof useDemanda>,
+    );
+    const { rerender } = render(<DetalheCard demandaId={1} onOpenChange={vi.fn()} />);
+    const textos: string[] = [];
+    const observador = new MutationObserver((mudancas) => {
+      for (const mudanca of mudancas) {
+        mudanca.addedNodes.forEach((no) => textos.push(no.textContent ?? ""));
+      }
+    });
+    observador.observe(document.body, { childList: true, subtree: true });
+
+    rerender(<DetalheCard demandaId={null} onOpenChange={vi.fn()} />);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    observador.disconnect();
+
+    expect(textos.join("\n")).not.toContain("Não foi possível carregar esta demanda.");
+    // Depois da saída, para de buscar a demanda.
+    await waitFor(() => expect(vi.mocked(useDemanda)).toHaveBeenLastCalledWith(null));
+  });
+});

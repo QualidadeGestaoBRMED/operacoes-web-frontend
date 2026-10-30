@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
@@ -294,6 +295,68 @@ beforeEach(() => {
   vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([]);
   vi.mocked(listarHistoricoLegalizacao).mockResolvedValue([]);
   vi.mocked(listarProcessosRenovacao).mockResolvedValue([]);
+});
+
+// Junta todo texto que entrou na página enquanto `acao` roda: o que aparece
+// e some no mesmo instante (ex.: durante o fechamento) também conta.
+async function textosQueApareceram(acao: () => Promise<void> | void) {
+  const textos: string[] = [];
+  const observador = new MutationObserver((mudancas) => {
+    for (const mudanca of mudancas) {
+      mudanca.addedNodes.forEach((no) => textos.push(no.textContent ?? ""));
+      if (mudanca.type === "characterData") textos.push(mudanca.target.textContent ?? "");
+    }
+  });
+  observador.observe(document.body, { childList: true, subtree: true, characterData: true });
+  await acao();
+  await new Promise((resolver) => setTimeout(resolver, 0));
+  observador.disconnect();
+  return textos.join("\n");
+}
+
+describe("DetalheDocumentoModal, fechamento (STC-960)", () => {
+  it("fechar não mostra a mensagem de falha durante a saída", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const arvore = (id: number | null) => (
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <DetalheDocumentoModal documentoId={id} onOpenChange={vi.fn()} />
+      </SWRConfig>
+    );
+    const { rerender } = render(arvore(55));
+    expect(await screen.findByText("Alvará de Funcionamento")).toBeInTheDocument();
+
+    const textos = await textosQueApareceram(() => rerender(arvore(null)));
+
+    expect(textos).not.toContain("Não foi possível carregar este documento.");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("desativar e fechar não mostra a mensagem de falha durante a saída", async () => {
+    // A desativação esvazia o cache do detalhe antes de fechar.
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
+    function Pagina() {
+      const [id, setId] = useState<number | null>(55);
+      return (
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <DetalheDocumentoModal documentoId={id} onOpenChange={(abrir) => !abrir && setId(null)} />
+        </SWRConfig>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Pagina />);
+    await user.click(await screen.findByRole("button", { name: "Desativar documento" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Desativar documento" });
+    await user.type(within(dialogo).getByLabelText("Justificativa"), "Cadastrado errado.");
+
+    const textos = await textosQueApareceram(async () => {
+      await user.click(within(dialogo).getByRole("button", { name: "Desativar" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    expect(textos).not.toContain("Não foi possível carregar este documento.");
+  });
 });
 
 describe("DetalheDocumentoModal (STC-380)", () => {
