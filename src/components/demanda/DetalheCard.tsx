@@ -80,14 +80,22 @@ export function DetalheCard({
   secaoInicial?: "status" | "responsavel";
   statusAlvoInicial?: StatusDemanda;
 }) {
-  const { demanda, isLoading, mensagemErro } = useDemanda(demandaId);
+  // O diálogo anima a saída por ~0,2 s depois de fechar: até ela terminar
+  // (onCloseAutoFocus), a janela segue com a demanda que estava aberta. Sem
+  // isso, o id virava null na hora e a saída mostrava a mensagem de falha
+  // (STC-960).
+  const [idExibido, setIdExibido] = useState(demandaId);
+  if (demandaId !== null && demandaId !== idExibido) {
+    setIdExibido(demandaId);
+  }
+  const { demanda, isLoading, mensagemErro } = useDemanda(idExibido);
   // Chamados aqui só pra alimentar os contadores das abas (badge de
   // quantidade) -- a chave do SWR é a mesma usada dentro de ComentarioFeed/
   // AnexoList/HistoricoTimeline, então isso não gera fetch duplicado, só
   // reaproveita o cache.
-  const { comentarios } = useComentarios(demandaId);
-  const { anexos } = useAnexos(demandaId);
-  const { historico } = useHistorico(demandaId);
+  const { comentarios } = useComentarios(idExibido);
+  const { anexos } = useAnexos(idExibido);
+  const { historico } = useHistorico(idExibido);
   // "Ver como" (STC-790): só leitura, sem campos e botões de ação.
   const verComo = useVerComo();
   const podeEscrever = demanda ? demanda.status !== "lixeira" && !verComo : false;
@@ -117,6 +125,7 @@ export function DetalheCard({
     <Dialog open={demandaId !== null} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
+        onCloseAutoFocus={() => setIdExibido(null)}
         className="flex h-[85vh] max-h-[720px] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
         {isLoading ? (

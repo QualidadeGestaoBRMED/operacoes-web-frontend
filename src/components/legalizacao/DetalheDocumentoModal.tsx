@@ -370,6 +370,14 @@ export function DetalheDocumentoModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const aberto = documentoId !== null;
+  // O diálogo anima a saída por ~0,2 s depois de fechar: até ela terminar
+  // (onCloseAutoFocus), a janela segue com o que estava aberto. Sem isso,
+  // o id virava null na hora e a saída mostrava a mensagem de falha e as
+  // seções vazias (STC-960).
+  const [idExibido, setIdExibido] = useState(documentoId);
+  if (documentoId !== null && documentoId !== idExibido) {
+    setIdExibido(documentoId);
+  }
   const [mostrandoJustificativa, setMostrandoJustificativa] = useState(false);
   const [justificativa, setJustificativa] = useState("");
   // Só a vigente aparece por padrão, com ação explícita pra ver o histórico
@@ -429,26 +437,26 @@ export function DetalheDocumentoModal({
   >(null);
 
   const { documento, isLoading, mensagemErro, mutate } =
-    useDocumentoLegalizacao(documentoId);
+    useDocumentoLegalizacao(idExibido);
   const {
     evidencias,
     isLoading: carregandoEvidencias,
     mensagemErro: erroEvidencias,
     mutate: mutateEvidencias,
-  } = useEvidenciasLegalizacao(aberto ? documentoId : null);
+  } = useEvidenciasLegalizacao(idExibido);
   const {
     historico,
     isLoading: carregandoHistorico,
     mensagemErro: erroHistorico,
     mutate: mutateHistorico,
-  } = useHistoricoLegalizacao(aberto ? documentoId : null);
+  } = useHistoricoLegalizacao(idExibido);
   // Mesma lista (e mesma chave SWR) do modal de renovação: anexar ali já
   // atualiza a aba Protocolo.
   const {
     processos,
     isLoading: carregandoProcessos,
     mensagemErro: erroProcessos,
-  } = useProcessosRenovacao(aberto ? documentoId : null);
+  } = useProcessosRenovacao(idExibido);
   // STC-804: a conversa do documento. A contagem da aba vem da mesma lista
   // (e da mesma chave) do feed da aba.
   const {
@@ -456,7 +464,7 @@ export function DetalheDocumentoModal({
     isLoading: carregandoComentarios,
     mensagemErro: erroComentarios,
   } = useComentariosDaFonte(
-    aberto && documentoId !== null ? fonteDoDocumento(documentoId) : null,
+    idExibido !== null ? fonteDoDocumento(idExibido) : null,
   );
   const { atualizar, isLoading: salvandoNaoAplicavel } =
     useAtualizarDocumentoLegalizacao();
@@ -726,6 +734,7 @@ export function DetalheDocumentoModal({
       <Dialog open={aberto} onOpenChange={(open) => !open && fechar()}>
         <DialogContent
           showCloseButton
+          onCloseAutoFocus={() => setIdExibido(null)}
           className="flex max-h-[88vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
         >
           {isLoading ? (
