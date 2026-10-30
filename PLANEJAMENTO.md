@@ -1397,10 +1397,11 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Ajuda:** catálogo por rede e o campo **Usado em** (tipo de documento), quem vê cada rede e o seletor **Rede** (Mapa), Ponto focal como coordenação (cadastro e renovação) e o e-mail de vencimento com a cadência e os assuntos novos (como a Legalização avisa).
 - **Testes:** filtro por rede (`novidades.test.ts`), leitura e recusa do campo (`conteudoNovidades.test.ts`), `redesEmQueAtua` (`redes.test.ts`) e a validação dos arquivos de conteúdo.
 
-### 7.50 STC-959 — Tela some no celular ao abrir o sino ou outro menu
+### 7.50 STC-959 — Tela some no celular ao abrir o sino ou outro menu, e caixa do sino no celular
 
 ✅ **Concluído.** No app do celular, ao tocar no sino, a tela inteira sumia e ficava só a caixa das notificações; o menu do avatar fazia o mesmo.
 
 - **Causa** (reproduzida com Playwright, emulação Pixel 7): ao abrir um menu ou diálogo modal do Radix, o bloqueio de rolagem (`react-remove-scroll-bar`) marca o `body` com `data-scroll-locked` e soma uma margem direita do tamanho da barra de rolagem que ele calcula. No navegador do celular essa conta deu 642 px (a página não tinha barra nem estouro lateral: `innerWidth` = `clientWidth` = 412), o `body` ficava com largura 0 e só o conteúdo do menu, fixo, aparecia. No computador e numa janela estreita sem toque, a margem era 0.
 - **Correção** (`globals.css`): o `body` do Atlas nunca rola (cada página rola por dentro do `AppShell`), então não há barra a compensar. `html body[data-scroll-locked] { margin-right: 0 !important; }`, com especificidade maior que a da regra injetada pelo Radix. Vale para todos os menus e diálogos do Radix. Nenhum componente usa as classes de compensação (`right-scroll-bar-position`, `width-before-scroll-bar`).
-- **Conferido** com Playwright: no celular, sino e menu do avatar com o `body` em 412 px e a tela visível atrás do menu; no computador e na janela estreita sem toque, sem mudança.
+- **Sino no celular** (`NotificacoesMenu.tsx`): abaixo de `md` (o `QUERY_MOBILE` do `AppShell`), a caixa ocupa a largura da tela com 8 px de cada lado (`collisionPadding`) e vai até 70% da altura (`max-h-[70svh]`), com a rolagem por dentro e sem cobrir a navegação inferior. No computador, 320 px até o fim da tela, como antes.
+- **Conferido** com Playwright: no celular, sino e menu do avatar com o `body` em 412 px e a tela visível atrás do menu; caixa do sino de 8 a 404 px na largura e até 641 px na altura (tela de 839). No computador (1366 px), caixa de 320 px embaixo do sino, sem mudança.
