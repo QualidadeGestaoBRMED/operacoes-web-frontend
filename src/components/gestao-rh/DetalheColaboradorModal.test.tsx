@@ -49,6 +49,6 @@ describe("DetalheColaboradorModal, fechamento (STC-960)", () => {
 
     expect(textos.join("\n")).not.toContain("Carregando colaborador");
     // Depois da saída, para de buscar o colaborador.
-    expect(vi.mocked(useColaboradorRH)).toHaveBeenLastCalledWith(null);
+    await waitFor(() => expect(vi.mocked(useColaboradorRH)).toHaveBeenLastCalledWith(null));
   });
 });

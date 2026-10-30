@@ -141,6 +141,6 @@ describe("DetalheCard — fechamento (STC-960)", () => {
 
     expect(textos.join("\n")).not.toContain("Não foi possível carregar esta demanda.");
     // Depois da saída, para de buscar a demanda.
-    expect(vi.mocked(useDemanda)).toHaveBeenLastCalledWith(null);
+    await waitFor(() => expect(vi.mocked(useDemanda)).toHaveBeenLastCalledWith(null));
   });
 });
