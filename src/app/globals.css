@@ -149,6 +149,15 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Menus e diálogos do Radix bloqueiam a rolagem do body e somam uma margem
+     direita do tamanho da barra de rolagem (react-remove-scroll-bar). O body
+     do Atlas nunca rola (ver acima), então não há barra a compensar; e no
+     navegador do celular essa conta dá centenas de pixels, o body fica com
+     largura 0 e só o menu aparece (STC-959). Especificidade maior que a da
+     regra que o Radix injeta, para vencer o !important dela. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
 }
 
 /* Scrollbar fina, sem setas, trilho transparente -- estilo Linear. Firefox
