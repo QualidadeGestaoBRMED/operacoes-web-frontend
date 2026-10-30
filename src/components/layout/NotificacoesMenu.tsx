@@ -64,7 +64,16 @@ export function NotificacoesMenu() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      {/* No celular (abaixo de md, o QUERY_MOBILE do AppShell): a largura da
+          tela com 8px de cada lado (collisionPadding) e até 70% da altura,
+          sem cobrir a navegação inferior (nem passar do espaço que sobra
+          abaixo do sino, num celular pequeno). No computador, 320px até o fim da
+          tela, como antes (STC-959). */}
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={8}
+        className="w-[calc(100vw-1rem)] max-h-[min(70svh,var(--radix-dropdown-menu-content-available-height))] md:w-80 md:max-h-(--radix-dropdown-menu-content-available-height)"
+      >
         {/* sticky: o proprio DropdownMenuContent e o container com scroll
             (overflow-y-auto + max-h dinamico do Radix) -- sem precisar de
             outro wrapper, so fixar o cabecalho no topo dele. */}

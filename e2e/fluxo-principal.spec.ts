@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fecharNovidadeEmDestaque } from "./apoio";
 
 // Único usuário seedado (seed_e2e_usuario, Admin Operações) atua como
 // solicitante, responsável e aprovador ao mesmo tempo -- suficiente porque
@@ -24,6 +25,7 @@ test("fluxo principal: criar demanda, mover no board, comentar e concluir", asyn
   // assentar antes de interagir -- o polling de 10s (STC-206) não
   // atrapalha, sobra folga de sobra pra achar uma janela de 500ms sem rede.
   await page.waitForLoadState("networkidle");
+  await fecharNovidadeEmDestaque(page);
   await expect(page.getByRole("button", { name: "Nova Demanda" })).toBeVisible();
 
   // 1. Criar demanda -- mesmos campos/seletores que

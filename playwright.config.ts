@@ -31,7 +31,16 @@ export default defineConfig({
     },
     {
       name: "chromium",
+      testIgnore: /celular\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/user.json" },
+      dependencies: ["setup"],
+    },
+    // Tela de celular (STC-959): o que só quebra com a emulação de aparelho
+    // (toque e tela de celular), não numa janela estreita do computador.
+    {
+      name: "celular",
+      testMatch: /celular\.spec\.ts/,
+      use: { ...devices["Pixel 7"], storageState: "playwright/.auth/user.json" },
       dependencies: ["setup"],
     },
   ],

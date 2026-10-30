@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { decode, encode } from "next-auth/jwt";
+import { fecharNovidadeEmDestaque } from "./apoio";
 import { caminhoDoPython } from "./python-bin";
 
 // STC-611 (issue-pai STC-609): voltar pra aba depois que o access expirava
@@ -172,6 +173,7 @@ function contarSignOut(page: Page) {
 }
 
 async function esperarTelaLogada(page: Page) {
+  await fecharNovidadeEmDestaque(page);
   await expect(page.getByRole("button", { name: "Nova Demanda" })).toBeVisible();
 }
 
