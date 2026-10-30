@@ -110,7 +110,9 @@ export function AbaEquipes() {
   const [erros, setErros] = useState<Record<number, ErroDaEquipe>>({});
   const [aConfirmar, setAConfirmar] = useState<Mudanca | null>(null);
   const [turnoAConfirmar, setTurnoAConfirmar] = useState<EquipeVR | null>(null);
-  const [filtro, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
+  const [filtroEscolhido, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
+  // Sem o filtro na tela (Admin OPEX), a lista nunca fica filtrada.
+  const filtro = categoriza ? filtroEscolhido : TODAS;
 
   const ativasDaRedePropria = useMemo(
     () => redePropria.unidades.filter((unidade) => unidade.ativa),
