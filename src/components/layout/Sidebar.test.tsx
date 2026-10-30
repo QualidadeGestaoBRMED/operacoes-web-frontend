@@ -581,11 +581,17 @@ describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
     expect(screen.getByRole("link", { name: "Parâmetros de Gestão RH" })).toBeInTheDocument();
   });
 
-  it("quem administra a rede padrão continua vendo os dois", async () => {
-    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<typeof useAuth>);
+  it("quem administra a rede padrão continua vendo os dois, com os Parâmetros de Gestão RH", async () => {
+    simularAuth({
+      isAdminQG: false,
+      isAdminOps: true,
+      redesAdministradas: ["padrao"],
+    } as ReturnType<typeof useAuth>);
     renderSidebar();
 
     expect(await screen.findByRole("button", { name: "Expandir Legalização" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expandir Gestão RH" })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Expandir Gestão RH" }));
+    expect(screen.getByRole("link", { name: "Parâmetros de Gestão RH" })).toBeInTheDocument();
   });
 });
