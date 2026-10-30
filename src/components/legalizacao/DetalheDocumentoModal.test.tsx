@@ -296,6 +296,41 @@ beforeEach(() => {
   vi.mocked(listarProcessosRenovacao).mockResolvedValue([]);
 });
 
+// Junta todo texto que entrou na página enquanto `acao` roda: o que aparece
+// e some no mesmo instante (ex.: durante o fechamento) também conta.
+async function textosQueApareceram(acao: () => Promise<void> | void) {
+  const textos: string[] = [];
+  const observador = new MutationObserver((mudancas) => {
+    for (const mudanca of mudancas) {
+      mudanca.addedNodes.forEach((no) => textos.push(no.textContent ?? ""));
+      if (mudanca.type === "characterData") textos.push(mudanca.target.textContent ?? "");
+    }
+  });
+  observador.observe(document.body, { childList: true, subtree: true, characterData: true });
+  await acao();
+  await new Promise((resolver) => setTimeout(resolver, 0));
+  observador.disconnect();
+  return textos.join("\n");
+}
+
+describe("DetalheDocumentoModal, fechamento (STC-960)", () => {
+  it("fechar não mostra a mensagem de falha durante a saída", async () => {
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    const arvore = (id: number | null) => (
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <DetalheDocumentoModal documentoId={id} onOpenChange={vi.fn()} />
+      </SWRConfig>
+    );
+    const { rerender } = render(arvore(55));
+    expect(await screen.findByText("Alvará de Funcionamento")).toBeInTheDocument();
+
+    const textos = await textosQueApareceram(() => rerender(arvore(null)));
+
+    expect(textos).not.toContain("Não foi possível carregar este documento.");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+});
+
 describe("DetalheDocumentoModal (STC-380)", () => {
   it("não renderiza o dialog quando documentoId é null", () => {
     renderComponente(null);
