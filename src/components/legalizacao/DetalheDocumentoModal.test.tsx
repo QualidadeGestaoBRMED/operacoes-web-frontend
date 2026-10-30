@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { SWRConfig } from "swr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unidade, Usuario } from "@/types";
@@ -328,6 +329,33 @@ describe("DetalheDocumentoModal, fechamento (STC-960)", () => {
 
     expect(textos).not.toContain("Não foi possível carregar este documento.");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("desativar e fechar não mostra a mensagem de falha durante a saída", async () => {
+    // A desativação esvazia o cache do detalhe antes de fechar.
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(documento());
+    vi.mocked(desativarDocumentoLegalizacao).mockResolvedValue();
+    function Pagina() {
+      const [id, setId] = useState<number | null>(55);
+      return (
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <DetalheDocumentoModal documentoId={id} onOpenChange={(abrir) => !abrir && setId(null)} />
+        </SWRConfig>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Pagina />);
+    await user.click(await screen.findByRole("button", { name: "Desativar documento" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Desativar documento" });
+    await user.type(within(dialogo).getByLabelText("Justificativa"), "Cadastrado errado.");
+
+    const textos = await textosQueApareceram(async () => {
+      await user.click(within(dialogo).getByRole("button", { name: "Desativar" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    expect(textos).not.toContain("Não foi possível carregar este documento.");
   });
 });
 
