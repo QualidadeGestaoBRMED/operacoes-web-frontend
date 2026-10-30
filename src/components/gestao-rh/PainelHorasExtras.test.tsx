@@ -140,7 +140,10 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 16, 9, 0));
   vi.mocked(useRouter).mockReturnValue({ replace, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
-  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true } as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({
+    administraRedePadrao: true,
+    redesAdministradas: ["padrao"],
+  } as ReturnType<typeof useAuth>);
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [{ id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" }],
     isLoading: false,
@@ -162,6 +165,7 @@ describe("Painel de Horas Extras", () => {
 
     expect(await screen.findByText("6:45:00")).toBeInTheDocument();
     expect(buscarPainelHorasExtras).toHaveBeenCalledWith({
+      rede: "padrao",
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,

@@ -84,7 +84,10 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 6, 9, 0));
   vi.mocked(useRouter).mockReturnValue({ replace, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
-  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true } as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({
+    administraRedePadrao: true,
+    redesAdministradas: ["padrao"],
+  } as ReturnType<typeof useAuth>);
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [{ id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" }],
     isLoading: false,
@@ -108,6 +111,7 @@ describe("Painel de Absenteísmo", () => {
     // Uma busca só, já com o filtro padrão de faixa (sem lista completa antes).
     expect(buscasDoPeriodo()).toHaveLength(1);
     expect(buscasDoPeriodo()[0]).toEqual({
+      rede: "padrao",
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,
@@ -240,7 +244,7 @@ describe("Painel de Absenteísmo", () => {
     await user.click(await screen.findByRole("option", { name: "Niterói" }));
     await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
 
-    // Só a rede própria entra no Painel: não há filtro de categoria.
+    // Uma rede por vez (STC-907), sem filtro de categoria.
     expect(screen.queryByLabelText("Categoria")).not.toBeInTheDocument();
     expect(ultimaBusca()).not.toHaveProperty("categoria");
   });
@@ -508,6 +512,7 @@ describe("comparativo com o período anterior", () => {
     await screen.findByText(/vs\. agosto/);
 
     expect(buscasDoPeriodo("2026-08-01")[0]).toEqual({
+      rede: "padrao",
       inicio: "2026-08-01",
       fim: "2026-08-31",
       unidade: undefined,
@@ -635,7 +640,7 @@ describe("absenteísmo mês a mês", () => {
 
     expect(modal.getByText("Niterói")).toBeInTheDocument();
     expect(buscarAbsenteismoMensal).toHaveBeenCalledTimes(1);
-    expect(buscarAbsenteismoMensal).toHaveBeenCalledWith({ ano: 2026, unidade: 1 });
+    expect(buscarAbsenteismoMensal).toHaveBeenCalledWith({ rede: "padrao", ano: 2026, unidade: 1 });
     // O mês a mês não busca mais o Painel mês a mês.
     expect(vi.mocked(buscarPainelAbsenteismo).mock.calls.length).toBe(buscasAoPainel);
   });
@@ -860,5 +865,56 @@ describe("horas perdidas por tipo e por unidade (STC-868)", () => {
     renderPainel();
     await screen.findByText("Juliana Ramos");
     expect(screen.queryByRole("button", { name: /^Horas perdidas/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("rede do Painel (STC-907)", () => {
+  const AERO = { id: 9, nome: "Aeroclínica Macaé", codigo: "AMC", cidade: "Macaé", ativa: true, rede: "opex" as const };
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.mocked(useAuth).mockReturnValue({
+      administraRedePadrao: true,
+      redesAdministradas: ["opex", "padrao"],
+    } as ReturnType<typeof useAuth>);
+    vi.mocked(useUnidades).mockImplementation((rede) => ({
+      unidades:
+        rede === "opex"
+          ? [AERO]
+          : [{ id: 1, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" }],
+      isLoading: false,
+      error: undefined,
+    }));
+  });
+
+  it("quem administra as duas troca de rede: busca, unidades e filtro de unidade da rede nova", async () => {
+    const user = usuario();
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+    expect(ultimaBusca()?.rede).toBe("padrao");
+
+    await user.click(screen.getByLabelText("Unidade"));
+    await user.click(await screen.findByRole("option", { name: "Niterói" }));
+    await waitFor(() => expect(ultimaBusca()?.unidade).toBe(1));
+
+    await user.click(screen.getByLabelText("Rede"));
+    await user.click(await screen.findByRole("option", { name: "Operações Especiais" }));
+
+    await waitFor(() => expect(ultimaBusca()).toMatchObject({ rede: "opex", unidade: undefined }));
+    await user.click(screen.getByLabelText("Unidade"));
+    expect(await screen.findByRole("option", { name: "Aeroclínica Macaé" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+  });
+
+  it("quem vê uma rede só não tem o seletor", async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      administraRedePadrao: false,
+      redesAdministradas: ["opex"],
+    } as ReturnType<typeof useAuth>);
+    renderPainel();
+    await screen.findByText("Juliana Ramos");
+
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+    expect(ultimaBusca()?.rede).toBe("opex");
   });
 });

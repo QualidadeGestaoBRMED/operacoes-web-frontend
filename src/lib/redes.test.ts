@@ -14,6 +14,7 @@ import {
   redeDoCargoDeUnidade,
   redesAdministradas,
   redesDaLegalizacao,
+  redesDoGestaoRH,
   podeEditarTipoDeDocumento,
   redesDaAbrangencia,
   redesEmQueAtua,
@@ -144,6 +145,20 @@ describe("redesDaLegalizacao (STC-894)", () => {
     ["Coordenador e os demais", ninguem, ["padrao"]],
   ] as const)("%s", (_, usuario, esperado) => {
     expect(redesDaLegalizacao({ ...usuario, redesAdministradas: [...usuario.redesAdministradas] })).toEqual(esperado);
+  });
+});
+
+describe("redesDoGestaoRH (STC-907)", () => {
+  const ninguem = { redesAdministradas: [], isPontoFocal: false };
+
+  it.each([
+    ["Admin das duas redes, a própria primeiro", { ...ninguem, redesAdministradas: ["opex", "padrao"] }, ["padrao", "opex"]],
+    ["Admin Operações", { ...ninguem, redesAdministradas: ["padrao"] }, ["padrao"]],
+    ["Admin Operações Especiais", { ...ninguem, redesAdministradas: ["opex"] }, ["opex"]],
+    ["Ponto focal", { ...ninguem, isPontoFocal: true }, ["opex"]],
+    ["Coordenação", ninguem, ["padrao"]],
+  ] as const)("%s", (_, usuario, esperado) => {
+    expect(redesDoGestaoRH({ ...usuario, redesAdministradas: [...usuario.redesAdministradas] })).toEqual(esperado);
   });
 });
 

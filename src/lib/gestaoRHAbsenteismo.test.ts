@@ -176,6 +176,7 @@ describe("buscarPainelAbsenteismo monta a URL do contrato (STC-588)", () => {
     vi.mocked(api.get).mockResolvedValue({ data: {} });
 
     await buscarPainelAbsenteismo({
+      rede: "opex",
       inicio: "2026-09-01",
       fim: "2026-09-30",
       unidade: undefined,
@@ -186,7 +187,7 @@ describe("buscarPainelAbsenteismo monta a URL do contrato (STC-588)", () => {
 
     const [url, config] = vi.mocked(api.get).mock.calls[0];
     expect(axios.getUri({ ...config, url })).toBe(
-      "/modulos/gestao-rh/absenteismo/?inicio=2026-09-01&fim=2026-09-30" +
+      "/modulos/gestao-rh/absenteismo/?rede=opex&inicio=2026-09-01&fim=2026-09-30" +
         "&faixa=critica&faixa=atencao&ocorrencia=falta&com_pendencias=true",
     );
   });

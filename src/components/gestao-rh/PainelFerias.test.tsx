@@ -139,7 +139,10 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 9, 6, 9, 0));
   vi.mocked(useRouter).mockReturnValue({ replace, push: vi.fn() } as never);
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as never);
-  vi.mocked(useAuth).mockReturnValue({ administraRedePadrao: true } as ReturnType<typeof useAuth>);
+  vi.mocked(useAuth).mockReturnValue({
+    administraRedePadrao: true,
+    redesAdministradas: ["padrao"],
+  } as ReturnType<typeof useAuth>);
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [{ id: 1, nome: "Macaé", codigo: "MAC", cidade: "Macaé", ativa: true, rede: "padrao" }],
     isLoading: false,
@@ -160,6 +163,7 @@ describe("Painel de Férias", () => {
 
     expect(await screen.findByText("Marcos Lima")).toBeInTheDocument();
     expect(buscarPainelFerias).toHaveBeenCalledWith({
+      rede: "padrao",
       janela_dias: 90,
       unidade: undefined,
       status: undefined,
