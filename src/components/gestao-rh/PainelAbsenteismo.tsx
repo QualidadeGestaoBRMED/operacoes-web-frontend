@@ -20,6 +20,7 @@ import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRedeDoGestaoRH } from "@/hooks/useRedeDoGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { formatarDataISO } from "@/lib/gestaoRH";
@@ -43,6 +44,7 @@ import type {
   OcorrenciaFiltro,
 } from "@/types/gestaoRH";
 import { CampoPeriodo } from "./CampoPeriodo";
+import { SeletorRedeGestaoRH } from "./SeletorRedeGestaoRH";
 import { CardsAbsenteismo } from "./CardsAbsenteismo";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaAbsenteismo } from "./TabelaAbsenteismo";
@@ -88,12 +90,16 @@ export function PainelAbsenteismo() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  // O Gestão RH é da rede padrão (STC-762).
-  const { user, administraRedePadrao } = useAuth();
+  // Uma rede por vez, cada uma com os seus parâmetros (STC-906/907).
+  const { user, redesAdministradas } = useAuth();
+  const { rede } = useRedeDoGestaoRH();
   const unidadesDoUsuario = unidadesDe(user);
-  // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
-  const { unidades } = useUnidades("padrao");
-  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
+  const { unidades } = useUnidades(rede);
+  const filtroUnidade = filtroDeUnidadeDosPaineis(
+    unidades,
+    (redesAdministradas ?? []).includes(rede),
+    unidadesDoUsuario,
+  );
 
   const {
     periodo,
@@ -102,6 +108,12 @@ export function PainelAbsenteismo() {
     editar: editarPeriodo,
   } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
+  // A unidade filtrada é da rede anterior: trocar de rede volta para todas.
+  const [redeDoFiltro, setRedeDoFiltro] = useState(rede);
+  if (redeDoFiltro !== rede) {
+    setRedeDoFiltro(rede);
+    setUnidade(undefined);
+  }
   const [faixa, setFaixa] = useState<string | undefined>(FAIXA_PADRAO);
   const [ocorrencia, setOcorrencia] = useState<OcorrenciaFiltro>();
   const [comPendencias, setComPendencias] = useState(false);
@@ -116,6 +128,7 @@ export function PainelAbsenteismo() {
   // busca só para tirá-lo custaria uma requisição a mais, com o mesmo resultado.
   const filtros = useMemo<FiltrosPainelAbsenteismo>(
     () => ({
+      rede,
       inicio: periodo.inicio,
       fim: periodo.fim,
       unidade,
@@ -124,7 +137,7 @@ export function PainelAbsenteismo() {
       com_pendencias: comPendencias || undefined,
       incluir_desligados: incluirDesligados || undefined,
     }),
-    [periodo, unidade, faixa, ocorrencia, comPendencias, incluirDesligados],
+    [rede, periodo, unidade, faixa, ocorrencia, comPendencias, incluirDesligados],
   );
 
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
@@ -139,11 +152,12 @@ export function PainelAbsenteismo() {
   const [horasPerdidasAbertas, setHorasPerdidasAbertas] = useState(false);
   const filtrosAnteriores = useMemo<FiltrosPainelAbsenteismo>(
     () => ({
+      rede,
       ...periodoAnterior(periodo),
       unidade,
       faixa: ["critica", "atencao"],
     }),
-    [periodo, unidade],
+    [rede, periodo, unidade],
   );
   const {
     painel: painelAnterior,
@@ -230,12 +244,16 @@ export function PainelAbsenteismo() {
   return (
     <div ref={refPai} className={cn("flex h-full min-h-0 flex-col", ehMobile && "overflow-y-auto")}>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
-        <CampoPeriodo
-          id="periodo"
-          editado={periodoEditado}
-          valido={periodoValido}
-          onEditar={editarPeriodo}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Só para quem administra as duas redes. */}
+          <SeletorRedeGestaoRH />
+          <CampoPeriodo
+            id="periodo"
+            editado={periodoEditado}
+            valido={periodoValido}
+            onEditar={editarPeriodo}
+          />
+        </div>
         {cards && (
           <p className="text-[12px] text-muted-foreground">
             {cards.ultima_importacao
@@ -442,6 +460,7 @@ export function PainelAbsenteismo() {
           onFechar={() => setComparativoAberto(false)}
           anoInicial={Number(periodo.fim.slice(0, 4))}
           hoje={hoje}
+          rede={rede}
           unidade={unidade}
           visao={visao}
         />

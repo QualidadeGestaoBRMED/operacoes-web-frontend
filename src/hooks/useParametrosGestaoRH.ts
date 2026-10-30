@@ -10,6 +10,7 @@ import {
   salvarReguaFerias,
 } from "@/lib/gestaoRH";
 import { extrairMensagemErro } from "@/lib/erros";
+import type { Rede } from "@/types";
 import type {
   MarcoEditado,
   NovaVersaoParametrosPayload,
@@ -20,12 +21,15 @@ const CHAVE_PARAMETROS = "gestao-rh-parametros-absenteismo";
 const CHAVE_REGUA = "gestao-rh-regua-ferias";
 
 // O POST devolve o mesmo corpo do GET (versão vigente + versões): o cache é
-// trocado pela resposta, sem uma segunda requisição.
-export function useParametrosAbsenteismo() {
-  const { data, error, isLoading, mutate } = useSWR(CHAVE_PARAMETROS, buscarParametrosAbsenteismo);
+// trocado pela resposta, sem uma segunda requisição. Uma versão por rede
+// (STC-906).
+export function useParametrosAbsenteismo(rede: Rede) {
+  const { data, error, isLoading, mutate } = useSWR([CHAVE_PARAMETROS, rede], () =>
+    buscarParametrosAbsenteismo(rede),
+  );
 
   async function salvar(payload: NovaVersaoParametrosPayload) {
-    const resultado = await salvarParametrosAbsenteismo(payload);
+    const resultado = await salvarParametrosAbsenteismo(payload, rede);
     await mutate(resultado.dados, { revalidate: false });
     return resultado;
   }
@@ -40,11 +44,13 @@ export function useParametrosAbsenteismo() {
   };
 }
 
-export function useReguaFerias() {
-  const { data, error, isLoading, mutate } = useSWR(CHAVE_REGUA, buscarReguaFerias);
+export function useReguaFerias(rede: Rede) {
+  const { data, error, isLoading, mutate } = useSWR([CHAVE_REGUA, rede], () =>
+    buscarReguaFerias(rede),
+  );
 
   async function salvar(marcos: MarcoEditado[]) {
-    const resultado = await salvarReguaFerias(marcos);
+    const resultado = await salvarReguaFerias(marcos, rede);
     await mutate(resultado.dados, { revalidate: false });
     return resultado;
   }

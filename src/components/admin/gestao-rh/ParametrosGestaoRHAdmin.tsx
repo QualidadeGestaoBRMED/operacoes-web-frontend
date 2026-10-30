@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FERIAS_ATIVA } from "@/config/gestaoRH";
+import { useAuth } from "@/hooks/useAuth";
+import { useRedeDoGestaoRH } from "@/hooks/useRedeDoGestaoRH";
 import { AbaEquipes } from "./AbaEquipes";
 import { AbaImportacao } from "./AbaImportacao";
 import { FormParametrosAbsenteismo } from "./FormParametrosAbsenteismo";
@@ -15,7 +17,9 @@ const CLASSE_ABA = "flex-none rounded-none px-1 text-sm data-[state=active]:shad
  * Seção "Parâmetros de Gestão RH" da Administração (só Admin). Abre na aba
  * de parâmetros (absenteísmo e, com FERIAS_ATIVA, a régua de férias). A de
  * Equipes classifica as equipes do VR; a de Importação é o envio manual dos
- * relatórios do VR, contingência do robô. Abas sublinhadas,
+ * relatórios do VR, contingência do robô, só de quem administra a rede
+ * própria (o robô é um só). Parâmetros e régua são da rede escolhida no
+ * cabeçalho da Administração (STC-907). Abas sublinhadas,
  * como no detalhe do documento da Legalização; seções empilhadas na largura
  * toda, como as outras seções da Administração.
  */
@@ -23,6 +27,8 @@ type AbaParametros = "importacao" | "equipes" | "absenteismo-ferias";
 
 export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
   const [aba, setAba] = useState<AbaParametros>("absenteismo-ferias");
+  const { administraRedePadrao } = useAuth();
+  const { rede } = useRedeDoGestaoRH();
 
   // Aba inativa só escondida (forceMount + hidden), não desmontada: trocar
   // de aba não descarta uma edição em andamento, mesmo motivo do `hidden`
@@ -47,9 +53,11 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           variant="line"
           className="h-11 w-full justify-start gap-5 rounded-none border-b border-border bg-transparent"
         >
-          <TabsTrigger value="importacao" className={CLASSE_ABA}>
-            Importação
-          </TabsTrigger>
+          {administraRedePadrao && (
+            <TabsTrigger value="importacao" className={CLASSE_ABA}>
+              Importação
+            </TabsTrigger>
+          )}
           <TabsTrigger value="equipes" className={CLASSE_ABA}>
             Equipes
           </TabsTrigger>
@@ -58,9 +66,11 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="importacao" forceMount hidden={aba !== "importacao"}>
-          <AbaImportacao aoIrParaEquipes={() => setAba("equipes")} />
-        </TabsContent>
+        {administraRedePadrao && (
+          <TabsContent value="importacao" forceMount hidden={aba !== "importacao"}>
+            <AbaImportacao aoIrParaEquipes={() => setAba("equipes")} />
+          </TabsContent>
+        )}
 
         <TabsContent
           value="equipes"
@@ -77,11 +87,13 @@ export function ParametrosGestaoRHAdmin({ hidden }: { hidden?: boolean }) {
           hidden={aba !== "absenteismo-ferias"}
           className="space-y-7"
         >
-          <FormParametrosAbsenteismo />
+          {/* key: trocar de rede remonta o formulário, sem levar uma edição
+              em andamento para a versão da outra rede. */}
+          <FormParametrosAbsenteismo key={rede} rede={rede} />
           {FERIAS_ATIVA && (
             <>
               <Separator />
-              <FormReguaFerias />
+              <FormReguaFerias key={rede} rede={rede} />
             </>
           )}
         </TabsContent>

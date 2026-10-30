@@ -10,6 +10,7 @@ import {
   buscarPainelAbsenteismo,
   registrarTratamento,
 } from "@/lib/gestaoRHAbsenteismo";
+import type { Rede } from "@/types";
 import type { FiltrosPainelAbsenteismo, RegistrarTratamentoPayload } from "@/types/gestaoRH";
 import { useValidandoPorTrocaDeChave } from "./useValidandoPorTrocaDeChave";
 
@@ -43,10 +44,11 @@ export function useAbsenteismoMensal(
   ativo: boolean,
   ano: number,
   unidade: number | undefined,
+  rede: Rede,
 ) {
   const { data, error, isLoading, mutate } = useSWR(
-    ativo ? ["gestao-rh-absenteismo-mensal", ano, unidade] : null,
-    () => buscarAbsenteismoMensal({ ano, unidade }),
+    ativo ? ["gestao-rh-absenteismo-mensal", rede, ano, unidade] : null,
+    () => buscarAbsenteismoMensal({ rede, ano, unidade }),
     { revalidateOnFocus: false },
   );
   return {
