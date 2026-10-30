@@ -103,7 +103,9 @@ const OCORRENCIA_NA_LINHA = {
  * Aplica os filtros como a API: unidade nos cards e nas linhas, o resto só
  * nas linhas.
  */
-export function painelAbsenteismoDeExemplo(filtros: FiltrosPainelAbsenteismo): PainelAbsenteismo {
+export function painelAbsenteismoDeExemplo(
+  filtros: Omit<FiltrosPainelAbsenteismo, "rede">,
+): PainelAbsenteismo {
   const daUnidade = LINHAS.filter(
     (l) => filtros.unidade === undefined || l.colaborador.unidade?.id === filtros.unidade,
   );

@@ -19,6 +19,7 @@ import { usePainelHorasExtras } from "@/hooks/useHorasExtrasGestaoRH";
 import { usePeriodoEditavel } from "@/hooks/usePeriodoEditavel";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRedeDoGestaoRH } from "@/hooks/useRedeDoGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { mesAnteriorFechado } from "@/lib/gestaoRHAbsenteismo";
@@ -34,6 +35,7 @@ import { CardsHorasExtras } from "./CardsHorasExtras";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaHorasExtras } from "./TabelaHorasExtras";
 import { proximaOrdenacao } from "@/lib/ordenacao";
+import { SeletorRedeGestaoRH } from "./SeletorRedeGestaoRH";
 
 // Carregado à parte: o Recharts não pesa no resto do Gestão RH.
 const GraficosHorasExtras = dynamic(
@@ -72,12 +74,16 @@ export function PainelHorasExtras() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  // O Gestão RH é da rede padrão (STC-762).
-  const { user, administraRedePadrao } = useAuth();
+  // Uma rede por vez, como no Painel de Absenteísmo (STC-907).
+  const { user, redesAdministradas } = useAuth();
+  const { rede } = useRedeDoGestaoRH();
   const unidadesDoUsuario = unidadesDe(user);
-  // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
-  const { unidades } = useUnidades("padrao");
-  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
+  const { unidades } = useUnidades(rede);
+  const filtroUnidade = filtroDeUnidadeDosPaineis(
+    unidades,
+    (redesAdministradas ?? []).includes(rede),
+    unidadesDoUsuario,
+  );
 
   const {
     periodo,
@@ -86,6 +92,12 @@ export function PainelHorasExtras() {
     editar: editarPeriodo,
   } = usePeriodoEditavel(mesAnteriorFechado(hojeISO()));
   const [unidade, setUnidade] = useState<number>();
+  // A unidade filtrada é da rede anterior: trocar de rede volta para todas.
+  const [redeDoFiltro, setRedeDoFiltro] = useState(rede);
+  if (redeDoFiltro !== rede) {
+    setRedeDoFiltro(rede);
+    setUnidade(undefined);
+  }
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoHorasExtras | null>(null);
   // Colaborador escolhido no gráfico ou na tabela: a tabela mostra só ele e o
@@ -97,8 +109,8 @@ export function PainelHorasExtras() {
   );
 
   const filtros = useMemo<FiltrosPainelHorasExtras>(
-    () => ({ inicio: periodo.inicio, fim: periodo.fim, unidade }),
-    [periodo, unidade],
+    () => ({ rede, inicio: periodo.inicio, fim: periodo.fim, unidade }),
+    [rede, periodo, unidade],
   );
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
     usePainelHorasExtras(filtros);
@@ -154,12 +166,15 @@ export function PainelHorasExtras() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
-        <CampoPeriodo
-          id="periodo-horas-extras"
-          editado={periodoEditado}
-          valido={periodoValido}
-          onEditar={editarPeriodo}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <SeletorRedeGestaoRH />
+          <CampoPeriodo
+            id="periodo-horas-extras"
+            editado={periodoEditado}
+            valido={periodoValido}
+            onEditar={editarPeriodo}
+          />
+        </div>
       </div>
 
       {mensagemErro && !painel ? (

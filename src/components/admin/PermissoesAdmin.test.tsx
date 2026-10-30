@@ -480,45 +480,40 @@ describe("PermissoesAdmin (STC-266)", () => {
     expect(buscarReguaFerias).toHaveBeenCalled();
   });
 
-  it("STC-747/STC-894: Admin Operações Especiais fica com Usuários, Acessos e Catálogo, sem os Parâmetros, mesmo pela rota deles", async () => {
+  it("STC-907: Admin Operações Especiais entra nos Parâmetros de Gestão RH da rede dele, sem a Importação", async () => {
     mockSetPathname("/admin/permissoes/parametros-gestao-rh");
     simularAuth({
       isAdminOps: true,
       isCoordenacaoUnidade: false,
       isLoading: false,
       redesAdministradas: ["opex"],
+      administraRedePadrao: false,
     } as ReturnType<typeof useAuth>);
-    const user = userEvent.setup();
 
     renderTela();
-    const secao = await screen.findByLabelText("Seção");
-    expect(secao).toHaveTextContent("Usuários");
-    await user.click(secao);
 
-    expect(screen.getAllByRole("option").map((opcao) => opcao.textContent)).toEqual([
-      "Usuários",
-      "Acessos",
-      "Catálogo de Legalização",
-    ]);
-    expect(buscarParametrosAbsenteismo).not.toHaveBeenCalled();
-    // A URL sai da aba proibida.
-    expect(replace).toHaveBeenCalledWith("/admin/permissoes");
+    expect(await screen.findByLabelText("Seção")).toHaveTextContent("Parâmetros de Gestão RH");
+    await waitFor(() => expect(buscarParametrosAbsenteismo).toHaveBeenCalledWith("opex"));
+    expect(screen.getByRole("tab", { name: "Equipes" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Importação" })).not.toBeInTheDocument();
+    // Uma rede só: sem o seletor de rede no cabeçalho.
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("STC-763: aba fora do acesso pela sessão espera o cargo atual, sem mostrar outra aba", async () => {
-    mockSetPathname("/admin/permissoes/parametros-gestao-rh");
+    mockSetPathname("/admin/permissoes");
     simularAuth({
-      isAdminOps: true,
-      isCoordenacaoUnidade: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: true,
       isLoading: false,
-      redesAdministradas: ["opex"],
       confirmandoCargo: true,
     } as ReturnType<typeof useAuth>);
 
     renderTela();
 
     await waitFor(() => expect(screen.queryByLabelText("Seção")).not.toBeInTheDocument());
-    expect(screen.queryByTestId("secao-usuarios")).not.toBeInTheDocument();
+    expect(screen.queryByText("Catálogo de Legalização")).not.toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
 
@@ -1767,7 +1762,7 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
     return { user, dialog };
   }
 
-  it("Admin Operações Especiais entra no Catálogo de Legalização (STC-894), sem os Parâmetros de Gestão RH", async () => {
+  it("Admin Operações Especiais entra no Catálogo de Legalização (STC-894) e nos Parâmetros de Gestão RH (STC-907)", async () => {
     simularAuth({
       isAdminOps: true,
       isLoading: false,
@@ -1782,7 +1777,7 @@ describe("PermissoesAdmin -- redes (STC-747)", () => {
     await user.click(screen.getByLabelText("Seção"));
     expect(await screen.findByRole("option", { name: "Usuários" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Catálogo de Legalização" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Parâmetros de Gestão RH" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Parâmetros de Gestão RH" })).toBeInTheDocument();
   });
 
   it("Admin de uma rede concede global da rede dele, sem escolher", async () => {

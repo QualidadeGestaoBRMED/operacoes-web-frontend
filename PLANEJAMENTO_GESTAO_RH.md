@@ -46,6 +46,7 @@
 | STC-848 Gráfico justificado × injustificado na aba Absenteísmo do modal (campos da STC-844) | P5.3 | ✅ Mergeada |
 | STC-872 Caixa "Incluir desligados" nos filtros do Painel de Absenteísmo (filtro da STC-871) | P5.1 | ✅ Mergeada |
 | STC-868 Gráfico das horas perdidas ao clicar no card do Painel (composição da STC-867) | P5.1 | ✅ Mergeada |
+| STC-907 Gestão RH por rede: seletor, acesso do Admin Operações Especiais e parâmetros por rede (rotas da STC-906) | P5.1/P5.4 | Em PR |
 
 ---
 
@@ -173,7 +174,7 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
 
 ### P5.4 Parâmetros (Importação e regras) — `mockup_parametros_gestao_rh.html` · STC-597 construída
 
-- Rota `/admin/permissoes/parametros-gestao-rh`, terceira opção do seletor "Seção" de `PermissoesAdmin`, só Admin (Q&G e Operações). Coordenação e setor de Legalização não veem nem pela rota (e a tela nem busca os parâmetros para eles).
+- Rota `/admin/permissoes/parametros-gestao-rh`, opção do seletor "Seção" de `PermissoesAdmin`, só Admin (de qualquer rede, STC-907). Coordenação e setor de Legalização não veem nem pela rota (e a tela nem busca os parâmetros para eles).
 - Abas sublinhadas, abre em **Absenteísmo e férias**:
   - parâmetros de absenteísmo numa linha (limite de atraso e saída antecipada, limite de absenteísmo, faixa de atenção, faixa crítica), tipos que contam (falta, atestado, ausência justificada), selo "Versão vigente desde dd/mm/aaaa, por Fulano" ou "Versão inicial" (sem lista de versões); aviso informativo quando não há faixas; limite vazio é obrigatório (não vira 0);
   - régua de férias: "completou o período" só com liga/desliga; "antes do limite" e "antes do início (substituição)" com dias e liga/desliga; "limite vencido" não aparece; erro da API na linha do marco;
@@ -181,12 +182,23 @@ Tabelas **sem paginação**, rolagem dentro da tabela com cabeçalho fixo (mesmo
   - **avaliação automática** (STC-726): janela "Desligada" (padrão, com aviso de que nenhum alerta nem demanda é gerado), "Mês anterior fechado" ou "Últimos N dias" com N de 7 a 90; o texto de ajuda diz quando roda (primeiro dia útil do mês, STC-838, ou segunda-feira, à noite, depois da importação do robô). Só vai no envio se mudou, como os responsáveis; "Desligada" envia `null`.
 - Aba **Importação** (hoje desligada, sem chamar a API, com o aviso "A importação será ativada quando a fonte dos dados for definida").
 - **STC-595 (rodada RPA):** ativa a aba e liga à API (STC-587): período (padrão dia 1 do mês anterior até ontem), **três cartões (Jornada, Abonos, Pendências), um arquivo cada, com todas as equipes**, XLSX; recusa de layout com a coluna faltante; histórico de lotes com a origem (manual ou robô), linhas rejeitadas ("N · ver") e equipes novas sem categoria. É a contingência do robô.
-- **Aba Equipes (rodada RPA):** as equipes do VR com categoria (Unidade, Operações Especiais, Fora do indicador) e unidade do Atlas editáveis, destaque para as "Sem categoria". Cada categoria só oferece unidades da sua rede (STC-753): Unidade, a rede própria, obrigatória (trocar para Unidade espera a escolha); Operações Especiais, a rede OPEX, opcional ("Sem unidade OPEX"), fora dos painéis da rede própria até o ambiente de Operações Especiais. Os responsáveis por TMO e Campanha saíram da aba de parâmetros (a demanda vai para a coordenação da unidade). Coluna **"Turno variável"** (STC-735): interruptor por equipe (`PATCH` só com `turno_variavel`), com toast, erro na linha (o inválido marca só o campo que falhou) e o texto acima da tabela explicando o efeito (absenteísmo pela carga horária do dia, jornada incompleta, retroativo). Ligar pede confirmação, porque recalcula os períodos já importados e pode encerrar alertas da equipe na próxima importação; desligar salva direto.
+- **Aba Equipes (rodada RPA):** as equipes do VR com categoria (Unidade, Operações Especiais, Fora do indicador) e unidade do Atlas editáveis, destaque para as "Sem categoria". Cada categoria só oferece unidades da sua rede (STC-753): Unidade, a rede própria, obrigatória (trocar para Unidade espera a escolha); Operações Especiais, a rede OPEX, opcional ("Sem unidade OPEX"), no indicador de Operações Especiais só com unidade (STC-906). Os responsáveis por TMO e Campanha saíram da aba de parâmetros (a demanda vai para a coordenação da unidade). Coluna **"Turno variável"** (STC-735): interruptor por equipe (`PATCH` só com `turno_variavel`), com toast, erro na linha (o inválido marca só o campo que falhou) e o texto acima da tabela explicando o efeito (absenteísmo pela carga horária do dia, jornada incompleta, retroativo). Ligar pede confirmação, porque recalcula os períodos já importados e pode encerrar alertas da equipe na próxima importação; desligar salva direto.
 
 ### P5.5 Abertura pelo card do Kanban
 
 - Sem mudança no Kanban. O backend grava `origem_url`: férias `/modulos/gestao-rh/ferias?colaborador=<id>&periodo=<id>` (gravada pelo motor da STC-590); absenteísmo `/modulos/gestao-rh?colaborador=<id>&inicio=&fim=` (STC-592).
 - O Painel de Férias deriva o modal aberto da querystring a cada renderização (abrir e fechar só trocam a URL), abre na aba certa e rola até o card do período, destacado. Clique na linha do painel abre só com `?colaborador=`, sem período em foco.
+
+### Gestão RH por rede (STC-907, 30/10/2026)
+
+Frontend da STC-905 sobre as rotas da STC-906: cada rede tem os seus parâmetros, então as telas mostram uma rede por vez.
+
+- **Rede por módulo:** `useRedeDoModulo(chave, redes)` (escolha guardada no navegador, uma chave por módulo) e `SeletorRede` (`components/rede/`), reaproveitados pela Legalização (`useRedeDaLegalizacao`, `SeletorRedeLegalizacao`, mesma chave `atlas.legalizacao.rede`) e pelo Gestão RH (`useRedeDoGestaoRH`, `SeletorRedeGestaoRH`, chave `atlas.gestao-rh.rede`). Redes do Gestão RH (`lib/redes.ts::redesDoGestaoRH`): o Admin, as que administra (a própria primeiro); o Ponto focal, OPEX; a coordenação, a própria. Seletor só para quem administra as duas (Admin Q&G, Gestão de Operações).
+- **Telas:** Painel de Absenteísmo, mês a mês, Horas Extras e Férias mandam `rede` (campo obrigatório nos tipos dos filtros, para nenhuma chamada esquecer) e listam as unidades da rede; trocar de rede volta o filtro de unidade para todas. Seletor ao lado do período. O modal do colaborador não manda rede: o backend usa a do colaborador.
+- **Acesso:** sai o `ModuloDaRedePadrao` (componente e teste apagados). O layout do módulo só espera a sessão (`EsperaASessao`): antes dela a rede não é conhecida e a primeira busca do Admin OPEX iria para a rede própria (403). Menu e barra inferior mostram o Gestão RH e "Parâmetros de Gestão RH" para todo Admin.
+- **Parâmetros:** aba de todo Admin na Administração. O `SeletorRedeGestaoRH` fica dentro da aba Absenteísmo, acima dos parâmetros, e não no cabeçalho da Administração: Importação e Equipes não dependem da rede (a categoria da equipe é que diz a rede), e no cabeçalho ele parecia filtrar as equipes. Parâmetros e régua da rede escolhida (`?rede=`); os formulários remontam ao trocar de rede (`key={rede}`), para uma edição em andamento não ir para a versão da outra rede. Importação só para quem administra a rede própria. Aba Equipes do Admin OPEX: a API manda só as de Operações Especiais; categoria em texto (sem Select) e sem o filtro por categoria; unidade OPEX e turno variável editáveis.
+- **Fica para depois:** o link do card do Kanban abre o Painel sem rede; para quem vê as duas, a lista atrás do modal fica na rede escolhida (o modal mostra o colaborador certo). Trocar sozinho pediria a rede no cabeçalho do colaborador (backend).
+- **Testes:** `redesDoGestaoRH`, `SeletorRedeGestaoRH` (escolha guardada, separada da Legalização, quem vê uma rede só), troca de rede no Painel (busca, unidades e filtro), parâmetros por rede e Admin OPEX (sem Importação, categoria só leitura), `EsperaASessao`, menu, barra inferior e Administração do Admin OPEX. Suíte de unidade inteira: 1.604. Conferido com Playwright no localhost: Admin Q&G troca para Operações Especiais e a busca vai com `rede=opex`; Admin OPEX entra no módulo, a primeira busca já é `rede=opex`, e nos parâmetros vê Equipes e Absenteísmo, sem Importação e sem seletor.
 
 ---
 

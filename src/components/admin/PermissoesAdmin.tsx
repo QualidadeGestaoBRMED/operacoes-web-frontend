@@ -171,7 +171,6 @@ export function PermissoesAdmin() {
   const {
     user,
     isAdminOps,
-    administraRedePadrao,
     isCoordenacaoUnidade,
     isSetorLeg,
     isLoading: carregandoAuth,
@@ -187,15 +186,12 @@ export function PermissoesAdmin() {
   // dois papéis, Admin Ops deve prevalecer (acesso completo).
   const apenasCatalogo = (isCoordenacaoUnidade || isSetorLeg) && !isAdminOps;
   const podeAcessar = isAdminOps || isCoordenacaoUnidade || isSetorLeg;
-  // STC-747: Parâmetros de Gestão RH são configuração da rede padrão; o
-  // Admin Operações Especiais fica com Usuários e Acessos (os da rede dele,
-  // STC-746) e o Catálogo de Legalização, onde cadastra os documentos e as
-  // regras das unidades OPEX (STC-894).
+  // Parâmetros de Gestão RH são por rede (STC-907): todo Admin edita os da
+  // rede dele; a aba Importação, dentro deles, é só de quem administra a
+  // rede própria.
   const abasPermitidas: Aba[] = apenasCatalogo
     ? ["catalogo-legalizacao"]
-    : administraRedePadrao
-      ? ["usuarios", "acessos", "catalogo-legalizacao", "parametros-gestao-rh"]
-      : ["usuarios", "acessos", "catalogo-legalizacao"];
+    : ["usuarios", "acessos", "catalogo-legalizacao", "parametros-gestao-rh"];
   // Mesmo critério do KanbanFiltros (STC-186): abaixo de 640px, os selects
   // de filtro saem de linha e vão pra dentro de um Popover atrás de um
   // botão só, com badge de contagem -- evita empilhar campo atrás de campo
@@ -656,7 +652,7 @@ export function PermissoesAdmin() {
       {/* Parâmetros de Gestão RH: só Admin (a API também recusa com 403).
           Monta na primeira visita à seção, não em toda entrada na
           Administração; depois fica só escondida, para não perder edição. */}
-      {administraRedePadrao && visitouGestaoRH && (
+      {isAdminOps && visitouGestaoRH && (
         <ParametrosGestaoRHAdmin hidden={abaEfetiva !== "parametros-gestao-rh"} />
       )}
 

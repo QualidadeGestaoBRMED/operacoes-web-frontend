@@ -1,5 +1,6 @@
 import { isAxiosError } from "axios";
 import api from "./api";
+import type { Rede } from "@/types";
 import type {
   CategoriaEquipeVR,
   EquipeVR,
@@ -18,27 +19,41 @@ const MODULO_URL = "/modulos/gestao-rh/";
 const PARAMETROS_URL = `${MODULO_URL}parametros/`;
 const REGUA_URL = `${MODULO_URL}regua-ferias/`;
 
-export async function buscarParametrosAbsenteismo(): Promise<ParametrosAbsenteismoResposta> {
-  const { data } = await api.get<ParametrosAbsenteismoResposta>(PARAMETROS_URL);
+// Parâmetros e régua são por rede (STC-906): `?rede=` em todas as chamadas.
+
+export async function buscarParametrosAbsenteismo(
+  rede: Rede,
+): Promise<ParametrosAbsenteismoResposta> {
+  const { data } = await api.get<ParametrosAbsenteismoResposta>(PARAMETROS_URL, {
+    params: { rede },
+  });
   return data;
 }
 
 export async function salvarParametrosAbsenteismo(
   payload: NovaVersaoParametrosPayload,
+  rede: Rede,
 ): Promise<ResultadoSalvar<ParametrosAbsenteismoResposta>> {
-  const resposta = await api.post<ParametrosAbsenteismoResposta>(PARAMETROS_URL, payload);
+  const resposta = await api.post<ParametrosAbsenteismoResposta>(PARAMETROS_URL, payload, {
+    params: { rede },
+  });
   return { dados: resposta.data, criouVersao: resposta.status === 201 };
 }
 
-export async function buscarReguaFerias(): Promise<ReguaFeriasResposta> {
-  const { data } = await api.get<ReguaFeriasResposta>(REGUA_URL);
+export async function buscarReguaFerias(rede: Rede): Promise<ReguaFeriasResposta> {
+  const { data } = await api.get<ReguaFeriasResposta>(REGUA_URL, { params: { rede } });
   return data;
 }
 
 export async function salvarReguaFerias(
   marcos: MarcoEditado[],
+  rede: Rede,
 ): Promise<ResultadoSalvar<ReguaFeriasResposta>> {
-  const resposta = await api.post<ReguaFeriasResposta>(REGUA_URL, { marcos });
+  const resposta = await api.post<ReguaFeriasResposta>(
+    REGUA_URL,
+    { marcos },
+    { params: { rede } },
+  );
   return { dados: resposta.data, criouVersao: resposta.status === 201 };
 }
 

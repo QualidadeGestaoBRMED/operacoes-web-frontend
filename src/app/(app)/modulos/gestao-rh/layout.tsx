@@ -1,5 +1,5 @@
-import { ModuloDaRedePadrao } from "@/components/layout/ModuloDaRedePadrao";
+import { EsperaASessao } from "@/components/gestao-rh/EsperaASessao";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <ModuloDaRedePadrao>{children}</ModuloDaRedePadrao>;
+  return <EsperaASessao>{children}</EsperaASessao>;
 }

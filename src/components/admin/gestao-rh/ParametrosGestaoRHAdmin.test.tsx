@@ -15,6 +15,11 @@ import { ParametrosGestaoRHAdmin } from "./ParametrosGestaoRHAdmin";
 
 // Testes de férias: chave ligada (STC-687 desliga em produção nesta fase).
 vi.mock("@/config/gestaoRH", () => ({ FERIAS_ATIVA: true }));
+// Cargo de quem abre a tela: o Admin da rede própria, salvo nos testes de
+// rede (STC-907).
+const ADMIN_DA_REDE_PROPRIA = { administraRedePadrao: true, redesAdministradas: ["padrao"] };
+const sessao = vi.hoisted(() => ({ atual: {} as Record<string, unknown> }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => sessao.atual }));
 vi.mock("@/lib/gestaoRH", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRH")>()),
   buscarParametrosAbsenteismo: vi.fn(),
@@ -160,6 +165,8 @@ function renderTela(opcoesSWR: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  sessao.atual = ADMIN_DA_REDE_PROPRIA;
+  window.localStorage.clear();
   vi.mocked(buscarParametrosAbsenteismo).mockResolvedValue(parametros(VERSAO_INICIAL));
   vi.mocked(buscarReguaFerias).mockResolvedValue(REGUA);
   vi.mocked(listarEquipesVR).mockResolvedValue([]);
@@ -230,12 +237,15 @@ describe("Parâmetros de absenteísmo", () => {
     await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
 
     await waitFor(() =>
-      expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith({
-        limite_atraso_minutos: 15,
-        meta_percentual: "5",
-        faixas: { atencao_a_partir_de: "5", critica_acima_de: "8" },
-        tipos_computados: ["falta", "atestado", "ausencia"],
-      }),
+      expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(
+        {
+          limite_atraso_minutos: 15,
+          meta_percentual: "5",
+          faixas: { atencao_a_partir_de: "5", critica_acima_de: "8" },
+          tipos_computados: ["falta", "atestado", "ausencia"],
+        },
+        "padrao",
+      ),
     );
     expect(toast.success).toHaveBeenCalled();
   });
@@ -462,11 +472,14 @@ describe("Régua de férias", () => {
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() =>
-      expect(salvarReguaFerias).toHaveBeenCalledWith([
-        { tipo_marco: "completou_periodo", dias: 0, ativo: false },
-        { tipo_marco: "antes_do_limite", dias: 60, ativo: true },
-        { tipo_marco: "antes_do_inicio_substituicao", dias: 40, ativo: true },
-      ]),
+      expect(salvarReguaFerias).toHaveBeenCalledWith(
+        [
+          { tipo_marco: "completou_periodo", dias: 0, ativo: false },
+          { tipo_marco: "antes_do_limite", dias: 60, ativo: true },
+          { tipo_marco: "antes_do_inicio_substituicao", dias: 40, ativo: true },
+        ],
+        "padrao",
+      ),
     );
     expect(toast.success).toHaveBeenCalled();
   });
@@ -647,6 +660,7 @@ describe("Janela de avaliação", () => {
     await waitFor(() =>
       expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(
         expect.objectContaining({ janela_avaliacao: { tipo: "ultimos_dias", dias: 14 } }),
+        "padrao",
       ),
     );
   });
@@ -668,6 +682,7 @@ describe("Janela de avaliação", () => {
     await waitFor(() =>
       expect(salvarParametrosAbsenteismo).toHaveBeenCalledWith(
         expect.objectContaining({ janela_avaliacao: null }),
+        "padrao",
       ),
     );
   });
@@ -835,7 +850,7 @@ describe("Aba Equipes", () => {
     });
     const user = userEvent.setup();
     await abrirAba(user);
-    expect(screen.getByText(/não entram nos painéis da rede própria/)).toBeInTheDocument();
+    expect(screen.getByText(/entram no indicador de Operações Especiais quando ligadas/)).toBeInTheDocument();
 
     await user.click(await screen.findByLabelText("Unidade de TMO Aero"));
     expect(await screen.findByRole("option", { name: "Sem unidade OPEX" })).toBeInTheDocument();
@@ -1041,5 +1056,68 @@ describe("Aba Equipes", () => {
     await user.type(await screen.findByLabelText("Buscar equipe"), "niteroi");
     expect(screen.getByText("Operações Niterói")).toBeInTheDocument();
     expect(screen.queryByText("TMO Rio")).not.toBeInTheDocument();
+  });
+});
+
+describe("Parâmetros por rede (STC-907)", () => {
+  const VERSAO_OPEX = { ...VERSAO_INICIAL, id: 7, limite_atraso_minutos: 30 };
+
+  beforeEach(() => {
+    vi.mocked(buscarParametrosAbsenteismo).mockImplementation(async (rede) =>
+      parametros(rede === "opex" ? VERSAO_OPEX : VERSAO_INICIAL),
+    );
+  });
+
+
+  it("quem administra as duas troca de rede, e a edição em andamento não vai junto", async () => {
+    sessao.atual = { administraRedePadrao: true, redesAdministradas: ["opex", "padrao"] };
+    const user = userEvent.setup();
+    renderTela();
+    const limite = await screen.findByLabelText("Limite de atraso e saída antecipada (minutos)");
+    await user.clear(limite);
+    await user.type(limite, "45");
+
+    await user.click(screen.getByLabelText("Rede"));
+    await user.click(await screen.findByRole("option", { name: "Operações Especiais" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Limite de atraso e saída antecipada (minutos)")).toHaveValue(30),
+    );
+    expect(buscarReguaFerias).toHaveBeenCalledWith("opex");
+    await user.click(screen.getByRole("button", { name: "Salvar nova versão" }));
+    expect(salvarParametrosAbsenteismo).not.toHaveBeenCalled();
+    // O seletor é só da aba Absenteísmo: Equipes não depende da rede.
+    await user.click(screen.getByRole("tab", { name: "Equipes" }));
+    expect(screen.getByLabelText("Rede")).not.toBeVisible();
+  });
+
+  it("Admin Operações Especiais: os parâmetros dele, Equipes sem trocar a categoria e sem Importação", async () => {
+    sessao.atual = { administraRedePadrao: false, redesAdministradas: ["opex"] };
+    vi.mocked(listarEquipesVR).mockResolvedValue([
+      equipe({
+        id: 12,
+        nome: "TMO Aero",
+        categoria: "operacoes_especiais",
+        categoria_rotulo: "Operações Especiais",
+        unidade: null,
+      }),
+    ]);
+    const user = userEvent.setup();
+    renderTela();
+
+    expect(
+      await screen.findByLabelText("Limite de atraso e saída antecipada (minutos)"),
+    ).toHaveValue(30);
+    expect(buscarParametrosAbsenteismo).toHaveBeenCalledWith("opex");
+    expect(screen.queryByLabelText("Rede")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Importação" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Equipes" }));
+    expect(await screen.findByText("TMO Aero")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Categoria de TMO Aero")).not.toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Operações Especiais" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Filtrar por categoria" })).not.toBeInTheDocument();
+    // A unidade OPEX continua editável.
+    expect(screen.getByLabelText("Unidade de TMO Aero")).toBeInTheDocument();
   });
 });

@@ -46,16 +46,11 @@ const GESTAO_DE_DEMANDAS: ModuloDeNavegacao = {
  * em dois lugares.
  */
 export function useNavegacao() {
-  const { user, isAdminQG, isAdminOps, administraRedePadrao, isCoordenacaoUnidade, isSetorLeg } =
-    useAuth();
+  const { user, isAdminQG, isAdminOps, isCoordenacaoUnidade, isSetorLeg } = useAuth();
   // Módulos com página pronta (codigo/rota em modulos-futuros.ts) e
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
   const modulosNavegacao = useModulosNavegacao();
-  // STC-747: Gestão RH só trabalha com a rede padrão; o Admin Operações
-  // Especiais (Admin só da rede OPEX) não o vê até a versão de Operações
-  // Especiais. A Legalização tem as duas redes (STC-894).
-  const soAdminOpex = isAdminOps && !administraRedePadrao;
 
   // Subitens do módulo, com os atalhos de Administração por perfil.
   function subitensDoModulo(codigo: string | undefined, base: SubitemDeNavegacao[]) {
@@ -75,8 +70,9 @@ export function useNavegacao() {
       ];
     }
     // STC-728: Parâmetros de Gestão RH (Importação, Equipes, Absenteísmo),
-    // só do Admin, como a própria tela; mesma rota própria do Catálogo.
-    if (codigo === "gestao-rh" && administraRedePadrao) {
+    // só do Admin, como a própria tela; mesma rota própria do Catálogo. Todo
+    // Admin, cada um na sua rede (STC-907).
+    if (codigo === "gestao-rh" && isAdminOps) {
       return [
         ...base,
         {
@@ -92,11 +88,7 @@ export function useNavegacao() {
   const modulos: ModuloDeNavegacao[] = [
     GESTAO_DE_DEMANDAS,
     ...modulosNavegacao
-      .filter(
-        (modulo) =>
-          modulo.ativo &&
-          !(soAdminOpex && modulo.codigo === "gestao-rh"),
-      )
+      .filter((modulo) => modulo.ativo)
       // rota as string: useModulosNavegacao só marca ativo=true quando a
       // rota também está preenchida (ver ModuloNavegacao.ativo).
       .map((modulo) => ({

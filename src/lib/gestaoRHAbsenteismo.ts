@@ -43,7 +43,9 @@ export async function buscarPainelAbsenteismo(
 
 const COLABORADORES_URL = "/modulos/gestao-rh/colaboradores/";
 
-/** Aba Absenteísmo do modal (contrato da STC-592). */
+/** Aba Absenteísmo do modal (contrato da STC-592). Sem `?rede=`: o backend
+ * usa os parâmetros da rede do próprio colaborador (STC-906), assim como no
+ * tratamento abaixo. */
 export async function buscarAbsenteismoColaborador(
   colaboradorId: number,
   periodo: { inicio: string; fim: string },

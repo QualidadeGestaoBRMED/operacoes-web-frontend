@@ -17,6 +17,7 @@ import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { usePainelFerias } from "@/hooks/useFeriasGestaoRH";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRedeDoGestaoRH } from "@/hooks/useRedeDoGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { filtroDeUnidadeDosPaineis, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import {
@@ -34,6 +35,7 @@ import { CardsFerias } from "./CardsFerias";
 import { DetalheColaboradorModal } from "./DetalheColaboradorModal";
 import { TabelaFerias } from "./TabelaFerias";
 import { proximaOrdenacao } from "@/lib/ordenacao";
+import { SeletorRedeGestaoRH } from "./SeletorRedeGestaoRH";
 
 function numeroDaUrl(valor: string | null): number | null {
   if (!valor || !/^\d+$/.test(valor)) return null;
@@ -48,22 +50,32 @@ export function PainelFerias() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  // O Gestão RH é da rede padrão (STC-762).
-  const { user, administraRedePadrao } = useAuth();
+  // Uma rede por vez, como no Painel de Absenteísmo (STC-907).
+  const { user, redesAdministradas } = useAuth();
+  const { rede } = useRedeDoGestaoRH();
   const unidadesDoUsuario = unidadesDe(user);
-  // Só a rede própria: as unidades de Operações Especiais têm o próprio ambiente.
-  const { unidades } = useUnidades("padrao");
-  const filtroUnidade = filtroDeUnidadeDosPaineis(unidades, administraRedePadrao, unidadesDoUsuario);
+  const { unidades } = useUnidades(rede);
+  const filtroUnidade = filtroDeUnidadeDosPaineis(
+    unidades,
+    (redesAdministradas ?? []).includes(rede),
+    unidadesDoUsuario,
+  );
 
   const [janela, setJanela] = useState<number>(JANELA_PADRAO);
   const [unidade, setUnidade] = useState<number>();
+  // A unidade filtrada é da rede anterior: trocar de rede volta para todas.
+  const [redeDoFiltro, setRedeDoFiltro] = useState(rede);
+  if (redeDoFiltro !== rede) {
+    setRedeDoFiltro(rede);
+    setUnidade(undefined);
+  }
   const [status, setStatus] = useState<StatusPeriodoFerias>();
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoFerias | null>(null);
 
   const filtros = useMemo(
-    () => ({ janela_dias: janela, unidade, status }),
-    [janela, unidade, status],
+    () => ({ rede, janela_dias: janela, unidade, status }),
+    [rede, janela, unidade, status],
   );
   const { painel, carregandoPrimeiraVez, trocandoFiltro, mensagemErro, recarregar } =
     usePainelFerias(filtros);
@@ -116,6 +128,7 @@ export function PainelFerias() {
     <div ref={refPai} className={cn("flex h-full min-h-0 flex-col", ehMobile && "overflow-y-auto")}>
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-7">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <SeletorRedeGestaoRH />
           <div className="flex items-center gap-2">
             <Label htmlFor="janela-ferias" className="text-[13px] font-semibold">
               Marcos nos próximos

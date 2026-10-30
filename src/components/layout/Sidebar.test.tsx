@@ -565,7 +565,7 @@ describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
     ]);
   });
 
-  it("vê Legalização (STC-894), não vê Gestão RH (só a rede padrão) e vê a Administração", async () => {
+  it("vê Legalização (STC-894), Gestão RH com os Parâmetros (STC-907) e a Administração", async () => {
     simularAuth({
       isAdminQG: false,
       isAdminOps: true,
@@ -576,14 +576,22 @@ describe("Sidebar -- Admin Operações Especiais (STC-747)", () => {
     expect(await screen.findByRole("link", { name: "Administração" })).toBeInTheDocument();
     await waitFor(() => expect(listarModulos).toHaveBeenCalled());
     expect(await screen.findByRole("button", { name: "Expandir Legalização" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Expandir Gestão RH" })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Expandir Gestão RH" }));
+    expect(screen.getByRole("link", { name: "Parâmetros de Gestão RH" })).toBeInTheDocument();
   });
 
-  it("quem administra a rede padrão continua vendo os dois", async () => {
-    simularAuth({ isAdminQG: false, isAdminOps: true } as ReturnType<typeof useAuth>);
+  it("quem administra a rede padrão continua vendo os dois, com os Parâmetros de Gestão RH", async () => {
+    simularAuth({
+      isAdminQG: false,
+      isAdminOps: true,
+      redesAdministradas: ["padrao"],
+    } as ReturnType<typeof useAuth>);
     renderSidebar();
 
     expect(await screen.findByRole("button", { name: "Expandir Legalização" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expandir Gestão RH" })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Expandir Gestão RH" }));
+    expect(screen.getByRole("link", { name: "Parâmetros de Gestão RH" })).toBeInTheDocument();
   });
 });

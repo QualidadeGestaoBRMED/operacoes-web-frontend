@@ -94,6 +94,21 @@ export function redesDaLegalizacao(usuario: {
   return usuario.isPontoFocal ? ["opex"] : ["padrao"];
 }
 
+/** Redes que a pessoa acompanha no Gestão RH (STC-907): o Admin, as que
+ * administra; o Ponto focal, a OPEX; a coordenação, a rede própria. A padrão
+ * vem primeiro. */
+export function redesDoGestaoRH(usuario: {
+  redesAdministradas: Rede[];
+  isPontoFocal: boolean;
+}): Rede[] {
+  if (usuario.redesAdministradas.length > 0) {
+    return (["padrao", "opex"] as Rede[]).filter((rede) =>
+      usuario.redesAdministradas.includes(rede),
+    );
+  }
+  return usuario.isPontoFocal ? ["opex"] : ["padrao"];
+}
+
 /** Redes cobertas pela abrangência de um tipo de documento (STC-904). */
 export function redesDaAbrangencia(abrangencia: AbrangenciaTipoDocumento): Rede[] {
   return abrangencia === "ambas" ? ["padrao", "opex"] : [abrangencia];

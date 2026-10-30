@@ -34,6 +34,7 @@ import {
 } from "@/lib/gestaoRHAbsenteismo";
 import { cn } from "@/lib/utils";
 import type { MesAbsenteismoMensal } from "@/types/gestaoRH";
+import type { Rede } from "@/types";
 
 // Primeiro ano com dados de ponto no Atlas (importação do VR desde set/2026).
 const PRIMEIRO_ANO = 2026;
@@ -48,6 +49,8 @@ interface AbsenteismoMensalModalProps {
   /** Ano do período do Painel. */
   anoInicial: number;
   hoje: string;
+  /** Rede do Painel: os meses com os parâmetros dela (STC-906). */
+  rede: Rede;
   unidade: number | undefined;
   /** "Todas as unidades", "Todas as minhas unidades", o nome da unidade
    * filtrada ou "Sua unidade". */
@@ -139,13 +142,19 @@ export function AbsenteismoMensalModal({
   onFechar,
   anoInicial,
   hoje,
+  rede,
   unidade,
   visao,
 }: AbsenteismoMensalModalProps) {
   const anoAtual = Number(hoje.slice(0, 4));
   const anos = Array.from({ length: anoAtual - PRIMEIRO_ANO + 1 }, (_, indice) => anoAtual - indice);
   const [ano, setAno] = useState(Math.min(Math.max(anoInicial, PRIMEIRO_ANO), anoAtual));
-  const { mensal, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(aberto, ano, unidade);
+  const { mensal, carregando, mensagemErro, recarregar } = useAbsenteismoMensal(
+    aberto,
+    ano,
+    unidade,
+    rede,
+  );
   const meses = mensal?.meses;
 
   const pontos = meses ? pontosDoGrafico(meses, hoje) : [];

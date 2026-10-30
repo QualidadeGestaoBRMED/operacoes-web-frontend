@@ -104,10 +104,10 @@ describe("BarraInferior (STC-787)", () => {
     },
   );
 
-  it("Admin Operações Especiais vê Demandas e Legalização, sem o Gestão RH (só da rede padrão)", () => {
+  it("Admin Operações Especiais vê Demandas, Legalização e Gestão RH (STC-907)", () => {
     comoCargo("adminOpex");
     render(<BarraInferior />);
-    expect(itensDaBarra()).toEqual(["Demandas", "Legalização"]);
+    expect(itensDaBarra()).toEqual(["Demandas", "Legalização", "Gestão RH"]);
   });
 
   it("Admin Q&G: o Mais tem Administração, Admin Q&G, as instruções de instalação, Recarregar e Sair", async () => {

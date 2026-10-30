@@ -11,6 +11,7 @@ import { ErroAoCarregar, MensagemErro } from "./mensagens";
 import { extrairMensagemErro } from "@/lib/erros";
 import { MARCOS_DA_TELA, errosDeCampo, errosPorItem } from "@/lib/gestaoRH";
 import type { MarcoEditado, TipoMarcoEditavel, VersaoMarcoRegua } from "@/types/gestaoRH";
+import type { Rede } from "@/types";
 
 type Edicao = Record<TipoMarcoEditavel, { dias: string; ativo: boolean }>;
 
@@ -43,8 +44,9 @@ function errosDeDias(edicao: Edicao): Partial<Record<TipoMarcoEditavel, string>>
   return erros;
 }
 
-export function FormReguaFerias() {
-  const { marcos, isLoading, mensagemErro, recarregar, salvar } = useReguaFerias();
+/** Régua da `rede` (STC-906); a `key` muda com a rede, como nos parâmetros. */
+export function FormReguaFerias({ rede }: { rede: Rede }) {
+  const { marcos, isLoading, mensagemErro, recarregar, salvar } = useReguaFerias(rede);
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erro, setErro] = useState<string>();
   const [erroPorMarco, setErroPorMarco] = useState<Partial<Record<TipoMarcoEditavel, string>>>({});

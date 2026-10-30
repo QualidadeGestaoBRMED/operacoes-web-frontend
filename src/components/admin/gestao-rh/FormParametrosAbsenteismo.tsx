@@ -34,6 +34,7 @@ import type {
   TipoOcorrenciaComputavel,
   VersaoParametrosAbsenteismo,
 } from "@/types/gestaoRH";
+import type { Rede } from "@/types";
 
 const percentualOpcional = z
   .string()
@@ -150,8 +151,10 @@ function valoresDaVersao(versao: VersaoParametrosAbsenteismo): ValoresEntrada {
   };
 }
 
-export function FormParametrosAbsenteismo() {
-  const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo();
+/** Parâmetros da `rede` (STC-906). Quem monta troca a `key` junto com a
+ * rede: uma edição em andamento não pode ir para a versão da outra rede. */
+export function FormParametrosAbsenteismo({ rede }: { rede: Rede }) {
+  const { vigente, isLoading, mensagemErro, recarregar, salvar } = useParametrosAbsenteismo(rede);
   const [salvando, setSalvando] = useState(false);
   const [erroFaixas, setErroFaixas] = useState<string>();
 

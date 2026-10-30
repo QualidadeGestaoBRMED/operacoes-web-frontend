@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/hooks/useAuth";
 import { useEquipesVR } from "@/hooks/useParametrosGestaoRH";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -68,8 +69,11 @@ function normalizar(texto: string) {
  * Aba Equipes dos Parâmetros de Gestão RH (só Admin): a categoria de cada
  * equipe do VR decide se os colaboradores dela entram no indicador de
  * absenteísmo. Unidade leva uma unidade da rede própria (obrigatória);
- * Operações Especiais, uma unidade da rede OPEX (opcional) e fica fora dos
- * painéis da rede própria. Salva ao escolher, como a tabela de usuários da
+ * Operações Especiais, uma unidade da rede OPEX (opcional) e só entra no
+ * indicador de Operações Especiais com ela. O Admin de Operações Especiais
+ * recebe da API só as equipes dessa categoria e não troca a categoria
+ * (STC-906): para ele, a categoria é só leitura e não há filtro por
+ * categoria. Salva ao escolher, como a tabela de usuários da
  * Administração. Trocar para Unidade só salva depois de escolher a unidade
  * (a API exige as duas).
  * Tirar ou trocar a unidade de uma equipe com colaboradores pede
@@ -93,6 +97,8 @@ interface Mudanca {
 }
 export function AbaEquipes() {
   const { equipes, isLoading, mensagemErro, recarregar, reclassificar } = useEquipesVR();
+  // Categorizar fica com quem administra a rede própria (STC-906).
+  const { administraRedePadrao: categoriza } = useAuth();
   const redePropria = useUnidades("padrao");
   const redeOpex = useUnidades("opex");
   const carregandoUnidades = redePropria.isLoading || redeOpex.isLoading;
@@ -104,7 +110,9 @@ export function AbaEquipes() {
   const [erros, setErros] = useState<Record<number, ErroDaEquipe>>({});
   const [aConfirmar, setAConfirmar] = useState<Mudanca | null>(null);
   const [turnoAConfirmar, setTurnoAConfirmar] = useState<EquipeVR | null>(null);
-  const [filtro, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
+  const [filtroEscolhido, setFiltro] = useState<CategoriaEquipeVR | typeof TODAS>(TODAS);
+  // Sem o filtro na tela (Admin OPEX), a lista nunca fica filtrada.
+  const filtro = categoriza ? filtroEscolhido : TODAS;
 
   const ativasDaRedePropria = useMemo(
     () => redePropria.unidades.filter((unidade) => unidade.ativa),
@@ -268,8 +276,8 @@ export function AbaEquipes() {
         <p className="text-sm text-muted-foreground">
           A categoria define se os colaboradores da equipe entram no indicador de absenteísmo.
           Equipes da categoria Unidade levam uma unidade da rede própria. As de Operações
-          Especiais podem ser ligadas a uma unidade de Operações Especiais e não entram nos
-          painéis da rede própria: ficam para o ambiente de Operações Especiais.
+          Especiais entram no indicador de Operações Especiais quando ligadas a uma unidade de
+          Operações Especiais; sem unidade, ficam fora.
         </p>
         <p className="mt-1.5 text-sm text-muted-foreground">
           <strong className="font-medium text-foreground">Turno variável:</strong> para equipes que
@@ -304,7 +312,12 @@ export function AbaEquipes() {
             className="pl-8"
           />
         </div>
-        <div role="group" aria-label="Filtrar por categoria" className="flex flex-wrap gap-1.5">
+        <div
+          role="group"
+          aria-label="Filtrar por categoria"
+          hidden={!categoriza}
+          className="flex flex-wrap gap-1.5"
+        >
           {FILTROS.map(({ valor, rotulo }) => (
             <Button
               key={valor}
@@ -385,30 +398,34 @@ export function AbaEquipes() {
                       {equipe.colaboradores_ativos}
                     </td>
                     <td className="px-4 py-2.5">
-                      <Select
-                        // Controlado também sem categoria ("" mostra o
-                        // placeholder): sem isso, uma gravação recusada
-                        // deixaria o campo exibindo o que não foi salvo.
-                        value={categoria === SEM_CATEGORIA ? "" : categoria}
-                        onValueChange={(valor) => valor && aoMudarCategoria(equipe, valor)}
-                        disabled={ocupada}
-                      >
-                        <SelectTrigger
-                          aria-label={`Categoria de ${equipe.nome}`}
-                          aria-invalid={erroNaClassificacao}
-                          aria-describedby={erroNaClassificacao ? idErro : undefined}
-                          className="w-full"
+                      {!categoriza ? (
+                        <span className="text-sm text-foreground">{equipe.categoria_rotulo}</span>
+                      ) : (
+                        <Select
+                          // Controlado também sem categoria ("" mostra o
+                          // placeholder): sem isso, uma gravação recusada
+                          // deixaria o campo exibindo o que não foi salvo.
+                          value={categoria === SEM_CATEGORIA ? "" : categoria}
+                          onValueChange={(valor) => valor && aoMudarCategoria(equipe, valor)}
+                          disabled={ocupada}
                         >
-                          <SelectValue placeholder="Escolha a categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CATEGORIAS_EQUIPE.map((opcao) => (
-                            <SelectItem key={opcao.valor} value={opcao.valor}>
-                              {opcao.rotulo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            aria-label={`Categoria de ${equipe.nome}`}
+                            aria-invalid={erroNaClassificacao}
+                            aria-describedby={erroNaClassificacao ? idErro : undefined}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Escolha a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIAS_EQUIPE.map((opcao) => (
+                              <SelectItem key={opcao.valor} value={opcao.valor}>
+                                {opcao.rotulo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       {comUnidade ? (

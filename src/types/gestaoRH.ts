@@ -2,6 +2,8 @@
 // (api/modulos/gestao-rh/, backend gestao_rh/serializers.py). Percentuais
 // chegam como string decimal ("5.00"), mesmo formato do DRF.
 
+import type { Rede } from "./index";
+
 export type TipoOcorrenciaComputavel = "falta" | "atestado" | "ausencia";
 
 export interface FaixasAbsenteismo {
@@ -204,6 +206,7 @@ export interface PainelFerias {
 }
 
 export interface FiltrosPainelFerias {
+  rede: Rede;
   janela_dias: number;
   unidade?: number;
   status?: StatusPeriodoFerias;
@@ -300,6 +303,8 @@ export type OcorrenciaFiltro =
   | "jornada_incompleta";
 
 export interface FiltrosPainelAbsenteismo {
+  /** Uma rede por vez: cada uma tem os seus parâmetros (STC-906). */
+  rede: Rede;
   inicio: string;
   fim: string;
   unidade?: number;
@@ -390,6 +395,7 @@ export interface AbsenteismoMensal {
 }
 
 export interface FiltrosAbsenteismoMensal {
+  rede: Rede;
   ano: number;
   unidade?: number;
 }
@@ -514,6 +520,7 @@ export interface RegistrarTratamentoPayload {
 export type FatorHoraExtra = "1" | "2";
 
 export interface FiltrosPainelHorasExtras {
+  rede: Rede;
   inicio: string;
   fim: string;
   unidade?: number;

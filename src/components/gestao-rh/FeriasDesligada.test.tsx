@@ -5,6 +5,12 @@ import type { CabecalhoColaborador } from "@/types/gestaoRH";
 
 // Chave de férias como em produção nesta fase: desligada (STC-687).
 vi.mock("@/config/gestaoRH", () => ({ FERIAS_ATIVA: false }));
+// Cargo de quem abre a tela: o Admin da rede própria, salvo nos testes de
+// rede (STC-907).
+const ADMIN_DA_REDE_PROPRIA = { administraRedePadrao: true, redesAdministradas: ["padrao"] };
+const sessao = vi.hoisted(() => ({ atual: {} as Record<string, unknown> }));
+sessao.atual = ADMIN_DA_REDE_PROPRIA;
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => sessao.atual }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/gestaoRHFerias", async (original) => ({
   ...(await original<typeof import("@/lib/gestaoRHFerias")>()),
