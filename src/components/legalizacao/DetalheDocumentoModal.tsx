@@ -436,8 +436,22 @@ export function DetalheDocumentoModal({
     number | null
   >(null);
 
-  const { documento, isLoading, mensagemErro, mutate } =
-    useDocumentoLegalizacao(idExibido);
+  const {
+    documento: documentoCarregado,
+    isLoading,
+    mensagemErro,
+    mutate,
+  } = useDocumentoLegalizacao(idExibido);
+  // Desativar esvazia o cache do detalhe (para não buscar de novo e levar
+  // 404) logo antes de fechar: até a saída terminar, vale o último carregado
+  // do mesmo documento, em vez da mensagem de falha (STC-960).
+  const [ultimoDocumento, setUltimoDocumento] = useState(documentoCarregado);
+  if (documentoCarregado && documentoCarregado !== ultimoDocumento) {
+    setUltimoDocumento(documentoCarregado);
+  }
+  const documento =
+    documentoCarregado ??
+    (ultimoDocumento?.id === idExibido ? ultimoDocumento : undefined);
   const {
     evidencias,
     isLoading: carregandoEvidencias,
