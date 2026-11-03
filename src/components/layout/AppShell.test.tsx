@@ -15,6 +15,8 @@ vi.mock("@/hooks/useMediaQuery", async (original) => ({
 vi.mock("@/hooks/useModulosNavegacao", () => ({
   useModulosNavegacao: vi.fn(() => []),
   useAcessoAosModulos: () => ({ carregando: false, temAcesso: () => true }),
+  useAlcanceNoModulo: () => "completo",
+  veSoOsProprios: () => false,
 }));
 vi.mock("./NotificacoesMenu", () => ({ NotificacoesMenu: () => null }));
 vi.mock("@/components/legalizacao/AlertaPersistenteModal", () => ({

@@ -73,3 +73,20 @@ describe("menu pelo acesso da pessoa (STC-973)", () => {
     expect(navegacao().modulos).toEqual(["gestao-demandas", "legalizacao", "gestao-rh"]);
   });
 });
+
+describe("Legalização para quem vê só os próprios documentos (STC-976)", () => {
+  function subitensDaLegalizacao() {
+    const { modulos } = renderHook(() => useNavegacao()).result.current;
+    return modulos.find((m) => m.codigo === "legalizacao")?.subitens.map((s) => s.rota) ?? [];
+  }
+
+  it.each(["proprios", "responsavel"] as const)("alcance %s: sem a Biblioteca", (alcance) => {
+    lista.atual.modulos = [{ ...modulo("legalizacao", true), alcance }];
+    expect(subitensDaLegalizacao()).not.toContain("/modulos/legalizacao/biblioteca");
+  });
+
+  it("alcance completo mantém a Biblioteca", () => {
+    lista.atual.modulos = [{ ...modulo("legalizacao", true), alcance: "completo" }];
+    expect(subitensDaLegalizacao()).toContain("/modulos/legalizacao/biblioteca");
+  });
+});
