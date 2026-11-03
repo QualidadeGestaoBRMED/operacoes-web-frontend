@@ -4,6 +4,7 @@ import api from "./api";
 import type { Demanda } from "@/types";
 import {
   buscarPrimeiraPaginaDaFase,
+  FASES_DO_QUADRO,
   juntarSemRepetir,
   listarPaginasExtrasDaFase,
 } from "./demandas";
@@ -38,13 +39,77 @@ describe("buscarPrimeiraPaginaDaFase (STC-931)", () => {
     apiGetMock.mockReset();
   });
 
-  it("pede a fase com os filtros, sem página", async () => {
+  it("Lixeira: pede a fase pela lista, com os filtros, sem página", async () => {
     apiGetMock.mockResolvedValueOnce(paginaMock([1, 2], 47, "https://x/?page=2"));
 
-    const pagina = await buscarPrimeiraPaginaDaFase({ tipo_gestao: 2, search: "zebra" }, "backlog");
+    const pagina = await buscarPrimeiraPaginaDaFase({ tipo_gestao: 2, search: "zebra" }, "lixeira");
 
-    expect(paramsDaChamada(0)).toEqual({ tipo_gestao: 2, search: "zebra", status: "backlog" });
+    expect(apiGetMock.mock.calls[0][0]).toBe("/modulos/gestao-demandas/demandas/");
+    expect(paramsDaChamada(0)).toEqual({ tipo_gestao: 2, search: "zebra", status: "lixeira" });
     expect(pagina.count).toBe(47);
+  });
+});
+
+describe("primeira página das colunas do quadro numa requisição só (STC-969)", () => {
+  const porFase = () => ({
+    data: Object.fromEntries(
+      FASES_DO_QUADRO.map((fase, indice) => [fase, paginaMock([indice + 1], indice + 1, null).data]),
+    ),
+  });
+
+  beforeEach(async () => {
+    apiGetMock.mockReset().mockImplementation(async () => porFase());
+    // A busca dividida vale só na tarefa em que começou: começa sem a do teste anterior.
+    await new Promise((resolver) => setTimeout(resolver, 0));
+  });
+
+  it("as quatro colunas pedidas juntas saem numa requisição, sem ?status=", async () => {
+    const paginas = await Promise.all(
+      FASES_DO_QUADRO.map((fase) =>
+        buscarPrimeiraPaginaDaFase({ tipo_gestao: 2, search: "zebra", status: "backlog" }, fase),
+      ),
+    );
+
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
+    expect(apiGetMock.mock.calls[0][0]).toBe("/modulos/gestao-demandas/demandas/por-fase/");
+    expect(paramsDaChamada(0)).toEqual({ tipo_gestao: 2, search: "zebra" });
+    expect(paginas.map((pagina) => pagina.count)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("filtros diferentes não dividem a requisição", async () => {
+    await Promise.all([
+      buscarPrimeiraPaginaDaFase({ tipo_gestao: 1 }, "backlog"),
+      buscarPrimeiraPaginaDaFase({ tipo_gestao: 2 }, "backlog"),
+    ]);
+
+    expect(apiGetMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("um pedido que chega depois, com a busca ainda em voo, faz outra", async () => {
+    // Depois de mover um card, a resposta pedida antes do movimento estaria velha.
+    let responder = () => {};
+    apiGetMock.mockImplementationOnce(
+      () => new Promise((resolver) => (responder = () => resolver(porFase()))),
+    );
+    const antes = buscarPrimeiraPaginaDaFase({}, "backlog");
+    await new Promise((resolver) => setTimeout(resolver, 0));
+
+    await buscarPrimeiraPaginaDaFase({}, "backlog");
+    responder();
+    await antes;
+
+    expect(apiGetMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("falha da requisição chega a todas as colunas", async () => {
+    apiGetMock.mockReset().mockRejectedValueOnce(new Error("timeout"));
+
+    const resultados = await Promise.allSettled(
+      FASES_DO_QUADRO.map((fase) => buscarPrimeiraPaginaDaFase({}, fase)),
+    );
+
+    expect(resultados.every((resultado) => resultado.status === "rejected")).toBe(true);
+    expect(apiGetMock).toHaveBeenCalledTimes(1);
   });
 });
 
