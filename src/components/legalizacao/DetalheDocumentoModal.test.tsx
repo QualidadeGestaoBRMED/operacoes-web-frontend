@@ -2413,7 +2413,7 @@ describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
     return doc;
   }
 
-  it("sem editar status, responsáveis, regra, renovação nem desativar; com Anexar PDF", async () => {
+  it("sem editar status, responsáveis, regra, renovação, anexo nem desativar", async () => {
     alcance.atual = "responsavel";
     sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
     const user = userEvent.setup();
@@ -2425,40 +2425,18 @@ describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
     expect(screen.queryByRole("button", { name: /Não aplicável/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /Evidências/ }));
-    expect(screen.getByRole("button", { name: "Anexar PDF" })).toBeInTheDocument();
-  });
-
-  it("Anexar PDF envia o arquivo sem justificativa", async () => {
-    alcance.atual = "responsavel";
-    vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({} as EvidenciaRegulatoria);
-    const user = userEvent.setup();
-    const doc = await abrir();
-
-    await user.click(screen.getByRole("tab", { name: /Evidências/ }));
-    await user.click(screen.getByRole("button", { name: "Anexar PDF" }));
-    const dialogo = await screen.findByRole("dialog", { name: "Anexar PDF" });
-    expect(within(dialogo).queryByLabelText("Justificativa")).not.toBeInTheDocument();
-    const arquivo = new File(["pdf"], "laudo.pdf", { type: "application/pdf" });
-    await user.upload(within(dialogo).getByLabelText("PDF"), arquivo);
-    await user.click(within(dialogo).getByRole("button", { name: "Anexar PDF" }));
-
-    await waitFor(() =>
-      expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(doc.id, arquivo, undefined, undefined),
-    );
+    expect(screen.queryByRole("button", { name: /anexo|Anexar/i })).not.toBeInTheDocument();
   });
 
   it.each(["completo", "proprios"] as const)(
-    "alcance %s: os controles de sempre, sem Anexar PDF",
+    "alcance %s: os controles de sempre",
     async (valor) => {
       alcance.atual = valor;
       sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
-      const user = userEvent.setup();
       await abrir();
 
       expect(screen.queryAllByRole("button", { name: /^Editar/ }).length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Desativar documento" })).toBeInTheDocument();
-      await user.click(screen.getByRole("tab", { name: /Evidências/ }));
-      expect(screen.queryByRole("button", { name: "Anexar PDF" })).not.toBeInTheDocument();
     },
   );
 });
