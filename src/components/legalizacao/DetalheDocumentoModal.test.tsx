@@ -2405,9 +2405,11 @@ describe("DetalheDocumentoModal -- editar anexo (STC-854)", () => {
 });
 
 describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
+  // Com PDF vigente, o único caso em que "Editar anexo" aparece.
   async function abrir() {
-    const doc = documento();
+    const doc = documento({ evidencia_vigente: 1 });
     vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([evidencia()]);
     renderComponente(55);
     await screen.findAllByText(new RegExp(doc.tipo_documento.nome));
     return doc;
@@ -2425,6 +2427,7 @@ describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
     expect(screen.queryByRole("button", { name: /Não aplicável/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /Evidências/ }));
+    await screen.findByText(evidencia().nome_original);
     expect(screen.queryByRole("button", { name: /anexo|Anexar/i })).not.toBeInTheDocument();
   });
 
@@ -2433,10 +2436,13 @@ describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
     async (valor) => {
       alcance.atual = valor;
       sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+      const user = userEvent.setup();
       await abrir();
 
       expect(screen.queryAllByRole("button", { name: /^Editar/ }).length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Desativar documento" })).toBeInTheDocument();
+      await user.click(screen.getByRole("tab", { name: /Evidências/ }));
+      expect(await screen.findByRole("button", { name: "Editar anexo" })).toBeInTheDocument();
     },
   );
 });
