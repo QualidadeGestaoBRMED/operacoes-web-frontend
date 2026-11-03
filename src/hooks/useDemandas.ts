@@ -60,10 +60,19 @@ export function useAtualizacaoDoQuadro(
 
   useEffect(() => {
     if (desabilitado) return;
+    // Com o servidor lento, a próxima atualização espera a anterior voltar,
+    // como no SWR: sem isso, cada quadro aberto empilharia uma requisição a
+    // cada 30 s justamente quando o servidor está sobrecarregado.
+    let buscando = false;
     const relogio = setInterval(() => {
-      if (pausadoRef.current) return;
+      if (buscando || pausadoRef.current) return;
       if (document.visibilityState === "hidden" || !navigator.onLine) return;
-      for (const status of FASES_DO_QUADRO) void mutate(chaveDaFase(filtrosRef.current, status));
+      buscando = true;
+      void Promise.allSettled(
+        FASES_DO_QUADRO.map((status) => mutate(chaveDaFase(filtrosRef.current, status))),
+      ).finally(() => {
+        buscando = false;
+      });
     }, INTERVALO_POLL_MS);
     return () => clearInterval(relogio);
   }, [chaveDosFiltros, desabilitado, mutate]);

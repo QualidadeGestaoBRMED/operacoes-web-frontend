@@ -77,7 +77,20 @@ function buscarPrimeirasPaginasDoQuadro(filtros: DemandaFiltros | undefined) {
   if (!busca) {
     busca = api
       .get<PrimeirasPaginasDoQuadro>(`${BASE_URL}por-fase/`, { params })
-      .then(({ data }) => data);
+      .then(({ data }) => data)
+      .catch(async (erro) => {
+        // Backend anterior à rota (404): uma requisição por coluna, como
+        // antes, para a ordem de deploy ficar livre.
+        if (!isAxiosError(erro) || erro.response?.status !== 404) throw erro;
+        const paginas = await Promise.all(
+          FASES_DO_QUADRO.map((status) =>
+            api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, status } }),
+          ),
+        );
+        return Object.fromEntries(
+          FASES_DO_QUADRO.map((status, indice) => [status, paginas[indice].data]),
+        ) as PrimeirasPaginasDoQuadro;
+      });
     buscasDoQuadro.set(chave, busca);
     setTimeout(() => buscasDoQuadro.delete(chave), 0);
   }
