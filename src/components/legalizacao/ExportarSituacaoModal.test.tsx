@@ -136,6 +136,34 @@ describe("ExportarSituacaoModal (STC-963)", () => {
     expect(screen.getByLabelText("Dias para vencer")).toBeChecked();
   });
 
+  it("quem vê as duas redes exporta a da tela ou as duas juntas", async () => {
+    abrir();
+
+    expect(screen.getByLabelText("Rede própria (a da tela)")).toBeChecked();
+    await userEvent.click(screen.getByLabelText("As duas redes"));
+    await userEvent.click(screen.getByRole("button", { name: /^exportar$/i }));
+
+    expect(vi.mocked(exportarSituacao).mock.calls[0][0].rede).toBeUndefined();
+  });
+
+  it("trocar a rede limpa as unidades escolhidas", async () => {
+    abrir();
+    const unidades = screen.getByRole("group", { name: "Unidades" }).closest("fieldset")!;
+    await userEvent.click(within(unidades).getByLabelText("Escolher"));
+    await userEvent.click(screen.getByLabelText("Centro"));
+
+    await userEvent.click(screen.getByLabelText("As duas redes"));
+    await userEvent.click(screen.getByRole("button", { name: /^exportar$/i }));
+
+    expect(vi.mocked(exportarSituacao).mock.calls[0][0].unidades).toEqual([]);
+  });
+
+  it("quem vê uma rede só não escolhe rede", () => {
+    sessao.rede = { rede: "padrao", podeEscolher: false };
+    abrir();
+    expect(screen.queryByLabelText("As duas redes")).not.toBeInTheDocument();
+  });
+
   it("coluna Rede só para quem vê as duas redes", () => {
     abrir();
     expect(screen.getByLabelText("Rede")).toBeInTheDocument();
