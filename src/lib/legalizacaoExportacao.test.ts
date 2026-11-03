@@ -1,13 +1,6 @@
-import { AxiosError, AxiosHeaders, type AxiosResponse } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import api from "./api";
-import { extrairMensagemErro } from "./erros";
-import {
-  baixarArquivo,
-  colunasLembradas,
-  exportarSituacao,
-  lembrarColunas,
-} from "./legalizacaoExportacao";
+import { colunasLembradas, exportarSituacao, lembrarColunas } from "./legalizacaoExportacao";
 
 vi.mock("./api", () => ({ default: { get: vi.fn() } }));
 
@@ -62,23 +55,6 @@ describe("exportarSituacao (STC-963)", () => {
     });
     expect(nome).toBe("situacao-legalizacao.xlsx");
   });
-
-  it("erro do backend em Blob vira mensagem legível", async () => {
-    const resposta = {
-      status: 400,
-      data: new Blob([JSON.stringify({ colunas: ["Coluna inválida: email."] })]),
-      headers: {},
-      config: { headers: new AxiosHeaders() },
-      statusText: "Bad Request",
-    } as AxiosResponse;
-    vi.mocked(api.get).mockRejectedValue(new AxiosError("Bad Request", "400", undefined, undefined, resposta));
-
-    const erro = await exportarSituacao({ recorte: "todos", unidades: [], categorias: [], colunas: [] }).catch(
-      (falha: unknown) => falha,
-    );
-
-    expect(extrairMensagemErro(erro)).toContain("Coluna inválida: email.");
-  });
 });
 
 describe("colunas lembradas", () => {
@@ -100,23 +76,3 @@ describe("colunas lembradas", () => {
   });
 });
 
-describe("baixarArquivo", () => {
-  it("baixa com o nome do backend e só libera o arquivo depois", () => {
-    vi.useFakeTimers();
-    const criar = vi.fn(() => "blob:planilha");
-    const revogar = vi.fn();
-    Object.assign(URL, { createObjectURL: criar, revokeObjectURL: revogar });
-    const clique = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-
-    baixarArquivo({ arquivo: new Blob(["x"]), nome: "situacao.xlsx" });
-
-    const link = clique.mock.contexts[0] as HTMLAnchorElement;
-    expect(link.download).toBe("situacao.xlsx");
-    expect(link.href).toBe("blob:planilha");
-    expect(revogar).not.toHaveBeenCalled();
-    vi.runAllTimers();
-    expect(revogar).toHaveBeenCalledWith("blob:planilha");
-    clique.mockRestore();
-    vi.useRealTimers();
-  });
-});

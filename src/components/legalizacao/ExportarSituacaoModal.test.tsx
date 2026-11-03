@@ -24,9 +24,10 @@ vi.mock("@/hooks/useUnidades", () => ({
 vi.mock("@/lib/legalizacaoExportacao", async (original) => ({
   ...(await original<typeof import("@/lib/legalizacaoExportacao")>()),
   exportarSituacao: vi.fn(),
-  baixarArquivo: vi.fn(),
 }));
-import { baixarArquivo, exportarSituacao } from "@/lib/legalizacaoExportacao";
+vi.mock("@/lib/download", () => ({ baixarArquivo: vi.fn() }));
+import { baixarArquivo } from "@/lib/download";
+import { exportarSituacao } from "@/lib/legalizacaoExportacao";
 
 const ADMIN = { user: { usuarioId: 7 }, isCoordenacaoUnidade: false };
 const ARQUIVO = { arquivo: new Blob(["x"]), nome: "situacao-legalizacao_todos_2026-11-03.xlsx" };
