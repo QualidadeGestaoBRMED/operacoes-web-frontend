@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { cn } from "@/lib/utils";
+import { BotaoExportarSituacao } from "./ExportarSituacaoModal";
 import { SeletorRedeLegalizacao } from "./SeletorRedeLegalizacao";
 
 // Achado em code review: dica/linkBiblioteca ocupam o mesmo espaço à
@@ -103,19 +104,23 @@ export function ToggleMapaLista({
         )}
         <SeletorRedeLegalizacao />
       </div>
-      {dica && (
-        <p className="hidden truncate text-[12px] text-muted-foreground sm:block">
-          {dica}
-        </p>
-      )}
-      {linkBiblioteca && (
-        <Link
-          href="/modulos/legalizacao/biblioteca"
-          className="ml-auto hidden text-[12.5px] font-medium text-secondary hover:underline md:inline"
-        >
-          Biblioteca de Documentos →
-        </Link>
-      )}
+      <div className="ml-auto flex min-w-0 items-center gap-4">
+        {dica && (
+          <p className="hidden truncate text-[12px] text-muted-foreground sm:block">
+            {dica}
+          </p>
+        )}
+        {linkBiblioteca && (
+          <Link
+            href="/modulos/legalizacao/biblioteca"
+            className="hidden shrink-0 text-[12.5px] font-medium text-secondary hover:underline md:inline"
+          >
+            Biblioteca de Documentos →
+          </Link>
+        )}
+        {/* STC-963: igual no Mapa e na Lista, só no computador. */}
+        <BotaoExportarSituacao />
+      </div>
     </div>
   );
 }

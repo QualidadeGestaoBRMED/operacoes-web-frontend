@@ -158,3 +158,38 @@ describe("proxy /api/backend recoloca a barra final (STC-932)", () => {
     );
   });
 });
+
+describe("proxy /api/backend repassa download de arquivo (STC-963)", () => {
+  it("corpo binário chega inteiro, com o nome do arquivo", async () => {
+    // Bytes que não são texto válido: lidos como texto, viriam trocados.
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x00, 0x80]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(bytes, {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": 'attachment; filename="situacao-legalizacao_todos_2026-11-03.xlsx"',
+        },
+      }),
+    );
+
+    const resposta = await GET(
+      new NextRequest("http://localhost:3000/api/backend/modulos/legalizacao/documentos/exportar"),
+      contexto("modulos", "legalizacao", "documentos", "exportar"),
+    );
+
+    expect(new Uint8Array(await resposta.arrayBuffer())).toEqual(bytes);
+    expect(resposta.headers.get("Content-Disposition")).toBe(
+      'attachment; filename="situacao-legalizacao_todos_2026-11-03.xlsx"',
+    );
+  });
+
+  it("sem Content-Disposition no backend, o proxy não inventa um", async () => {
+    const resposta = await GET(
+      new NextRequest("http://localhost:3000/api/backend/modulos/x"),
+      contexto("modulos", "x"),
+    );
+
+    expect(resposta.headers.get("Content-Disposition")).toBeNull();
+    expect(await resposta.json()).toEqual({ ok: true });
+  });
+});
