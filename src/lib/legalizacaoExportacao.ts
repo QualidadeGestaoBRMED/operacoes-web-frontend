@@ -1,5 +1,4 @@
-import { isAxiosError } from "axios";
-import api from "./api";
+import { buscarArquivo, type ArquivoBaixado } from "./download";
 import type { Rede } from "@/types";
 import type { CategoriaDocumento } from "@/types/legalizacao";
 
@@ -57,61 +56,19 @@ export interface PedidoExportacao {
   rede?: Rede;
 }
 
-export interface ArquivoExportado {
-  arquivo: Blob;
-  nome: string;
-}
-
-function nomeDoArquivo(disposicao: unknown): string {
-  const nome = typeof disposicao === "string" ? /filename="([^"]+)"/.exec(disposicao)?.[1] : undefined;
-  return nome ?? "situacao-legalizacao.xlsx";
-}
-
-/** Erro em JSON lido do Blob, para extrairMensagemErro mostrar o motivo. */
-async function comErroLegivel(erro: unknown): Promise<never> {
-  if (isAxiosError(erro) && erro.response?.data instanceof Blob) {
-    try {
-      erro.response.data = JSON.parse(await erro.response.data.text());
-    } catch {
-      erro.response.data = undefined;
-    }
-  }
-  throw erro;
-}
-
 /** A planilha da situação da Legalização (STC-962), com o nome do backend. */
-export async function exportarSituacao(pedido: PedidoExportacao): Promise<ArquivoExportado> {
-  try {
-    const resposta = await api.get<Blob>(EXPORTAR_URL, {
-      params: {
-        recorte: pedido.recorte,
-        unidade: pedido.unidades.length ? pedido.unidades.join(",") : undefined,
-        categoria: pedido.categorias.length ? pedido.categorias.join(",") : undefined,
-        colunas: pedido.colunas.length ? pedido.colunas.join(",") : undefined,
-        rede: pedido.rede,
-      },
-      responseType: "blob",
-    });
-    return { arquivo: resposta.data, nome: nomeDoArquivo(resposta.headers["content-disposition"]) };
-  } catch (erro) {
-    return comErroLegivel(erro);
-  }
-}
-
-const ESPERA_PARA_REVOGAR_MS = 10_000;
-
-/** Faz o navegador salvar o arquivo. */
-export function baixarArquivo({ arquivo, nome }: ArquivoExportado): void {
-  const url = URL.createObjectURL(arquivo);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nome;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  // Revogar na hora pode cancelar o download em alguns navegadores (Firefox,
-  // Safari): o arquivo ainda não começou a ser lido quando o clique volta.
-  setTimeout(() => URL.revokeObjectURL(url), ESPERA_PARA_REVOGAR_MS);
+export function exportarSituacao(pedido: PedidoExportacao): Promise<ArquivoBaixado> {
+  return buscarArquivo(
+    EXPORTAR_URL,
+    {
+      recorte: pedido.recorte,
+      unidade: pedido.unidades.length ? pedido.unidades.join(",") : undefined,
+      categoria: pedido.categorias.length ? pedido.categorias.join(",") : undefined,
+      colunas: pedido.colunas.length ? pedido.colunas.join(",") : undefined,
+      rede: pedido.rede,
+    },
+    "situacao-legalizacao.xlsx",
+  );
 }
 
 const CHAVE_COLUNAS = "atlas.legalizacao.exportacao.colunas";

@@ -16,11 +16,11 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
+import { baixarArquivo } from "@/lib/download";
 import { extrairMensagemErro } from "@/lib/erros";
 import {
   COLUNAS_EXPORTACAO,
   RECORTES_EXPORTACAO,
-  baixarArquivo,
   colunasLembradas,
   exportarSituacao,
   lembrarColunas,
