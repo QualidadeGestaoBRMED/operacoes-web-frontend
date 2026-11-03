@@ -36,6 +36,12 @@ const sessao = vi.hoisted(() => {
   return { padrao, atual: { ...padrao } };
 });
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => sessao.atual }));
+// Alcance na Legalização (STC-976): o padrão é o de hoje, o módulo inteiro.
+const alcance = vi.hoisted(() => ({ atual: "completo" as "completo" | "proprios" | "responsavel" }));
+vi.mock("@/hooks/useModulosNavegacao", async (original) => ({
+  ...(await original<typeof import("@/hooks/useModulosNavegacao")>()),
+  useAlcanceNoModulo: () => alcance.atual,
+}));
 
 // Admin Operações: administra a rede padrão, a do documento dos testes.
 const ADMIN_OPERACOES = {
@@ -290,6 +296,7 @@ function renderComComListaPorTras(documentoId: number | null) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  alcance.atual = "completo";
   sessao.atual = { ...sessao.padrao, user: { ...sessao.padrao.user } };
   vi.mocked(urlAbsolutaDaEvidencia).mockImplementation((url) => url);
   vi.mocked(listarEvidenciasLegalizacao).mockResolvedValue([]);
@@ -2395,4 +2402,63 @@ describe("DetalheDocumentoModal -- editar anexo (STC-854)", () => {
     expect(await screen.findByText(/pdf da evidência/i)).toBeInTheDocument();
     expect(screen.getByText("PDF de outra unidade.")).toBeInTheDocument();
   });
+});
+
+describe("DetalheDocumentoModal -- quem só é responsável (STC-976)", () => {
+  async function abrir() {
+    const doc = documento();
+    vi.mocked(buscarDocumentoLegalizacao).mockResolvedValue(doc);
+    renderComponente(55);
+    await screen.findAllByText(new RegExp(doc.tipo_documento.nome));
+    return doc;
+  }
+
+  it("sem editar status, responsáveis, regra, renovação nem desativar; com Anexar PDF", async () => {
+    alcance.atual = "responsavel";
+    sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+    const user = userEvent.setup();
+    await abrir();
+
+    expect(screen.queryAllByRole("button", { name: /^Editar/ })).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Desativar documento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /renovação/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Não aplicável/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Evidências/ }));
+    expect(screen.getByRole("button", { name: "Anexar PDF" })).toBeInTheDocument();
+  });
+
+  it("Anexar PDF envia o arquivo sem justificativa", async () => {
+    alcance.atual = "responsavel";
+    vi.mocked(enviarEvidenciaLegalizacao).mockResolvedValue({} as EvidenciaRegulatoria);
+    const user = userEvent.setup();
+    const doc = await abrir();
+
+    await user.click(screen.getByRole("tab", { name: /Evidências/ }));
+    await user.click(screen.getByRole("button", { name: "Anexar PDF" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Anexar PDF" });
+    expect(within(dialogo).queryByLabelText("Justificativa")).not.toBeInTheDocument();
+    const arquivo = new File(["pdf"], "laudo.pdf", { type: "application/pdf" });
+    await user.upload(within(dialogo).getByLabelText("PDF"), arquivo);
+    await user.click(within(dialogo).getByRole("button", { name: "Anexar PDF" }));
+
+    await waitFor(() =>
+      expect(enviarEvidenciaLegalizacao).toHaveBeenCalledWith(doc.id, arquivo, undefined, undefined),
+    );
+  });
+
+  it.each(["completo", "proprios"] as const)(
+    "alcance %s: os controles de sempre, sem Anexar PDF",
+    async (valor) => {
+      alcance.atual = valor;
+      sessao.atual = { ...sessao.atual, ...ADMIN_OPERACOES };
+      const user = userEvent.setup();
+      await abrir();
+
+      expect(screen.queryAllByRole("button", { name: /^Editar/ }).length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Desativar documento" })).toBeInTheDocument();
+      await user.click(screen.getByRole("tab", { name: /Evidências/ }));
+      expect(screen.queryByRole("button", { name: "Anexar PDF" })).not.toBeInTheDocument();
+    },
+  );
 });

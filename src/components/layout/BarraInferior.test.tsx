@@ -12,6 +12,8 @@ vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("@/hooks/useModulosNavegacao", () => ({
   useModulosNavegacao: vi.fn(),
   useAcessoAosModulos: () => ({ carregando: false, temAcesso: () => true }),
+  useAlcanceNoModulo: () => "completo",
+  veSoOsProprios: () => false,
 }));
 vi.mock("@/components/novidades/NovidadesProvider", () => ({
   useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
