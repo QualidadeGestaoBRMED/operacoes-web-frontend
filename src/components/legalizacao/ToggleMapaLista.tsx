@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useAlcanceNoModulo, veSoOsProprios } from "@/hooks/useModulosNavegacao";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { cn } from "@/lib/utils";
 import { BotaoExportarSituacao } from "./ExportarSituacaoModal";
@@ -51,6 +52,10 @@ export function ToggleMapaLista({
   mostrarMapa = true,
 }: ToggleMapaListaProps) {
   const { podeEscolher } = useRedeDaLegalizacao();
+  // STC-976: quem vê só os próprios documentos fica na Lista, sem Mapa,
+  // Biblioteca nem a exportação (que oferece todas as unidades).
+  const soOsProprios = veSoOsProprios(useAlcanceNoModulo("legalizacao"));
+  const comMapa = mostrarMapa && !soOsProprios;
   return (
     // Abaixo de `sm` (640px), o toggle Mapa/Lista e a dica ficam
     // escondidos: o Mapa não tem layout estreito (MapaConformidade.tsx
@@ -67,7 +72,7 @@ export function ToggleMapaLista({
       )}
     >
       <div className="flex items-center gap-3">
-        {mostrarMapa ? (
+        {comMapa ? (
           <div className="hidden rounded-md bg-muted p-0.5 sm:flex">
             <Link
               href="/modulos/legalizacao/mapa"
@@ -110,7 +115,7 @@ export function ToggleMapaLista({
             {dica}
           </p>
         )}
-        {linkBiblioteca && (
+        {linkBiblioteca && !soOsProprios && (
           <Link
             href="/modulos/legalizacao/biblioteca"
             className="hidden shrink-0 text-[12.5px] font-medium text-secondary hover:underline md:inline"
@@ -119,7 +124,7 @@ export function ToggleMapaLista({
           </Link>
         )}
         {/* STC-963: igual no Mapa e na Lista, só no computador. */}
-        <BotaoExportarSituacao />
+        {!soOsProprios && <BotaoExportarSituacao />}
       </div>
     </div>
   );

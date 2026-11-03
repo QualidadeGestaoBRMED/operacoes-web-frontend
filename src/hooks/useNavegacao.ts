@@ -2,7 +2,12 @@
 
 import { ClipboardList, Home, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcessoAosModulos, useModulosNavegacao } from "@/hooks/useModulosNavegacao";
+import {
+  useAcessoAosModulos,
+  useAlcanceNoModulo,
+  useModulosNavegacao,
+  veSoOsProprios,
+} from "@/hooks/useModulosNavegacao";
 import { redesEmQueAtua } from "@/lib/redes";
 
 export interface SubitemDeNavegacao {
@@ -31,6 +36,8 @@ export interface ModuloDeNavegacao {
 // não passa pelo cruzamento de status que useModulosNavegacao faz.
 const HUB_BLOQUEADO = { nome: "Hub", icon: Home };
 
+const ROTA_BIBLIOTECA = "/modulos/legalizacao/biblioteca";
+
 const GESTAO_DE_DEMANDAS: ModuloDeNavegacao = {
   codigo: "gestao-demandas",
   nome: "Gestão de Demandas",
@@ -52,9 +59,16 @@ export function useNavegacao() {
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
   const modulosNavegacao = useModulosNavegacao();
   const { carregando, temAcesso } = useAcessoAosModulos();
+  const soOsPropriosNaLegalizacao = veSoOsProprios(useAlcanceNoModulo("legalizacao"));
 
   // Subitens do módulo, com os atalhos de Administração por perfil.
-  function subitensDoModulo(codigo: string | undefined, base: SubitemDeNavegacao[]) {
+  function subitensDoModulo(codigo: string | undefined, todos: SubitemDeNavegacao[]) {
+    // STC-976: quem vê só os próprios documentos não tem a Biblioteca (os
+    // arquivos vigentes de todas as unidades).
+    const base =
+      codigo === "legalizacao" && soOsPropriosNaLegalizacao
+        ? todos.filter((subitem) => subitem.rota !== ROTA_BIBLIOTECA)
+        : todos;
     // STC-514/STC-519/STC-521: Coordenador, Admin e Setor de Legalização
     // ganham o Catálogo de Legalização como subitem. Rota própria
     // (/admin/permissoes/catalogo-legalizacao, não /admin/permissoes com

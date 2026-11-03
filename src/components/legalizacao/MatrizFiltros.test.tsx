@@ -15,10 +15,16 @@ vi.mock("@/hooks/useUnidades", () => ({ useUnidades: vi.fn() }));
 vi.mock("@/hooks/useUsuarios", () => ({ useUsuarios: () => ({ usuarios: [] }) }));
 vi.mock("@/hooks/useMediaQuery", () => ({ useMediaQuery: () => false }));
 const filtrosDosDocumentos = vi.hoisted(() => [] as unknown[]);
+const documentosDoCatalogo = vi.hoisted(() => ({ atual: [] as unknown[] }));
 vi.mock("@/hooks/useDocumentosLegalizacao", () => ({
   useDocumentosLegalizacao: (filtros: unknown) => (
-    filtrosDosDocumentos.push(filtros), { documentos: [], error: null }
+    filtrosDosDocumentos.push(filtros), { documentos: documentosDoCatalogo.atual, error: null }
   ),
+}));
+const alcance = vi.hoisted(() => ({ atual: "completo" }));
+vi.mock("@/hooks/useModulosNavegacao", () => ({
+  useAlcanceNoModulo: () => alcance.atual,
+  veSoOsProprios: (valor: string) => valor !== "completo",
 }));
 
 import { useUnidades } from "@/hooks/useUnidades";
@@ -65,6 +71,8 @@ function renderFiltros(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  documentosDoCatalogo.atual = [];
+  alcance.atual = "completo";
   vi.mocked(useUnidades).mockReturnValue({
     unidades: [NITEROI, VITORIA],
     isLoading: false,
@@ -253,5 +261,53 @@ describe("MatrizFiltros -- opção Atenção no Status (STC-714)", () => {
     await user.click(screen.getByRole("button", { name: /limpar filtros/i }));
 
     expect(onMudarEmAtencao).toHaveBeenCalledWith(false);
+  });
+});
+
+describe("MatrizFiltros -- quem vê só os próprios documentos (STC-976)", () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { unidade_id: null },
+      perfil: { id: 4, nome: "Setor", nivel: 2 },
+      isLoading: false,
+      isAdminQG: false,
+      isAdminOps: false,
+      isCoordenacaoUnidade: false,
+    } as never);
+    alcance.atual = "proprios";
+    documentosDoCatalogo.atual = [
+      { id: 10, unidade: VITORIA, tipo_documento: { id: 1, nome: "Alvará" } },
+    ];
+  });
+
+  it("o filtro de Unidade só traz as unidades dos documentos dela", async () => {
+    const user = userEvent.setup();
+    renderFiltros();
+
+    await user.click(screen.getByLabelText("Unidade"));
+
+    expect(await screen.findByRole("option", { name: "Vitória" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
+  });
+
+  it("busca os documentos dela nas duas redes", () => {
+    filtrosDosDocumentos.length = 0;
+    renderFiltros();
+    expect(filtrosDosDocumentos.at(-1)).toEqual({ rede: undefined });
+
+    alcance.atual = "completo";
+    renderFiltros();
+    expect(filtrosDosDocumentos.at(-1)).toEqual({ rede: "padrao" });
+  });
+
+  it("sem o filtro de Responsável", () => {
+    renderFiltros();
+    expect(screen.queryByLabelText("Responsável")).not.toBeInTheDocument();
+  });
+
+  it("com alcance completo, o filtro de Responsável continua", () => {
+    alcance.atual = "completo";
+    renderFiltros();
+    expect(screen.getByLabelText("Responsável")).toBeInTheDocument();
   });
 });

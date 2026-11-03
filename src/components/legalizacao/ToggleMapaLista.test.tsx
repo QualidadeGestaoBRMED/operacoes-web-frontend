@@ -5,10 +5,16 @@ import { ToggleMapaLista } from "./ToggleMapaLista";
 // Seletor de rede (STC-894): sem as duas redes, não aparece.
 let redesAdministradas: string[] = [];
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ redesAdministradas }) }));
+let alcance = "completo";
+vi.mock("@/hooks/useModulosNavegacao", () => ({
+  useAlcanceNoModulo: () => alcance,
+  veSoOsProprios: (valor: string) => valor !== "completo",
+}));
 
 describe("ToggleMapaLista", () => {
   beforeEach(() => {
     redesAdministradas = [];
+    alcance = "completo";
   });
 
   it("mostra o segmented control Mapa/Lista por padrão", () => {
@@ -58,5 +64,26 @@ describe("ToggleMapaLista", () => {
     expect(container.firstElementChild).toHaveClass("flex");
     expect(container.firstElementChild).not.toHaveClass("hidden");
     expect(screen.getByRole("combobox", { name: "Rede" })).toBeInTheDocument();
+  });
+
+  describe("quem vê só os próprios documentos (STC-976)", () => {
+    it.each(["proprios", "responsavel"])("alcance %s: sem Mapa, Biblioteca nem Exportar", (valor) => {
+      alcance = valor;
+      render(<ToggleMapaLista ativo="lista" linkBiblioteca />);
+
+      expect(screen.queryByRole("link", { name: "Mapa" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /Biblioteca de Documentos/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Exportar situação/i })).not.toBeInTheDocument();
+    });
+
+    it("alcance completo mantém Mapa, Biblioteca e Exportar", () => {
+      render(<ToggleMapaLista ativo="lista" linkBiblioteca />);
+
+      expect(screen.getByRole("link", { name: "Mapa" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Biblioteca de Documentos/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Exportar situação/i })).toBeInTheDocument();
+    });
   });
 });

@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAlturaSemLinhaCortada } from "@/hooks/useAlturaSemLinhaCortada";
 import { useAuth } from "@/hooks/useAuth";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
-import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
+import { useRedeDaListaDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { extrairMensagemErro } from "@/lib/erros";
 import { unidadeForcadaDoCoordenador, unidadesDoUsuario as unidadesDe } from "@/lib/redes";
@@ -114,7 +114,7 @@ export function MatrizConformidade() {
   // verdade) fazia o efeito rodar com unidades=[] e apagar o filtro por
   // engano. Sem erro, segue validando normalmente; com erro, não mexe no
   // filtro (o erro já derruba a tela mais abaixo, via `error` combinado).
-  const { rede } = useRedeDaLegalizacao();
+  const rede = useRedeDaListaDaLegalizacao();
   const {
     unidades,
     isLoading: carregandoUnidades,
