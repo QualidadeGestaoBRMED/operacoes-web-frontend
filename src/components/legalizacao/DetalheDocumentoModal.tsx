@@ -1298,7 +1298,7 @@ export function DetalheDocumentoModal({
                               evidencia={evidencia}
                             />
                           ))}
-                          {podeEscreverDocumento && evidenciaVigente && (
+                          {podeEscreverDocumento && !soResponsavel && evidenciaVigente && (
                             <div>
                               <Button
                                 variant="outline"
