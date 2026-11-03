@@ -81,6 +81,9 @@ export interface Modulo {
   status: string;
   versao: string;
   recursos_permissao: RecursoPermissao[];
+  /** Se quem pede (no "ver como", a pessoa vista) pode usar o módulo
+   * (STC-972). Ausente no backend anterior: conta como acesso. */
+  tem_acesso?: boolean;
 }
 
 export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos" | "opex";

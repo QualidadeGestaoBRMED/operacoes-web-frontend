@@ -12,7 +12,10 @@ vi.mock("@/hooks/useMediaQuery", async (original) => ({
   ...(await original<typeof import("@/hooks/useMediaQuery")>()),
   useMediaQuery: vi.fn(),
 }));
-vi.mock("@/hooks/useModulosNavegacao", () => ({ useModulosNavegacao: vi.fn(() => []) }));
+vi.mock("@/hooks/useModulosNavegacao", () => ({
+  useModulosNavegacao: vi.fn(() => []),
+  useAcessoAosModulos: () => ({ carregando: false, temAcesso: () => true }),
+}));
 vi.mock("./NotificacoesMenu", () => ({ NotificacoesMenu: () => null }));
 vi.mock("@/components/legalizacao/AlertaPersistenteModal", () => ({
   AlertaPersistenteModal: () => null,
