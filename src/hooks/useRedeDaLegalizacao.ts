@@ -1,7 +1,9 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useAlcanceNoModulo, veSoOsProprios } from "@/hooks/useModulosNavegacao";
 import { redesDaLegalizacao } from "@/lib/redes";
+import type { Rede } from "@/types";
 import { useRedeDoModulo } from "./useRedeDoModulo";
 
 /**
@@ -18,4 +20,15 @@ export function useRedeDaLegalizacao() {
       isPontoFocal: Boolean(isPontoFocal),
     }),
   );
+}
+
+/**
+ * Rede das buscas da Lista. Quem vê só os próprios documentos (STC-976) busca
+ * nas duas: o backend já restringe aos dela, e o responsável de um setor de
+ * apoio pode ter documento de unidade OPEX sem ser da rede OPEX.
+ */
+export function useRedeDaListaDaLegalizacao(): Rede | undefined {
+  const { rede } = useRedeDaLegalizacao();
+  const soOsProprios = veSoOsProprios(useAlcanceNoModulo("legalizacao"));
+  return soOsProprios ? undefined : rede;
 }

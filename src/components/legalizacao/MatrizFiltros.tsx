@@ -23,7 +23,7 @@ import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAlcanceNoModulo, veSoOsProprios } from "@/hooks/useModulosNavegacao";
-import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
+import { useRedeDaListaDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import {
@@ -79,7 +79,7 @@ export function MatrizFiltros({
 }: MatrizFiltrosProps) {
   const { user, isCoordenacaoUnidade } = useAuth();
   const unidadesDoUsuario = unidadesDe(user);
-  const { rede } = useRedeDaLegalizacao();
+  const rede = useRedeDaListaDaLegalizacao();
   const { unidades: todasAsUnidades } = useUnidades(rede);
   // STC-512: mesmo critério de BibliotecaDocumentos.tsx -- Coordenador só
   // pode escolher a própria unidade no filtro. O backend já restringe o
