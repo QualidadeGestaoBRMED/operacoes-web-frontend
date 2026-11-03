@@ -290,6 +290,16 @@ describe("MatrizFiltros -- quem vê só os próprios documentos (STC-976)", () =
     expect(screen.queryByRole("option", { name: "Niterói" })).not.toBeInTheDocument();
   });
 
+  it("busca os documentos dela nas duas redes", () => {
+    filtrosDosDocumentos.length = 0;
+    renderFiltros();
+    expect(filtrosDosDocumentos.at(-1)).toEqual({ rede: undefined });
+
+    alcance.atual = "completo";
+    renderFiltros();
+    expect(filtrosDosDocumentos.at(-1)).toEqual({ rede: "padrao" });
+  });
+
   it("sem o filtro de Responsável", () => {
     renderFiltros();
     expect(screen.queryByLabelText("Responsável")).not.toBeInTheDocument();
