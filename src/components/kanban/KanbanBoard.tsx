@@ -401,6 +401,23 @@ export function KanbanBoard() {
     for (const coluna of listaDeColunas) coluna.revalidar();
   }
 
+  function tentarDeNovo(status: StatusDemanda) {
+    const coluna = colunas[status];
+    if (!coluna.mensagemErro) {
+      coluna.tentarDeNovo();
+      return;
+    }
+    if (status === "lixeira") {
+      coluna.revalidar();
+      return;
+    }
+    // As colunas do quadro vêm numa requisição só (STC-969): falham juntas, e
+    // buscar de novo uma só deixaria as outras com o erro até a atualização.
+    for (const fase of ORDEM_COLUNAS) {
+      if (fase !== "lixeira" && colunas[fase].mensagemErro) colunas[fase].revalidar();
+    }
+  }
+
   function handleDragStart(evento: DragStartEvent) {
     // Cards na lixeira não são arrastáveis (useDraggable disabled), então só
     // demandasAtivas pode ser a origem de um drag.
@@ -542,11 +559,7 @@ export function KanbanBoard() {
                 onCarregarMais={colunas[coluna.status].carregarMais}
                 erro={colunas[coluna.status].mensagemErro}
                 erroAoCarregarMais={colunas[coluna.status].erroAoCarregarMais}
-                onTentarDeNovo={() =>
-                  colunas[coluna.status].mensagemErro
-                    ? colunas[coluna.status].revalidar()
-                    : colunas[coluna.status].tentarDeNovo()
-                }
+                onTentarDeNovo={() => tentarDeNovo(coluna.status)}
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
               />
