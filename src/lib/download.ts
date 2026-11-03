@@ -7,9 +7,19 @@ export interface ArquivoBaixado {
   nome: string;
 }
 
+/** Nome do `Content-Disposition`: `filename*=utf-8''...` (com acento ou
+ * aspas, codificado pelo backend, core/planilha.py) ou `filename="..."`. */
 function nomeDoArquivo(disposicao: unknown, nomeSemCabecalho: string): string {
-  const nome = typeof disposicao === "string" ? /filename="([^"]+)"/.exec(disposicao)?.[1] : undefined;
-  return nome ?? nomeSemCabecalho;
+  if (typeof disposicao !== "string") return nomeSemCabecalho;
+  const codificado = /filename\*=utf-8''([^;]+)/i.exec(disposicao)?.[1];
+  if (codificado) {
+    try {
+      return decodeURIComponent(codificado);
+    } catch {
+      // Codificação estragada: tenta o formato simples.
+    }
+  }
+  return /filename="([^"]+)"/.exec(disposicao)?.[1] ?? nomeSemCabecalho;
 }
 
 /** Erro em JSON lido do Blob, para extrairMensagemErro mostrar o motivo. */
