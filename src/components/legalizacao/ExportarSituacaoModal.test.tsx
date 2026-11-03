@@ -17,8 +17,15 @@ const UNIDADES: Unidade[] = [
   { id: 2, nome: "Centro", codigo: "CEN", cidade: "Rio", ativa: true, rede: "padrao" },
   { id: 3, nome: "Niterói", codigo: "NIT", cidade: "Niterói", ativa: true, rede: "padrao" },
 ] as Unidade[];
+const lista = vi.hoisted(() => ({
+  atual: { isLoading: false, error: undefined as unknown, vazia: false },
+}));
 vi.mock("@/hooks/useUnidades", () => ({
-  useUnidades: () => ({ unidades: UNIDADES, isLoading: false, error: undefined }),
+  useUnidades: () => ({
+    unidades: lista.atual.isLoading || lista.atual.error || lista.atual.vazia ? [] : UNIDADES,
+    isLoading: lista.atual.isLoading,
+    error: lista.atual.error,
+  }),
 }));
 
 vi.mock("@/lib/legalizacaoExportacao", async (original) => ({
@@ -38,6 +45,7 @@ function abrir(aoFechar = vi.fn()) {
 }
 
 beforeEach(() => {
+  lista.atual = { isLoading: false, error: undefined, vazia: false };
   window.localStorage.clear();
   sessao.atual = ADMIN;
   sessao.rede = { rede: "padrao", podeEscolher: true };
@@ -199,6 +207,59 @@ describe("ExportarSituacaoModal (STC-963)", () => {
     terminar(ARQUIVO);
     await waitFor(() => expect(baixarArquivo).toHaveBeenCalledWith(ARQUIVO));
     expect(aoFechar).toHaveBeenCalledTimes(1);
+  });
+
+  it("desmarcar todas as colunas exporta só as fixas e lembra assim", async () => {
+    const { unmount } = render(<ExportarSituacaoModal aberto aoFechar={vi.fn()} />);
+    for (const rotulo of [
+      "Dias para vencer",
+      "Responsável operacional",
+      "Área responsável",
+      "Renovação",
+    ]) {
+      await userEvent.click(screen.getByLabelText(rotulo));
+    }
+    await userEvent.click(screen.getByRole("button", { name: /^exportar$/i }));
+
+    expect(vi.mocked(exportarSituacao).mock.calls[0][0].colunas).toEqual([]);
+    await waitFor(() => expect(baixarArquivo).toHaveBeenCalled());
+    unmount();
+
+    abrir();
+    expect(screen.getByLabelText("Dias para vencer")).not.toBeChecked();
+    expect(screen.getByLabelText("Responsável operacional")).not.toBeChecked();
+  });
+
+  it("lista de unidades carregando: aviso no lugar das caixas", async () => {
+    lista.atual = { isLoading: true, error: undefined, vazia: false };
+    abrir();
+    const unidades = screen.getByText("Unidades").closest("fieldset")!;
+
+    await userEvent.click(within(unidades).getByLabelText("Escolher"));
+
+    expect(within(unidades).getByText("Carregando unidades…")).toBeInTheDocument();
+  });
+
+  it("lista de unidades com erro: aviso, e Todas continua exportando", async () => {
+    lista.atual = { isLoading: false, error: new Error("falhou"), vazia: false };
+    abrir();
+    const unidades = screen.getByText("Unidades").closest("fieldset")!;
+
+    await userEvent.click(within(unidades).getByLabelText("Escolher"));
+    expect(within(unidades).getByText(/Não foi possível carregar as unidades/)).toBeInTheDocument();
+
+    await userEvent.click(within(unidades).getByLabelText("Todas"));
+    await userEvent.click(screen.getByRole("button", { name: /^exportar$/i }));
+    expect(vi.mocked(exportarSituacao).mock.calls[0][0].unidades).toEqual([]);
+  });
+
+  it("coordenação com a lista carregando não mostra Todas as minhas / Escolher", () => {
+    lista.atual = { isLoading: true, error: undefined, vazia: false };
+    sessao.atual = { user: { usuarioId: 8, unidade_id: 2 }, isCoordenacaoUnidade: true };
+    abrir();
+
+    expect(screen.getByText("Carregando unidades…")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Todas as minhas")).not.toBeInTheDocument();
   });
 
   it("erro aparece no modal, que continua aberto", async () => {
