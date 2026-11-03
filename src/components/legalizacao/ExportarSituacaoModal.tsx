@@ -176,7 +176,9 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={(abrir) => !abrir && aoFechar()}>
+    // Fechar (Esc, clique fora) espera a exportação terminar, como o
+    // Cancelar: senão a planilha baixaria depois de a pessoa desistir.
+    <Dialog open={aberto} onOpenChange={(abrir) => !abrir && !exportando && aoFechar()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Exportar situação</DialogTitle>
