@@ -103,6 +103,48 @@ describe("colunas do quadro numa requisição só (STC-969)", () => {
     visibilidade.mockRestore();
   });
 
+  it("com o servidor lento, a próxima atualização espera a anterior voltar", async () => {
+    const { result } = quadro({ tipo_gestao: 2 });
+    await ate(() => result.current.colunas[0].total === 1);
+    let responder = () => {};
+    const respostaLenta = new Promise<void>((resolver) => (responder = resolver));
+    const normal = get.getMockImplementation()!;
+    get.mockImplementation(async (url: string, config?: Parameters<typeof api.get>[1]) => {
+      if (url.endsWith("por-fase/")) await respostaLenta;
+      return normal(url, config);
+    });
+
+    await act(async () => vi.advanceTimersByTime(30_000));
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(pedidosAoQuadro()).toBe(2);
+
+    responder();
+    await ate(() => !result.current.colunas[0].isValidating);
+    await act(async () => vi.advanceTimersByTime(30_000));
+    await ate(() => pedidosAoQuadro() === 3);
+  });
+
+  it("trocar o filtro (ou a aba do tipo de gestão) faz uma requisição para as quatro", async () => {
+    let filtros: DemandaFiltros = { tipo_gestao: 2 };
+    const { result, rerender } = renderHook(
+      () => {
+        useAtualizacaoDoQuadro(filtros);
+        return [...FASES_DO_QUADRO].map((fase) => useDemandasDaFase(filtros, fase));
+      },
+      { wrapper },
+    );
+    await ate(() => result.current.every((c) => c.total === 1));
+
+    filtros = { tipo_gestao: 3 };
+    rerender();
+
+    await ate(() => pedidosAoQuadro() === 2);
+    await act(async () => {
+      await new Promise((resolver) => setTimeout(resolver, 50));
+    });
+    expect(pedidosAoQuadro()).toBe(2);
+  });
+
   it("uma ação na lista (mover, editar, comentar) atualiza as quatro numa requisição", async () => {
     const { result } = quadro({ tipo_gestao: 2 });
     await ate(() => result.current.colunas[0].total === 1);

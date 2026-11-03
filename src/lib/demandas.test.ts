@@ -101,6 +101,22 @@ describe("primeira página das colunas do quadro numa requisição só (STC-969)
     expect(apiGetMock).toHaveBeenCalledTimes(2);
   });
 
+  it("backend sem a rota (404): uma requisição por coluna, como antes", async () => {
+    apiGetMock.mockReset().mockImplementation(async (url, config) => {
+      if (String(url).endsWith("por-fase/")) throw erro404();
+      const status = (config as { params: { status: string } }).params.status;
+      return paginaMock([FASES_DO_QUADRO.indexOf(status as never) + 1], 1, null);
+    });
+
+    const paginas = await Promise.all(
+      FASES_DO_QUADRO.map((fase) => buscarPrimeiraPaginaDaFase({ tipo_gestao: 2 }, fase)),
+    );
+
+    expect(apiGetMock).toHaveBeenCalledTimes(5);
+    expect(paramsDaChamada(1)).toEqual({ tipo_gestao: 2, status: "backlog" });
+    expect(paginas.map((pagina) => pagina.results[0].id)).toEqual([1, 2, 3, 4]);
+  });
+
   it("falha da requisição chega a todas as colunas", async () => {
     apiGetMock.mockReset().mockRejectedValueOnce(new Error("timeout"));
 
