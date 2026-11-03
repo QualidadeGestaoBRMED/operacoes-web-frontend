@@ -76,6 +76,8 @@ interface TodasOuEscolherProps<T extends string | number> {
   opcoes: { valor: T; rotulo: string }[];
   escolhidas: T[] | null;
   aoMudar: (escolhidas: T[] | null) => void;
+  /** No lugar das caixas (lista carregando, com erro ou vazia). */
+  aviso?: string;
 }
 
 /** "Todas" (null) ou uma seleção de várias. */
@@ -85,6 +87,7 @@ function TodasOuEscolher<T extends string | number>({
   opcoes,
   escolhidas,
   aoMudar,
+  aviso,
 }: TodasOuEscolherProps<T>) {
   const nome = `exportar-${titulo}`;
   return (
@@ -110,9 +113,14 @@ function TodasOuEscolher<T extends string | number>({
           Escolher
         </label>
       </div>
-      {escolhidas !== null && (
-        <Caixas legenda={titulo} opcoes={opcoes} marcados={escolhidas} aoMudar={aoMudar} />
-      )}
+      {escolhidas !== null &&
+        (aviso ? (
+          <p className="rounded-md border border-border p-3 text-[13px] text-muted-foreground">
+            {aviso}
+          </p>
+        ) : (
+          <Caixas legenda={titulo} opcoes={opcoes} marcados={escolhidas} aoMudar={aoMudar} />
+        ))}
     </fieldset>
   );
 }
@@ -128,13 +136,24 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
   // Quem vê as duas redes pode exportar as duas juntas; começa na da tela.
   const [asDuasRedes, setAsDuasRedes] = useState(false);
   const redeDaExportacao = podeEscolher && asDuasRedes ? undefined : rede;
-  const { unidades: todasAsUnidades } = useUnidades(redeDaExportacao);
+  const {
+    unidades: todasAsUnidades,
+    isLoading: carregandoUnidades,
+    error: erroUnidades,
+  } = useUnidades(redeDaExportacao);
   // Coordenação só exporta as próprias unidades (o backend também recusa).
   const minhas = unidadesDoUsuario(user);
   const unidades = isCoordenacaoUnidade
     ? todasAsUnidades.filter((unidade) => minhas.includes(unidade.id))
     : todasAsUnidades;
   const travadaNaUnidade = isCoordenacaoUnidade && unidades.length === 1;
+  const avisoDasUnidades = carregandoUnidades
+    ? "Carregando unidades…"
+    : erroUnidades
+      ? "Não foi possível carregar as unidades. Feche e abra de novo, ou exporte todas."
+      : unidades.length === 0
+        ? "Nenhuma unidade para escolher."
+        : undefined;
 
   const [recorte, setRecorte] = useState<RecorteExportacao>("todos");
   const [unidadesEscolhidas, setUnidadesEscolhidas] = useState<number[] | null>(null);
@@ -237,7 +256,14 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
             </fieldset>
           )}
 
-          {travadaNaUnidade ? (
+          {/* Coordenação: só se sabe se fica travada depois que a lista
+              chega; antes disso, nada de "Todas as minhas / Escolher". */}
+          {isCoordenacaoUnidade && carregandoUnidades ? (
+            <div className="space-y-1 text-[13px]">
+              <p className="font-semibold text-foreground">Unidade</p>
+              <p className="text-muted-foreground">Carregando unidades…</p>
+            </div>
+          ) : travadaNaUnidade ? (
             <div className="space-y-1 text-[13px]">
               <p className="font-semibold text-foreground">Unidade</p>
               <p className="text-muted-foreground">{unidades[0].nome}</p>
@@ -249,6 +275,7 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
               opcoes={unidades.map((unidade) => ({ valor: unidade.id, rotulo: unidade.nome }))}
               escolhidas={unidadesEscolhidas}
               aoMudar={setUnidadesEscolhidas}
+              aviso={avisoDasUnidades}
             />
           )}
 

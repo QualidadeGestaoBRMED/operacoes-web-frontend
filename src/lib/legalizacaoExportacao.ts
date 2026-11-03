@@ -64,6 +64,8 @@ export function exportarSituacao(pedido: PedidoExportacao): Promise<ArquivoBaixa
       recorte: pedido.recorte,
       unidade: pedido.unidades.length ? pedido.unidades.join(",") : undefined,
       categoria: pedido.categorias.length ? pedido.categorias.join(",") : undefined,
+      // Sem `colunas`, o backend manda só as fixas (nenhuma opcional), que é
+      // o que a pessoa pediu ao desmarcar todas.
       colunas: pedido.colunas.length ? pedido.colunas.join(",") : undefined,
       rede: pedido.rede,
     },
