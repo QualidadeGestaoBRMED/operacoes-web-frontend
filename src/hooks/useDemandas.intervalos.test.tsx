@@ -28,13 +28,20 @@ describe("intervalos de atualização do Kanban (STC-929)", () => {
     configuracoes.length = 0;
   });
 
-  it("coluna do Kanban: só a primeira página atualiza a cada 30 segundos", () => {
-    renderHook(() => useDemandasDaFase({}, "backlog"));
+  it("Lixeira: só a primeira página atualiza a cada 30 segundos", () => {
+    renderHook(() => useDemandasDaFase({}, "lixeira"));
 
     const comAtualizacao = configuracoes.filter((c) => c?.refreshInterval !== undefined);
     expect(comAtualizacao.map((c) => c?.refreshInterval)).toEqual([TRINTA_SEGUNDOS]);
     // As páginas extras não entram na atualização periódica nem na volta à aba.
     expect(configuracoes.some((c) => c?.revalidateOnFocus === false)).toBe(true);
+  });
+
+  it("coluna do quadro: sem relógio próprio, as quatro se atualizam juntas (STC-969)", () => {
+    renderHook(() => useDemandasDaFase({}, "backlog"));
+
+    const comAtualizacao = configuracoes.filter((c) => c?.refreshInterval !== undefined);
+    expect(comAtualizacao.map((c) => c?.refreshInterval)).toEqual([0]);
   });
 
   it.each<[string, () => unknown]>([

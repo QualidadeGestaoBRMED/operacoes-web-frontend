@@ -5,6 +5,8 @@ import useSWR, { useSWRConfig } from "swr";
 import {
   buscarDemanda,
   buscarPrimeiraPaginaDaFase,
+  ehFaseDoQuadro,
+  FASES_DO_QUADRO,
   INTERVALO_ATUALIZACAO_DEMANDAS_MS,
   juntarSemRepetir,
   listarPaginasExtrasDaFase,
@@ -36,6 +38,46 @@ function chaveDasExtras(filtros: DemandaFiltros | undefined, status: StatusDeman
   return ["demandas", { ...filtros, status }, "paginas-extras"] as const;
 }
 
+/**
+ * Atualização a cada 30 s das colunas do quadro (STC-969): pede a primeira
+ * página das quatro no mesmo instante, e elas saem numa requisição só
+ * (`buscarPrimeiraPaginaDaFase`, STC-968). Com um relógio por coluna, cada
+ * uma pediria na sua hora. Como o `refreshInterval` do SWR, não busca com a
+ * aba em segundo plano nem sem conexão, e pausa durante o arraste. A Lixeira
+ * continua com a própria atualização.
+ */
+export function useAtualizacaoDoQuadro(
+  filtros: DemandaFiltros | undefined,
+  opcoes?: { pausado?: boolean; desabilitado?: boolean },
+) {
+  const { mutate } = useSWRConfig();
+  const pausadoRef = useRef(opcoes?.pausado ?? false);
+  pausadoRef.current = opcoes?.pausado ?? false;
+  const filtrosRef = useRef(filtros);
+  filtrosRef.current = filtros;
+  const chaveDosFiltros = JSON.stringify(filtros ?? {});
+  const desabilitado = opcoes?.desabilitado ?? false;
+
+  useEffect(() => {
+    if (desabilitado) return;
+    // Com o servidor lento, a próxima atualização espera a anterior voltar,
+    // como no SWR: sem isso, cada quadro aberto empilharia uma requisição a
+    // cada 30 s justamente quando o servidor está sobrecarregado.
+    let buscando = false;
+    const relogio = setInterval(() => {
+      if (buscando || pausadoRef.current) return;
+      if (document.visibilityState === "hidden" || !navigator.onLine) return;
+      buscando = true;
+      void Promise.allSettled(
+        FASES_DO_QUADRO.map((status) => mutate(chaveDaFase(filtrosRef.current, status))),
+      ).finally(() => {
+        buscando = false;
+      });
+    }, INTERVALO_POLL_MS);
+    return () => clearInterval(relogio);
+  }, [chaveDosFiltros, desabilitado, mutate]);
+}
+
 /** O que muda na primeira página quando a fase muda: o total e os cards do topo. */
 function assinaturaDaPagina(pagina: RespostaPaginada<Demanda> | undefined) {
   if (!pagina) return "";
@@ -46,7 +88,9 @@ function assinaturaDaPagina(pagina: RespostaPaginada<Demanda> | undefined) {
  * Uma coluna do Kanban (STC-931): as demandas de uma fase, 30 por vez, na
  * ordem que o backend devolve (STC-930).
  *
- * - A **primeira página** é a única na atualização periódica (30 s).
+ * - A **primeira página** é a única na atualização periódica (30 s): a das
+ *   colunas do quadro por `useAtualizacaoDoQuadro`, as quatro juntas; a da
+ *   Lixeira pelo próprio SWR.
  * - **Carregar mais** busca só a página seguinte e a junta às que já vieram.
  * - As **páginas extras** são buscadas de novo, em paralelo, quando a
  *   primeira mostra que a fase mudou (outro total ou outros cards no topo) e
@@ -111,7 +155,11 @@ export function useDemandasDaFase(
       }
       return resultado;
     },
-    { keepPreviousData: true, refreshInterval: opcoes?.pausado ? 0 : INTERVALO_POLL_MS },
+    {
+      keepPreviousData: true,
+      // As colunas do quadro se atualizam juntas (useAtualizacaoDoQuadro).
+      refreshInterval: opcoes?.pausado || ehFaseDoQuadro(status) ? 0 : INTERVALO_POLL_MS,
+    },
   );
   primeiraAtualRef.current = primeira.data;
 

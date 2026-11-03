@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { DetalheCard } from "@/components/demanda/DetalheCard";
 import { FormNovaDemanda } from "@/components/demanda/FormNovaDemanda";
 import { useAuth } from "@/hooks/useAuth";
-import { useDemandasDaFase } from "@/hooks/useDemandas";
+import { useAtualizacaoDoQuadro, useDemandasDaFase } from "@/hooks/useDemandas";
 import { useTiposGestao } from "@/hooks/useTiposGestao";
 import { atualizarStatusDemanda, excluirDemanda, restaurarDemanda } from "@/lib/demandas";
 import { extrairMensagemErro } from "@/lib/erros";
@@ -96,10 +96,13 @@ export function KanbanBoard() {
   // (@dnd-kit) reordenaria os cards debaixo do cursor.
   const pausarPolling = demandaArrastando !== null || movimentoPendente;
 
-  // Uma busca por coluna (STC-931): cada fase vem do backend 30 cards por
-  // vez, na ordem da coluna (STC-930), e carrega mais ao rolar. A Lixeira é
-  // uma fase como as outras (o backend só a mostra com ?status=lixeira).
+  // Cada fase vem do backend 30 cards por vez, na ordem da coluna (STC-930),
+  // e carrega mais ao rolar (STC-931). A primeira página das quatro colunas
+  // do quadro sai numa requisição só (STC-969), na abertura e a cada 30 s; a
+  // Lixeira continua pela própria busca (o backend só a mostra com
+  // ?status=lixeira).
   const opcoesDasColunas = { pausado: pausarPolling, desabilitado: resolvendoTipoGestaoPadrao };
+  useAtualizacaoDoQuadro(filtros, opcoesDasColunas);
   const backlog = useDemandasDaFase(filtros, "backlog", opcoesDasColunas);
   const emAndamento = useDemandasDaFase(filtros, "em_andamento", opcoesDasColunas);
   const emRevisao = useDemandasDaFase(filtros, "em_revisao", opcoesDasColunas);
@@ -398,6 +401,23 @@ export function KanbanBoard() {
     for (const coluna of listaDeColunas) coluna.revalidar();
   }
 
+  function tentarDeNovo(status: StatusDemanda) {
+    const coluna = colunas[status];
+    if (!coluna.mensagemErro) {
+      coluna.tentarDeNovo();
+      return;
+    }
+    if (status === "lixeira") {
+      coluna.revalidar();
+      return;
+    }
+    // As colunas do quadro vêm numa requisição só (STC-969): falham juntas, e
+    // buscar de novo uma só deixaria as outras com o erro até a atualização.
+    for (const fase of ORDEM_COLUNAS) {
+      if (fase !== "lixeira" && colunas[fase].mensagemErro) colunas[fase].revalidar();
+    }
+  }
+
   function handleDragStart(evento: DragStartEvent) {
     // Cards na lixeira não são arrastáveis (useDraggable disabled), então só
     // demandasAtivas pode ser a origem de um drag.
@@ -539,11 +559,7 @@ export function KanbanBoard() {
                 onCarregarMais={colunas[coluna.status].carregarMais}
                 erro={colunas[coluna.status].mensagemErro}
                 erroAoCarregarMais={colunas[coluna.status].erroAoCarregarMais}
-                onTentarDeNovo={() =>
-                  colunas[coluna.status].mensagemErro
-                    ? colunas[coluna.status].revalidar()
-                    : colunas[coluna.status].tentarDeNovo()
-                }
+                onTentarDeNovo={() => tentarDeNovo(coluna.status)}
                 onSelecionarDemanda={selecionarDemanda}
                 onRestaurar={restaurar}
               />

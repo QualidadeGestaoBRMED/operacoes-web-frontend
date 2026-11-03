@@ -51,15 +51,66 @@ function paramsDeFiltros(filtros?: DemandaFiltros): Record<string, string | numb
   return params;
 }
 
+/** Colunas do quadro que vêm juntas de `GET demandas/por-fase/` (STC-968).
+ * A Lixeira continua pela lista, com `?status=lixeira`. */
+export const FASES_DO_QUADRO = ["backlog", "em_andamento", "em_revisao", "concluido"] as const;
+type FaseDoQuadro = (typeof FASES_DO_QUADRO)[number];
+
+export function ehFaseDoQuadro(status: StatusDemanda): status is FaseDoQuadro {
+  return (FASES_DO_QUADRO as readonly StatusDemanda[]).includes(status);
+}
+
+type PrimeirasPaginasDoQuadro = Record<FaseDoQuadro, RespostaPaginada<Demanda>>;
+
+// Busca em andamento por filtros, só durante a tarefa em que começou: as
+// colunas que pedem a primeira página juntas (ao abrir o quadro, na
+// atualização, ao voltar para a aba, depois de uma ação na lista) dividem a
+// mesma requisição. Um pedido que chega depois, ainda com essa busca em voo,
+// faz outra: depois de uma ação, a resposta de antes dela estaria velha.
+const buscasDoQuadro = new Map<string, Promise<PrimeirasPaginasDoQuadro>>();
+
+function buscarPrimeirasPaginasDoQuadro(filtros: DemandaFiltros | undefined) {
+  // ?status= não se aplica: a resposta já traz todas as fases.
+  const params = paramsDeFiltros({ ...filtros, status: undefined });
+  const chave = JSON.stringify(params ?? {});
+  let busca = buscasDoQuadro.get(chave);
+  if (!busca) {
+    busca = api
+      .get<PrimeirasPaginasDoQuadro>(`${BASE_URL}por-fase/`, { params })
+      .then(({ data }) => data)
+      .catch(async (erro) => {
+        // Backend anterior à rota (404): uma requisição por coluna, como
+        // antes, para a ordem de deploy ficar livre.
+        if (!isAxiosError(erro) || erro.response?.status !== 404) throw erro;
+        const paginas = await Promise.all(
+          FASES_DO_QUADRO.map((status) =>
+            api.get<RespostaPaginada<Demanda>>(BASE_URL, { params: { ...params, status } }),
+          ),
+        );
+        return Object.fromEntries(
+          FASES_DO_QUADRO.map((status, indice) => [status, paginas[indice].data]),
+        ) as PrimeirasPaginasDoQuadro;
+      });
+    buscasDoQuadro.set(chave, busca);
+    setTimeout(() => buscasDoQuadro.delete(chave), 0);
+  }
+  return busca;
+}
+
 /**
  * Primeira página de uma fase (uma coluna do Kanban, STC-931), na ordem da
  * coluna que o backend devolve (STC-930, 30 por página). É a única que a
- * coluna busca de novo a cada atualização.
+ * coluna busca de novo a cada atualização. As colunas do quadro vêm da rota
+ * que traz todas numa resposta só (STC-968): pedidas juntas, uma requisição
+ * para as quatro, em vez de quatro que o servidor atenderia em fila.
  */
 export async function buscarPrimeiraPaginaDaFase(
   filtros: DemandaFiltros | undefined,
   status: StatusDemanda,
 ): Promise<RespostaPaginada<Demanda>> {
+  if (ehFaseDoQuadro(status)) {
+    return (await buscarPrimeirasPaginasDoQuadro(filtros))[status];
+  }
   const { data } = await api.get<RespostaPaginada<Demanda>>(BASE_URL, {
     params: { ...paramsDeFiltros(filtros), status },
   });
