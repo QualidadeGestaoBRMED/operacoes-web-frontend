@@ -50,6 +50,7 @@ import {
   useReverterDocumentoLegalizacao,
 } from "@/hooks/useDocumentosLegalizacao";
 import { useAuth } from "@/hooks/useAuth";
+import { useAlcanceNoModulo } from "@/hooks/useModulosNavegacao";
 import { useComentariosDaFonte } from "@/hooks/useComentarios";
 import { useEvidenciasLegalizacao } from "@/hooks/useEvidenciasLegalizacao";
 import { useHistoricoLegalizacao } from "@/hooks/useHistoricoLegalizacao";
@@ -487,6 +488,10 @@ export function DetalheDocumentoModal({
   const { desativar, isLoading: desativando } = useDesativarDocumentoLegalizacao();
   const { mutate: mutateGlobal } = useSWRConfig();
   const { user, isSetorLeg, isCoordenacaoUnidade } = useAuth();
+  // STC-976: quem só é responsável (o setor de apoio) comenta e anexa o PDF;
+  // status, responsáveis, regra, renovação e o resto ficam com a Legalização.
+  const soResponsavel = useAlcanceNoModulo("legalizacao") === "responsavel";
+  const [anexandoPdf, setAnexandoPdf] = useState(false);
   const unidadesDoUsuario = unidadesDe(user);
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
@@ -972,15 +977,17 @@ export function DetalheDocumentoModal({
                             </span>
                           ))
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setMostrandoEdicaoResponsaveis(true)}
-                          aria-label="Editar responsável operacional"
-                          className="ml-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
-                        >
-                          <Pencil className="size-3" />
-                          Editar
-                        </button>
+                        {!soResponsavel && (
+                          <button
+                            type="button"
+                            onClick={() => setMostrandoEdicaoResponsaveis(true)}
+                            aria-label="Editar responsável operacional"
+                            className="ml-1 flex items-center gap-1 text-[12.5px] font-medium text-secondary hover:underline"
+                          >
+                            <Pencil className="size-3" />
+                            Editar
+                          </button>
+                        )}
                       </div>
                     </CampoMeta>
                   )}
@@ -1024,7 +1031,7 @@ export function DetalheDocumentoModal({
                           qualquer transição a partir daí que não seja via
                           o botão "Reverter para aplicável" -- esconder
                           evita um caminho sem saída. */}
-                      {!podeReverter && (
+                      {!podeReverter && !soResponsavel && (
                         <EditarDocumentoSection
                           documento={documento}
                           ativo={false}
@@ -1047,7 +1054,7 @@ export function DetalheDocumentoModal({
                         existe -- sem regra_aplicada não há o que editar
                         (mesmo critério já usado em FormNovaVersaoRegra.tsx,
                         "documento.regra_aplicada ? ... : 'nada a corrigir'"). */}
-                    {documento.regra_aplicada && (
+                    {documento.regra_aplicada && !soResponsavel && (
                       <button
                         type="button"
                         onClick={() => setMostrandoNovaVersaoRegra(true)}
@@ -1100,7 +1107,7 @@ export function DetalheDocumentoModal({
                         </Button>
                       </div>
                     </div>
-                  ) : mostrandoEdicao ? null : (
+                  ) : mostrandoEdicao || soResponsavel ? null : (
                     <div className="flex flex-col gap-2">
                       {processoJaEmCurso &&
                         (loteDaRenovacaoEmCurso !== null ? (
@@ -1269,6 +1276,14 @@ export function DetalheDocumentoModal({
                       value="evidencias"
                       className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
                     >
+                      {soResponsavel && (
+                        <div>
+                          <Button variant="outline" size="sm" onClick={() => setAnexandoPdf(true)}>
+                            <FileUp className="size-4" />
+                            Anexar PDF
+                          </Button>
+                        </div>
+                      )}
                       {carregandoEvidencias ? (
                         <div className="flex flex-col gap-2.5">
                           <Skeleton className="h-14 w-full" />
@@ -1454,6 +1469,14 @@ export function DetalheDocumentoModal({
         isLoading={desativando}
         onConfirmar={(justificativa) => void desativarDocumento(justificativa)}
       />
+      {documento && soResponsavel && (
+        <EditarAnexoDialog
+          aberto={anexandoPdf}
+          onOpenChange={setAnexandoPdf}
+          documentoId={documento.id}
+          aoTrocar={aoTrocarAnexo}
+        />
+      )}
       {documento && evidenciaVigente && (
         <EditarAnexoDialog
           aberto={mostrandoEditarAnexo}

@@ -21,6 +21,10 @@ import { enviarEvidenciaLegalizacao } from "@/lib/legalizacao";
  * "Editar anexo" (STC-853/854): troca o PDF vigente do documento por outro,
  * sem renovação, com justificativa obrigatória. O PDF anterior fica guardado
  * no histórico de evidências.
+ *
+ * Sem `nomeArquivoAtual`, "Anexar PDF" (STC-976): o responsável do setor de
+ * apoio envia o arquivo dele (o laudo, por exemplo), sem justificativa. Ele
+ * vira o vigente, e um anterior fica no histórico, como em qualquer envio.
  */
 export function EditarAnexoDialog({
   aberto,
@@ -32,9 +36,10 @@ export function EditarAnexoDialog({
   aberto: boolean;
   onOpenChange: (aberto: boolean) => void;
   documentoId: number;
-  nomeArquivoAtual: string;
+  nomeArquivoAtual?: string;
   aoTrocar: () => void;
 }) {
+  const trocando = nomeArquivoAtual !== undefined;
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [justificativa, setJustificativa] = useState("");
   const [erros, setErros] = useState<{ arquivo?: string; justificativa?: string }>({});
@@ -55,16 +60,24 @@ export function EditarAnexoDialog({
     if (!arquivo) novosErros.arquivo = "Escolha o PDF novo.";
     else if (!arquivo.name.toLowerCase().endsWith(".pdf"))
       novosErros.arquivo = "O anexo precisa ser um PDF.";
-    if (!justificativa.trim()) novosErros.justificativa = "Obrigatória para trocar o PDF.";
+    if (trocando && !justificativa.trim())
+      novosErros.justificativa = "Obrigatória para trocar o PDF.";
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0 || !arquivo) return;
 
     setEnviando(true);
     try {
-      await enviarEvidenciaLegalizacao(documentoId, arquivo, undefined, {
-        justificativa: justificativa.trim(),
-      });
-      toast.success("PDF trocado. O anterior ficou guardado no histórico de evidências.");
+      await enviarEvidenciaLegalizacao(
+        documentoId,
+        arquivo,
+        undefined,
+        trocando ? { justificativa: justificativa.trim() } : undefined,
+      );
+      toast.success(
+        trocando
+          ? "PDF trocado. O anterior ficou guardado no histórico de evidências."
+          : "PDF anexado ao documento.",
+      );
       aoTrocar();
       setEnviando(false);
       fechar(false);
@@ -78,15 +91,16 @@ export function EditarAnexoDialog({
     <Dialog open={aberto} onOpenChange={fechar}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Editar anexo</DialogTitle>
+          <DialogTitle>{trocando ? "Editar anexo" : "Anexar PDF"}</DialogTitle>
           <DialogDescription>
-            Troca o PDF atual ({nomeArquivoAtual}) por outro, sem abrir renovação. O PDF
-            atual fica guardado no histórico de evidências.
+            {trocando
+              ? `Troca o PDF atual (${nomeArquivoAtual}) por outro, sem abrir renovação. O PDF atual fica guardado no histórico de evidências.`
+              : "Envia o PDF para a Legalização acompanhar a renovação. Ele passa a ser o arquivo atual do documento."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label htmlFor="ea-arquivo">PDF novo</Label>
+            <Label htmlFor="ea-arquivo">{trocando ? "PDF novo" : "PDF"}</Label>
             <Input
               id="ea-arquivo"
               type="file"
@@ -101,37 +115,39 @@ export function EditarAnexoDialog({
               </p>
             )}
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="ea-justificativa">Justificativa</Label>
-            <Textarea
-              id="ea-justificativa"
-              rows={3}
-              maxLength={2000}
-              value={justificativa}
-              onChange={(evento) => setJustificativa(evento.target.value)}
-              aria-invalid={!!erros.justificativa}
-              aria-describedby={
-                erros.justificativa
-                  ? "ea-justificativa-dica ea-justificativa-erro"
-                  : "ea-justificativa-dica"
-              }
-            />
-            <p id="ea-justificativa-dica" className="text-[11px] text-muted-foreground">
-              Por que o PDF foi trocado. Fica registrada no histórico do documento.
-            </p>
-            {erros.justificativa && (
-              <p id="ea-justificativa-erro" role="alert" className="text-xs text-destructive">
-                {erros.justificativa}
+          {trocando && (
+            <div className="space-y-1">
+              <Label htmlFor="ea-justificativa">Justificativa</Label>
+              <Textarea
+                id="ea-justificativa"
+                rows={3}
+                maxLength={2000}
+                value={justificativa}
+                onChange={(evento) => setJustificativa(evento.target.value)}
+                aria-invalid={!!erros.justificativa}
+                aria-describedby={
+                  erros.justificativa
+                    ? "ea-justificativa-dica ea-justificativa-erro"
+                    : "ea-justificativa-dica"
+                }
+              />
+              <p id="ea-justificativa-dica" className="text-[11px] text-muted-foreground">
+                Por que o PDF foi trocado. Fica registrada no histórico do documento.
               </p>
-            )}
-          </div>
+              {erros.justificativa && (
+                <p id="ea-justificativa-erro" role="alert" className="text-xs text-destructive">
+                  {erros.justificativa}
+                </p>
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => fechar(false)} disabled={enviando}>
             Cancelar
           </Button>
           <Button onClick={() => void trocar()} disabled={enviando}>
-            {enviando ? "Enviando..." : "Trocar PDF"}
+            {enviando ? "Enviando..." : trocando ? "Trocar PDF" : "Anexar PDF"}
           </Button>
         </DialogFooter>
       </DialogContent>

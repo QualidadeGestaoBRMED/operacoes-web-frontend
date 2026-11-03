@@ -84,6 +84,10 @@ export interface Modulo {
   /** Se quem pede (no "ver como", a pessoa vista) pode usar o módulo
    * (STC-972). Ausente no backend anterior: conta como acesso. */
   tem_acesso?: boolean;
+  /** O que a pessoa acompanha no módulo (STC-975): o módulo inteiro, só o
+   * que é dela ("proprios") ou só os documentos de que é responsável, em que
+   * só comenta e anexa evidência ("responsavel"). Ausente: o módulo inteiro. */
+  alcance?: "completo" | "proprios" | "responsavel" | null;
 }
 
 export type VisibilidadePadrao = "admin" | "unidade" | "setor" | "todos" | "opex";

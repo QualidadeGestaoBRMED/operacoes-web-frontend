@@ -46,3 +46,21 @@ export function useAcessoAosModulos() {
       modulos.find((modulo) => modulo.codigo === codigo)?.tem_acesso !== false,
   };
 }
+
+export type AlcanceNoModulo = "completo" | "proprios" | "responsavel";
+
+/**
+ * O que a pessoa acompanha no módulo (STC-975). "proprios" e "responsavel"
+ * veem só o que é delas: na Legalização, sem Mapa, Biblioteca nem a lista
+ * de todas as unidades; "responsavel" também sem os controles de edição.
+ * Sem a lista (carregando, falha ou backend anterior), o módulo inteiro: o
+ * backend continua filtrando o dado.
+ */
+export function useAlcanceNoModulo(codigo: string): AlcanceNoModulo {
+  const { modulos } = useModulos();
+  return modulos.find((modulo) => modulo.codigo === codigo)?.alcance ?? "completo";
+}
+
+export function veSoOsProprios(alcance: AlcanceNoModulo): boolean {
+  return alcance !== "completo";
+}

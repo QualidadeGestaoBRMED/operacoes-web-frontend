@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { unidadesDoUsuario as unidadesDe } from "@/lib/redes";
 import { useDocumentosLegalizacao } from "@/hooks/useDocumentosLegalizacao";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useAlcanceNoModulo, veSoOsProprios } from "@/hooks/useModulosNavegacao";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useUnidades } from "@/hooks/useUnidades";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -85,9 +86,7 @@ export function MatrizFiltros({
   // dado de qualquer forma (_documentos_visiveis_para), mas o Select
   // oferecia livremente qualquer unidade da rede, sem indicar que a troca
   // nunca traria resultado de outra unidade.
-  const unidades = isCoordenacaoUnidade
-    ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
-    : todasAsUnidades;
+  const soOsProprios = veSoOsProprios(useAlcanceNoModulo("legalizacao"));
   const { usuarios } = useUsuarios();
   // Não existe hoje um hook pra /tipos-documento/ (fora do escopo da
   // STC-377) -- busca SEM filtro nenhum, catálogo completo, mesmo padrão de
@@ -122,6 +121,19 @@ export function MatrizFiltros({
       a.nome.localeCompare(b.nome),
     );
   }, [catalogoDocumentos]);
+
+  // STC-976: quem vê só os próprios documentos escolhe entre as unidades
+  // deles, não entre todas da rede.
+  const unidades = useMemo(() => {
+    if (soOsProprios) {
+      const porId = new Map<number, (typeof todasAsUnidades)[number]>();
+      for (const documento of catalogoDocumentos) porId.set(documento.unidade.id, documento.unidade);
+      return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+    }
+    return isCoordenacaoUnidade
+      ? todasAsUnidades.filter((unidade) => unidadesDoUsuario.includes(unidade.id))
+      : todasAsUnidades;
+  }, [soOsProprios, catalogoDocumentos, isCoordenacaoUnidade, todasAsUnidades, unidadesDoUsuario]);
 
   // filtros.unidade não entra na contagem pro Coordenador (achado no
   // review) -- MatrizConformidade.tsx força esse campo pra unidade dele
@@ -300,31 +312,34 @@ export function MatrizFiltros({
           </SelectContent>
         </Select>
 
-        <Select
-          value={filtros.responsavel ? String(filtros.responsavel) : "todos"}
-          onValueChange={(valor) =>
-            onMudarFiltros({
-              ...filtros,
-              responsavel: valor === "todos" ? undefined : Number(valor),
-            })
-          }
-        >
-          <SelectTrigger
-            size="sm"
-            className="h-8 w-full sm:w-auto"
-            aria-label="Responsável"
+        {/* STC-976: quem vê só os próprios documentos é o responsável deles. */}
+        {!soOsProprios && (
+          <Select
+            value={filtros.responsavel ? String(filtros.responsavel) : "todos"}
+            onValueChange={(valor) =>
+              onMudarFiltros({
+                ...filtros,
+                responsavel: valor === "todos" ? undefined : Number(valor),
+              })
+            }
           >
-            <SelectValue placeholder="Responsável" />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            <SelectItem value="todos">Todos os responsáveis</SelectItem>
-            {usuarios.map((usuario) => (
-              <SelectItem key={usuario.id} value={String(usuario.id)}>
-                {nomeExibicao(usuario)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              size="sm"
+              className="h-8 w-full sm:w-auto"
+              aria-label="Responsável"
+            >
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="todos">Todos os responsáveis</SelectItem>
+              {usuarios.map((usuario) => (
+                <SelectItem key={usuario.id} value={String(usuario.id)}>
+                  {nomeExibicao(usuario)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Mesmo chrome visual do SelectTrigger (size="sm") -- borda/altura/
             padding copiados de select.tsx, pra não destoar dos outros
