@@ -28,7 +28,7 @@ import {
   type RecorteExportacao,
 } from "@/lib/legalizacaoExportacao";
 import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import { unidadesDoUsuario } from "@/lib/redes";
+import { ROTULO_ABRANGENCIA, unidadesDoUsuario } from "@/lib/redes";
 import type { CategoriaDocumento } from "@/types/legalizacao";
 
 const COLUNAS_FIXAS = "Unidade, Categoria, Tipo de documento, Identificação, Situação e Validade";
@@ -125,7 +125,10 @@ interface ExportarSituacaoModalProps {
 export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModalProps) {
   const { user, isCoordenacaoUnidade } = useAuth();
   const { rede, podeEscolher } = useRedeDaLegalizacao();
-  const { unidades: todasAsUnidades } = useUnidades(rede);
+  // Quem vê as duas redes pode exportar as duas juntas; começa na da tela.
+  const [asDuasRedes, setAsDuasRedes] = useState(false);
+  const redeDaExportacao = podeEscolher && asDuasRedes ? undefined : rede;
+  const { unidades: todasAsUnidades } = useUnidades(redeDaExportacao);
   // Coordenação só exporta as próprias unidades (o backend também recusa).
   const minhas = unidadesDoUsuario(user);
   const unidades = isCoordenacaoUnidade
@@ -160,7 +163,7 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
         unidades: unidadesEscolhidas ?? [],
         categorias: categorias ?? [],
         colunas: colunasPedidas,
-        rede,
+        rede: redeDaExportacao,
       });
       lembrarColunas(user?.usuarioId, colunas);
       baixarArquivo(arquivo);
@@ -199,6 +202,38 @@ export function ExportarSituacaoModal({ aberto, aoFechar }: ExportarSituacaoModa
               ))}
             </div>
           </fieldset>
+
+          {podeEscolher && (
+            <fieldset className="space-y-2">
+              <legend className="text-[13px] font-semibold text-foreground">Rede</legend>
+              <div className="flex flex-wrap gap-4 text-[13px]">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="exportar-rede"
+                    checked={!asDuasRedes}
+                    onChange={() => {
+                      setAsDuasRedes(false);
+                      setUnidadesEscolhidas(null);
+                    }}
+                  />
+                  {ROTULO_ABRANGENCIA[rede]} (a da tela)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="exportar-rede"
+                    checked={asDuasRedes}
+                    onChange={() => {
+                      setAsDuasRedes(true);
+                      setUnidadesEscolhidas(null);
+                    }}
+                  />
+                  {ROTULO_ABRANGENCIA.ambas}
+                </label>
+              </div>
+            </fieldset>
+          )}
 
           {travadaNaUnidade ? (
             <div className="space-y-1 text-[13px]">
