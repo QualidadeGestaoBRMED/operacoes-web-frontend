@@ -2,7 +2,7 @@
 
 import { ClipboardList, Home, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useModulosNavegacao } from "@/hooks/useModulosNavegacao";
+import { useAcessoAosModulos, useModulosNavegacao } from "@/hooks/useModulosNavegacao";
 import { redesEmQueAtua } from "@/lib/redes";
 
 export interface SubitemDeNavegacao {
@@ -51,6 +51,7 @@ export function useNavegacao() {
   // Modulo.status === "ativo" no backend viram link de verdade; o resto
   // (sem rota configurada, ou status "em_breve"/"inativo") fica bloqueado.
   const modulosNavegacao = useModulosNavegacao();
+  const { carregando, temAcesso } = useAcessoAosModulos();
 
   // Subitens do módulo, com os atalhos de Administração por perfil.
   function subitensDoModulo(codigo: string | undefined, base: SubitemDeNavegacao[]) {
@@ -85,8 +86,10 @@ export function useNavegacao() {
     return base;
   }
 
-  const modulos: ModuloDeNavegacao[] = [
-    GESTAO_DE_DEMANDAS,
+  const liberados: ModuloDeNavegacao[] = [
+    // O Gestão de Demandas também depende do acesso (STC-973): quem não tem
+    // nada no Kanban não o vê.
+    ...(temAcesso(GESTAO_DE_DEMANDAS.codigo) ? [GESTAO_DE_DEMANDAS] : []),
     ...modulosNavegacao
       .filter((modulo) => modulo.ativo)
       // rota as string: useModulosNavegacao só marca ativo=true quando a
@@ -100,8 +103,14 @@ export function useNavegacao() {
         subitens: subitensDoModulo(modulo.codigo, modulo.subitens ?? []),
       })),
   ];
+  // Enquanto a lista de módulos não chega, nenhum módulo no menu, em vez de
+  // mostrar um que depois some.
+  const modulos = carregando ? [] : liberados;
 
-  const bloqueados = [HUB_BLOQUEADO, ...modulosNavegacao.filter((modulo) => !modulo.ativo)];
+  const bloqueados = [
+    HUB_BLOQUEADO,
+    ...(carregando ? [] : modulosNavegacao.filter((modulo) => !modulo.ativo)),
+  ];
 
   return {
     modulos,
