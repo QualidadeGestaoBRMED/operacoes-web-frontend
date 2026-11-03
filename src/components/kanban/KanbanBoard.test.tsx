@@ -241,6 +241,31 @@ describe("KanbanBoard", () => {
     expect(await within(concluido).findByText("Nenhuma demanda aqui")).toBeInTheDocument();
   });
 
+  it("Tentar novamente numa coluna do quadro recupera as outras que falharam junto (STC-969)", async () => {
+    // As colunas do quadro vêm numa requisição só: quando ela falha, falham juntas.
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) => {
+      if (status !== "lixeira") throw new Error("falha de rede");
+      return daFase([], status);
+    });
+    const user = userEvent.setup();
+
+    renderBoard();
+
+    const erro = "Não foi possível completar a operação. Tente novamente.";
+    const backlog = await screen.findByTestId("backlog");
+    const concluido = await screen.findByTestId("concluido");
+    expect(await within(backlog).findByText(erro)).toBeInTheDocument();
+    expect(await within(concluido).findByText(erro)).toBeInTheDocument();
+
+    vi.mocked(buscarPrimeiraPaginaDaFase).mockImplementation(async (_filtros, status) =>
+      daFase([], status),
+    );
+    await user.click(within(concluido).getByRole("button", { name: "Tentar novamente" }));
+
+    expect(await within(concluido).findByText("Nenhuma demanda aqui")).toBeInTheDocument();
+    expect(await within(backlog).findByText("Nenhuma demanda aqui")).toBeInTheDocument();
+  });
+
   it("abre o modal de detalhe ao clicar num card", async () => {
     const demanda = criarDemanda({ titulo: "Trocar lâmpada", status: "backlog" });
     mockarDemandas([demanda]);
