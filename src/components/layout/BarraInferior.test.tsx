@@ -9,7 +9,10 @@ import { BarraInferior } from "./BarraInferior";
 vi.mock("next/navigation", () => ({ usePathname: vi.fn() }));
 vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
-vi.mock("@/hooks/useModulosNavegacao", () => ({ useModulosNavegacao: vi.fn() }));
+vi.mock("@/hooks/useModulosNavegacao", () => ({
+  useModulosNavegacao: vi.fn(),
+  useAcessoAosModulos: () => ({ carregando: false, temAcesso: () => true }),
+}));
 vi.mock("@/components/novidades/NovidadesProvider", () => ({
   useNovidades: () => ({ visiveis: [], temNovidade: false, destaque: null, marcarComoVistas: vi.fn() }),
 }));
