@@ -183,6 +183,24 @@ describe("ExportarSituacaoModal (STC-963)", () => {
     expect(vi.mocked(exportarSituacao).mock.calls[0][0].colunas).toEqual(["justificativa"]);
   });
 
+  it("não fecha pelo Esc enquanto exporta", async () => {
+    let terminar: (arquivo: typeof ARQUIVO) => void = () => {};
+    vi.mocked(exportarSituacao).mockReturnValue(
+      new Promise((resolver) => {
+        terminar = resolver;
+      }),
+    );
+    const aoFechar = abrir();
+
+    await userEvent.click(screen.getByRole("button", { name: /^exportar$/i }));
+    await userEvent.keyboard("{Escape}");
+    expect(aoFechar).not.toHaveBeenCalled();
+
+    terminar(ARQUIVO);
+    await waitFor(() => expect(baixarArquivo).toHaveBeenCalledWith(ARQUIVO));
+    expect(aoFechar).toHaveBeenCalledTimes(1);
+  });
+
   it("erro aparece no modal, que continua aberto", async () => {
     const resposta = {
       status: 400,
