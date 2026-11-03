@@ -488,10 +488,10 @@ export function DetalheDocumentoModal({
   const { desativar, isLoading: desativando } = useDesativarDocumentoLegalizacao();
   const { mutate: mutateGlobal } = useSWRConfig();
   const { user, isSetorLeg, isCoordenacaoUnidade } = useAuth();
-  // STC-976: quem só é responsável (o setor de apoio) comenta e anexa o PDF;
-  // status, responsáveis, regra, renovação e o resto ficam com a Legalização.
+  // STC-976: quem só é responsável (o setor de apoio) só comenta; anexar,
+  // status, responsáveis, regra e renovação ficam com a Legalização e a
+  // coordenação.
   const soResponsavel = useAlcanceNoModulo("legalizacao") === "responsavel";
-  const [anexandoPdf, setAnexandoPdf] = useState(false);
   const unidadesDoUsuario = unidadesDe(user);
   const { adicionar: adicionarResponsavel } = useAdicionarResponsavelLegalizacao(
     documentoId ?? 0,
@@ -1276,14 +1276,6 @@ export function DetalheDocumentoModal({
                       value="evidencias"
                       className="scrollbar-discreta flex-1 space-y-2.5 overflow-y-auto p-5"
                     >
-                      {soResponsavel && (
-                        <div>
-                          <Button variant="outline" size="sm" onClick={() => setAnexandoPdf(true)}>
-                            <FileUp className="size-4" />
-                            Anexar PDF
-                          </Button>
-                        </div>
-                      )}
                       {carregandoEvidencias ? (
                         <div className="flex flex-col gap-2.5">
                           <Skeleton className="h-14 w-full" />
@@ -1469,14 +1461,6 @@ export function DetalheDocumentoModal({
         isLoading={desativando}
         onConfirmar={(justificativa) => void desativarDocumento(justificativa)}
       />
-      {documento && soResponsavel && (
-        <EditarAnexoDialog
-          aberto={anexandoPdf}
-          onOpenChange={setAnexandoPdf}
-          documentoId={documento.id}
-          aoTrocar={aoTrocarAnexo}
-        />
-      )}
       {documento && evidenciaVigente && (
         <EditarAnexoDialog
           aberto={mostrandoEditarAnexo}
