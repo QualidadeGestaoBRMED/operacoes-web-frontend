@@ -60,17 +60,23 @@ async function encaminhar(request: NextRequest, { params }: { params: ParamsProm
     body: corpo,
   });
 
-  const corpoResposta = await resposta.text();
+  // arrayBuffer() (não .text()): a planilha da Legalização (STC-963) é
+  // binária, e texto a corromperia. JSON passa igual, byte a byte.
+  const corpoResposta = await resposta.arrayBuffer();
   // Tempo da chamada ao backend, do início do fetch ao fim da leitura (rede
   // Vercel-Render, Django e banco). O DevTools mostra em Timing > Server
   // Timing, separado da espera total do navegador (STC-933).
   const duracao = performance.now() - inicio;
-  return new NextResponse(corpoResposta || null, {
+  const cabecalhos: Record<string, string> = {
+    "Content-Type": resposta.headers.get("Content-Type") ?? "application/json",
+    "Server-Timing": `backend;dur=${duracao.toFixed(1)}`,
+  };
+  // Nome do arquivo de um download (STC-963).
+  const disposicao = resposta.headers.get("Content-Disposition");
+  if (disposicao) cabecalhos["Content-Disposition"] = disposicao;
+  return new NextResponse(corpoResposta.byteLength ? corpoResposta : null, {
     status: resposta.status,
-    headers: {
-      "Content-Type": resposta.headers.get("Content-Type") ?? "application/json",
-      "Server-Timing": `backend;dur=${duracao.toFixed(1)}`,
-    },
+    headers: cabecalhos,
   });
 }
 
