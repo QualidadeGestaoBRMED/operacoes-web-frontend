@@ -27,6 +27,28 @@ describe("buscarArquivo (STC-963)", () => {
     expect(resultado).toEqual({ arquivo, nome: "relatorio_2026-11-03.xlsx" });
   });
 
+  it("nome com acento e aspas vem codificado e é decodificado", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: new Blob([]),
+      headers: { "content-disposition": "attachment; filename*=utf-8''situa%C3%A7%C3%A3o%20%22rede%22.xlsx" },
+    });
+
+    const { nome } = await buscarArquivo("/x/", {}, "padrao.xlsx");
+
+    expect(nome).toBe('situação "rede".xlsx');
+  });
+
+  it("codificação estragada cai no nome de quem chamou", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: new Blob([]),
+      headers: { "content-disposition": "attachment; filename*=utf-8''%E0%A4%A.xlsx" },
+    });
+
+    const { nome } = await buscarArquivo("/x/", {}, "padrao.xlsx");
+
+    expect(nome).toBe("padrao.xlsx");
+  });
+
   it("sem Content-Disposition, o nome de quem chamou", async () => {
     vi.mocked(api.get).mockResolvedValue({ data: new Blob([]), headers: {} });
 
