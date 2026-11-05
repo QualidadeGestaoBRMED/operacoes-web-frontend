@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,8 +31,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useSetores } from "@/hooks/useSetores";
 import { extrairMensagemErro } from "@/lib/erros";
-import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import { podeEditarTipoDeDocumento, ROTULO_ABRANGENCIA } from "@/lib/redes";
+import {
+  LABEL_CATEGORIA,
+  ORDEM_CATEGORIA,
+  rotuloDaAreaResponsavel,
+} from "@/lib/legalizacaoMatriz";
+import {
+  podeEditarTipoDeDocumento,
+  redesDaAbrangencia,
+  ROTULO_ABRANGENCIA,
+} from "@/lib/redes";
 import type { Setor } from "@/types";
 import type {
   AbrangenciaTipoDocumento,
@@ -47,10 +55,7 @@ const SEM_SETOR = "nenhum";
 // Espelha TipoDocumentoRegulatorio.AreaResponsavel (backend/legalizacao/
 // models.py) -- só 2 valores, sem hook/endpoint próprio (é um choices fixo,
 // igual Categoria).
-const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
-  legalizacao: "Legalização",
-  coordenacao: "Coordenação da Unidade",
-};
+const AREAS_RESPONSAVEIS: AreaResponsavelDocumento[] = ["legalizacao", "coordenacao"];
 
 // Mesmo regex de um SlugField do Django (letras minúsculas, números e
 // hífen) -- confere no client o que o backend já rejeitaria via
@@ -197,6 +202,9 @@ export function FormNovoTipoDocumento({
     resolver: zodResolver(criarSchema(emEdicao)),
     defaultValues: valoresPadrao,
   });
+  // O nome da área acompanha as redes escolhidas em "Usado em".
+  const abrangenciaEscolhida = useWatch({ control, name: "abrangencia" });
+  const redesDoTipo = abrangenciaEscolhida ? redesDaAbrangencia(abrangenciaEscolhida) : [rede];
 
   useEffect(() => {
     if (!open) {
@@ -348,13 +356,9 @@ export function FormNovoTipoDocumento({
                       <SelectValue placeholder="Selecionar..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(
-                        Object.keys(
-                          ROTULO_AREA_RESPONSAVEL,
-                        ) as AreaResponsavelDocumento[]
-                      ).map((area) => (
+                      {AREAS_RESPONSAVEIS.map((area) => (
                         <SelectItem key={area} value={area}>
-                          {ROTULO_AREA_RESPONSAVEL[area]}
+                          {rotuloDaAreaResponsavel(area, redesDoTipo)}
                         </SelectItem>
                       ))}
                     </SelectContent>
