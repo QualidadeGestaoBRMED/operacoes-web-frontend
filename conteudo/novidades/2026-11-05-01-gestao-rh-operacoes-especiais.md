@@ -9,6 +9,8 @@ ajuda: como-ler-o-painel-de-absenteismo
 ---
 ## O que passa a existir
 
+![Painel de Absenteísmo de Operações Especiais, o detalhe de um colaborador e a tela de Horas Extras](/novidades/2026-11-05-01-gestao-rh-operacoes-especiais.webp)
+
 O absenteísmo e as horas extras das equipes de Operações Especiais agora ficam no Atlas, como os das clínicas da rede própria:
 
 - **Painel de Absenteísmo:** o percentual de cada colaborador e da unidade no período, as horas perdidas e o mês a mês.

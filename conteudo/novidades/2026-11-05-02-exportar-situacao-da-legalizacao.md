@@ -6,6 +6,8 @@ abrir: /modulos/legalizacao
 ---
 ## Exportar situação
 
+![Botão Exportar situação no Mapa e a janela com o que exportar, as unidades e as colunas](/novidades/2026-11-05-02-exportar-situacao-da-legalizacao.webp)
+
 No Mapa e na Lista, o botão **Exportar situação** gera uma planilha para acompanhar fora do Atlas ou levar para uma reunião:
 
 - **O que exportar:** todos os documentos, só os cadastrados ou só os que ainda faltam cadastrar.
