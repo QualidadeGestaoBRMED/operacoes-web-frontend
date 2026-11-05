@@ -14,7 +14,7 @@ Quem pode cadastrar e editar tipos: o Setor de Legalização, em qualquer rede, 
 
 ## Cadastrar
 
-![Clique em Novo tipo de documento, preenchimento do nome, do código, da categoria e da área responsável, e o tipo aparecendo no catálogo](/ajuda/como-cadastrar-um-tipo-de-documento.webp)
+![Clique em Novo tipo de documento, preenchimento do nome, do código, da categoria, da área responsável e do Usado em, e o tipo aparecendo no catálogo com As duas redes](/ajuda/como-cadastrar-um-tipo-de-documento.webp)
 
 1. No menu, abra **Legalização** e, dentro dela, **Catálogo de Legalização**.
 2. Clique em **Novo tipo de documento**, acima da tabela **Tipos de documento**.
