@@ -20,7 +20,7 @@ Quem fez a ação não recebe o próprio aviso.
 
 - **Gestão de Demandas**: nova demanda (para quem administra), responsável adicionado, aprovador designado, comentário novo e mudança de status. Veja "Como a Gestão de Demandas avisa".
 - **Legalização**: alerta de documento, movimentação de profissional, renovação concluída e comentário novo. Veja "Como a Legalização avisa".
-- **Gestão RH**: nova demanda de RH e demanda de RH sob sua coordenação, para a coordenação, e os comentários dos cards de absenteísmo crítico. Veja "Como tratar um card de absenteísmo crítico".
+- **Gestão RH**: nova demanda de RH e demanda de RH sob sua coordenação, para os responsáveis do card (a coordenação, o Ponto focal ou, sem eles, os Admins da rede), e os comentários dos cards de absenteísmo crítico. Veja "Como tratar um card de absenteísmo crítico".
 - **Seu acesso**: quando o seu perfil muda ou é removido, e quando uma permissão é concedida ou revogada.
 - **Para quem administra**: quando a importação do VR Pontomais para (no máximo um aviso por dia) e, para o Admin Q&G, quando um backup falha.
 

@@ -13,6 +13,8 @@ icone: lista
 
 Quem coordena unidade vê só os documentos das suas unidades. O Setor de Legalização e quem administra a rede veem todas.
 
+Quem só cuida de alguns documentos, como um setor de apoio escolhido como responsável operacional, vê a Lista só com os documentos de que é responsável. Para essa pessoa, a Legalização abre direto na Lista, sem o Mapa e sem a Biblioteca, e o filtro de **Unidade** traz só as unidades desses documentos.
+
 ![Lista de documentos com a busca, os filtros e as colunas Unidade, Documento, Status, Responsável e Prazo](/ajuda/como-usar-a-lista-de-documentos.webp)
 
 ## Buscar e filtrar

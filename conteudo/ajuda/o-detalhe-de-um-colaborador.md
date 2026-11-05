@@ -8,7 +8,7 @@ icone: colaborador
 ---
 ## Abrir o detalhe
 
-Clique no nome do colaborador na lista do **Painel de Absenteísmo** ou na tabela do **Painel de Horas Extras**. O detalhe abre no mesmo período do Painel.
+Clique no nome do colaborador na lista do **Painel de Absenteísmo** ou na tabela do **Painel de Horas Extras**. O detalhe abre no mesmo período do Painel, com os números calculados pelos parâmetros da rede do colaborador (rede própria ou Operações Especiais).
 
 O card de absenteísmo crítico, na Gestão de Demandas, também abre o detalhe, já no período e no alerta (veja "Como tratar um card de absenteísmo crítico").
 
@@ -57,6 +57,6 @@ Atestados aparecem só com o tipo e o período, sem dados de saúde.
 
 ![Alerta de absenteísmo crítico com Registrar tratamento, Conversa e Anexos, e o histórico do colaborador](/ajuda/o-detalhe-de-um-colaborador-alerta.webp)
 
-Quando o colaborador entra na faixa crítica, o alerta do período aparece abaixo das ocorrências, com a demanda, a responsável e a faixa. Nele, a coordenação registra o tratamento, conversa com o RH e anexa documentos (veja "Como tratar um card de absenteísmo crítico").
+Quando o colaborador entra na faixa crítica, o alerta do período aparece abaixo das ocorrências, com a demanda, quem é responsável e a faixa. O responsável é a coordenação da unidade (em Operações Especiais, o Ponto focal) ou, se a unidade não tiver coordenação, os **Admins** da rede. Nele, o responsável registra o tratamento, conversa com o RH e anexa documentos (veja "Como tratar um card de absenteísmo crítico").
 
-O **Histórico** guarda o que aconteceu com o colaborador no Gestão RH: alertas gerados, tratamentos registrados e alertas encerrados, com a data e quem fez. Aparecem os 5 mais recentes; clique em **Ver histórico completo** para ver todos.
+O **Histórico** guarda o que aconteceu com o colaborador no Gestão RH: alertas gerados, tratamentos registrados, alertas encerrados e o desligamento ou a reativação automáticos, com a data e quem fez. O que o Atlas faz sozinho aparece como automático (veja "Desligados no Painel de Absenteísmo"). Aparecem os 5 mais recentes; clique em **Ver histórico completo** para ver todos.

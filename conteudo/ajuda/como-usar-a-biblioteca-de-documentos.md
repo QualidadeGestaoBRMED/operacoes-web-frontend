@@ -11,7 +11,7 @@ icone: biblioteca
 1. No menu, abra **Legalização** e, dentro dela, **Biblioteca de Documentos**.
 2. Escolha a unidade no seletor, no alto da tela.
 
-A Biblioteca mostra só o arquivo atual de cada documento, organizado por categoria. Quem coordena unidade vê só as suas.
+A Biblioteca mostra só o arquivo atual de cada documento, organizado por categoria. Quem coordena unidade vê só as suas. Quem só cuida de alguns documentos, como um setor de apoio, não vê a Biblioteca.
 
 ![Biblioteca de Documentos de uma unidade, com os documentos agrupados por categoria](/ajuda/como-usar-a-biblioteca-de-documentos.webp)
 

@@ -37,3 +37,7 @@ Na lista de documentos, clique na linha do documento. Também dá para chegar pe
 - **Desativar documento**: só para quem administra a rede. O documento sai das telas, das contagens e dos alertas. Nada é apagado.
 
 As mudanças podem ser feitas pelo Setor de Legalização, pela coordenação da própria unidade e por quem administra a rede.
+
+## Para quem só é responsável pelo documento
+
+Quem só é responsável operacional, como um setor de apoio, abre o documento e vê os dados, as abas e o histórico, mas só pode **comentar**. Use os **Comentários** para avisar a Legalização, por exemplo, que o laudo está pronto. Anexar o arquivo, mudar o status, a validade, os responsáveis e renovar ficam com a Legalização e a coordenação.

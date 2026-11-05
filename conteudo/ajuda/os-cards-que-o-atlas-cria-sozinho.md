@@ -33,8 +33,8 @@ Se você arrastar um deles, o Atlas avisa "Esta demanda é controlada automatica
 
 - **Quando aparece**: quando um colaborador passa do limite da faixa crítica de absenteísmo no período avaliado.
 - **Título**: "Absenteísmo crítico", o nome do colaborador e o período.
-- **Onde**: no quadro da unidade, para a coordenação, com prioridade **Alta** e prazo de 3 dias úteis. É **confidencial**: só a coordenação responsável e quem administra a rede veem.
-- **Como anda**: é concluído quando a coordenação registra o tratamento no Gestão RH, ou sozinho, se uma nova importação mostrar que o colaborador saiu da faixa crítica.
+- **Onde**: na aba **Unidades** do quadro (em Operações Especiais, na aba **OPEX**), com prioridade **Alta** e prazo de 3 dias úteis. O responsável é a coordenação da unidade (em Operações Especiais, o Ponto focal) ou, se a unidade não tiver coordenação, os Admins da rede. É **confidencial**: só os responsáveis e quem administra a rede veem.
+- **Como anda**: é concluído quando o responsável registra o tratamento no Gestão RH, ou sozinho, se uma nova importação mostrar que o colaborador saiu da faixa crítica ou se ele for desligado.
 - **Ao clicar**: abre o colaborador no Painel de Absenteísmo, já no período e no alerta. É lá que a coordenação conversa com o RH e anexa o documento da ação tomada, como uma carta de advertência (veja "Como tratar um card de absenteísmo crítico").
 
 ## Quem aparece como solicitante

@@ -12,7 +12,7 @@ icone: horas-extras
 2. O Painel abre já no mês anterior fechado.
 3. Para outro período, mude as datas em **Período** (início **até** fim).
 
-Quem coordena unidade vê só as suas. As horas vêm do VR Pontomais, pela mesma importação do Painel de Absenteísmo.
+Cada pessoa vê as mesmas unidades do Painel de Absenteísmo, e quem administra as duas redes escolhe qual ver no seletor de rede, ao lado do período. As horas vêm do VR Pontomais, pela mesma importação do Painel de Absenteísmo.
 
 ![Painel de Horas Extras com o período, os cards de resumo, o filtro de unidade e os gráficos dos colaboradores e das unidades com mais horas extras](/ajuda/como-ler-o-painel-de-horas-extras.webp)
 

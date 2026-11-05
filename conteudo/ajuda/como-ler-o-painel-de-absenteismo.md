@@ -13,7 +13,13 @@ icone: grafico
 2. O Painel de Absenteísmo abre já no mês anterior fechado.
 3. Para outro período, mude as datas em **Período** (início **até** fim).
 
-Quem coordena unidade vê só as suas. Ao lado do período, o Painel mostra a data da última importação do VR Pontomais e até quando há dados.
+Cada pessoa vê os colaboradores que acompanha:
+
+- A coordenação (o Coordenador da Unidade e, em Operações Especiais, o Ponto focal) vê só as suas unidades.
+- Quem administra uma rede vê as unidades dela.
+- Quem administra as duas redes escolhe qual ver no seletor de rede, ao lado do período. O Painel mostra uma rede por vez, porque cada uma tem os seus parâmetros (veja "Gestão RH em Operações Especiais").
+
+Ao lado do período, o Painel mostra a data da última importação do VR Pontomais e até quando há dados.
 
 ![Painel de Absenteísmo com o período, os cards de resumo, os filtros e a lista de colaboradores](/ajuda/como-ler-o-painel-de-absenteismo.webp)
 
@@ -33,7 +39,7 @@ Clique em **Faixa crítica** ou **Faixa de atenção** para filtrar a lista por 
 - **Injustificado**: falta, atraso, saída antecipada e jornada incompleta.
 - **Justificado**: atestado e ausência justificada.
 
-Atrasos contam acima do limite de minutos. Saídas antecipadas contam acima do limite e quando o banco de horas do dia fica negativo. Folga do banco de horas, férias e afastamentos não contam.
+Os tipos que contam, as faixas e o limite de minutos são os dos Parâmetros da rede. Atrasos contam acima do limite de minutos. Saídas antecipadas contam acima do limite e quando o banco de horas do dia fica negativo. Folga do banco de horas, férias e afastamentos não contam.
 
 ## Horas perdidas por tipo e por unidade
 

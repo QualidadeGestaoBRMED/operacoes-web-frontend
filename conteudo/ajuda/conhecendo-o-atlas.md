@@ -9,13 +9,13 @@ icone: atlas
 
 ![Tela do Atlas com o menu lateral à esquerda e, no topo, o nome da tela, a Ajuda, o sino e o nome da pessoa](/ajuda/conhecendo-o-atlas.webp)
 
-Toda tela do Atlas tem o **menu lateral**, à esquerda, e o **topo**, com o nome da tela aberta. Ao entrar, o Atlas abre na Gestão de Demandas.
+Toda tela do Atlas tem o **menu lateral**, à esquerda, e o **topo**, com o nome da tela aberta. Ao entrar, o Atlas abre na Gestão de Demandas ou, para quem não a usa, no primeiro módulo a que tem acesso.
 
 ![Abertura do submenu da Legalização, o menu lateral escondido e mostrado de novo, a Ajuda da tela aberta pelo (?) e a página de Novidades](/ajuda/conhecendo-o-atlas-animacao.webp)
 
 ## O menu lateral
 
-- **Menu principal**: os módulos que você acessa. Módulos com mais de uma tela, como **Legalização** e **Gestão RH**, abrem um submenu ao clicar na seta.
+- **Menu principal**: só os módulos a que você tem acesso. Um módulo que você não usa não aparece, e um link salvo para ele leva ao primeiro que você usa. Módulos com mais de uma tela, como **Legalização** e **Gestão RH**, abrem um submenu ao clicar na seta.
 - **em breve**: módulos que ainda vão chegar ao Atlas. Eles ainda não abrem.
 - **Novidades** e **Ajuda**: no pé do menu, para todos.
 - **Administração** e **Admin Q&G**: só para quem administra o Atlas.
@@ -44,7 +44,7 @@ Uma novidade em destaque também pode abrir numa janela ao entrar no Atlas. Cliq
 
 ![Atlas no celular, com a barra de baixo e o menu Mais aberto](/ajuda/conhecendo-o-atlas-celular.webp)
 
-No celular, o menu lateral vira a **barra de baixo**, com os módulos que você acessa. O que não cabe nela fica em **Mais**:
+No celular, o menu lateral vira a **barra de baixo**, com os módulos a que você tem acesso. O que não cabe nela fica em **Mais**:
 
 - os outros módulos, **Administração** e **Admin Q&G** (para quem administra);
 - **Novidades** e **Ajuda**;
