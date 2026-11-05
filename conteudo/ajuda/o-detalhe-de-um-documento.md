@@ -15,7 +15,7 @@ Na lista de documentos, clique na linha do documento. Também dá para chegar pe
 ## Os dados do documento
 
 - No topo, o nome do documento, a unidade, a categoria e o status. Um aviso em vermelho ou âmbar aparece quando o documento está vencido ou vence em até 15 dias.
-- **Área responsável**: Legalização ou Coordenação da Unidade.
+- **Área responsável**: Legalização ou coordenação da unidade (em Operações Especiais, Ponto focal).
 - **Responsável operacional**: quem cuida do documento. Clique em **Editar** para trocar ou acrescentar pessoas.
 - **Validade**: a data em que o documento vence. Clique em **Editar** para mudar a validade ou o status. Ao mudar o status, informe a justificativa: ela fica no histórico.
 - **Antecedência do alerta**: com quantos dias de antecedência o Atlas avisa que o documento vai vencer.

@@ -22,21 +22,25 @@ import {
   useTiposDocumento,
 } from "@/hooks/useTiposDocumento";
 import { extrairMensagemErro } from "@/lib/erros";
-import { LABEL_CATEGORIA, ORDEM_CATEGORIA } from "@/lib/legalizacaoMatriz";
+import {
+  LABEL_CATEGORIA,
+  ORDEM_CATEGORIA,
+  rotuloDaAreaResponsavel,
+} from "@/lib/legalizacaoMatriz";
 import { ordenarPor, proximaOrdenacao, type Ordenacao } from "@/lib/ordenacao";
-import { podeEditarTipoDeDocumento, ROTULO_ABRANGENCIA } from "@/lib/redes";
+import {
+  podeEditarTipoDeDocumento,
+  redesDaAbrangencia,
+  ROTULO_ABRANGENCIA,
+} from "@/lib/redes";
 import { cn } from "@/lib/utils";
-import type {
-  AreaResponsavelDocumento,
-  TipoDocumentoRegulatorio,
-} from "@/types/legalizacao";
+import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { FormNovoTipoDocumento } from "./FormNovoTipoDocumento";
 import { HistoricoTipoDocumentoModal } from "./HistoricoTipoDocumentoModal";
 
-const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
-  legalizacao: "Legalização",
-  coordenacao: "Coordenação da Unidade",
-};
+function areaDoTipo(tipo: TipoDocumentoRegulatorio) {
+  return rotuloDaAreaResponsavel(tipo.area_responsavel, redesDaAbrangencia(tipo.abrangencia));
+}
 
 // "todos"/"ativos"/"inativos" -- só client-side, mesmo padrão de filtro
 // simples já usado em GerenciarUsuarios.tsx (useTiposDocumento não pagina).
@@ -49,7 +53,7 @@ type CampoTipos = "nome" | "categoria" | "area" | "status";
 const CHAVES_DE_ORDENACAO = {
   nome: (tipo: TipoDocumentoRegulatorio) => tipo.nome,
   categoria: (tipo: TipoDocumentoRegulatorio) => ORDEM_CATEGORIA.indexOf(tipo.categoria),
-  area: (tipo: TipoDocumentoRegulatorio) => ROTULO_AREA_RESPONSAVEL[tipo.area_responsavel],
+  area: areaDoTipo,
   status: (tipo: TipoDocumentoRegulatorio) => (tipo.ativo ? 0 : 1),
 };
 
@@ -278,7 +282,7 @@ export function TabelaTiposDocumento() {
                     {LABEL_CATEGORIA[tipo.categoria]}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">
-                    {ROTULO_AREA_RESPONSAVEL[tipo.area_responsavel]}
+                    {areaDoTipo(tipo)}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex flex-wrap gap-1">
@@ -355,6 +359,9 @@ export function TabelaTiposDocumento() {
         tipoDocumentoId={tipoHistoricoId}
         nome={
           tiposDocumento.find((tipo) => tipo.id === tipoHistoricoId)?.nome ?? ""
+        }
+        abrangencia={
+          tiposDocumento.find((tipo) => tipo.id === tipoHistoricoId)?.abrangencia ?? "ambas"
         }
         onOpenChange={(open) => !open && setTipoHistoricoId(null)}
       />

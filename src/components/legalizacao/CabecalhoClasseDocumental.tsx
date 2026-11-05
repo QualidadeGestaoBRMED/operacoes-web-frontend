@@ -5,13 +5,8 @@ import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRedeDaLegalizacao } from "@/hooks/useRedeDaLegalizacao";
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
-import { LABEL_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import type { AreaResponsavelDocumento, CategoriaDocumento } from "@/types/legalizacao";
-
-const LABEL_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
-  legalizacao: "Legalização",
-  coordenacao: "Coordenação da Unidade",
-};
+import { LABEL_CATEGORIA, rotuloDaAreaResponsavel } from "@/lib/legalizacaoMatriz";
+import type { CategoriaDocumento } from "@/types/legalizacao";
 
 // Só abre pelo mouse parado em cima: atravessar os cabeçalhos não pisca.
 const ATRASO_PARA_ABRIR_MS = 300;
@@ -121,7 +116,7 @@ export function CabecalhoClasseDocumental({ categoria }: { categoria: CategoriaD
               style={{ maxHeight: ALTURA_MAXIMA_DA_LISTA }}
             >
               {tipos.map((tipo) => {
-                const area = LABEL_AREA_RESPONSAVEL[tipo.area_responsavel];
+                const area = rotuloDaAreaResponsavel(tipo.area_responsavel, [rede]);
                 return (
                   <li key={tipo.id} className="min-w-0" style={{ height: ALTURA_DO_ITEM }}>
                     <p

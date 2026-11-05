@@ -68,6 +68,7 @@ import {
   LABEL_CATEGORIA,
   LABEL_STATUS,
   prazoDocumento,
+  rotuloDaAreaResponsavel,
 } from "@/lib/legalizacaoMatriz";
 import {
   cn,
@@ -78,7 +79,6 @@ import {
 } from "@/lib/utils";
 import type { Usuario } from "@/types";
 import type {
-  AreaResponsavelDocumento,
   ComprovanteProtocolo,
   EvidenciaRegulatoria,
   HistoricoRegulatorio,
@@ -86,13 +86,6 @@ import type {
   StatusDocumento,
   StatusProcessoRenovacao,
 } from "@/types/legalizacao";
-
-// Duplicado de TabelaTiposDocumento.tsx (Administração) de propósito --
-// mesmo padrão já aceito no módulo pra rótulos pequenos e fixos.
-const ROTULO_AREA_RESPONSAVEL: Record<AreaResponsavelDocumento, string> = {
-  legalizacao: "Legalização",
-  coordenacao: "Coordenação da Unidade",
-};
 
 function formatarData(data: string) {
   const [ano, mes, dia] = data.split("-");
@@ -841,11 +834,10 @@ export function DetalheDocumentoModal({
                   </CampoMeta>
                   <CampoMeta rotulo="Área responsável">
                     <Pill>
-                      {
-                        ROTULO_AREA_RESPONSAVEL[
-                          documento.tipo_documento.area_responsavel
-                        ]
-                      }
+                      {rotuloDaAreaResponsavel(
+                        documento.tipo_documento.area_responsavel,
+                        [documento.unidade.rede],
+                      )}
                     </Pill>
                   </CampoMeta>
                   {mostrandoEdicaoResponsaveis ? (

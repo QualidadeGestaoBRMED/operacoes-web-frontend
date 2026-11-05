@@ -4,8 +4,10 @@ import {
   type Ordenacao as OrdenacaoGenerica,
 } from "./ordenacao";
 import { nomeExibicao } from "./utils";
+import type { Rede } from "@/types";
 import type {
   AlertaRegulatorio,
+  AreaResponsavelDocumento,
   CategoriaDocumento,
   DocumentoUnidade,
   ResponsavelDocumento,
@@ -55,6 +57,15 @@ export const LABEL_CATEGORIA: Record<CategoriaDocumento, string> = {
   programas: "Programas obrigatórios",
   residuos: "Resíduos",
 };
+
+/** Nome da área responsável nas redes em que o tipo é visto. Em Operações
+ * Especiais quem faz o papel da coordenação da unidade é o Ponto focal; um
+ * tipo visto nas duas redes leva os dois nomes. */
+export function rotuloDaAreaResponsavel(area: AreaResponsavelDocumento, redes: Rede[]): string {
+  if (area === "legalizacao") return "Legalização";
+  if (!redes.includes("opex")) return "Coordenação da Unidade";
+  return redes.includes("padrao") ? "Coordenação / Ponto focal" : "Ponto focal";
+}
 
 // Ordem visual do mockup (colunas do heatmap no Mapa, STC-379) -- mesma
 // usada no filtro de Categoria da Lista, fonte única pra não ter listas

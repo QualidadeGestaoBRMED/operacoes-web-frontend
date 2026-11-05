@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHistoricoTipoDocumento } from "@/hooks/useTiposDocumento";
-import { LABEL_CATEGORIA } from "@/lib/legalizacaoMatriz";
-import { ROTULO_ABRANGENCIA } from "@/lib/redes";
+import { LABEL_CATEGORIA, rotuloDaAreaResponsavel } from "@/lib/legalizacaoMatriz";
+import { redesDaAbrangencia, ROTULO_ABRANGENCIA } from "@/lib/redes";
 import { formatarDataHora, nomeOuRemovido } from "@/lib/utils";
-import type { HistoricoTipoDocumento } from "@/types/legalizacao";
+import type { Rede } from "@/types";
+import type { AbrangenciaTipoDocumento, HistoricoTipoDocumento } from "@/types/legalizacao";
 
 // Rótulo amigável por campo editado -- mesmo espírito de LABEL_ACAO_HISTORICO
 // em DetalheDocumentoModal.tsx, lista fechada espelhando os campos
@@ -41,19 +42,18 @@ const ROTULO_DA_ABRANGENCIA = ROTULO_ABRANGENCIA as Record<string, string>;
 // choice pra categoria. Traduz só quando reconhece o formato, senão mostra
 // o valor como veio (mesmo raciocínio de valorHistoricoTraduzido em
 // DetalheDocumentoModal.tsx).
-function valorTraduzido(campo: string, valor: string): string {
+function valorTraduzido(campo: string, valor: string, redes: Rede[]): string {
   if (valor === "True") return "Sim";
   if (valor === "False") return "Não";
   if (campo === "categoria" && ROTULO_CATEGORIA[valor]) return ROTULO_CATEGORIA[valor];
   if (campo === "abrangencia" && ROTULO_DA_ABRANGENCIA[valor]) return ROTULO_DA_ABRANGENCIA[valor];
-  if (campo === "area_responsavel") {
-    if (valor === "legalizacao") return "Legalização";
-    if (valor === "coordenacao") return "Coordenação da Unidade";
+  if (campo === "area_responsavel" && (valor === "legalizacao" || valor === "coordenacao")) {
+    return rotuloDaAreaResponsavel(valor, redes);
   }
   return valor || "(vazio)";
 }
 
-function ItemHistoricoTipo({ item }: { item: HistoricoTipoDocumento }) {
+function ItemHistoricoTipo({ item, redes }: { item: HistoricoTipoDocumento; redes: Rede[] }) {
   const rotuloCampo = LABEL_CAMPO[item.campo] ?? item.campo;
   return (
     <div className="relative flex gap-3.5 pb-4 last:pb-0">
@@ -68,14 +68,14 @@ function ItemHistoricoTipo({ item }: { item: HistoricoTipoDocumento }) {
             <>
               {" "}
               de{" "}
-              <strong>&quot;{valorTraduzido(item.campo, item.valor_anterior)}&quot;</strong>
+              <strong>&quot;{valorTraduzido(item.campo, item.valor_anterior, redes)}&quot;</strong>
             </>
           )}
           {item.valor_novo && (
             <>
               {" "}
               para{" "}
-              <strong>&quot;{valorTraduzido(item.campo, item.valor_novo)}&quot;</strong>
+              <strong>&quot;{valorTraduzido(item.campo, item.valor_novo, redes)}&quot;</strong>
             </>
           )}
           .
@@ -91,13 +91,17 @@ function ItemHistoricoTipo({ item }: { item: HistoricoTipoDocumento }) {
 export function HistoricoTipoDocumentoModal({
   tipoDocumentoId,
   nome,
+  abrangencia,
   onOpenChange,
 }: {
   tipoDocumentoId: number | null;
   nome: string;
+  /** Do tipo hoje: dá o nome da área responsável nas edições. */
+  abrangencia: AbrangenciaTipoDocumento;
   onOpenChange: (open: boolean) => void;
 }) {
   const aberto = tipoDocumentoId !== null;
+  const redes = redesDaAbrangencia(abrangencia);
   const { historico, isLoading, mensagemErro } =
     useHistoricoTipoDocumento(tipoDocumentoId);
 
@@ -123,7 +127,7 @@ export function HistoricoTipoDocumentoModal({
             </p>
           ) : (
             historico.map((item) => (
-              <ItemHistoricoTipo key={item.id} item={item} />
+              <ItemHistoricoTipo key={item.id} item={item} redes={redes} />
             ))
           )}
         </div>
