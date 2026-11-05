@@ -1504,3 +1504,16 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Animação** (`public/novidades/`, dados fictícios): percorre o Painel de Absenteísmo de Operações Especiais, o detalhe de um colaborador e as Horas Extras (8,8 s, 251 KB).
 - **Fora:** mudanças sem efeito na tela (STC-958, 977, 908, 932, 933). A Ajuda da exportação entra na STC-990, que também atualiza "Desligados no Painel de Absenteísmo".
 - **Testes:** conteúdo das Novidades (cabeçalho, público, artigos da Ajuda citados): 14 passando.
+
+### 7.59 STC-990 — Ajuda atualizada com as entregas desde 29/10 e tópicos novos
+
+✅ **Concluído.** A Ajuda (`conteudo/ajuda/`) conferida contra o comportamento atual de cada entrega desde 29/10.
+
+- **Desligados no Painel de Absenteísmo:** desligamento automático depois de 15 dias sem jornada no VR (contados até o último dia importado), reativação, histórico, o tratamento "Desligamento" que só registra a medida e os alertas encerrados com o card concluído (STC-987/988).
+- **Card de absenteísmo crítico** (tratar, os cards automáticos, avisos da Gestão de Demandas e notificações): aba OPEX e Ponto focal em Operações Especiais, Admins da rede quando a unidade não tem coordenação (STC-966), tratamento só do período (não desliga e não vale para o mês seguinte) e encerramento pelo desligamento.
+- **Detalhe do colaborador:** parâmetros da rede do colaborador, responsável do alerta e as ações automáticas no histórico.
+- **Painéis de Absenteísmo e de Horas Extras e Parâmetros:** quem vê o quê por rede, seletor de rede para quem administra as duas, parâmetros por rede, Importação só para quem administra a rede própria, Equipes do Admin OPEX e a categoria Operações Especiais no indicador quando ligada a uma unidade (STC-906/907).
+- **Legalização** (Lista, detalhe do documento, Mapa e Biblioteca): quem só é responsável, como um setor de apoio, vê só a Lista com os próprios documentos e só comenta (STC-975/976).
+- **Conhecendo o Atlas:** menu e barra só com os módulos a que a pessoa tem acesso, e entrada no primeiro módulo dela (STC-972/973).
+- **Tópicos novos:** "Como exportar a situação da Legalização" (recortes, colunas, o que cada perfil exporta, com animação de dados fictícios; STC-962/963) e "Gestão RH em Operações Especiais" (quem vê o quê e onde trocar a rede, citando a animação da Novidade). Ícones novos `planilha` e `rede` (`iconesDaAjuda.ts`).
+- **Testes:** conteúdo da Ajuda e das Novidades: 38 passando. Os dois artigos novos conferidos no localhost.
