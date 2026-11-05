@@ -16,7 +16,7 @@ O absenteísmo e as horas extras das equipes de Operações Especiais agora fica
 - **Detalhe do colaborador:** as ocorrências do período, o que conta no absenteísmo e o histórico.
 - **Card de absenteísmo crítico:** no primeiro dia útil do mês, quem fechou o mês anterior na faixa crítica gera um card no quadro de Operações Especiais, para registrar o tratamento.
 
-Os dados vêm do VR todas as noites, como na rede própria.
+Os dados vêm do VR todos os dias, como na rede própria.
 
 ## Quem vê o quê
 
@@ -31,7 +31,7 @@ Operações Especiais tem os seus próprios parâmetros de absenteísmo: faixas,
 ### Melhorias
 
 - **Gestão RH:** quem fica 15 dias sem jornada no VR passa a ser desligado sozinho no Atlas, com os alertas sem tratamento encerrados e registro no histórico. Se voltar a aparecer no VR, volta a ficar ativo.
-- **Gestão RH:** o card de absenteísmo crítico de uma unidade sem coordenação vai para os Admins da rede, com notificação, em vez de ficar sem responsável.
+- **Gestão RH:** também na rede própria, o card de absenteísmo crítico de uma unidade sem coordenação vai para os Admins da rede, com notificação.
 - **Legalização:** o botão **Exportar situação**, no Mapa e na Lista, gera uma planilha com a situação dos documentos e, por unidade, os tipos que ainda não foram cadastrados.
 - **Legalização:** quem só é responsável por documentos, como um setor de apoio, vê a Lista só com os próprios documentos e pode comentar neles.
 - **Legalização:** em Operações Especiais, a área responsável aparece como **Ponto focal**.
