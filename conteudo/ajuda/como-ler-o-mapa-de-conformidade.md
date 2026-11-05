@@ -28,7 +28,7 @@ A Legalização acompanha as clínicas da rede própria e as unidades de Operaç
 
 Uma linha por unidade e uma coluna por categoria: Regularização e licenciamento, Registros técnicos, Capacitação, Infraestrutura e sanitário, Equipamentos, Programas obrigatórios e Resíduos.
 
-Passe o mouse no nome de uma categoria para ver os tipos de documento dela e quem cuida de cada um: a Legalização ou a Coordenação da Unidade.
+Passe o mouse no nome de uma categoria para ver os tipos de documento dela e quem cuida de cada um: a Legalização ou a coordenação da unidade (em Operações Especiais, o Ponto focal).
 
 ## As cores
 

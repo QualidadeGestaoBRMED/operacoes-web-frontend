@@ -22,7 +22,7 @@ Quem pode cadastrar e editar tipos: o Setor de Legalização, em qualquer rede, 
    - **Nome**: como o documento aparece em todas as telas (ex.: Licença Sanitária).
    - **Código**: um código interno, só com letras minúsculas, números e hífen (ex.: licenca-sanitaria). Não aparece para quem usa o catálogo e não pode ser mudado depois.
    - **Categoria**: em qual coluna do Mapa o documento entra (Regularização e licenciamento, Registros técnicos, Capacitação, Infraestrutura e sanitário, Equipamentos, Programas obrigatórios ou Resíduos).
-   - **Área responsável**: quem cuida do documento, a **Legalização** ou a **Coordenação da Unidade**.
+   - **Área responsável**: quem cuida do documento, a **Legalização** ou a **coordenação da unidade** (em Operações Especiais, o **Ponto focal**).
    - **Usado em**: a rede do tipo, **Rede própria**, **Operações Especiais** ou **As duas redes**. Só aparecem as redes em que você pode cadastrar.
    - **Setor de apoio**: opcional. Pessoas desse setor também podem ser escolhidas como responsáveis pelos documentos deste tipo.
 4. Em **Exigências**, marque o que o documento precisa ter: **Exige validade** e **Exige evidência** já vêm marcados; marque **Exige protocolo** se a renovação sempre passa por um órgão.
