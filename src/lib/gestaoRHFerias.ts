@@ -345,7 +345,16 @@ function descricaoHistorico(registro: RegistroHistoricoRH): string {
     case "tratamento_registrado":
       return `Tratamento registrado: ${novo}`;
     case "alerta_absenteismo_encerrado":
-      return "Alerta encerrado: saiu da faixa na nova carga";
+      // regra_gatilho: "saiu_da_faixa" (nova carga) ou "desligamento" (no
+      // Django Admin ou pela Jornada do VR).
+      return registro.regra_gatilho === "desligamento"
+        ? "Alerta encerrado: colaborador desligado"
+        : "Alerta encerrado: saiu da faixa na nova carga";
+    // Pela importação, quando some da Jornada do VR ou volta a ela (STC-987).
+    case "colaborador_desligado_automaticamente":
+      return "Desligado automaticamente";
+    case "colaborador_reativado_automaticamente":
+      return "Reativado automaticamente";
     default:
       return novo || registro.acao;
   }
