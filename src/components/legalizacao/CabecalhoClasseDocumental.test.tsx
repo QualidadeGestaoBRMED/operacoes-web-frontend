@@ -5,9 +5,15 @@ import type { TipoDocumentoRegulatorio } from "@/types/legalizacao";
 import { CabecalhoClasseDocumental } from "./CabecalhoClasseDocumental";
 
 vi.mock("@/hooks/useTiposDocumento", () => ({ useTiposDocumento: vi.fn() }));
-// Rede da Legalização (STC-904): rede própria, sem seletor.
+// Rede da Legalização (STC-904): rede própria, sem seletor; um teste troca
+// para Operações Especiais.
+const redeEscolhida = vi.hoisted(() => ({ rede: "padrao" }));
 vi.mock("@/hooks/useRedeDaLegalizacao", () => ({
-  useRedeDaLegalizacao: () => ({ rede: "padrao", redes: ["padrao"], podeEscolher: false }),
+  useRedeDaLegalizacao: () => ({
+    rede: redeEscolhida.rede,
+    redes: [redeEscolhida.rede],
+    podeEscolher: false,
+  }),
 }));
 
 import { useTiposDocumento } from "@/hooks/useTiposDocumento";
@@ -43,6 +49,7 @@ function catalogo(tipos: TipoDocumentoRegulatorio[], extra: Partial<ReturnType<t
 }
 
 beforeEach(() => {
+  redeEscolhida.rede = "padrao";
   catalogo([
     tipo({ id: 1 }),
     tipo({
@@ -80,6 +87,16 @@ describe("CabecalhoClasseDocumental", () => {
     expect(within(itens[0]).getByTitle("Alvará de Funcionamento")).toBeInTheDocument();
     expect(within(popover).queryByText("Licença antiga")).not.toBeInTheDocument();
     expect(within(popover).queryByText("PGRSS")).not.toBeInTheDocument();
+  });
+
+  it("em Operações Especiais a coordenação aparece como Ponto focal (STC-985)", async () => {
+    redeEscolhida.rede = "opex";
+    const user = userEvent.setup();
+    render(<CabecalhoClasseDocumental categoria="regularizacao" />);
+
+    await user.click(screen.getByRole("button", { name: /ver os tipos de documento/ }));
+    const itens = within(await screen.findByRole("dialog")).getAllByRole("listitem");
+    expect(within(itens[1]).getByTitle("Responsável: Ponto focal")).toBeInTheDocument();
   });
 
   it("classe sem tipo ativo avisa que não há tipo cadastrado", async () => {

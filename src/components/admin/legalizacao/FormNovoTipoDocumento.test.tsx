@@ -425,3 +425,27 @@ describe("FormNovoTipoDocumento -- onde o tipo é usado (STC-904)", () => {
     );
   });
 });
+
+describe("FormNovoTipoDocumento -- nome da área por rede (STC-985)", () => {
+  async function opcoesDaArea(user: ReturnType<typeof userEvent.setup>, usadoEm: string) {
+    await user.click(screen.getByLabelText(/usado em/i));
+    await user.click(await screen.findByRole("option", { name: usadoEm }));
+    await user.click(screen.getByLabelText(/área responsável/i));
+    return (await screen.findAllByRole("option")).map((opcao) => opcao.textContent);
+  }
+
+  it("Operações Especiais chama a coordenação de Ponto focal", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(await opcoesDaArea(user, "Operações Especiais")).toEqual(["Legalização", "Ponto focal"]);
+  });
+
+  it("as duas redes levam os dois nomes", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(await opcoesDaArea(user, "As duas redes")).toEqual([
+      "Legalização",
+      "Coordenação / Ponto focal",
+    ]);
+  });
+});

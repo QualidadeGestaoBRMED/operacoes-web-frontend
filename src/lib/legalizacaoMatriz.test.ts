@@ -5,6 +5,7 @@ import {
   documentoBateNaCategoria,
   ordenarDocumentos,
   prazoDocumento,
+  rotuloDaAreaResponsavel,
 } from "./legalizacaoMatriz";
 import type {
   AlertaRegulatorio,
@@ -388,5 +389,19 @@ describe("agruparAlertasPorDocumento (STC-443)", () => {
     ]);
 
     expect(grupos[0].dataMaisAntiga).toBe("2026-09-10T08:00:00Z");
+  });
+});
+
+describe("rotuloDaAreaResponsavel (STC-985)", () => {
+  it("Legalização não muda com a rede", () => {
+    expect(rotuloDaAreaResponsavel("legalizacao", ["opex"])).toBe("Legalização");
+  });
+
+  it("a coordenação leva o nome de cada rede", () => {
+    expect(rotuloDaAreaResponsavel("coordenacao", ["padrao"])).toBe("Coordenação da Unidade");
+    expect(rotuloDaAreaResponsavel("coordenacao", ["opex"])).toBe("Ponto focal");
+    expect(rotuloDaAreaResponsavel("coordenacao", ["padrao", "opex"])).toBe(
+      "Coordenação / Ponto focal",
+    );
   });
 });
