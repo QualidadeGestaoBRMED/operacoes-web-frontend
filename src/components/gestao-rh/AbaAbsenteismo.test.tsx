@@ -386,6 +386,17 @@ describe("Modal do colaborador · aba Absenteísmo", () => {
     expect(alerta.queryByRole("button", { name: "Registrar tratamento" })).not.toBeInTheDocument();
   });
 
+  it("alerta encerrado pelo desligamento diz que o colaborador foi desligado (STC-988)", async () => {
+    vi.mocked(buscarColaboradorRH).mockResolvedValue({ ...COLABORADOR, ativo: false });
+    vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
+      aba({ alertas: [{ ...aba().alertas[0], demanda_aberta: false, pode_registrar_tratamento: false }] }),
+    );
+    renderModal();
+    const alerta = within(await screen.findByRole("region", { name: "Alerta de setembro/2026" }));
+    expect(alerta.getByText(/Encerrado: colaborador desligado\. Não há tratamento a registrar\./)).toBeInTheDocument();
+    expect(alerta.queryByText(/saiu da faixa crítica/)).not.toBeInTheDocument();
+  });
+
   it("alerta provisório e responsável das equipes sem unidade", async () => {
     vi.mocked(buscarAbsenteismoColaborador).mockResolvedValue(
       aba({ alertas: [{ ...aba().alertas[0], provisorio: true, responsavel: "Admins" }] }),

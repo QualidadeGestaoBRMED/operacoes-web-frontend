@@ -85,19 +85,22 @@ function Indicador({
 interface CardAlertaProps {
   alerta: AlertaAbsenteismo;
   podeAgir: boolean;
+  /** Colaborador desligado: o alerta sem tratamento foi encerrado pelo desligamento. */
+  desligado: boolean;
   emFoco: boolean;
   onRegistrar: (alertaId: number, acao: AcaoTratamento, justificativa: string) => Promise<unknown>;
   onAbrirConversa?: (conversa: ConversaAberta, origem: HTMLElement) => void;
 }
 
 const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
-  { alerta, podeAgir, emFoco, onRegistrar, onAbrirConversa },
+  { alerta, podeAgir, desligado, emFoco, onRegistrar, onAbrirConversa },
   ref,
 ) {
   const [registrando, setRegistrando] = useState(false);
   const tratamento = alerta.tratamento;
-  // Sem tratamento e sem como registrar: uma importação seguinte tirou o
-  // colaborador da faixa crítica e o alerta foi encerrado sozinho.
+  // Sem tratamento e sem como registrar: encerrado sozinho, porque uma
+  // importação seguinte tirou o colaborador da faixa crítica ou porque ele
+  // foi desligado (no Django Admin ou pela Jornada do VR).
   const encerrado = !tratamento && !alerta.pode_registrar_tratamento;
   const gerado = formatarDataISO(alerta.gerado_em);
   const mostrarRegistrar =
@@ -154,8 +157,10 @@ const CardAlerta = forwardRef<HTMLElement, CardAlertaProps>(function CardAlerta(
 
       {encerrado ? (
         <p className="rounded-md border border-border bg-muted/40 p-3 text-[12.5px] text-foreground">
-          Encerrado: saiu da faixa crítica depois de uma nova importação. Não há tratamento a
-          registrar.
+          {desligado
+            ? "Encerrado: colaborador desligado."
+            : "Encerrado: saiu da faixa crítica depois de uma nova importação."}{" "}
+          Não há tratamento a registrar.
         </p>
       ) : tratamento ? (
         <div className="rounded-md border border-border bg-muted/40 p-3 text-[12.5px]">
@@ -428,6 +433,7 @@ export function AbaAbsenteismo({
           }}
           alerta={alerta}
           podeAgir={ativo}
+          desligado={!ativo}
           emFoco={alerta.id === alertaEmFoco?.id}
           onRegistrar={(alertaId, acao, justificativa) =>
             registrarTratamento({ alerta: alertaId, acao, justificativa })

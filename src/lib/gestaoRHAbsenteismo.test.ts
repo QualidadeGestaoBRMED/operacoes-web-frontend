@@ -275,8 +275,21 @@ describe("histórico de absenteísmo", () => {
     ["alerta_absenteismo_gerado", "Crítica", "Alerta: faixa crítica"],
     ["tratamento_registrado", "Feedback", "Tratamento registrado: Feedback"],
     ["alerta_absenteismo_encerrado", "", "Alerta encerrado: saiu da faixa na nova carga"],
+    ["colaborador_desligado_automaticamente", "Desligado", "Desligado automaticamente"],
+    ["colaborador_reativado_automaticamente", "Ativo", "Reativado automaticamente"],
   ])("%s", (acao, valor_novo, texto) => {
     expect(textoHistorico({ ...registro, acao, valor_novo })).toBe(texto);
+  });
+
+  it("alerta encerrado pelo desligamento diz que o colaborador foi desligado", () => {
+    expect(
+      textoHistorico({
+        ...registro,
+        acao: "alerta_absenteismo_encerrado",
+        valor_novo: "",
+        regra_gatilho: "desligamento",
+      }),
+    ).toBe("Alerta encerrado: colaborador desligado");
   });
 });
 
