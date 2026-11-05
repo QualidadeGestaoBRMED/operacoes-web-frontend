@@ -12,7 +12,7 @@ O VR não informa a demissão: quem é desligado simplesmente para de aparecer n
 
 - O colaborador passa a ter a etiqueta **Desligado** e sai das listas dos Painéis.
 - O **Histórico** do colaborador registra "Desligado automaticamente", com a data desde quando ele não tem jornada.
-- Se ele voltar a aparecer no VR, por exemplo numa recontratação, volta a ficar ativo sozinho, com "Reativado automaticamente" no histórico.
+- Se ele voltar a aparecer no VR, por exemplo numa recontratação, volta a ficar ativo sozinho, com "Reativado automaticamente" no histórico. Isso vale para quem o Atlas desligou; um desligamento feito à mão pelo suporte não é desfeito.
 
 Férias e afastamentos vêm na jornada do VR e não contam como dias sem jornada.
 

@@ -34,7 +34,7 @@ Ao registrar, o alerta é encerrado e o card é concluído no quadro. O alerta p
 O tratamento vale só para aquele período:
 
 - Registrar **Desligamento** não desliga o colaborador no Atlas. O cadastro é desligado sozinho quando ele sai do VR (veja "Desligados no Painel de Absenteísmo").
-- Se o colaborador fechar o mês seguinte de novo na faixa crítica, um novo card é criado, para um novo tratamento.
+- Se o colaborador voltar à faixa crítica no próximo período avaliado, um novo card é criado, para um novo tratamento.
 
 ## Conversa e anexos
 
@@ -47,5 +47,5 @@ No alerta, **Conversa** e **Anexos** abrem a conversa com o RH e os arquivos do 
 
 ## Os avisos
 
-- **No sino**: "Nova demanda de RH", quando o card é criado, para os responsáveis; "Demanda de RH sob sua coordenação", para quem passa a ser responsável depois; e os comentários novos na conversa.
+- **No sino**: "Nova demanda de RH", quando o card é criado, para os responsáveis; "Demanda de RH sob sua coordenação" (ou "sob sua responsabilidade", para os Admins), para quem passa a ser responsável depois; e os comentários novos na conversa.
 - **Por e-mail**: todo dia, por volta das 3h15, cada responsável com card em aberto recebe um resumo, com os cards novos primeiro. O e-mail chega até o card ser concluído. Por ser confidencial, ele traz o nome do colaborador abreviado e não mostra o percentual: o link leva ao detalhe no Atlas.

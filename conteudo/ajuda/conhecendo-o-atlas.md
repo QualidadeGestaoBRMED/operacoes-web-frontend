@@ -15,7 +15,7 @@ Toda tela do Atlas tem o **menu lateral**, à esquerda, e o **topo**, com o nome
 
 ## O menu lateral
 
-- **Menu principal**: só os módulos a que você tem acesso. Um módulo que você não usa não aparece, e um link salvo para ele leva ao primeiro que você usa. Módulos com mais de uma tela, como **Legalização** e **Gestão RH**, abrem um submenu ao clicar na seta.
+- **Menu principal**: os módulos a que você tem acesso, mais os que ainda vão chegar, marcados como **em breve**. Um link salvo para um módulo sem acesso leva ao primeiro que você pode abrir. Módulos com mais de uma tela, como **Legalização** e **Gestão RH**, abrem um submenu ao clicar na seta.
 - **em breve**: módulos que ainda vão chegar ao Atlas. Eles ainda não abrem.
 - **Novidades** e **Ajuda**: no pé do menu, para todos.
 - **Administração** e **Admin Q&G**: só para quem administra o Atlas.

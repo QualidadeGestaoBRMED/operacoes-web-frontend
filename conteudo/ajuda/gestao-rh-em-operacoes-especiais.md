@@ -2,7 +2,7 @@
 titulo: Gestão RH em Operações Especiais
 resumo: Quem vê o quê nas equipes de Operações Especiais e onde trocar a rede.
 modulo: gestao-rh
-telas: [/modulos/gestao-rh, /modulos/gestao-rh/horas-extras]
+telas: [/modulos/gestao-rh]
 ordem: 7
 icone: rede
 ---
