@@ -47,5 +47,5 @@ Veja "Como instalar o Atlas no celular".
 
 Nos cards que o Atlas cria sozinho (veja "Os cards que o Atlas cria sozinho"):
 
-- **Absenteísmo crítico**: a coordenação da unidade recebe **Nova demanda de RH** quando o card é criado, também no celular. Quem pediu é o próprio Atlas, então não há aviso de mudança de status. Os comentários novos avisam também quem administra a rede e já comentou. A notificação abre o colaborador no Gestão RH.
+- **Absenteísmo crítico**: a coordenação da unidade (em Operações Especiais, o Ponto focal; sem coordenação, os Admins da rede) recebe **Nova demanda de RH** quando o card é criado, também no celular. Quem pediu é o próprio Atlas, então não há aviso de mudança de status. Os comentários novos avisam também quem administra a rede e já comentou. A notificação abre o colaborador no Gestão RH.
 - **Renovação de documento**: quem administra a rede recebe **Nova demanda criada** quando o card aparece. Quem iniciou a renovação é quem pediu, e recebe **Status mudou** quando outra pessoa faz a renovação andar (por exemplo, conclui).

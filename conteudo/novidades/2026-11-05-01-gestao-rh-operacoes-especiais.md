@@ -22,7 +22,7 @@ Os dados vêm do VR todos os dias, como na rede própria.
 
 - **Ponto focal:** os colaboradores das unidades dele, e recebe os cards de absenteísmo crítico delas.
 - **Admin Operações Especiais:** todas as equipes de Operações Especiais. Recebe os cards das unidades sem Ponto focal.
-- **Quem administra as duas redes:** escolhe qual acompanhar no seletor **Rede**, ao lado do período.
+- **Quem administra as duas redes:** escolhe qual acompanhar no seletor de rede, ao lado do período.
 
 ## Parâmetros da rede
 

@@ -12,11 +12,17 @@ icone: parametros
 1. No menu, abra **Gestão RH** e, dentro dele, **Parâmetros de Gestão RH**. Também dá para chegar por **Administração**, escolhendo **Parâmetros de Gestão RH** no alto da tela.
 2. A tela abre na aba **Absenteísmo**. As outras são **Importação** e **Equipes**.
 
-Só quem administra vê esta tela.
+Só quem administra vê esta tela, e cada um vê o que é da sua rede:
+
+- **Absenteísmo**: cada rede tem os seus parâmetros, ajustados por quem a administra. Quem administra as duas escolhe qual ajustar no seletor de rede, no alto da aba.
+- **Importação**: só quem administra a rede própria. O robô traz as duas redes na mesma importação.
+- **Equipes**: quem administra Operações Especiais vê só as equipes dela e não muda a categoria.
 
 ![Passagem pelas abas Absenteísmo, Importação e Equipes dos Parâmetros de Gestão RH](/ajuda/parametros-de-gestao-rh-animacao.webp)
 
 ## Absenteísmo
+
+Tudo o que está nesta aba vale para a rede escolhida: os Painéis, os alertas e os cards de uma rede usam só os parâmetros dela. Operações Especiais começou com uma cópia dos parâmetros da rede própria.
 
 ![Aba Absenteísmo com a versão vigente, os limites, as faixas, os tipos que contam e a avaliação automática](/ajuda/parametros-de-gestao-rh-absenteismo.webp)
 
@@ -49,7 +55,7 @@ Para desfazer o que mudou antes de salvar, clique em **Cancelar**.
 Cada equipe do VR precisa de uma **Categoria**, que define se os colaboradores dela entram no absenteísmo:
 
 - **Unidade**: entra no indicador e leva uma unidade da rede própria, em **Unidade do Atlas**.
-- **Operações Especiais**: pode ser ligada a uma unidade de Operações Especiais. Não entra nos Painéis da rede própria.
+- **Operações Especiais**: ligada a uma unidade de Operações Especiais, entra nos Painéis de Operações Especiais, e os cards vão para o Ponto focal. Sem unidade, fica fora do indicador.
 - **Fora do indicador**: não entra no absenteísmo.
 
 Equipe nova chega **Sem categoria** na importação, e os colaboradores dela ficam fora do indicador até alguém classificá-la. O aviso no alto diz quantas faltam. Use os filtros (**Sem categoria**, **Unidade** e os outros) e **Buscar equipe** para encontrá-las.

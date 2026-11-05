@@ -12,7 +12,7 @@ icone: grade
 1. No menu, abra **Legalização** e, dentro dela, **Matriz de Conformidade**.
 2. No alto da tela, clique em **Mapa**, ao lado de **Lista**.
 
-O Mapa é só para o computador: no celular, a Legalização abre direto na lista. Quem coordena unidade vê só as suas.
+O Mapa é só para o computador: no celular, a Legalização abre direto na lista. Quem coordena unidade vê só as suas. Quem só cuida de alguns documentos, como um setor de apoio, não vê o Mapa: a Legalização abre na Lista, só com os documentos dele.
 
 ## Rede própria e Operações Especiais
 
@@ -20,7 +20,7 @@ A Legalização acompanha as clínicas da rede própria e as unidades de Operaç
 
 - a coordenação vê as próprias unidades: o Coordenador da Unidade, na rede própria; o Ponto focal, em Operações Especiais;
 - quem administra uma rede vê todas as unidades dela;
-- quem acompanha as duas (o Setor de Legalização, o Admin Q&G e a Gestão de Operações) escolhe a rede no seletor **Rede**, no alto da tela. A escolha vale para o Mapa, a Lista, a Biblioteca e o Catálogo.
+- quem acompanha as duas (o Setor de Legalização, o Admin Q&G e a Gestão de Operações) escolhe a rede no seletor de rede, no alto da tela. A escolha vale para o Mapa, a Lista, a Biblioteca e o Catálogo.
 
 ## O que o Mapa mostra
 

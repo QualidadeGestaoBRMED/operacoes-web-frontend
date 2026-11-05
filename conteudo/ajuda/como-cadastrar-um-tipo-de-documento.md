@@ -10,11 +10,11 @@ icone: novo-tipo
 
 O tipo de documento é o modelo: o nome, a categoria e o que ele exige (validade, protocolo, evidência). Cada rede tem o seu catálogo: o da rede própria e o de Operações Especiais. Um tipo das duas redes aparece nos dois. Depois de cadastrar o tipo, cada unidade recebe o documento dela em **Cadastrar documento** (veja "Como cadastrar um documento"). Cadastrar o tipo não cria documento em nenhuma unidade.
 
-Quem pode cadastrar e editar tipos: o Setor de Legalização, em qualquer rede, e quem administra a rede, nos tipos dela. Quem acompanha as duas redes escolhe o catálogo no seletor **Rede**, no alto da tela.
+Quem pode cadastrar e editar tipos: o Setor de Legalização, em qualquer rede, e quem administra a rede, nos tipos dela. Quem acompanha as duas redes escolhe o catálogo no seletor de rede, no alto da tela.
 
 ## Cadastrar
 
-![Clique em Novo tipo de documento, preenchimento do nome, do código, da categoria e da área responsável, e o tipo aparecendo no catálogo](/ajuda/como-cadastrar-um-tipo-de-documento.webp)
+![Clique em Novo tipo de documento, preenchimento do nome, do código, da categoria, da área responsável e do Usado em, e o tipo aparecendo no catálogo com As duas redes](/ajuda/como-cadastrar-um-tipo-de-documento.webp)
 
 1. No menu, abra **Legalização** e, dentro dela, **Catálogo de Legalização**.
 2. Clique em **Novo tipo de documento**, acima da tabela **Tipos de documento**.
