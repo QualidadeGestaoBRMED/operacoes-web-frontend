@@ -1492,3 +1492,15 @@ Os quatro usam o avatar compartilhado `AvatarUsuario` (STC-746): foto quando exi
 - **Alerta encerrado pelo desligamento:** o histórico dizia "saiu da faixa na nova carga" em todo encerramento, inclusive no desligamento (manual, desde a STC-859, e agora automático). Pelo `regra_gatilho` "desligamento", passa a "Alerta encerrado: colaborador desligado".
 - **Análise de falhas:** o card do alerta encerrado sem tratamento (`AbaAbsenteismo.tsx`) também dizia sempre "saiu da faixa crítica depois de uma nova importação". Com o colaborador desligado, passa a "Encerrado: colaborador desligado." (prop `desligado`, do `ativo` do colaborador). Limite aceito: reativado depois, o card volta ao texto da importação; o histórico continua com o motivo certo. Conferido sem problema: nenhuma outra tela decide pelo nome da ação; a etiqueta "Desligado" já existente vale para o automático; na aba Férias as duas ações aparecem sem período. A Ajuda "Desligados no Painel de Absenteísmo" fica para a STC-990.
 - **Testes:** nomes das ações e do encerramento pelo desligamento (`gestaoRHAbsenteismo.test.ts`), histórico com as três entradas, justificativa e "automático" (`HistoricoRH.test.tsx`, novo) e card do alerta encerrado com o colaborador desligado (`AbaAbsenteismo.test.tsx`).
+
+### 7.58 STC-989 — Novidades do Gestão RH em Operações Especiais e das melhorias desde 29/10
+
+✅ **Concluído.** A última Novidade era a da Legalização para Operações Especiais (29/10). As entregas desde então foram levantadas pelos merges dos dois repositórios e reunidas numa Novidade só, para não tirar o foco do lançamento (`conteudo/novidades/2026-11-05-01-gestao-rh-operacoes-especiais.md`):
+
+- **Gestão RH para as unidades de Operações Especiais** (STC-905/906/907, em destaque): Painel de Absenteísmo, Horas Extras, detalhe do colaborador e card de absenteísmo crítico; quem vê o quê (Ponto focal, Admin OPEX, seletor Rede de quem administra as duas); parâmetros próprios da rede. Férias fica de fora (o painel continua desligado).
+- **Melhorias:** desligamento automático pela jornada (STC-987/988), card sem coordenação indo para os Admins (STC-966), Exportar situação da Legalização (STC-962/963), responsável do setor de apoio só com os próprios documentos (STC-975/976), "Ponto focal" como área responsável (STC-984/985), menu só com os módulos da pessoa (STC-972/973) e quadro numa busca só (STC-968/969).
+- **Correções:** texto do alerta encerrado pelo desligamento (STC-988), tela sumindo no celular (STC-959) e mensagem que piscava ao fechar (STC-960).
+- **Público:** sem `modulos` e sem `redes`, porque as melhorias e correções valem para todos; o texto do lançamento já diz que é de Operações Especiais.
+- **Animação** (`public/novidades/`, dados fictícios): percorre o Painel de Absenteísmo de Operações Especiais, o detalhe de um colaborador e as Horas Extras (8,8 s, 251 KB).
+- **Fora:** mudanças sem efeito na tela (STC-958, 977, 908, 932, 933). A Ajuda da exportação entra na STC-990, que também atualiza "Desligados no Painel de Absenteísmo".
+- **Testes:** conteúdo das Novidades (cabeçalho, público, artigos da Ajuda citados): 14 passando.
